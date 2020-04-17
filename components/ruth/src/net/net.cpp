@@ -101,18 +101,18 @@ void Net::checkError(const char *func, esp_err_t err) {
 
   case 0x1100FF:
     ESP_LOGE(tagEngine(), "failed to acquire IP address");
-    mcrNVS::commitMsg(tagEngine(), "IP address aquisition failure");
+    NVS::commitMsg(tagEngine(), "IP address aquisition failure");
     break;
 
   case 0x1100FE:
     ESP_LOGE(tagEngine(), "SNTP failed");
-    mcrNVS::commitMsg(tagEngine(), "SNTP failure");
+    NVS::commitMsg(tagEngine(), "SNTP failure");
     break;
 
   default:
     snprintf(msg, max_msg_len, "[%s] %s", esp_err_to_name(err), func);
     ESP_LOGE(tagEngine(), "%s", msg);
-    mcrNVS::commitMsg(tagEngine(), msg);
+    NVS::commitMsg(tagEngine(), msg);
     break;
   }
 
@@ -123,8 +123,8 @@ void Net::checkError(const char *func, esp_err_t err) {
   // write to a nullptr to trigger core dump
   // ptr[0] = 0;
 
-  mcrNVS::commitMsg(tagEngine(), msg);
-  mcrRestart::instance()->restart(msg, __PRETTY_FUNCTION__, 3000);
+  NVS::commitMsg(tagEngine(), msg);
+  Restart::instance()->restart(msg, __PRETTY_FUNCTION__, 3000);
 }
 
 void Net::connected(void *event_data) {

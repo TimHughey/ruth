@@ -30,16 +30,16 @@
 
 namespace ruth {
 
-typedef class mcrRestart mcrRestart_t;
+typedef class Restart Restart_t;
 #define DEFAULT_WAIT_MS 0
 
-class mcrRestart {
+class Restart {
 private:
 public:
-  mcrRestart();
-  static mcrRestart_t *instance();
+  Restart();
+  static Restart_t *instance();
 
-  ~mcrRestart();
+  ~Restart();
 
   static void now();
   void restart(const char *text = nullptr, const char *func = nullptr,

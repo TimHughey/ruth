@@ -28,23 +28,23 @@
 #include "protocols/mqtt.hpp"
 
 namespace ruth {
-static mcrRestart_t *__singleton__ = nullptr;
+static Restart_t *__singleton__ = nullptr;
 
-mcrRestart::mcrRestart() {}
+Restart::Restart() {}
 
 // STATIC
-mcrRestart_t *mcrRestart::instance() {
+Restart_t *Restart::instance() {
   if (__singleton__) {
     return __singleton__;
 
   } else {
 
-    __singleton__ = new mcrRestart();
+    __singleton__ = new Restart();
     return __singleton__;
   }
 }
 
-mcrRestart::~mcrRestart() {
+Restart::~Restart() {
   if (__singleton__) {
     delete __singleton__;
     __singleton__ = nullptr;
@@ -52,12 +52,12 @@ mcrRestart::~mcrRestart() {
 }
 
 // STATIC
-void mcrRestart::now() { instance()->restart(nullptr, nullptr, 0); }
+void Restart::now() { instance()->restart(nullptr, nullptr, 0); }
 
-void mcrRestart::restart(const char *text, const char *func,
+void Restart::restart(const char *text, const char *func,
                          uint32_t reboot_delay_ms) {
 
-  ESP_LOGW("mcrRestart", "%s requested restart [%s]",
+  ESP_LOGW("Restart", "%s requested restart [%s]",
            (func == nullptr) ? "<UNKNOWN FUNCTION>" : func,
            (text == nullptr) ? "UNSPECIFIED REASON" : text);
 
@@ -75,9 +75,9 @@ void mcrRestart::restart(const char *text, const char *func,
 
   Net::deinit();
 
-  ESP_LOGW("mcrRestart", "spooling ftl for jump in %dms...", reboot_delay_ms);
+  ESP_LOGW("Restart", "spooling ftl for jump in %dms...", reboot_delay_ms);
   vTaskDelay(pdMS_TO_TICKS(reboot_delay_ms));
-  ESP_LOGW("mcrRestart", "JUMP!");
+  ESP_LOGW("Restart", "JUMP!");
 
   esp_restart();
 }

@@ -869,8 +869,8 @@ bool I2c::selectBus(uint32_t bus) {
     if (_bus_select_errors > 50) {
       const char *msg = "BUS SELECT ERRORS EXCEEDED";
       ESP_LOGE(tagEngine(), "bus select errors exceeded, JUMP!");
-      mcrNVS::commitMsg(tagEngine(), msg);
-      mcrRestart::instance()->restart(msg, __PRETTY_FUNCTION__, 0);
+      NVS::commitMsg(tagEngine(), msg);
+      Restart::instance()->restart(msg, __PRETTY_FUNCTION__, 0);
     }
   }
 

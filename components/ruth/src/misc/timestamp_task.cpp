@@ -104,7 +104,7 @@ void TimestampTask::core(void *data) {
     }
 
     if (max_alloc < (5 * 1024)) {
-      mcrRestart::instance()->restart("max allocate < 5k (heap fragmentation)",
+      Restart::instance()->restart("max allocate < 5k (heap fragmentation)",
                                       __PRETTY_FUNCTION__, 0);
     }
 

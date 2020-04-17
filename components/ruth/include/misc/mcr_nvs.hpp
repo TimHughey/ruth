@@ -37,11 +37,11 @@ namespace ruth {
 typedef struct {
   time_t time = 0;
   char msg[MCR_NVS_MSG_MAX_LEN] = {};
-} mcrNVSMessage_t;
+} NVSMessage_t;
 
-typedef class mcrNVS mcrNVS_t;
+typedef class NVS NVS_t;
 
-class mcrNVS {
+class NVS {
 private:
   // to minimize the impact on the stack of individual tasks we
   // allocate from the heap and use member variables.
@@ -52,7 +52,7 @@ private:
   esp_err_t _esp_rc = ESP_OK;
   esp_err_t _nvs_open_rc = ESP_FAIL;
 
-  mcrNVSMessage_t *_blob = nullptr;
+  NVSMessage_t *_blob = nullptr;
   struct tm _timeinfo = {};
   char *_time_str = nullptr;
   size_t _time_str_max_len = 25;
@@ -64,11 +64,11 @@ private:
 
   bool _committed_msgs_processed = false;
 
-  mcrNVS();
-  ~mcrNVS();
+  NVS();
+  ~NVS();
 
   bool notOpen();
-  void publishMsg(const char *key, mcrNVSMessage_t *msg);
+  void publishMsg(const char *key, NVSMessage_t *msg);
   void zeroBuffers();
 
   // we use the double underscore prefix that implement publicly
@@ -77,8 +77,8 @@ private:
   esp_err_t __processCommittedMsgs();
 
 public:
-  static mcrNVS_t *init();
-  static mcrNVS *instance();
+  static NVS_t *init();
+  static NVS *instance();
 
   static esp_err_t commitMsg(const char *key, const char *msg);
   static esp_err_t processCommittedMsgs();

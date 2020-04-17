@@ -48,7 +48,7 @@ void tzset(void);
 extern const uint8_t ca_start[] asm("_binary_ca_pem_start");
 extern const uint8_t ca_end[] asm("_binary_ca_pem_end");
 
-static const char *TAG = "mcrESP";
+static const char *TAG = "Ruth";
 
 static Net *network = nullptr;
 static TimestampTask *timestampTask = nullptr;
@@ -72,15 +72,15 @@ void app_main() {
   setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
   tzset();
 
-  mcrNVS::init();
+  NVS::init();
   statusLED::instance()->brighter();
 
   // must create network first!
   network = Net::instance(); // singleton
   timestampTask = new TimestampTask();
-  mqttTask = MQTT::instance();        // singleton
-  dsEngineTask = DallasSemi::instance();      // singleton
-  i2cEngineTask = I2c::instance();    // singleton
+  mqttTask = MQTT::instance();           // singleton
+  dsEngineTask = DallasSemi::instance(); // singleton
+  i2cEngineTask = I2c::instance();       // singleton
   pwmEngineTask = pwmEngine::instance(); // singleton
   statusLED::instance()->brighter();
 
@@ -107,7 +107,7 @@ void app_main() {
     //    set within in 90 seconds then there's some problem (e.g. mcp or mqtt
     //    are done) so reboot
     if (Net::waitForName(90000) == false) {
-      mcrRestart::now();
+      Restart::now();
     }
 
     // safety net 2:
@@ -116,7 +116,7 @@ void app_main() {
     //    after startup (since we wouldn't be here if transport never
     //    became available)
     if (Net::waitForReady(60000) == false) {
-      mcrRestart::now();
+      Restart::now();
     }
 
     // safety net 3:
@@ -136,8 +136,8 @@ void app_main() {
       ESP_LOGI(TAG, "boot complete [stack high water: %d, num of tasks: %d]",
                stack_high_water, num_tasks);
 
-      mcrNVS::processCommittedMsgs();
-      mcrNVS::commitMsg("BOOT", "LAST SUCCESSUL BOOT");
+      NVS::processCommittedMsgs();
+      NVS::commitMsg("BOOT", "LAST SUCCESSUL BOOT");
 
       boot_complete = true;
     }

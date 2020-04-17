@@ -65,7 +65,7 @@ void CmdOTA::doUpdate() {
     ESP_LOGE(TAG, "%s", rlog->text());
   }
 
-  mcrRestart::instance()->restart(rlog->text(), __PRETTY_FUNCTION__,
+  Restart::instance()->restart(rlog->text(), __PRETTY_FUNCTION__,
                                   reboot_delay_ms());
 }
 
@@ -113,7 +113,7 @@ bool CmdOTA::process() {
     break;
 
   case CmdType::restart:
-    mcrRestart::instance()->restart("restart requested", __PRETTY_FUNCTION__,
+    Restart::instance()->restart("restart requested", __PRETTY_FUNCTION__,
                                     reboot_delay_ms());
     break;
 

@@ -166,11 +166,11 @@ void MQTT::incomingMsg(struct mg_str *in_topic, struct mg_str *in_payload) {
 
     // we only commit the failure to NVS and directly call esp_restart()
     // since MQTT is broken
-    mcrNVS::commitMsg(tagEngine(), msg);
+    NVS::commitMsg(tagEngine(), msg);
     free(msg);
 
-    // pass a nullptr for the message so mcrRestart doesn't attempt to publish
-    mcrRestart::instance()->restart(nullptr, __PRETTY_FUNCTION__);
+    // pass a nullptr for the message so Restart doesn't attempt to publish
+    Restart::instance()->restart(nullptr, __PRETTY_FUNCTION__);
   }
 }
 
@@ -252,10 +252,10 @@ void MQTT::publish(string_t *json) {
 
     // we only commit the failure to NVS and directly call esp_restart()
     // since MQTT is broken
-    mcrNVS::commitMsg(tagEngine(), msg.get());
+    NVS::commitMsg(tagEngine(), msg.get());
 
-    // pass a nullptr for the message so mcrRestart doesn't attempt to publish
-    mcrRestart::instance()->restart(nullptr, __PRETTY_FUNCTION__);
+    // pass a nullptr for the message so Restart doesn't attempt to publish
+    Restart::instance()->restart(nullptr, __PRETTY_FUNCTION__);
   }
 }
 

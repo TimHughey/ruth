@@ -22,10 +22,10 @@
 #include "protocols/mqtt.hpp"
 
 namespace ruth {
-static mcrNVS_t *__singleton__ = nullptr;
-static const char TAG[] = "mcrNVS";
+static NVS_t *__singleton__ = nullptr;
+static const char TAG[] = "NVS";
 
-mcrNVS::mcrNVS() {
+NVS::NVS() {
   esp_err_t _esp_rc = ESP_OK;
   _esp_rc = nvs_flash_init();
 
@@ -66,7 +66,7 @@ mcrNVS::mcrNVS() {
   }
 
   if (_blob == nullptr) {
-    _blob = (mcrNVSMessage_t *)malloc(sizeof(mcrNVSMessage_t));
+    _blob = (NVSMessage_t *)malloc(sizeof(NVSMessage_t));
   }
 
   if (_time_str == nullptr) {
@@ -77,17 +77,17 @@ mcrNVS::mcrNVS() {
 }
 
 // STATIC
-mcrNVS_t *mcrNVS::init() { return mcrNVS::instance(); }
+NVS_t *NVS::init() { return NVS::instance(); }
 
 // STATIC
-mcrNVS_t *mcrNVS::instance() {
+NVS_t *NVS::instance() {
   if (__singleton__ == nullptr) {
-    __singleton__ = new mcrNVS();
+    __singleton__ = new NVS();
   }
   return __singleton__;
 }
 
-mcrNVS::~mcrNVS() {
+NVS::~NVS() {
   if (__singleton__) {
     nvs_close(__singleton__->_handle);
 
@@ -105,12 +105,12 @@ mcrNVS::~mcrNVS() {
 }
 
 // STATIC
-esp_err_t mcrNVS::commitMsg(const char *key, const char *msg) {
+esp_err_t NVS::commitMsg(const char *key, const char *msg) {
   return instance()->__commitMsg(key, msg);
 }
 
 // PRIVATE
-esp_err_t mcrNVS::__commitMsg(const char *key, const char *msg) {
+esp_err_t NVS::__commitMsg(const char *key, const char *msg) {
   esp_log_level_set(TAG, ESP_LOG_INFO);
 
   zeroBuffers();
@@ -122,7 +122,7 @@ esp_err_t mcrNVS::__commitMsg(const char *key, const char *msg) {
   _blob->time = time(nullptr);
   strncpy(_blob->msg, msg, MCR_NVS_MSG_MAX_LEN);
 
-  _esp_rc = nvs_set_blob(_handle, key, _blob, sizeof(mcrNVSMessage_t));
+  _esp_rc = nvs_set_blob(_handle, key, _blob, sizeof(NVSMessage_t));
 
   if (_esp_rc == ESP_OK) {
     _esp_rc = nvs_commit(_handle);
@@ -132,7 +132,7 @@ esp_err_t mcrNVS::__commitMsg(const char *key, const char *msg) {
 }
 
 // STATIC
-esp_err_t mcrNVS::processCommittedMsgs() {
+esp_err_t NVS::processCommittedMsgs() {
   if (instance()->_committed_msgs_processed == false) {
     instance()->_committed_msgs_processed = true;
     return instance()->__processCommittedMsgs();
@@ -141,7 +141,7 @@ esp_err_t mcrNVS::processCommittedMsgs() {
   }
 }
 
-esp_err_t mcrNVS::__processCommittedMsgs() {
+esp_err_t NVS::__processCommittedMsgs() {
   bool need_commit = false;
 
   zeroBuffers();
@@ -151,7 +151,7 @@ esp_err_t mcrNVS::__processCommittedMsgs() {
   }
 
   for (uint8_t i = 0; strncmp(_possible_keys[i], "END_KEYS", 15) != 0; i++) {
-    _msg_len = sizeof(mcrNVSMessage_t);
+    _msg_len = sizeof(NVSMessage_t);
 
     // ESP_LOGD(TAG, "looking for key(%s)", _possible_keys[i]);
     _esp_rc = nvs_get_blob(_handle, _possible_keys[i], _blob, &_msg_len);
@@ -180,7 +180,7 @@ esp_err_t mcrNVS::__processCommittedMsgs() {
   return _esp_rc;
 }
 
-bool mcrNVS::notOpen() {
+bool NVS::notOpen() {
   if (_nvs_open_rc == ESP_OK) {
     return false;
   } else {
@@ -189,7 +189,7 @@ bool mcrNVS::notOpen() {
   }
 }
 
-void mcrNVS::publishMsg(const char *key, mcrNVSMessage_t *blob) {
+void NVS::publishMsg(const char *key, NVSMessage_t *blob) {
   textReading_t *rlog = new textReading();
   std::unique_ptr<textReading_t> rlog_ptr(rlog);
   std::unique_ptr<struct tm> timeinfo(new struct tm);
@@ -201,7 +201,7 @@ void mcrNVS::publishMsg(const char *key, mcrNVSMessage_t *blob) {
   MQTT::instance()->publish(rlog);
 }
 
-void mcrNVS::zeroBuffers() {
+void NVS::zeroBuffers() {
   if (_blob != nullptr) {
     _blob->time = 0;
     _blob->msg[0] = 0;
