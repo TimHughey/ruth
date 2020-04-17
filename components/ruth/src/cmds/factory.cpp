@@ -57,7 +57,7 @@ Cmd_t *CmdFactory::fromRaw(JsonDocument &doc, rawMsg_t *raw) {
 }
 
 Cmd_t *CmdFactory::manufacture(JsonDocument &doc,
-                                     elapsedMicros &parse_elapsed) {
+                               elapsedMicros &parse_elapsed) {
   Cmd_t *cmd = nullptr;
   CmdType_t cmd_type = CmdType::unknown;
 

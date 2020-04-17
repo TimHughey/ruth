@@ -5,8 +5,7 @@ namespace ruth {
 // static const char *TAG = "CmdNetwork";
 static const char *k_name = "name";
 
-CmdNetwork::CmdNetwork(JsonDocument &doc, elapsedMicros &e)
-    : Cmd{doc, e} {
+CmdNetwork::CmdNetwork(JsonDocument &doc, elapsedMicros &e) : Cmd{doc, e} {
   _name = doc[k_name] | "";
 }
 
