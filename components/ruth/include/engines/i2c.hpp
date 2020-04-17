@@ -78,11 +78,11 @@ public:
 private:
   i2c_config_t _conf;
   const TickType_t _loop_frequency =
-      pdMS_TO_TICKS(CONFIG_MCR_I2C_ENGINE_FREQUENCY_SECS * 1000);
+      pdMS_TO_TICKS(CONFIG_RUTH_I2C_ENGINE_FREQUENCY_SECS * 1000);
   const TickType_t _discover_frequency =
-      pdMS_TO_TICKS(CONFIG_MCR_I2C_DISCOVER_FREQUENCY_SECS * 1000);
+      pdMS_TO_TICKS(CONFIG_RUTH_I2C_DISCOVER_FREQUENCY_SECS * 1000);
   const TickType_t _report_frequency =
-      pdMS_TO_TICKS(CONFIG_MCR_I2C_REPORT_FREQUENCY_SECS * 1000);
+      pdMS_TO_TICKS(CONFIG_RUTH_I2C_REPORT_FREQUENCY_SECS * 1000);
   static const uint32_t _max_buses = 8;
   bool _use_multiplexer = false;
   i2cLastWakeTime_t _last_wake;

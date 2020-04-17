@@ -581,7 +581,7 @@ protected:
   // Command Queue
   //
 protected:
-  const int _max_queue_depth = CONFIG_MCR_CMD_Q_MAX_DEPTH;
+  const int _max_queue_depth = CONFIG_RUTH_CMD_Q_MAX_DEPTH;
   QueueHandle_t _cmd_q = nullptr;
 
 public:

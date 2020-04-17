@@ -1,5 +1,5 @@
 /*
-    hw_config.cpp -- MCR Hardware Configuration Jumpers
+    hw_config.cpp -- Hardware Configuration Jumpers
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

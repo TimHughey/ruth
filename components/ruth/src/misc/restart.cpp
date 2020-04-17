@@ -1,5 +1,5 @@
 /*
-    restart.cpp - MCR abstraction for esp_restart()
+    restart.cpp - Abstraction for esp_restart()
     Copyright (C) 2019  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -55,7 +55,7 @@ Restart::~Restart() {
 void Restart::now() { instance()->restart(nullptr, nullptr, 0); }
 
 void Restart::restart(const char *text, const char *func,
-                         uint32_t reboot_delay_ms) {
+                      uint32_t reboot_delay_ms) {
 
   ESP_LOGW("Restart", "%s requested restart [%s]",
            (func == nullptr) ? "<UNKNOWN FUNCTION>" : func,

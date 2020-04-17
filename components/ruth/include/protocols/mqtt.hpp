@@ -96,7 +96,7 @@ private:
   Task_t _task = {.handle = nullptr,
                      .data = nullptr,
                      .lastWake = 0,
-                     .priority = CONFIG_MCR_MQTT_TASK_PRIORITY,
+                     .priority = CONFIG_RUTH_MQTT_TASK_PRIORITY,
                      .stackSize = (4 * 1024)};
 
   struct mg_mgr _mgr = {};
@@ -104,34 +104,34 @@ private:
   uint16_t _msg_id = (uint16_t)esp_random() + 1;
   bool _mqtt_ready = false;
 
-  const string_t _env = CONFIG_MCR_ENV;
+  const string_t _env = CONFIG_RUTH_ENV;
 
   // mg_mgr uses LWIP and the timeout is specified in ms
-  int _inbound_msg_ms = CONFIG_MCR_MQTT_INBOUND_MSG_WAIT_MS;
+  int _inbound_msg_ms = CONFIG_RUTH_MQTT_INBOUND_MSG_WAIT_MS;
   TickType_t _inbound_rb_wait_ticks =
-      pdMS_TO_TICKS(CONFIG_MCR_MQTT_INBOUND_RB_WAIT_MS);
+      pdMS_TO_TICKS(CONFIG_RUTH_MQTT_INBOUND_RB_WAIT_MS);
   TickType_t _outbound_msg_ticks =
-      pdMS_TO_TICKS(CONFIG_MCR_MQTT_OUTBOUND_MSG_WAIT_MS);
+      pdMS_TO_TICKS(CONFIG_RUTH_MQTT_OUTBOUND_MSG_WAIT_MS);
 
   const size_t _q_out_len =
-      (sizeof(mqttOutMsg_t) * CONFIG_MCR_MQTT_RINGBUFFER_PENDING_MSGS);
+      (sizeof(mqttOutMsg_t) * CONFIG_RUTH_MQTT_RINGBUFFER_PENDING_MSGS);
   const size_t _q_in_len =
-      ((sizeof(mqttInMsg_t) * CONFIG_MCR_MQTT_RINGBUFFER_PENDING_MSGS) / 2);
+      ((sizeof(mqttInMsg_t) * CONFIG_RUTH_MQTT_RINGBUFFER_PENDING_MSGS) / 2);
   QueueHandle_t _q_out = nullptr;
   QueueHandle_t _q_in = nullptr;
 
   MQTTin_t *_mqtt_in = nullptr;
 
-  // const char *_dns_server = CONFIG_MCR_DNS_SERVER;
-  const string_t _host = CONFIG_MCR_MQTT_HOST;
-  const int _port = CONFIG_MCR_MQTT_PORT;
-  const char *_user = CONFIG_MCR_MQTT_USER;
-  const char *_passwd = CONFIG_MCR_MQTT_PASSWD;
+  // const char *_dns_server = CONFIG_RUTH_DNS_SERVER;
+  const string_t _host = CONFIG_RUTH_MQTT_HOST;
+  const int _port = CONFIG_RUTH_MQTT_PORT;
+  const char *_user = CONFIG_RUTH_MQTT_USER;
+  const char *_passwd = CONFIG_RUTH_MQTT_PASSWD;
 
   // actual feeds are built in the constructor however always begin
   // with the configured environment
-  string_t _rpt_feed = CONFIG_MCR_ENV "/";
-  string_t _cmd_feed = CONFIG_MCR_ENV "/";
+  string_t _rpt_feed = CONFIG_RUTH_ENV "/";
+  string_t _cmd_feed = CONFIG_RUTH_ENV "/";
 
   uint16_t _cmd_feed_msg_id = 1;
 

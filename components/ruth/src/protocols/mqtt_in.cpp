@@ -30,7 +30,6 @@
 #include <freertos/event_groups.h>
 #include <freertos/queue.h>
 
-// MCR specific includes
 #include "cmds/factory.hpp"
 #include "misc/local_types.hpp"
 #include "net/network.hpp"

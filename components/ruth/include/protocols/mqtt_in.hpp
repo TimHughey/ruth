@@ -50,7 +50,7 @@ private:
   Task_t _task = {.handle = nullptr,
                      .data = nullptr,
                      .lastWake = 0,
-                     .priority = CONFIG_MCR_MQTT_INBOUND_TASK_PRIORITY,
+                     .priority = CONFIG_RUTH_MQTT_INBOUND_TASK_PRIORITY,
                      .stackSize = (5 * 1024)};
   QueueHandle_t _q_in;
   string_t _cmd_feed;

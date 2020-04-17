@@ -1,14 +1,14 @@
-menu "MCR"
+menu "Ruth"
 
 config MG_ENABLE_SYNC_RESOLVER
 	bool "Use Mongoose synchronous DNS resolver"
 	default false
 
-config MCR_ENV
-	string "MCR Execution Environment"
+config RUTH_ENV
+	string "Execution Environment"
 	default "prod"
 	help
-		Build MCR for operation in a specific environment.
+		Build for operation in a specific environment.
 
 menu "Network"
 	config WIFI_SSID
@@ -25,7 +25,7 @@ menu "Network"
 	endmenu
 
 menu "Engines"
-	config MCR_CMD_Q_MAX_DEPTH
+	config RUTH_CMD_Q_MAX_DEPTH
 		int "Command Queue Maximum Depth"
 		default 30
 		range 10 50
@@ -43,26 +43,26 @@ menu "Engines"
 			too low.  In other words, the command is likely silently dropped and
 			not acknowledged.
 
-	config MCR_DS_ENABLE
-		bool "Enable the 1-Wire Engine"
+	config RUTH_DS_ENABLE
+		bool "Enable the Dallas Semiconductor 1-Wire Engine"
 		default y
-		select MCR_DS_PHASES
-		select MCR_DS_TASKS
+		select RUTH_DS_PHASES
+		select RUTH_DS_TASKS
 
-		config MCR_W1_PIN
-			depends on MCR_DS_ENABLE
+		config RUTH_W1_PIN
+			depends on RUTH_DS_ENABLE
 			int "Bus GPIO Pin"
 			default 14
 			range 14 16
 			help
 				The GPIO pin used by RMT for One-Wire bus communications.
 
-		config MCR_DS_PHASES
-			depends on MCR_DS_ENABLE
+		config RUTH_DS_PHASES
+			depends on RUTH_DS_ENABLE
 			bool "1-Wire Phases"
 
-			config MCR_DS_CONVERT_FREQUENCY_SECS
-				depends on MCR_DS_PHASES
+			config RUTH_DS_CONVERT_FREQUENCY_SECS
+				depends on RUTH_DS_PHASES
 				int "Convert Frequency (seconds)"
 				default 7
 				range 3 600
@@ -77,8 +77,8 @@ menu "Engines"
 					When temperature capable devices are available on the bus this value also
 					controls how often all device readings are published to the IoT endpoint.
 
-			config MCR_DS_DISCOVER_FREQUENCY_SECS
-				depends on MCR_DS_PHASES
+			config RUTH_DS_DISCOVER_FREQUENCY_SECS
+				depends on RUTH_DS_PHASES
 				int "Discover Frequency (seconds)"
 				default 30
 				range 3 600
@@ -88,8 +88,8 @@ menu "Engines"
 					Typically the 1-Wire bus is stable and there isn't a need to discover (search for)
 					devices frequency.  This configuration controls often to find new devices.
 
-			config MCR_DS_REPORT_FREQUENCY_SECS
-				depends on MCR_DS_PHASES
+			config RUTH_DS_REPORT_FREQUENCY_SECS
+				depends on RUTH_DS_PHASES
 				int "Report Frequency (seconds)"
 				default 7
 				range 3 600
@@ -100,8 +100,8 @@ menu "Engines"
 					This configuration value is only used if no temperature capable devices are
 					found on the 1-Wire bus.
 
-			config MCR_DS_ENGINE_FREQUENCY_SECS
-				depends on MCR_DS_PHASES
+			config RUTH_DS_ENGINE_FREQUENCY_SECS
+				depends on RUTH_DS_PHASES
 				int "Main Loop Frequency (seconds)"
 				default 30
 				range 3 600
@@ -110,8 +110,8 @@ menu "Engines"
 
 					As of now this loop only reports various metrics to the console.
 
-			config MCR_DS_TEMP_CONVERT_POLL_MS
-				depends on MCR_DS_PHASES
+			config RUTH_DS_TEMP_CONVERT_POLL_MS
+				depends on RUTH_DS_PHASES
 				int "Delay between polls to check if temperature convert is finished (ms)"
 				default 50
 				range 10 1000
@@ -121,34 +121,34 @@ menu "Engines"
 					To avoid busy waiting for the temperature capable devices to release the 1-Wire
 					bus this value introduces a task delay between checks.
 
-	config MCR_I2C_ENABLE
+	config RUTH_I2C_ENABLE
 		bool "Enable the I2C Engine"
 		default y
-		select MCR_I2C_PHASES
-		select MCR_I2C_TASKS
+		select RUTH_I2C_PHASES
+		select RUTH_I2C_TASKS
 
-		config MCR_I2C_SCL_PIN
-			depends on MCR_I2C_ENABLE
+		config RUTH_I2C_SCL_PIN
+			depends on RUTH_I2C_ENABLE
 			int "SCL Pin"
 			default 22
 			range 22 22
 			help
 				The GPIO pin to use as I2C SCL.
 
-		config MCR_I2C_SDA_PIN
-			depends on MCR_I2C_ENABLE
+		config RUTH_I2C_SDA_PIN
+			depends on RUTH_I2C_ENABLE
 			int "SDA Pin"
 			default 23
 			range 23 23
 			help
 				The GPIO pin to use as I2C SDA.
 
-		config MCR_I2C_PHASES
-			depends on MCR_I2C_ENABLE
+		config RUTH_I2C_PHASES
+			depends on RUTH_I2C_ENABLE
 			bool "I2C Phases"
 
-			config MCR_I2C_DISCOVER_FREQUENCY_SECS
-				depends on MCR_I2C_PHASES
+			config RUTH_I2C_DISCOVER_FREQUENCY_SECS
+				depends on RUTH_I2C_PHASES
 				int "Discover Frequency (seconds)"
 				default 30
 				range 3 600
@@ -158,16 +158,16 @@ menu "Engines"
 					Scanning the I2C bus can be an expensive operation especially when
 					the hardware is configured with a multiplexer.
 
-			config MCR_I2C_REPORT_FREQUENCY_SECS
-				depends on MCR_I2C_PHASES
+			config RUTH_I2C_REPORT_FREQUENCY_SECS
+				depends on RUTH_I2C_PHASES
 				int "Report Frequency (seconds)"
 				default 7
 				range 3 600
 				help
 					How often to read and report the known devices on the I2C bus.
 
-			config MCR_I2C_ENGINE_FREQUENCY_SECS
-				depends on MCR_I2C_PHASES
+			config RUTH_I2C_ENGINE_FREQUENCY_SECS
+				depends on RUTH_I2C_PHASES
 				int "Main Loop Frequency (seconds)"
 				default 7
 				range 3 600
@@ -180,64 +180,64 @@ menu "Engines"
 	endmenu
 
 menu "IoT"
-	config MCR_IOT_ENDPOINT
+	config RUTH_IOT_ENDPOINT
 		bool "Use IoT Endpoint"
 		default y
-		select MCR_MQTT_CONFIG
-		select MCR_IOT_TASKS
+		select RUTH_MQTT_CONFIG
+		select RUTH_IOT_TASKS
 
-		config MCR_MQTT_CONFIG
-			depends on MCR_IOT_ENDPOINT
+		config RUTH_MQTT_CONFIG
+			depends on RUTH_IOT_ENDPOINT
 			bool "Configure IoT Endpoint"
 			default y
 
 
-		config MCR_MQTT_HOST
-			depends on MCR_MQTT_CONFIG
+		config RUTH_MQTT_HOST
+			depends on RUTH_MQTT_CONFIG
 			string "IoT Endpoint Host"
 			default "jophiel.wisslanding.com"
 			help
 				Endpoint host name for the IoT MQTT/S gateway
 
-		config MCR_MQTT_PORT
-			depends on MCR_MQTT_CONFIG
+		config RUTH_MQTT_PORT
+			depends on RUTH_MQTT_CONFIG
 			int "IoT Endpoint Port"
 			default 1883
 			range 0 65535
 			help
 				Endpoint port for the IoT MQTT/S gateway
 
-		config MCR_MQTT_USER
-			depends on MCR_MQTT_CONFIG
+		config RUTH_MQTT_USER
+			depends on RUTH_MQTT_CONFIG
 			string "IoT Endpoint User"
 			default "mqtt"
 			help
 				User name for connecting to the IoT MQTT/S gateway
 
-		config MCR_MQTT_PASSWD
-			depends on MCR_MQTT_CONFIG
+		config RUTH_MQTT_PASSWD
+			depends on RUTH_MQTT_CONFIG
 			string "IoT Endpoint Password"
 			default "mqtt"
 			help
 				Password for connecting to the IoT MQTT/S gateway
 
-		config MCR_MQTT_RPT_FEED
-			depends on MCR_MQTT_CONFIG
+		config RUTH_MQTT_RPT_FEED
+			depends on RUTH_MQTT_CONFIG
 			string "Reporting Publish Topic (Feed)"
-			default "prod/mcr/f/report"
+			default "prod/ruth/f/report"
 			help
-				Topic (feed) for reporting data from the MCR device to the IoT endpoint
+				Topic (feed) to report readings
 
-		config MCR_MQTT_CMD_FEED
-			depends on MCR_MQTT_CONFIG
+		config RUTH_MQTT_CMD_FEED
+			depends on RUTH_MQTT_CONFIG
 			string "Command Subscribe Topic (Feed)"
-			default "prod/mcr/f/command"
+			default "prod/ruth/f/command"
 			help
 				Topic (feed) for receiving commands from the IoT endpoint
 
 
-			config MCR_MQTT_RINGBUFFER_PENDING_MSGS
-				depends on MCR_IOT_TASKS
+			config RUTH_MQTT_RINGBUFFER_PENDING_MSGS
+				depends on RUTH_IOT_TASKS
 				int "Pending Messages"
 				default 128
 				range 12 256
@@ -247,8 +247,8 @@ menu "IoT"
 
 					This value configures how many pending messages are permitted.
 
-			config MCR_MQTT_INBOUND_MSG_WAIT_MS
-				depends on MCR_IOT_TASKS
+			config RUTH_MQTT_INBOUND_MSG_WAIT_MS
+				depends on RUTH_IOT_TASKS
 				int "Wait for inbound messages (ms)"
 				default 1
 				range 0 1000
@@ -262,8 +262,8 @@ menu "IoT"
 					It is advisable to match this value with the outbound message wait to best balance the
 					processing of inbound and outbound messages.
 
-			config MCR_MQTT_INBOUND_RB_WAIT_MS
-				depends on MCR_IOT_TASKS
+			config RUTH_MQTT_INBOUND_RB_WAIT_MS
+				depends on RUTH_IOT_TASKS
 				int "How long to wait (in ms) for space if the inbound ringbuffer if full"
 				default 1000
 				range 0 5000
@@ -272,12 +272,12 @@ menu "IoT"
 					messges wait this amount of time (in ms) for space to become free
 
 					Use this value to create a throttle point when a flood of inbound MQTT
-					occurs.  This situation is most likely to occur when the MCR has been
+					occurs.  This situation is most likely to occur when the host has been
 					offline for an extended period of time.
 
 
-			config MCR_MQTT_OUTBOUND_MSG_WAIT_MS
-				depends on MCR_IOT_TASKS
+			config RUTH_MQTT_OUTBOUND_MSG_WAIT_MS
+				depends on RUTH_IOT_TASKS
 				int "Wait for outbound messages (ms)"
 				default 30
 				range 0 1000
@@ -293,16 +293,16 @@ menu "IoT"
 	endmenu
 
 menu "Task Priorities"
-	config MCR_TASK_PRIORITIES
-		bool "Configure MCR Task Priorities"
+	config RUTH_TASK_PRIORITIES
+		bool "Configure Task Priorities"
 		default y
 
-		config MCR_DS_TASKS
-			depends on MCR_DS_ENABLE && MCR_TASK_PRIORITIES
+		config RUTH_DS_TASKS
+			depends on RUTH_DS_ENABLE && RUTH_TASK_PRIORITIES
 			bool "1-Wire"
 
-		 	config MCR_DS_DISCOVER_TASK_PRIORITY
-				depends on MCR_DS_TASKS && MCR_TASK_PRIORITIES
+		 	config RUTH_DS_DISCOVER_TASK_PRIORITY
+				depends on RUTH_DS_TASKS && RUTH_TASK_PRIORITIES
 			 	int "Discover Task Priority"
 			 	default 12
 			 	range 1 19
@@ -319,8 +319,8 @@ menu "Task Priorities"
 					 It is advisable to set this priority lower than all other tasks except the
 					 Core housekeeping task.
 
-		 	config MCR_DS_CONVERT_TASK_PRIORITY
-				depends on MCR_DS_TASKS && MCR_TASK_PRIORITIES
+		 	config RUTH_DS_CONVERT_TASK_PRIORITY
+				depends on RUTH_DS_TASKS && RUTH_TASK_PRIORITIES
 	 		 int "Convert Task Priority"
 	 		 default 13
 	 		 range 1 19
@@ -337,8 +337,8 @@ menu "Task Priorities"
 		 			It is advisable to set this priority to match the Report priority and
 					higher than other tasks but lower than the Command task.
 
-			config MCR_DS_REPORT_TASK_PRIORITY
-				depends on MCR_DS_TASKS && MCR_TASK_PRIORITIES
+			config RUTH_DS_REPORT_TASK_PRIORITY
+				depends on RUTH_DS_TASKS && RUTH_TASK_PRIORITIES
 				int "Report Task Priority"
 				default 13
 				range 1 19
@@ -354,8 +354,8 @@ menu "Task Priorities"
 
 					It is advisable to match this priority to the Convert task.
 
-			config MCR_DS_COMMAND_TASK_PRIORITY
-				depends on MCR_DS_TASKS && MCR_TASK_PRIORITIES
+			config RUTH_DS_COMMAND_TASK_PRIORITY
+				depends on RUTH_DS_TASKS && RUTH_TASK_PRIORITIES
 				int "Command Task Priority"
 				default 14
 				range 1 19
@@ -372,12 +372,12 @@ menu "Task Priorities"
 					It is advisable to set this priority the highest of all 1-Wire Engine tasks
 					to ensure handling commands (e.g. changing a switch position) swiftly.
 
-		config MCR_I2C_TASKS
-			depends on MCR_I2C_ENABLE && MCR_TASK_PRIORITIES
+		config RUTH_I2C_TASKS
+			depends on RUTH_I2C_ENABLE && RUTH_TASK_PRIORITIES
 			bool "I2C"
 
-			config MCR_I2C_DISCOVER_TASK_PRIORITY
-				depends on MCR_I2C_TASKS && MCR_TASK_PRIORITIES
+			config RUTH_I2C_DISCOVER_TASK_PRIORITY
+				depends on RUTH_I2C_TASKS && RUTH_TASK_PRIORITIES
 			 	int "Discover Task Priority"
 			 	default 12
 			 	range 1 19
@@ -393,8 +393,8 @@ menu "Task Priorities"
 					 It is advisable to set this priority lower than all other tasks except the
 					 Core housekeeping task.
 
-			config MCR_I2C_REPORT_TASK_PRIORITY
-				depends on MCR_I2C_TASKS && MCR_TASK_PRIORITIES
+			config RUTH_I2C_REPORT_TASK_PRIORITY
+				depends on RUTH_I2C_TASKS && RUTH_TASK_PRIORITIES
 				int "Report Task Priority"
 				default 13
 				range 1 19
@@ -407,8 +407,8 @@ menu "Task Priorities"
 
 					This configuration value defines the task priority of the Report task.
 
-			config MCR_I2C_COMMAND_TASK_PRIORITY
-				depends on MCR_I2C_TASKS && MCR_TASK_PRIORITIES
+			config RUTH_I2C_COMMAND_TASK_PRIORITY
+				depends on RUTH_I2C_TASKS && RUTH_TASK_PRIORITIES
 				int "Command Task Priority"
 				default 14
 				range 1 19
@@ -424,13 +424,13 @@ menu "Task Priorities"
 					It is advisable to set this priority the highest of all I2C Engine tasks
 					to ensure handling commands (e.g. changing a switch position) swiftly.
 
-		 config MCR_IOT_TASKS
-	 		depends on MCR_IOT_ENDPOINT && MCR_TASK_PRIORITIES
+		 config RUTH_IOT_TASKS
+	 		depends on RUTH_IOT_ENDPOINT && RUTH_TASK_PRIORITIES
 	 		bool "IoT"
 	 		default y
 
-	 		config MCR_MQTT_TASK_PRIORITY
-	 			depends on MCR_TASK_PRIORITIES && MCR_IOT_TASKS
+	 		config RUTH_MQTT_TASK_PRIORITY
+	 			depends on RUTH_TASK_PRIORITIES && RUTH_IOT_TASKS
 	 			int "Send/Receive Task Priority"
 	 			default 14
 	 			range 1 19
@@ -444,8 +444,8 @@ menu "Task Priorities"
 	 				It is advisable for this task to be a higher priority than the inbound processing
 	 				task to ensure that messages are overall sent and received with minimal delay.
 
-	 		config MCR_MQTT_INBOUND_TASK_PRIORITY
-	 			depends on MCR_TASK_PRIORITIES && MCR_IOT_TASKS
+	 		config RUTH_MQTT_INBOUND_TASK_PRIORITY
+	 			depends on RUTH_TASK_PRIORITIES && RUTH_IOT_TASKS
 	 			int "Inbound Processing Task Priority"
 	 			default 10
 	 			range 1 19

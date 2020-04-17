@@ -29,11 +29,10 @@
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
 
-// MCR specific includes
 #include "external/mongoose.h"
+#include "misc/local_types.hpp"
 #include "misc/nvs.hpp"
 #include "misc/restart.hpp"
-#include "misc/local_types.hpp"
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
 #include "protocols/mqtt.hpp"
@@ -58,8 +57,8 @@ MQTT_t *MQTT::instance() {
 MQTT::MQTT() {
   // create the report and command feed topics using the configured
   // MCR_ENV and MCR_MQTT_RPT_FEED and MCR_MQTT_CMD_FEED
-  _rpt_feed.append(CONFIG_MCR_MQTT_RPT_FEED);
-  _cmd_feed.append(CONFIG_MCR_MQTT_CMD_FEED);
+  _rpt_feed.append(CONFIG_RUTH_MQTT_RPT_FEED);
+  _cmd_feed.append(CONFIG_RUTH_MQTT_CMD_FEED);
 
   // create the endpoint URI
   const auto max_endpoint = 127;
@@ -367,8 +366,7 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
     break;
 
   case MG_EV_MQTT_SUBSCRIBE:
-    ESP_LOGI(MQTT::tagEngine(), "subscribe event, payload=%s",
-             msg->payload.p);
+    ESP_LOGI(MQTT::tagEngine(), "subscribe event, payload=%s", msg->payload.p);
     break;
 
   case MG_EV_MQTT_UNSUBACK:

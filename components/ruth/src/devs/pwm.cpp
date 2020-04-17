@@ -76,7 +76,7 @@ pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
 };
 
 // externalName implementation for pwmDev
-// externalName includes the MCR name (instead of self)
+// externalName includes the host name (instead of self)
 const char *pwmDev::externalName() {
 
   // if external_name_ hasn't been set then build it here

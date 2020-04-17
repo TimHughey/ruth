@@ -1,5 +1,5 @@
 /*
-    restart.cpp - MCR abstraction for ESP NVS
+    nvs.cpp - Abstraction for ESP NVS
     Copyright (C) 2019  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

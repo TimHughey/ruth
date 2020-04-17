@@ -83,7 +83,7 @@ i2cDev::i2cDev(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
 };
 
 // externalName implementation for i2cDev
-// externalName includes the MCR name (instead of self)
+// externalName includes the host name (instead of self)
 const char *i2cDev::externalName() {
 
   // if _external_name hasn't been set then build it here
