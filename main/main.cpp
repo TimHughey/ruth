@@ -37,7 +37,7 @@
 #include "net/mcr_net.hpp"
 #include "protocols/mqtt.hpp"
 
-using namespace mcr;
+using namespace ruth;
 
 extern "C" {
 void app_main(void);
@@ -50,7 +50,7 @@ extern const uint8_t ca_end[] asm("_binary_ca_pem_end");
 
 static const char *TAG = "mcrESP";
 
-static mcr::Net *network = nullptr;
+static Net *network = nullptr;
 static TimestampTask *timestampTask = nullptr;
 static mcrMQTT *mqttTask = nullptr;
 static mcrDS *dsEngineTask = nullptr;
@@ -76,7 +76,7 @@ void app_main() {
   statusLED::instance()->brighter();
 
   // must create network first!
-  network = mcr::Net::instance(); // singleton
+  network = Net::instance(); // singleton
   timestampTask = new TimestampTask();
   mqttTask = mcrMQTT::instance();        // singleton
   dsEngineTask = mcrDS::instance();      // singleton

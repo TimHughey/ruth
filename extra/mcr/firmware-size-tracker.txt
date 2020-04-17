@@ -1,0 +1,427 @@
+Mon May  6 00:07:49 EDT 2019
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.01.01-2-gf5ad153
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   14012 bytes
+ DRAM .bss  size:   28752 bytes
+Used static DRAM:   42764 bytes ( 137972 available, 23.7% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  793838 bytes
+    Flash rodata:  227020 bytes
+Total image size:~1107186 bytes (.bin may be padded larger)
+
+Mon May  6 01:46:43 EDT 2019 [AFTER REMOVAL OF STREAM STRING + FORMATTING]
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.01.01-2-gf5ad153-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24496 bytes
+Used static DRAM:   38368 bytes ( 142368 available, 21.2% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  656178 bytes
+    Flash rodata:  165288 bytes
+Total image size:~ 907654 bytes (.bin may be padded larger)
+
+
+Mon May  6 11:33:13 EDT 2019
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.01.01-3-g21b4510-dirty
+CC build/app_update/esp_app_desc.o
+AR build/app_update/libapp_update.a
+Generating libapp_update.a.sections_info
+Generating esp32.project.ld
+LD build/mcr_esp.elf
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24496 bytes
+Used static DRAM:   38368 bytes ( 142368 available, 21.2% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  655482 bytes
+    Flash rodata:  165176 bytes
+Total image size:~ 906846 bytes (.bin may be padded larger)
+
+Mon May  6 11:39:43 EDT 2019 [janice2.01.01-3-g21b4510]
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.01.01-3-g21b4510-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24496 bytes
+Used static DRAM:   38368 bytes ( 142368 available, 21.2% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  655482 bytes
+    Flash rodata:  165176 bytes
+Total image size:~ 906846 bytes (.bin may be padded larger)
+
+commit 21b4510
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Mon May 6 11:07:59 2019 -0400
+
+    MCR Refactor to Remove sstrem and Related Functions
+    
+    -effort reduced .bin size ~200k
+    -completed effort of converting to unique_ptr in debug() methods
+    -eliminated mcrDevID class (which was just a wrapper for std::string)
+    -eliminated unnecessary string copies
+    -added txt file for tracking mcr bin size
+    *some debug() methods remain disabled
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.01.01-3-g21b4510-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24496 bytes
+Used static DRAM:   38368 bytes ( 142368 available, 21.2% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  655482 bytes
+    Flash rodata:  165176 bytes
+Total image size:~ 906846 bytes (.bin may be padded larger)
+
+>>>
+commit 21b4510
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Mon May 6 11:07:59 2019 -0400
+
+    MCR Refactor to Remove sstrem and Related Functions
+    
+    -effort reduced .bin size ~200k
+    -completed effort of converting to unique_ptr in debug() methods
+    -eliminated mcrDevID class (which was just a wrapper for std::string)
+    -eliminated unnecessary string copies
+    -added txt file for tracking mcr bin size
+    *some debug() methods remain disabled
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.01.01-3-g21b4510-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24496 bytes
+Used static DRAM:   38368 bytes ( 142368 available, 21.2% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  655482 bytes
+    Flash rodata:  165176 bytes
+Total image size:~ 906846 bytes (.bin may be padded larger)
+
+<<<
+>>>
+commit bc0a743
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Mon May 6 19:34:43 2019 -0400
+
+    MCR Trivial Log Change Due to OCD
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.02-3-gbc0a743-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24496 bytes
+Used static DRAM:   38368 bytes ( 142368 available, 21.2% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  658546 bytes
+    Flash rodata:  165860 bytes
+Total image size:~ 910594 bytes (.bin may be padded larger)
+<<<
+>>>
+commit fb962fd
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Tue May 7 11:28:28 2019 -0400
+
+    MCR Code Cleanup (continued)
+    
+    -moved mcrDS owb_reset() to higher level method to eliminate redundant
+    code
+    -began renaming classes to elminiate mcr prefix in favor of mcr
+    namespace
+    -migrated some mcrDS config values to Kconfig
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.02-4-gfb962fd-dirty
+CC build/app_update/esp_app_desc.o
+AR build/app_update/libapp_update.a
+Generating libapp_update.a.sections_info
+Generating esp32.project.ld
+LD build/mcr_esp.elf
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24496 bytes
+Used static DRAM:   38368 bytes ( 142368 available, 21.2% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  658262 bytes
+    Flash rodata:  165896 bytes
+Total image size:~ 910346 bytes (.bin may be padded larger)
+<<<
+>>>
+commit 83aed52
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Tue May 7 14:39:57 2019 -0400
+
+    MCR Reduced Logging Level
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.02-5-g83aed52-dirty
+CC build/app_update/esp_app_desc.o
+AR build/app_update/libapp_update.a
+Generating libapp_update.a.sections_info
+Generating esp32.project.ld
+LD build/mcr_esp.elf
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24496 bytes
+Used static DRAM:   38368 bytes ( 142368 available, 21.2% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  658258 bytes
+    Flash rodata:  165896 bytes
+Total image size:~ 910342 bytes (.bin may be padded larger)
+<<<
+>>>
+commit e377a1b
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Thu May 9 08:52:11 2019 -0400
+
+    Clean-up of Build and Deploy Scripts
+    
+    -Fixed MCP Dutycycle startup parameterization
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.02-16-ge377a1b-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24464 bytes
+Used static DRAM:   38336 bytes ( 142400 available, 21.2% used)
+Used static IRAM:   72316 bytes (  58756 available, 55.2% used)
+      Flash code:  660114 bytes
+    Flash rodata:  167632 bytes
+Total image size:~ 913934 bytes (.bin may be padded larger)
+<<<
+>>>
+commit 9a85f50
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Mon May 13 12:57:50 2019 -0400
+
+    MCP Improved OTA Logging and Added asSeconds to elapsedMillis/Micros
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.02-40-g9a85f50-dirty
+CC build/app_update/esp_app_desc.o
+AR build/app_update/libapp_update.a
+Generating libapp_update.a.sections_info
+Generating esp32.project.ld
+LD build/mcr_esp.elf
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24336 bytes
+Used static DRAM:   38208 bytes ( 142528 available, 21.1% used)
+Used static IRAM:   72772 bytes (  58300 available, 55.5% used)
+      Flash code:  660338 bytes
+    Flash rodata:  167772 bytes
+Total image size:~ 914754 bytes (.bin may be padded larger)
+<<<
+>>>
+commit 75a49e9
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Tue May 14 10:01:09 2019 -0400
+
+    MCP Wrap owb_reset() and Allow Partial Match for DS2408 Set Confirmation
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.02-49-g75a49e9-dirty
+CC build/app_update/esp_app_desc.o
+AR build/app_update/libapp_update.a
+Generating libapp_update.a.sections_info
+Generating esp32.project.ld
+LD build/mcr_esp.elf
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24336 bytes
+Used static DRAM:   38208 bytes ( 142528 available, 21.1% used)
+Used static IRAM:   72772 bytes (  58300 available, 55.5% used)
+      Flash code:  660066 bytes
+    Flash rodata:  167928 bytes
+Total image size:~ 914638 bytes (.bin may be padded larger)
+<<<
+>>>
+commit 4d72eb1
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Tue May 14 14:21:29 2019 -0400
+
+    MCR Corrected Command Queue Overload Memory Leak
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.02-55-g4d72eb1-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24336 bytes
+Used static DRAM:   38208 bytes ( 142528 available, 21.1% used)
+Used static IRAM:   72792 bytes (  58280 available, 55.5% used)
+      Flash code:  660078 bytes
+    Flash rodata:  167844 bytes
+Total image size:~ 914586 bytes (.bin may be padded larger)
+<<<
+>>>
+commit 8c17158
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Sun May 19 00:06:27 2019 -0400
+
+    MCR Cleanup of Log Message Levels
+    
+    It is now safe to set logging to info for Engines
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.03-10-g8c17158-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24384 bytes
+Used static DRAM:   38256 bytes ( 142480 available, 21.2% used)
+Used static IRAM:   72968 bytes (  58104 available, 55.7% used)
+      Flash code:  661166 bytes
+    Flash rodata:  167368 bytes
+Total image size:~ 915374 bytes (.bin may be padded larger)
+<<<
+>>>
+commit d06a360
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Thu May 23 00:38:21 2019 -0400
+
+    MCR Implemented MCP23008 Set and Other Refactoring
+    
+    Continued roll-out of:
+     -elapsedMillis/Micros
+     -string_t
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.03-24-gd06a360-dirty
+CC build/app_update/esp_app_desc.o
+AR build/app_update/libapp_update.a
+Generating libapp_update.a.sections_info
+Generating esp32.project.ld
+LD build/mcr_esp.elf
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24392 bytes
+Used static DRAM:   38264 bytes ( 142472 available, 21.2% used)
+Used static IRAM:   73000 bytes (  58072 available, 55.7% used)
+      Flash code:  663898 bytes
+    Flash rodata:  168300 bytes
+Total image size:~ 919070 bytes (.bin may be padded larger)
+<<<
+>>>
+commit d06a360
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Thu May 23 00:38:21 2019 -0400
+
+    MCR Implemented MCP23008 Set and Other Refactoring
+    
+    Continued roll-out of:
+     -elapsedMillis/Micros
+     -string_t
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.03-24-gd06a360-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24392 bytes
+Used static DRAM:   38264 bytes ( 142472 available, 21.2% used)
+Used static IRAM:   73000 bytes (  58072 available, 55.7% used)
+      Flash code:  665402 bytes
+    Flash rodata:  168712 bytes
+Total image size:~ 920986 bytes (.bin may be padded larger)
+<<<
+>>>
+commit 4dd26ec
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Thu May 23 14:22:32 2019 -0400
+
+    MCR Corrected Ongoing Task Stack Watch
+Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
+Compiler version: 5.2.0
+App "mcr_esp" version: janice2.02.03-26-g4dd26ec-dirty
+Python requirements from /Users/thughey/devel/esp-idf/requirements.txt are satisfied.
+Total sizes:
+ DRAM .data size:   13872 bytes
+ DRAM .bss  size:   24392 bytes
+Used static DRAM:   38264 bytes ( 142472 available, 21.2% used)
+Used static IRAM:   73000 bytes (  58072 available, 55.7% used)
+      Flash code:  665414 bytes
+    Flash rodata:  168712 bytes
+Total image size:~ 920998 bytes (.bin may be padded larger)
+<<<
+>>>
+commit 2a67a03
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Wed Jan 1 10:18:00 2020 -0500
+
+    Janice Version Bump for ESP-IDF Upgrade
+<<<
+>>>
+commit 2a67a03
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Wed Jan 1 10:18:00 2020 -0500
+
+    Janice Version Bump for ESP-IDF Upgrade
+<<<
+>>>
+commit 2a67a03
+Author: Tim Hughey <timhughey@mac.com>
+Date:   Wed Jan 1 10:18:00 2020 -0500
+
+    Janice Version Bump for ESP-IDF Upgrade
+Python requirements from /home/thughey/devel/esp-idf/requirements.txt are satisfied.
+ninja: no work to do.
+[1/1] cd /home/thughey/devel/janice/mcr_esp/build && /usr/lib/python-exec/python2.7/python /home/thughey/devel/esp-idf/tools/idf_size.py /home/thughey/devel/janice/mcr_esp/build/mcr_esp.map
+Total sizes:
+ DRAM .data size:   13352 bytes
+ DRAM .bss  size:   25984 bytes
+Used static DRAM:   39336 bytes ( 141400 available, 21.8% used)
+Used static IRAM:   75809 bytes (  55263 available, 57.8% used)
+      Flash code:  667497 bytes
+    Flash rodata:  151340 bytes
+Total image size:~ 907998 bytes (.bin may be padded larger)
+Checking Python dependencies...
+Adding size's dependency "app" to list of actions
+Executing action: app
+Running ninja in directory /home/thughey/devel/janice/mcr_esp/build
+Executing "ninja app"...
+Executing action: size
+Running ninja in directory /home/thughey/devel/janice/mcr_esp/build
+Executing "ninja size"...
+
+App build complete. To flash, run this command:
+../../esp-idf/components/esptool_py/esptool/esptool.py -p (PORT) -b 460800 --after hard_reset write_flash 0x10000 build/mcr_esp.bin
+or run 'idf.py -p (PORT) app-flash'
+<<<
