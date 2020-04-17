@@ -198,7 +198,7 @@ void mcrNVS::publishMsg(const char *key, mcrNVSMessage_t *blob) {
 
   rlog->printf(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
 
-  mcrMQTT::instance()->publish(rlog);
+  MQTT::instance()->publish(rlog);
 }
 
 void mcrNVS::zeroBuffers() {

@@ -43,19 +43,19 @@
 using std::unique_ptr;
 namespace ruth {
 
-static mcrMQTT *__singleton = nullptr;
+static MQTT *__singleton = nullptr;
 
 // SINGLETON!  use instance() for object access
-mcrMQTT_t *mcrMQTT::instance() {
+MQTT_t *MQTT::instance() {
   if (__singleton == nullptr) {
-    __singleton = new mcrMQTT();
+    __singleton = new MQTT();
   }
 
   return __singleton;
 }
 
 // SINGLETON! constructor is private
-mcrMQTT::mcrMQTT() {
+MQTT::MQTT() {
   // create the report and command feed topics using the configured
   // MCR_ENV and MCR_MQTT_RPT_FEED and MCR_MQTT_CMD_FEED
   _rpt_feed.append(CONFIG_MCR_MQTT_RPT_FEED);
@@ -77,7 +77,7 @@ mcrMQTT::mcrMQTT() {
            (sizeof(mqttOutMsg_t) * _q_out_len));
 }
 
-void mcrMQTT::announceStartup() {
+void MQTT::announceStartup() {
   uint32_t batt_mv = Net::instance()->batt_mv();
   startupReading_t startup(batt_mv);
 
@@ -85,7 +85,7 @@ void mcrMQTT::announceStartup() {
   statusLED::instance()->off();
 }
 
-void mcrMQTT::connect(int wait_ms) {
+void MQTT::connect(int wait_ms) {
 
   // establish the client id
   if (_client_id.length() == 0) {
@@ -109,7 +109,7 @@ void mcrMQTT::connect(int wait_ms) {
   }
 }
 
-void mcrMQTT::connectionClosed() {
+void MQTT::connectionClosed() {
   statusLED::instance()->dim();
   ESP_LOGW(tagEngine(), "connection closed");
   _mqtt_ready = false;
@@ -120,7 +120,7 @@ void mcrMQTT::connectionClosed() {
   connect(500); // wait five seconds before reconnect
 }
 
-void mcrMQTT::handshake(struct mg_connection *nc) {
+void MQTT::handshake(struct mg_connection *nc) {
   struct mg_send_mqtt_handshake_opts opts;
   bzero(&opts, sizeof(opts));
 
@@ -133,7 +133,7 @@ void mcrMQTT::handshake(struct mg_connection *nc) {
   mg_send_mqtt_handshake_opt(nc, _client_id.c_str(), opts);
 }
 
-void mcrMQTT::incomingMsg(struct mg_str *in_topic, struct mg_str *in_payload) {
+void MQTT::incomingMsg(struct mg_str *in_topic, struct mg_str *in_payload) {
   // allocate a new string here and deallocate it once processed through MQTTin
   mqttInMsg_t *entry = new mqttInMsg_t;
   auto *topic = new std::string(in_topic->p, in_topic->len);
@@ -165,7 +165,7 @@ void mcrMQTT::incomingMsg(struct mg_str *in_topic, struct mg_str *in_payload) {
     ESP_LOGW(tagEngine(), "%s", msg);
 
     // we only commit the failure to NVS and directly call esp_restart()
-    // since mcrMQTT is broken
+    // since MQTT is broken
     mcrNVS::commitMsg(tagEngine(), msg);
     free(msg);
 
@@ -174,25 +174,25 @@ void mcrMQTT::incomingMsg(struct mg_str *in_topic, struct mg_str *in_payload) {
   }
 }
 
-void mcrMQTT::publish(Reading_t *reading) {
+void MQTT::publish(Reading_t *reading) {
   auto *json = reading->json();
 
   publish(json);
 }
 
-void mcrMQTT::publish(Reading_t &reading) {
+void MQTT::publish(Reading_t &reading) {
   auto *json = reading.json();
 
   publish(json);
 }
 
-void mcrMQTT::publish(Reading_ptr_t reading) {
+void MQTT::publish(Reading_ptr_t reading) {
   auto *json = reading->json();
 
   publish(json);
 }
 
-void mcrMQTT::outboundMsg() {
+void MQTT::outboundMsg() {
   size_t len = 0;
   mqttOutMsg_t *entry;
   auto q_rc = pdFALSE;
@@ -225,7 +225,7 @@ void mcrMQTT::outboundMsg() {
   }
 }
 
-void mcrMQTT::publish(string_t *json) {
+void MQTT::publish(string_t *json) {
   auto q_rc = pdFALSE;
   mqttOutMsg_t *entry = new mqttOutMsg_t;
 
@@ -251,7 +251,7 @@ void mcrMQTT::publish(string_t *json) {
     ESP_LOGW(tagEngine(), "%s", msg.get());
 
     // we only commit the failure to NVS and directly call esp_restart()
-    // since mcrMQTT is broken
+    // since MQTT is broken
     mcrNVS::commitMsg(tagEngine(), msg.get());
 
     // pass a nullptr for the message so mcrRestart doesn't attempt to publish
@@ -259,13 +259,13 @@ void mcrMQTT::publish(string_t *json) {
   }
 }
 
-void mcrMQTT::core(void *data) {
+void MQTT::core(void *data) {
   struct mg_mgr_init_opts opts = {};
 
   esp_log_level_set(tagEngine(), ESP_LOG_INFO);
 
-  _mqtt_in = new mcrMQTTin(_q_in, _cmd_feed.c_str());
-  ESP_LOGD(tagEngine(), "started, created mcrMQTTin task %p", (void *)_mqtt_in);
+  _mqtt_in = new MQTTin(_q_in, _cmd_feed.c_str());
+  ESP_LOGD(tagEngine(), "started, created MQTTin task %p", (void *)_mqtt_in);
   _mqtt_in->start();
 
   // wait for network to be ready to ensure dns resolver is available
@@ -306,7 +306,7 @@ void mcrMQTT::core(void *data) {
   }
 }
 
-void mcrMQTT::subACK(struct mg_mqtt_message *msg) {
+void MQTT::subACK(struct mg_mqtt_message *msg) {
 
   if (msg->message_id == _cmd_feed_msg_id) {
     ESP_LOGI(tagEngine(), "subscribed to CMD feed (suback msg_id(%d))",
@@ -322,7 +322,7 @@ void mcrMQTT::subACK(struct mg_mqtt_message *msg) {
   }
 }
 
-void mcrMQTT::subscribeCommandFeed(struct mg_connection *nc) {
+void MQTT::subscribeCommandFeed(struct mg_connection *nc) {
   struct mg_mqtt_topic_expression sub[] = {
       {.topic = _cmd_feed.c_str(), .qos = 1}};
 
@@ -333,66 +333,66 @@ void mcrMQTT::subscribeCommandFeed(struct mg_connection *nc) {
 }
 
 // STATIC
-void mcrMQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
+void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
   auto *msg = (struct mg_mqtt_message *)p;
   // string_t topic;
 
   switch (ev) {
   case MG_EV_CONNECT: {
     int *status = (int *)p;
-    ESP_LOGI(mcrMQTT::tagEngine(), "CONNECT msg=%p err_code=%d err_str=%s",
+    ESP_LOGI(MQTT::tagEngine(), "CONNECT msg=%p err_code=%d err_str=%s",
              (void *)msg, *status, strerror(*status));
 
-    mcrMQTT::instance()->handshake(nc);
+    MQTT::instance()->handshake(nc);
     statusLED::instance()->off();
     break;
   }
 
   case MG_EV_MQTT_CONNACK:
     if (msg->connack_ret_code != MG_EV_MQTT_CONNACK_ACCEPTED) {
-      ESP_LOGW(mcrMQTT::tagEngine(), "mqtt connection error: %d",
+      ESP_LOGW(MQTT::tagEngine(), "mqtt connection error: %d",
                msg->connack_ret_code);
       return;
     }
 
-    ESP_LOGV(mcrMQTT::tagEngine(), "MG_EV_MQTT_CONNACK rc=%d",
+    ESP_LOGV(MQTT::tagEngine(), "MG_EV_MQTT_CONNACK rc=%d",
              msg->connack_ret_code);
-    mcrMQTT::instance()->subscribeCommandFeed(nc);
+    MQTT::instance()->subscribeCommandFeed(nc);
 
     break;
 
   case MG_EV_MQTT_SUBACK:
-    mcrMQTT::instance()->subACK(msg);
+    MQTT::instance()->subACK(msg);
 
     break;
 
   case MG_EV_MQTT_SUBSCRIBE:
-    ESP_LOGI(mcrMQTT::tagEngine(), "subscribe event, payload=%s",
+    ESP_LOGI(MQTT::tagEngine(), "subscribe event, payload=%s",
              msg->payload.p);
     break;
 
   case MG_EV_MQTT_UNSUBACK:
-    ESP_LOGI(mcrMQTT::tagEngine(), "unsub ack");
+    ESP_LOGI(MQTT::tagEngine(), "unsub ack");
     break;
 
   case MG_EV_MQTT_PUBLISH:
     // topic.assign(msg->topic.p, msg->topic.len);
-    // ESP_LOGI(mcrMQTT::tagEngine(), "%s qos(%d)", topic.c_str(), msg->qos);
+    // ESP_LOGI(MQTT::tagEngine(), "%s qos(%d)", topic.c_str(), msg->qos);
     if (msg->qos == 1) {
 
-      mg_mqtt_puback(mcrMQTT::instance()->_connection, msg->message_id);
+      mg_mqtt_puback(MQTT::instance()->_connection, msg->message_id);
     }
 
-    mcrMQTT::instance()->incomingMsg(&(msg->topic), &(msg->payload));
+    MQTT::instance()->incomingMsg(&(msg->topic), &(msg->payload));
     break;
 
   case MG_EV_MQTT_PINGRESP:
-    ESP_LOGV(mcrMQTT::tagEngine(), "ping response");
+    ESP_LOGV(MQTT::tagEngine(), "ping response");
     break;
 
   case MG_EV_CLOSE:
     statusLED::instance()->dim();
-    mcrMQTT::instance()->connectionClosed();
+    MQTT::instance()->connectionClosed();
     break;
 
   case MG_EV_POLL:
@@ -403,7 +403,7 @@ void mcrMQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
     break;
 
   default:
-    ESP_LOGW(mcrMQTT::tagEngine(), "unhandled event 0x%04x", ev);
+    ESP_LOGW(MQTT::tagEngine(), "unhandled event 0x%04x", ev);
     break;
   }
 }

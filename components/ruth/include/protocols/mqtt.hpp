@@ -43,10 +43,10 @@ typedef struct {
   string_t *data = nullptr;
 } mqttOutMsg_t;
 
-typedef class mcrMQTT mcrMQTT_t;
-class mcrMQTT {
+typedef class MQTT MQTT_t;
+class MQTT {
 public:
-  static mcrMQTT_t *instance(); // singleton, use instance() for object
+  static MQTT_t *instance(); // singleton, use instance() for object
 
   void connect(int wait_ms = 0);
   void connectionClosed();
@@ -83,12 +83,12 @@ public:
     ::vTaskDelete(temp);
   }
 
-  static const char *tagEngine() { return "mcrMQTT"; };
-  static const char *tagOutbound() { return "mcrMQTT outboundMsg"; };
+  static const char *tagEngine() { return "MQTT"; };
+  static const char *tagOutbound() { return "MQTT outboundMsg"; };
   TaskHandle_t taskHandle() { return _task.handle; };
 
 private:
-  mcrMQTT(); // singleton, constructor is private
+  MQTT(); // singleton, constructor is private
   static void _ev_handler(struct mg_connection *nc, int ev, void *p);
 
   string_t _client_id;
@@ -120,7 +120,7 @@ private:
   QueueHandle_t _q_out = nullptr;
   QueueHandle_t _q_in = nullptr;
 
-  mcrMQTTin_t *_mqtt_in = nullptr;
+  MQTTin_t *_mqtt_in = nullptr;
 
   // const char *_dns_server = CONFIG_MCR_DNS_SERVER;
   const string_t _host = CONFIG_MCR_MQTT_HOST;
@@ -142,7 +142,7 @@ private:
 
   // Task implementation
   static void runEngine(void *task_instance) {
-    mcrMQTT_t *task = (mcrMQTT_t *)task_instance;
+    MQTT_t *task = (MQTT_t *)task_instance;
     task->core(task->_task.data);
   }
 };

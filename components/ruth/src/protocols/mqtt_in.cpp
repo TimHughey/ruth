@@ -39,11 +39,11 @@
 
 namespace ruth {
 
-static char TAG[] = "mcrMQTTin";
+static char TAG[] = "MQTTin";
 
-static mcrMQTTin_t *__singleton = nullptr;
+static MQTTin_t *__singleton = nullptr;
 
-mcrMQTTin::mcrMQTTin(QueueHandle_t q_in, const char *cmd_feed)
+MQTTin::MQTTin(QueueHandle_t q_in, const char *cmd_feed)
     : _q_in(q_in), _cmd_feed(cmd_feed) {
   esp_log_level_set(TAG, ESP_LOG_INFO);
 
@@ -51,24 +51,24 @@ mcrMQTTin::mcrMQTTin(QueueHandle_t q_in, const char *cmd_feed)
   __singleton = this;
 }
 
-mcrMQTTin_t *mcrMQTTin::instance() { return __singleton; }
+MQTTin_t *MQTTin::instance() { return __singleton; }
 
-UBaseType_t mcrMQTTin::changePriority(UBaseType_t priority) {
+UBaseType_t MQTTin::changePriority(UBaseType_t priority) {
   vTaskPrioritySet(_task.handle, priority);
   return _task.priority;
 }
 
-void mcrMQTTin::restorePriority() {
+void MQTTin::restorePriority() {
   vTaskPrioritySet(_task.handle, _task.priority);
 }
 
-void mcrMQTTin::core(void *data) {
+void MQTTin::core(void *data) {
   mqttInMsg_t *msg;
   CmdFactory_t factory;
   DynamicJsonDocument doc(1024); // allocate the json buffer here
 
   // note:  no reason to wait for wifi, normal ops or other event group
-  //        bits since mcrMQTTin waits for queue data from other tasks via
+  //        bits since MQTTin waits for queue data from other tasks via
   //        MQTT::publish().
   //
   //        said differently, this task will not execute until another task

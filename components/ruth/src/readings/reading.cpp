@@ -103,7 +103,7 @@ std::string *Reading::json(char *buffer, size_t len) {
 }
 
 void Reading::publish() {
-  mcrMQTT_t *mqtt = mcrMQTT::instance();
+  MQTT_t *mqtt = MQTT::instance();
   mqtt->publish(this);
 }
 

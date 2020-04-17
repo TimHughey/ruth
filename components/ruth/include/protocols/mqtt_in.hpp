@@ -44,8 +44,8 @@ typedef struct {
   rawMsg_t *data = nullptr;
 } mqttInMsg_t;
 
-typedef class mcrMQTTin mcrMQTTin_t;
-class mcrMQTTin {
+typedef class MQTTin MQTTin_t;
+class MQTTin {
 private:
   mcrTask_t _task = {.handle = nullptr,
                      .data = nullptr,
@@ -61,13 +61,13 @@ private:
 
   // Task implementation
   static void runEngine(void *task_instance) {
-    mcrMQTTin_t *task = (mcrMQTTin_t *)task_instance;
+    MQTTin_t *task = (MQTTin_t *)task_instance;
     task->core(task->_task_data);
   }
 
 public:
-  mcrMQTTin(QueueHandle_t q, const char *cmd_feed);
-  static mcrMQTTin_t *instance();
+  MQTTin(QueueHandle_t q, const char *cmd_feed);
+  static MQTTin_t *instance();
 
   UBaseType_t changePriority(UBaseType_t priority);
   void restorePriority();
@@ -97,7 +97,7 @@ public:
     ::vTaskDelete(temp);
   }
 
-  static const char *tagEngine() { return "mcrMQTTin"; };
+  static const char *tagEngine() { return "MQTTin"; };
 };
 } // namespace ruth
 

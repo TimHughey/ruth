@@ -52,7 +52,7 @@ static const char *TAG = "mcrESP";
 
 static Net *network = nullptr;
 static TimestampTask *timestampTask = nullptr;
-static mcrMQTT *mqttTask = nullptr;
+static MQTT *mqttTask = nullptr;
 static mcrDS *dsEngineTask = nullptr;
 static mcrI2c *i2cEngineTask = nullptr;
 static pwmEngine_t *pwmEngineTask = nullptr;
@@ -78,7 +78,7 @@ void app_main() {
   // must create network first!
   network = Net::instance(); // singleton
   timestampTask = new TimestampTask();
-  mqttTask = mcrMQTT::instance();        // singleton
+  mqttTask = MQTT::instance();        // singleton
   dsEngineTask = mcrDS::instance();      // singleton
   i2cEngineTask = mcrI2c::instance();    // singleton
   pwmEngineTask = pwmEngine::instance(); // singleton

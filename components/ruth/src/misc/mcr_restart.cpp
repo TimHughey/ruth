@@ -65,10 +65,10 @@ void mcrRestart::restart(const char *text, const char *func,
     textReading_t *rlog = new textReading(text);
     textReading_ptr_t rlog_ptr(rlog);
 
-    mcrMQTT::instance()->publish(rlog);
+    MQTT::instance()->publish(rlog);
 
     // pause to ensure reading has been published
-    // FUTURE:  query mcrMQTT to ensure all messages have been sent
+    // FUTURE:  query MQTT to ensure all messages have been sent
     //          rather than wait a hardcoded duration
     vTaskDelay(pdMS_TO_TICKS(1500));
   }

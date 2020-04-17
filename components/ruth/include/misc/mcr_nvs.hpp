@@ -59,7 +59,7 @@ private:
   size_t _msg_len = 0;
 
   const char *_possible_keys[7] = {"BOOT",    "mcrNet",  "mcrNet-connection",
-                                   "mcrI2c",  "mcrMQTT", "hostname",
+                                   "mcrI2c",  "MQTT", "hostname",
                                    "END_KEYS"};
 
   bool _committed_msgs_processed = false;

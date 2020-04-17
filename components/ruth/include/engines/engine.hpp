@@ -496,7 +496,7 @@ protected:
     auto rc = false;
 
     if (reading) {
-      mcrMQTT::instance()->publish(reading);
+      MQTT::instance()->publish(reading);
     }
 
     return rc;

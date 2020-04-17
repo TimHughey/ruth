@@ -44,7 +44,7 @@ void ramUtilReading::populateJSON(JsonDocument &doc) {
 
 void ramUtilReading::publish() {
   refresh();
-  mcrMQTT_t *mqtt = mcrMQTT::instance();
+  MQTT_t *mqtt = MQTT::instance();
   mqtt->publish(this);
 }
 
