@@ -231,7 +231,7 @@ menu "IoT"
 		config RUTH_MQTT_CMD_FEED
 			depends on RUTH_MQTT_CONFIG
 			string "Command Subscribe Topic (Feed)"
-			default "prod/ruth/f/command"
+			default "prod/+/f/command"
 			help
 				Topic (feed) for receiving commands from the IoT endpoint
 
