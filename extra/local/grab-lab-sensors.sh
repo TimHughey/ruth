@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-mcr_esp=lab-sensors
+ruth_esp=lab-sensors
 where_host=loki
 dev=/dev/ttyUSB1
 
@@ -9,7 +9,7 @@ host=$(hostname)
 [[ $host -ne $where_host ]] && echo "not on host" && exit 255
 [[ ! -e $dev ]] && echo "$dev does not exist" && exit 254
 
-echo "monitoring $mcr_esp from $dev"
+echo "monitoring $ruth_esp from $dev"
 while true; do
 	grabserial -d $dev
 	sleep 1

@@ -1,11 +1,11 @@
 #!/usr/bin/env zsh
 
-janice=${HOME}/devel/janice
-extra=${janice}/extra
-mcr_base=${janice}/mcr_esp
-tracker=${extra}/mcr/firmware-size-tracker.txt
+base=${HOME}/devel/ruth
+extra=${base}/extra
 
-pushd $mcr_base
+tracker=${extra}/firmware-size-tracker.txt
+
+pushd $base
 
 # the first make ensures everything is compiled
 idf.py size 1>/dev/null || exit 1

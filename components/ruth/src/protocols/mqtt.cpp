@@ -56,7 +56,7 @@ MQTT_t *MQTT::instance() {
 // SINGLETON! constructor is private
 MQTT::MQTT() {
   // create the report and command feed topics using the configured
-  // MCR_ENV and MCR_MQTT_RPT_FEED and MCR_MQTT_CMD_FEED
+  // RUTH_ENV and RUTH_MQTT_RPT_FEED and RUTH_MQTT_CMD_FEED
   _rpt_feed.append(CONFIG_RUTH_MQTT_RPT_FEED);
   _cmd_feed.append(CONFIG_RUTH_MQTT_CMD_FEED);
 

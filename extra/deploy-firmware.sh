@@ -22,14 +22,13 @@ function sudo_cmd {
     return $rc
 }
 
-base=${HOME}/devel/janice
-mcr=${base}/mcr_esp
-mcr_build=${mcr}/build
+base=${HOME}/devel/ruth
+build=${base}/build
 fw_suffixes=(bin elf)
 vsn=$(git describe)
-htdocs=/dar/www/wisslanding/htdocs/janice/mcr_esp/firmware
+htdocs=/dar/www/wisslanding/htdocs/ruth/firmware
 
-pushd -q $mcr
+pushd -q $base
 
 if [[ "${host}" = "jophiel" ]]; then
   git pull || exit 1
@@ -41,11 +40,11 @@ fi
 
 run_cmd idf.py build
 
-# echo "deploying mcr_esp.{bin,elf} to $htdocs"
+# echo "deploying ruth.{bin,elf} to $htdocs"
 for suffix in "${fw_suffixes[@]}"; do
-  src=${mcr_build}/mcr_esp.${suffix}
-  dest=${vsn}-mcr_esp.${suffix}
-  latest=latest-mcr_esp.${suffix}
+  src=${build}/ruth.${suffix}
+  dest=${vsn}-ruth.${suffix}
+  latest=latest-ruth.${suffix}
 
   if [[ "${host}" != "jophiel" ]]; then
     run_cmd scp ${src} jophiel:${htdocs}/${dest}
@@ -55,7 +54,7 @@ for suffix in "${fw_suffixes[@]}"; do
     pushd -q $htdocs
     run_cmd cp $src $dest || exit 1
 
-    # point the well known name latest-mcr_esp.* to the new file
+    # point the well known name latest-ruth.* to the new file
     sudo_cmd rm -f $latest
     sudo_cmd ln -s ./${dest} $latest
 

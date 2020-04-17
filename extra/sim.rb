@@ -64,7 +64,7 @@ CONNECT_INFO = {
   clean_session: true
 }.freeze
 
-TOPIC = 'mcr/f/report'.freeze
+TOPIC = 'ruth/f/report'.freeze
 $stderr.puts "Connecting to #{MQTT_HOST} as #{MQTT_USER} for #{TOPIC}"
 
 def handleClientStartup(client)
@@ -82,7 +82,7 @@ def send_time_sync(client)
 
   time_sync_json = JSON.generate(time_sync_hash)
 
-  client.publish('mcr/f/command', time_sync_json)
+  client.publish('ruth/f/command', time_sync_json)
 end
 
 def human_ms(msec)
@@ -196,7 +196,7 @@ MQTT::Client.connect(CONNECT_INFO).connect do |client|
 
       heartbeat_json = JSON.generate(heartbeat_hash)
 
-      client.publish('mcr/f/command', heartbeat_json, qos = 0)
+      client.publish('ruth/f/command', heartbeat_json, qos = 0)
 
       last_heartbeat_time = heartbeat_time
     end
@@ -229,7 +229,7 @@ MQTT::Client.connect(CONNECT_INFO).connect do |client|
 
         json = JSON.generate(hash)
         cmd_tracker.track(cid)
-        client.publish('mcr/f/command', json, qos = 0)
+        client.publish('ruth/f/command', json, qos = 0)
         #		sleep(0.05)
       end
     end
