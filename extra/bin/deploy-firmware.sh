@@ -13,7 +13,7 @@ function run_cmd {
 }
 
 function sudo_cmd {
-    sudo -u janice "$@"
+    sudo -u ruth "$@"
     local rc=$?
     if [ $rc -ne 0 ]; then
         echo "error with $1" >&2
