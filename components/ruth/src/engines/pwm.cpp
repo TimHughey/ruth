@@ -1,5 +1,5 @@
 /*
-      pwm_engine.cpp - Master Control Remote PWM Engine
+      pwm_engine.cpp - Ruth PWM Engine
       Copyright (C) 2017  Tim Hughey
 
       This program is free software: you can redistribute it and/or modify

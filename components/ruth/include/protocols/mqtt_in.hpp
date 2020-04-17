@@ -1,5 +1,5 @@
 /*
-    mqtt_out.hpp - Master Control Remote MQTT
+    mqtt_out.hpp - Ruth MQTT
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

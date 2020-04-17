@@ -1,5 +1,5 @@
 /*
-    i2c.hpp - Master Control Remote I2C
+    i2c.hpp - Ruth I2C
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_i2c_h
-#define ruth_i2c_h
+#ifndef ruth_i2c_hpp
+#define ruth_i2c_hpp
 
 #include <cstdlib>
 #include <string>
@@ -55,7 +55,7 @@ typedef struct {
 #define RST_PIN_SEL GPIO_SEL_21
 
 typedef class I2c I2c_t;
-class I2c : public mcrEngine<i2cDev_t> {
+class I2c : public Engine<i2cDev_t> {
 
 private:
   I2c();
@@ -223,4 +223,4 @@ private:
 };
 } // namespace ruth
 
-#endif // mcr_i2c_h
+#endif // ruth_i2c_hpp

@@ -21,7 +21,7 @@
 #include "protocols/mqtt.hpp"
 #include "readings/readings.hpp"
 
-static char tTAG[] = "mcrStamp";
+static char tTAG[] = "RuthStamp";
 
 using std::max;
 using std::min;
@@ -105,7 +105,7 @@ void TimestampTask::core(void *data) {
 
     if (max_alloc < (5 * 1024)) {
       Restart::instance()->restart("max allocate < 5k (heap fragmentation)",
-                                      __PRETTY_FUNCTION__, 0);
+                                   __PRETTY_FUNCTION__, 0);
     }
 
     if (Net::waitForReady(0) == true) {

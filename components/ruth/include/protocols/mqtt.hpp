@@ -1,5 +1,5 @@
 /*
-    mcpr_mqtt.h - Master Control Remote MQTT
+    mcpr_mqtt.h - Ruth MQTT
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

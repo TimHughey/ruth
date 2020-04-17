@@ -1,5 +1,5 @@
 /*
-    engine.hpp - Master Control Remote Engine Reading
+    engine.hpp - Ruth Engine Reading
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

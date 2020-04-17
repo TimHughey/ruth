@@ -1,5 +1,5 @@
 /*
-    cmd_pwm.hpp - Master Control Remote Command PWM Class
+    cmd_pwm.hpp - Ruth Command PWM Class
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

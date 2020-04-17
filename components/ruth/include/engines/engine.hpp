@@ -1,5 +1,5 @@
 /*
-     engine.hpp - Master Control Remote Dallas Semiconductor
+     engine.hpp - Ruth Dallas Semiconductor
      Copyright (C) 2017  Tim Hughey
 
      This program is free software: you can redistribute it and/or modify
@@ -44,7 +44,7 @@
 
 namespace ruth {
 
-template <class DEV> class mcrEngine {
+template <class DEV> class Engine {
 private:
   TaskMap_t _task_map;
 
@@ -68,7 +68,7 @@ private:
   // to satisify C++ requiremeents we must wrap the object member function
   // in a static function
   static void runCore(void *task_instance) {
-    mcrEngine *task = (mcrEngine *)task_instance;
+    Engine *task = (Engine *)task_instance;
     auto task_map = task->taskMap();
     auto *data = task_map[CORE]->_data;
 
@@ -79,7 +79,7 @@ private:
   // Engine Sub Tasks
   //
   static void runConvert(void *task_instance) {
-    mcrEngine *task = (mcrEngine *)task_instance;
+    Engine *task = (Engine *)task_instance;
     auto task_map = task->taskMap();
     auto *data = task_map[CONVERT];
 
@@ -87,7 +87,7 @@ private:
   }
 
   static void runDiscover(void *task_instance) {
-    mcrEngine *task = (mcrEngine *)task_instance;
+    Engine *task = (Engine *)task_instance;
     auto task_map = task->taskMap();
     auto *data = task_map[DISCOVER];
 
@@ -95,7 +95,7 @@ private:
   }
 
   static void runReport(void *task_instance) {
-    mcrEngine *task = (mcrEngine *)task_instance;
+    Engine *task = (Engine *)task_instance;
     auto task_map = task->taskMap();
     auto *data = task_map[REPORT];
 
@@ -103,7 +103,7 @@ private:
   }
 
   static void runCommand(void *task_instance) {
-    mcrEngine *task = (mcrEngine *)task_instance;
+    Engine *task = (Engine *)task_instance;
     auto task_map = task->taskMap();
     auto *data = task_map[COMMAND];
 
@@ -120,7 +120,7 @@ private:
   }
 
 public:
-  mcrEngine() {
+  Engine() {
     _evg = xEventGroupCreate();
     _bus_mutex = xSemaphoreCreateMutex();
 
@@ -130,7 +130,7 @@ public:
     metrics.switch_cmd.elapsed.freeze(0);
   };
 
-  virtual ~mcrEngine(){};
+  virtual ~Engine(){};
 
   // task methods
   void addTask(const string_t &engine_name, TaskTypes_t task_type,

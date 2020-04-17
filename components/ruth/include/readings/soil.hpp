@@ -1,5 +1,5 @@
 /*
-    soil.hpp - Master Control Remote Soil Moisture Reading from Seesaw
+    soil.hpp - Ruth Soil Moisture Reading from Seesaw
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

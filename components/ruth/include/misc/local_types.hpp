@@ -1,5 +1,5 @@
 /*
-    engine.hpp - Master Control Remote Dallas Semiconductor
+    local_types.hpp - Ruth Local Types
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -57,4 +57,4 @@ typedef struct {
 typedef std::vector<char> rawMsg_t;
 
 } // namespace ruth
-#endif // mcr_type_h
+#endif // ruth_type_hpp

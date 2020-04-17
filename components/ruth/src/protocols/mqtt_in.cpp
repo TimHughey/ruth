@@ -1,5 +1,5 @@
 /*
-    mqtt_out.cpp - Master Control Remote MQTT Outbound Message Task
+    mqtt_out.cpp - Ruth MQTT Outbound Message Task
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

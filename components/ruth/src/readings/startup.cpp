@@ -1,5 +1,5 @@
 /*
-    startup_reading.cpp - Master Control Remote Startup Reading
+    startup_reading.cpp - Ruth Startup Reading
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -34,7 +34,7 @@ startupReading::startupReading(uint32_t batt_mv) : remoteReading(batt_mv) {
 
   reset_reason_ = decodeResetReason(esp_reset_reason());
 
-  ESP_LOGI("mcrStartup", "reason [%s]", reset_reason_.c_str());
+  ESP_LOGI("RuthStartup", "reason [%s]", reset_reason_.c_str());
 };
 
 void startupReading::populateJSON(JsonDocument &doc) {

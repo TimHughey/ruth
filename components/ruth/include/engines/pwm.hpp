@@ -1,5 +1,5 @@
 /*
-    pwm_engine.hpp - Master Control Remote PWM Engine
+    pwm_engine.hpp - Ruth PWM Engine
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -44,7 +44,7 @@ typedef struct {
 } pwmLastWakeTime_t;
 
 typedef class pwmEngine pwmEngine_t;
-class pwmEngine : public mcrEngine<pwmDev_t> {
+class pwmEngine : public Engine<pwmDev_t> {
 
 private:
   pwmEngine();

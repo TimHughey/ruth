@@ -1,5 +1,5 @@
 /*
-    pwm.cpp - Master Control Remote PWM Device
+    pwm.cpp - Ruth PWM Device
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

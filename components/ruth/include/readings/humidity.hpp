@@ -1,5 +1,5 @@
 /*
-    humidity.hpp - Master Control Remote Relative Humidity Reading
+    humidity.hpp - Ruth Relative Humidity Reading
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

@@ -1,5 +1,5 @@
 /*
-    remote.cpp - Master Control Remote Reading
+    remote.cpp - Ruth Reading
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

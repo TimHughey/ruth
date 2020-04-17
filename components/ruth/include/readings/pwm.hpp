@@ -1,5 +1,5 @@
 /*
-    pwm.hpp - Master Control Remote PWM Reading
+    pwm.hpp - Ruth PWM Reading
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

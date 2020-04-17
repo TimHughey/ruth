@@ -1,5 +1,5 @@
 /*
-    pwm_dev.hpp - Master Control Remote PWM Device
+    pwm_dev.hpp - Ruth PWM Device
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

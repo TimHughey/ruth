@@ -1,5 +1,5 @@
 /*
-     engines/types.hpp - Master Control Remote Engine Types
+     engines/types.hpp - Ruth Engine Types
      Copyright (C) 2017  Tim Hughey
 
      This program is free software: you can redistribute it and/or modify

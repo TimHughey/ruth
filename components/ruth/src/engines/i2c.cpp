@@ -1,5 +1,5 @@
 /*
-      i2c_engine.cpp - Master Control Remote I2C
+      i2c_engine.cpp - Ruth I2C
       Copyright (C) 2017  Tim Hughey
 
       This program is free software: you can redistribute it and/or modify

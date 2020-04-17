@@ -1,5 +1,5 @@
 /*
-    mcr_i2c.h - Master Control Remote I2C
+    i2c_dev.hpp - Ruth I2C
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

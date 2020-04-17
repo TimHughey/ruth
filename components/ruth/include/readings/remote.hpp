@@ -1,5 +1,5 @@
 /*
-    remote_reading.hpp - Master Control Remote Celsius Reading
+    remote_reading.hpp - Ruth Celsius Reading
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

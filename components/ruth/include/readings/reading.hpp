@@ -1,5 +1,5 @@
 /*
-    reading.h - Readings used within Master Control Remote
+    reading.h - Readings used within Ruth
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

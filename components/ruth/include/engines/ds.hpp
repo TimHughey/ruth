@@ -1,5 +1,5 @@
 /*
-    DallasSemi - Master Control Remote Dallas Semiconductor
+    DallasSemi - Ruth Dallas Semiconductor
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -41,7 +41,7 @@
 namespace ruth {
 
 typedef class DallasSemi DallasSemi_t;
-class DallasSemi : public mcrEngine<dsDev_t> {
+class DallasSemi : public Engine<dsDev_t> {
 
 private:
   DallasSemi();
@@ -194,4 +194,4 @@ private:
 };
 } // namespace ruth
 
-#endif // mcr_ds_h
+#endif // ruth_ds_engine_hpp
