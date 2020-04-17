@@ -1,5 +1,5 @@
 /*
-          mcrDS - Master Control Remote Dallas Semiconductor
+          DallasSemi - Master Control Remote Dallas Semiconductor
           Copyright (C) 2017  Tim Hughey
 
           This program is free software: you can redistribute it and/or modify
@@ -35,10 +35,10 @@
 
 namespace ruth {
 
-mcrDS_t *__singleton__ = nullptr;
-static const string_t engine_name = "mcrDS";
+DallasSemi_t *__singleton__ = nullptr;
+static const string_t engine_name = "DallasSemi";
 
-mcrDS::mcrDS() {
+DallasSemi::DallasSemi() {
   setTags(localTags());
   // setLoggingLevel(ESP_LOG_DEBUG);
   setLoggingLevel(ESP_LOG_INFO);
@@ -62,7 +62,7 @@ mcrDS::mcrDS() {
   addTask(engine_name, REPORT, report);
 }
 
-bool mcrDS::checkDevicesPowered() {
+bool DallasSemi::checkDevicesPowered() {
   bool rc = false;
   owb_status owb_s;
   uint8_t read_pwr_cmd[] = {0xcc, 0xb4};
@@ -88,11 +88,11 @@ bool mcrDS::checkDevicesPowered() {
   return rc;
 }
 
-void mcrDS::command(void *data) {
+void DallasSemi::command(void *data) {
   logSubTaskStart(data);
 
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdSwitch_t *));
-  cmdQueue_t cmd_q = {"mcrDS", "ds", _cmd_q};
+  cmdQueue_t cmd_q = {"DallasSemi", "ds", _cmd_q};
   CmdQueues::registerQ(cmd_q);
 
   // no setup required before jumping into task loop
@@ -196,7 +196,7 @@ void mcrDS::command(void *data) {
   }
 }
 
-bool mcrDS::commandAck(cmdSwitch_t &cmd) {
+bool DallasSemi::commandAck(cmdSwitch_t &cmd) {
   bool rc = true;
   int64_t start = esp_timer_get_time();
   dsDev_t *dev = findDevice(cmd.internalDevID());
@@ -225,7 +225,7 @@ bool mcrDS::commandAck(cmdSwitch_t &cmd) {
 }
 
 // SubTasks receive their task config via the void *data
-void mcrDS::convert(void *data) {
+void DallasSemi::convert(void *data) {
   uint8_t temp_convert_cmd[] = {0xcc, 0x44};
 
   logSubTaskStart(data);
@@ -350,7 +350,7 @@ void mcrDS::convert(void *data) {
   }
 }
 
-void mcrDS::discover(void *data) {
+void DallasSemi::discover(void *data) {
   logSubTaskStart(data);
   saveTaskLastWake(DISCOVER);
 
@@ -452,15 +452,15 @@ void mcrDS::discover(void *data) {
   }
 }
 
-mcrDS_t *mcrDS::instance() {
+DallasSemi_t *DallasSemi::instance() {
   if (__singleton__ == nullptr) {
-    __singleton__ = new mcrDS();
+    __singleton__ = new DallasSemi();
   }
 
   return __singleton__;
 }
 
-void mcrDS::report(void *data) {
+void DallasSemi::report(void *data) {
   logSubTaskStart(data);
   Net::waitForNormalOps();
 
@@ -529,7 +529,7 @@ void mcrDS::report(void *data) {
   }
 }
 
-bool mcrDS::readDevice(dsDev_t *dev) {
+bool DallasSemi::readDevice(dsDev_t *dev) {
   celsiusReading_t *celsius = nullptr;
   positionsReading_t *positions = nullptr;
   auto rc = false;
@@ -591,7 +591,7 @@ bool mcrDS::readDevice(dsDev_t *dev) {
 }
 
 // specific device scratchpad methods
-bool mcrDS::readDS1820(dsDev_t *dev, celsiusReading_t **reading) {
+bool DallasSemi::readDS1820(dsDev_t *dev, celsiusReading_t **reading) {
   owb_status owb_s;
   uint8_t data[9] = {0x00};
   bool type_s = false;
@@ -661,7 +661,7 @@ bool mcrDS::readDS1820(dsDev_t *dev, celsiusReading_t **reading) {
   return rc;
 }
 
-bool mcrDS::readDS2406(dsDev_t *dev, positionsReading_t **reading) {
+bool DallasSemi::readDS2406(dsDev_t *dev, positionsReading_t **reading) {
   owb_status owb_s;
   bool rc = false;
 
@@ -717,7 +717,7 @@ bool mcrDS::readDS2406(dsDev_t *dev, positionsReading_t **reading) {
   return rc;
 }
 
-bool mcrDS::readDS2408(dsDev_t *dev, positionsReading_t **reading) {
+bool DallasSemi::readDS2408(dsDev_t *dev, positionsReading_t **reading) {
   owb_status owb_s;
   bool rc = false;
 
@@ -792,7 +792,7 @@ bool mcrDS::readDS2408(dsDev_t *dev, positionsReading_t **reading) {
   return rc;
 }
 
-bool mcrDS::readDS2413(dsDev_t *dev, positionsReading_t **reading) {
+bool DallasSemi::readDS2413(dsDev_t *dev, positionsReading_t **reading) {
   owb_status owb_s;
   bool rc = false;
 
@@ -857,7 +857,7 @@ bool mcrDS::readDS2413(dsDev_t *dev, positionsReading_t **reading) {
   return rc;
 }
 
-bool mcrDS::resetBus(bool *present) {
+bool DallasSemi::resetBus(bool *present) {
   auto __present = false;
   owb_status owb_s;
 
@@ -874,7 +874,7 @@ bool mcrDS::resetBus(bool *present) {
   return false;
 }
 
-void mcrDS::core(void *data) {
+void DallasSemi::core(void *data) {
   owb_rmt_driver_info *rmt_driver = new owb_rmt_driver_info;
   _ds = owb_rmt_initialize(rmt_driver, _pin, RMT_CHANNEL_0, RMT_CHANNEL_1);
 
@@ -896,7 +896,7 @@ void mcrDS::core(void *data) {
   }
 }
 
-bool mcrDS::setDS2406(cmdSwitch_t &cmd, dsDev_t *dev) {
+bool DallasSemi::setDS2406(cmdSwitch_t &cmd, dsDev_t *dev) {
   owb_status owb_s;
   bool rc = false;
 
@@ -963,7 +963,7 @@ bool mcrDS::setDS2406(cmdSwitch_t &cmd, dsDev_t *dev) {
   return rc;
 }
 
-bool mcrDS::setDS2408(cmdSwitch_t &cmd, dsDev_t *dev) {
+bool DallasSemi::setDS2408(cmdSwitch_t &cmd, dsDev_t *dev) {
   owb_status owb_s;
   bool rc = false;
 
@@ -1070,7 +1070,7 @@ bool mcrDS::setDS2408(cmdSwitch_t &cmd, dsDev_t *dev) {
   return rc;
 }
 
-bool mcrDS::setDS2413(cmdSwitch_t &cmd, dsDev_t *dev) {
+bool DallasSemi::setDS2413(cmdSwitch_t &cmd, dsDev_t *dev) {
   owb_status owb_s;
   bool rc = false;
 
@@ -1152,13 +1152,13 @@ bool mcrDS::setDS2413(cmdSwitch_t &cmd, dsDev_t *dev) {
   return rc;
 }
 
-bool mcrDS::check_crc16(const uint8_t *input, uint16_t len,
+bool DallasSemi::check_crc16(const uint8_t *input, uint16_t len,
                         const uint8_t *inverted_crc, uint16_t crc) {
   crc = ~crc16(input, len, crc);
   return (crc & 0xFF) == inverted_crc[0] && (crc >> 8) == inverted_crc[1];
 }
 
-uint16_t mcrDS::crc16(const uint8_t *input, uint16_t len, uint16_t crc) {
+uint16_t DallasSemi::crc16(const uint8_t *input, uint16_t len, uint16_t crc) {
   static const uint8_t oddparity[16] = {0, 1, 1, 0, 1, 0, 0, 1,
                                         1, 0, 0, 1, 0, 1, 1, 0};
 
@@ -1181,7 +1181,7 @@ uint16_t mcrDS::crc16(const uint8_t *input, uint16_t len, uint16_t crc) {
   return crc;
 }
 
-void mcrDS::printInvalidDev(dsDev_t *dev) {
+void DallasSemi::printInvalidDev(dsDev_t *dev) {
   if (dev == nullptr) {
     ESP_LOGW(tagEngine(), "%s dev == nullptr", __PRETTY_FUNCTION__);
     return;

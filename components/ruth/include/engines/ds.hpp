@@ -1,5 +1,5 @@
 /*
-    mcrDS - Master Control Remote Dallas Semiconductor
+    DallasSemi - Master Control Remote Dallas Semiconductor
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -40,14 +40,14 @@
 
 namespace ruth {
 
-typedef class mcrDS mcrDS_t;
-class mcrDS : public mcrEngine<dsDev_t> {
+typedef class DallasSemi DallasSemi_t;
+class DallasSemi : public mcrEngine<dsDev_t> {
 
 private:
-  mcrDS();
+  DallasSemi();
 
 public:
-  static mcrDS_t *instance();
+  static DallasSemi_t *instance();
 
   //
   // Tasks
@@ -111,19 +111,19 @@ private:
   void printInvalidDev(dsDev_t *dev);
 
   EngineTagMap_t &localTags() {
-    static EngineTagMap_t tag_map = {{"engine", "mcrDS"},
-                                     {"discover", "mcrDS discover"},
-                                     {"convert", "mcrDS convert"},
-                                     {"report", "mcrDS report"},
-                                     {"command", "mcrDS command"},
+    static EngineTagMap_t tag_map = {{"engine", "DallasSemi"},
+                                     {"discover", "DallasSemi discover"},
+                                     {"convert", "DallasSemi convert"},
+                                     {"report", "DallasSemi report"},
+                                     {"command", "DallasSemi command"},
                                      {"readDevice", "DS readDevice"},
-                                     {"readDS1820", "mcrDS readDS1820"},
-                                     {"readDS2406", "mcrDS readDS2406"},
-                                     {"readDS2408", "mcrDS readDS2408"},
-                                     {"readDS2413", "mcrDS readDS2413"},
-                                     {"setDS2406", "mcrDS setDS2406"},
-                                     {"setDS2408", "mcrDS setDS2408"},
-                                     {"setDS2413", "mcrDS setDS2413"}};
+                                     {"readDS1820", "DallasSemi readDS1820"},
+                                     {"readDS2406", "DallasSemi readDS2406"},
+                                     {"readDS2408", "DallasSemi readDS2408"},
+                                     {"readDS2413", "DallasSemi readDS2413"},
+                                     {"setDS2406", "DallasSemi setDS2406"},
+                                     {"setDS2408", "DallasSemi setDS2408"},
+                                     {"setDS2413", "DallasSemi setDS2413"}};
 
     return tag_map;
   }
