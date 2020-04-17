@@ -1,7 +1,7 @@
 
 set(
   RUTH_MISC
-    "src/misc/mcr_restart"      "src/misc/mcr_nvs"
+    "src/misc/restart"      "src/misc/nvs"
     "src/misc/timestamp_task"   "src/misc/status_led"
     "src/misc/hw_config")
 

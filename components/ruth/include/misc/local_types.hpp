@@ -43,7 +43,7 @@ typedef struct {
   TickType_t lastWake;
   UBaseType_t priority;
   UBaseType_t stackSize;
-} mcrTask_t;
+} Task_t;
 
 typedef string_t RefID_t;
 

@@ -93,7 +93,7 @@ private:
 
   string_t _client_id;
   string_t _endpoint;
-  mcrTask_t _task = {.handle = nullptr,
+  Task_t _task = {.handle = nullptr,
                      .data = nullptr,
                      .lastWake = 0,
                      .priority = CONFIG_MCR_MQTT_TASK_PRIORITY,

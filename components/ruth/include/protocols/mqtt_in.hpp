@@ -47,7 +47,7 @@ typedef struct {
 typedef class MQTTin MQTTin_t;
 class MQTTin {
 private:
-  mcrTask_t _task = {.handle = nullptr,
+  Task_t _task = {.handle = nullptr,
                      .data = nullptr,
                      .lastWake = 0,
                      .priority = CONFIG_MCR_MQTT_INBOUND_TASK_PRIORITY,
