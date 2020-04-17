@@ -1,5 +1,5 @@
 /*
-    mcrDev.h - Master Control Common Device for Engines
+    Device.h - Master Control Common Device for Engines
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef mcrDev_h
-#define mcrDev_h
+#ifndef Device_h
+#define Device_h
 
 #include <cstdlib>
 #include <ios>
@@ -41,18 +41,18 @@ using std::unique_ptr;
 
 namespace ruth {
 
-typedef class mcrDev mcrDev_t;
-class mcrDev {
+typedef class Device Device_t;
+class Device {
 public:
-  mcrDev() {} // all values are defaulted in definition of class(es)
+  Device() {} // all values are defaulted in definition of class(es)
 
-  mcrDev(DeviceAddress_t &addr);
-  mcrDev(const string_t &id, DeviceAddress_t &addr);
-  // mcrDev(const mcrDev_t &dev); // copy constructor
-  virtual ~mcrDev(); // base class will handle deleting the reading, if needed
+  Device(DeviceAddress_t &addr);
+  Device(const string_t &id, DeviceAddress_t &addr);
+  // Device(const Device_t &dev); // copy constructor
+  virtual ~Device(); // base class will handle deleting the reading, if needed
 
   // operators
-  bool operator==(mcrDev_t *rhs) const;
+  bool operator==(Device_t *rhs) const;
 
   static uint32_t idMaxLen();
   bool isValid();
@@ -109,7 +109,7 @@ public:
   // int writeErrorCount();
 
   virtual const unique_ptr<char[]> debug();
-  // virtual const std::string to_string(mcrDev_t const &);
+  // virtual const std::string to_string(Device_t const &);
   // virtual void debug(char *buff, size_t len);
 
 private:
@@ -143,4 +143,4 @@ protected:
 };
 } // namespace ruth
 
-#endif // mcrDev_h
+#endif // Device_h

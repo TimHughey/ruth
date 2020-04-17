@@ -33,7 +33,7 @@ namespace ruth {
 typedef class i2cDev i2cDev_t;
 typedef class std::vector<uint8_t> RawData_t;
 
-class i2cDev : public mcrDev {
+class i2cDev : public Device {
 public:
   i2cDev() {}
   static const char *i2cDevDesc(uint8_t addr);

@@ -1,5 +1,5 @@
 /*
-     mcrDev.cpp - Master Control Common Device for Engines
+     Device.cpp - Master Control Common Device for Engines
      Copyright (C) 2017  Tim Hughey
 
      This program is free software: you can redistribute it and/or modify
@@ -42,28 +42,28 @@ using std::unique_ptr;
 
 namespace ruth {
 
-// construct a new mcrDev with only an address
-mcrDev::mcrDev(DeviceAddress_t &addr) { _addr = addr; }
+// construct a new Device with only an address
+Device::Device(DeviceAddress_t &addr) { _addr = addr; }
 
-mcrDev::mcrDev(const std::string &id, DeviceAddress_t &addr) {
+Device::Device(const std::string &id, DeviceAddress_t &addr) {
   _id = id; // copy id and addr objects
   _addr = addr;
 }
 
 // base class will handle deleteing the reading, if needed
-mcrDev::~mcrDev() {
+Device::~Device() {
   if (_reading)
     delete _reading;
 }
 
-bool mcrDev::operator==(mcrDev_t *rhs) const { return (_id == rhs->_id); }
+bool Device::operator==(Device_t *rhs) const { return (_id == rhs->_id); }
 
-void mcrDev::justSeen() { _last_seen = time(nullptr); }
-void mcrDev::setID(const std::string &new_id) { _id = new_id; }
-void mcrDev::setID(char *new_id) { _id = new_id; }
+void Device::justSeen() { _last_seen = time(nullptr); }
+void Device::setID(const std::string &new_id) { _id = new_id; }
+void Device::setID(char *new_id) { _id = new_id; }
 
 // updaters
-void mcrDev::setReading(Reading_t *reading) {
+void Device::setReading(Reading_t *reading) {
   if (_reading != nullptr) {
     delete _reading;
     _reading = nullptr;
@@ -80,51 +80,51 @@ void mcrDev::setReading(Reading_t *reading) {
   _reading = reading;
 };
 
-void mcrDev::setReadingCmdAck(uint32_t latency_us, RefID_t &refid) {
+void Device::setReadingCmdAck(uint32_t latency_us, RefID_t &refid) {
   if (_reading != nullptr) {
     _reading->setCmdAck(latency_us, refid);
   }
 }
 
-uint8_t mcrDev::firstAddressByte() { return _addr.firstAddressByte(); };
-uint8_t mcrDev::lastAddressByte() { return _addr.lastAddressByte(); };
-DeviceAddress_t &mcrDev::addr() { return _addr; }
-uint8_t *mcrDev::addrBytes() { return (uint8_t *)_addr; }
-Reading_t *mcrDev::reading() { return _reading; }
-uint32_t mcrDev::idMaxLen() { return _id_len; };
-bool mcrDev::isValid() { return firstAddressByte() != 0x00 ? true : false; };
-bool mcrDev::isNotValid() { return !isValid(); }
+uint8_t Device::firstAddressByte() { return _addr.firstAddressByte(); };
+uint8_t Device::lastAddressByte() { return _addr.lastAddressByte(); };
+DeviceAddress_t &Device::addr() { return _addr; }
+uint8_t *Device::addrBytes() { return (uint8_t *)_addr; }
+Reading_t *Device::reading() { return _reading; }
+uint32_t Device::idMaxLen() { return _id_len; };
+bool Device::isValid() { return firstAddressByte() != 0x00 ? true : false; };
+bool Device::isNotValid() { return !isValid(); }
 
 // metrics functions
-void mcrDev::readStart() { _read_us.reset(); }
-uint64_t mcrDev::readStop() {
+void Device::readStart() { _read_us.reset(); }
+uint64_t Device::readStop() {
   _read_us.freeze();
   _read_timestamp = time(nullptr);
 
   return _read_us;
 }
-uint64_t mcrDev::readUS() { return _read_us; }
-time_t mcrDev::readTimestamp() { return _read_timestamp; }
-time_t mcrDev::timeCreated() { return _created_mtime; }
-time_t mcrDev::secondsSinceLastSeen() { return (time(nullptr) - _last_seen); }
+uint64_t Device::readUS() { return _read_us; }
+time_t Device::readTimestamp() { return _read_timestamp; }
+time_t Device::timeCreated() { return _created_mtime; }
+time_t Device::secondsSinceLastSeen() { return (time(nullptr) - _last_seen); }
 
-bool mcrDev::available() { return (secondsSinceLastSeen() <= _missing_secs); }
-bool mcrDev::missing() { return (!available()); }
+bool Device::available() { return (secondsSinceLastSeen() <= _missing_secs); }
+bool Device::missing() { return (!available()); }
 
-void mcrDev::writeStart() { _write_us.reset(); }
-uint64_t mcrDev::writeStop() {
+void Device::writeStart() { _write_us.reset(); }
+uint64_t Device::writeStop() {
   _write_us.freeze();
 
   return _write_us;
 }
-uint64_t mcrDev::writeUS() { return _write_us; }
+uint64_t Device::writeUS() { return _write_us; }
 
-void mcrDev::crcMismatch() { _crc_mismatches++; }
-void mcrDev::readFailure() { _read_errors++; }
-void mcrDev::writeFailure() { _write_errors++; }
+void Device::crcMismatch() { _crc_mismatches++; }
+void Device::readFailure() { _read_errors++; }
+void Device::writeFailure() { _write_errors++; }
 
 // this is a fairly expensive method, avoid production use
-const unique_ptr<char[]> mcrDev::debug() {
+const unique_ptr<char[]> Device::debug() {
   auto const max_len = 319;
 
   // allocate from the heap to minimize task stack impact
@@ -139,7 +139,7 @@ const unique_ptr<char[]> mcrDev::debug() {
   str[0] = 0x00;
   auto curr_len = strlen(str);
 
-  snprintf(str, max_len, "mcrDev(%s id(%s) desc(%s)", _addr.debug().get(),
+  snprintf(str, max_len, "Device(%s id(%s) desc(%s)", _addr.debug().get(),
            id().c_str(), description().c_str());
 
   map->insert({"crc_fail", _crc_mismatches});

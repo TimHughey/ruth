@@ -32,7 +32,7 @@ namespace ruth {
 
 typedef class dsDev dsDev_t;
 
-class dsDev : public mcrDev {
+class dsDev : public Device {
 private:
   static const size_t _ds_max_addr_len = 8;
   static const uint8_t _family_byte = 0;

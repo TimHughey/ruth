@@ -65,7 +65,7 @@ const char *i2cDev::i2cDevDesc(uint8_t addr) {
 
 // construct a new i2cDev with a known address and compute the id
 i2cDev::i2cDev(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
-    : mcrDev(addr) {
+    : Device(addr) {
   _use_multiplexer = use_multiplexer;
   _bus = bus;
 

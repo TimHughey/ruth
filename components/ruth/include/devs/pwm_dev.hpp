@@ -37,7 +37,7 @@ typedef class pwmDev pwmDev_t;
 
 #define PWM_GPIO_PIN_SEL (GPIO_SEL_32 | GPIO_SEL_15 | GPIO_SEL_33 | GPIO_SEL_27)
 
-class pwmDev : public mcrDev {
+class pwmDev : public Device {
 public:
   pwmDev() {}
   static const char *pwmDevDesc(const DeviceAddress_t &addr);

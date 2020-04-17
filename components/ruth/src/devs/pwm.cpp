@@ -60,7 +60,7 @@ const char *pwmDev::pwmDevDesc(const DeviceAddress_t &addr) {
 }
 
 // construct a new pwmDev with a known address and compute the id
-pwmDev::pwmDev(DeviceAddress_t &num) : mcrDev(num) {
+pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
   unique_ptr<char[]> id(new char[pwm_max_id_len_ + 1]);
 
   gpio_pin_ = mapNumToGPIO(num);

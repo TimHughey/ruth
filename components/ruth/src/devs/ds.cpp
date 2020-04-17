@@ -36,7 +36,7 @@
 
 namespace ruth {
 
-dsDev::dsDev(DeviceAddress_t &addr, bool power) : mcrDev(addr) {
+dsDev::dsDev(DeviceAddress_t &addr, bool power) : Device(addr) {
   char buff[_id_len] = {0x00};
   // byte   0: 8-bit family code
   // byte 1-6: 48-bit unique serial number
