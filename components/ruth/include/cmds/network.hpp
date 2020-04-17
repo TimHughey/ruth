@@ -1,5 +1,5 @@
 /*
-    network.hpp - Master Control Command Network Class
+    network.hpp - Ruth Command Network Class
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

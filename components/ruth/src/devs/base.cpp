@@ -1,5 +1,5 @@
 /*
-     Device.cpp - Master Control Common Device for Engines
+     Device.cpp - Ruth Common Device for Engines
      Copyright (C) 2017  Tim Hughey
 
      This program is free software: you can redistribute it and/or modify

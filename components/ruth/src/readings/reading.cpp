@@ -59,7 +59,7 @@ void Reading::commonJSON(JsonDocument &doc) {
     doc["refid"] = _refid;
   }
 
-  if (_mcp_log_reading) {
+  if (_log_reading) {
     doc["log_reading"] = true;
   }
 

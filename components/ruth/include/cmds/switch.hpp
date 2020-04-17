@@ -1,5 +1,5 @@
 /*
-    switch.hpp - Master Control Command Switch Class
+    switch.hpp - Ruth Command Switch Class
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

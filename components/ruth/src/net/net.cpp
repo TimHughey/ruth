@@ -353,7 +353,7 @@ const string_t &Net::macAddress() {
 void Net::setName(const string_t name) {
 
   instance()->name_ = name;
-  ESP_LOGI(tagEngine(), "mcp assigned name [%s]", instance()->name_.c_str());
+  ESP_LOGI(tagEngine(), "assigned name [%s]", instance()->name_.c_str());
 
   tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, name.c_str());
 

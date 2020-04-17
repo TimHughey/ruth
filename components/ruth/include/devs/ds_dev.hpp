@@ -1,5 +1,5 @@
 /*
-    ds_dev.h - Master Control Dalla Semiconductor Device
+    ds_dev.h - Ruth Dalla Semiconductor Device
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

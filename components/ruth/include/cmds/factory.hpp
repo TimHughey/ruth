@@ -1,5 +1,5 @@
 /*
-    factory.hpp - Master Control Command Factory Class
+    factory.hpp - Ruth Command Factory Class
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

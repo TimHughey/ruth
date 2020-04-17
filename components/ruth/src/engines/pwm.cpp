@@ -150,7 +150,7 @@ void pwmEngine::core(void *task_data) {
   ESP_LOGV(tagEngine(), "waiting for normal ops...");
   Net::waitForNormalOps();
 
-  // wait for up to 30 seconds for name assigned by mcp
+  // wait for up to 30 seconds for name assignment via MQTT
   // if the assigned name is not available then device names will use
   // the pwm/ruth.<mac addr>.<bus>.<device> format
 

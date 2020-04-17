@@ -1,5 +1,5 @@
 /*
-    base.hpp - Master Control Command Base Class
+    base.hpp - Ruth Command Base Class
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -56,7 +56,7 @@ private:
   void populate(JsonDocument &doc, const char *dev_name_key);
 
 protected:
-  // the device name as sent from mcp
+  // the device name reported to the mqtt topic
   string_t _external_dev_id;
   // some devices have a global unique name (e.g. Dallas Semiconductor) while
   // others don't (e.g. i2c).  this string is provided when translation is
@@ -78,12 +78,12 @@ public:
   Cmd(const Cmd_t *cmd);
   // Cmd(JsonDocument &doc, elapsedMicros &parse);
   Cmd(JsonDocument &doc,     // common case for cmds that
-         elapsedMicros &parse); // do not reference a
+      elapsedMicros &parse); // do not reference a
   // specific device
 
   Cmd(JsonDocument &doc,         // common case for cmds that
-         elapsedMicros &parse,      // do reference a
-         const char *dev_name_key); // specific device
+      elapsedMicros &parse,      // do reference a
+      const char *dev_name_key); // specific device
 
   virtual ~Cmd(){};
 

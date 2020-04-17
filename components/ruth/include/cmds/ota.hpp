@@ -1,5 +1,5 @@
 /*
-    ota.hpp - Master Control Command OTA Class
+    ota.hpp - Ruth Command OTA Class
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

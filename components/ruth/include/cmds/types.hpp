@@ -1,5 +1,5 @@
 /*
-    types.hpp - Master Control Command Base Class
+    types.hpp - Ruth Command Base Class
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

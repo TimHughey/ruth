@@ -1,5 +1,5 @@
 /*
-    mcpr_mqtt.h - Ruth MQTT
+    mqtt.h - Ruth MQTT
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -94,10 +94,10 @@ private:
   string_t _client_id;
   string_t _endpoint;
   Task_t _task = {.handle = nullptr,
-                     .data = nullptr,
-                     .lastWake = 0,
-                     .priority = CONFIG_RUTH_MQTT_TASK_PRIORITY,
-                     .stackSize = (4 * 1024)};
+                  .data = nullptr,
+                  .lastWake = 0,
+                  .priority = CONFIG_RUTH_MQTT_TASK_PRIORITY,
+                  .stackSize = (4 * 1024)};
 
   struct mg_mgr _mgr = {};
   struct mg_connection *_connection = nullptr;
@@ -148,4 +148,4 @@ private:
 };
 } // namespace ruth
 
-#endif // mcp_mqtt_h
+#endif // mqtt_h

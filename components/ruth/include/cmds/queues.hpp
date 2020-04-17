@@ -1,5 +1,5 @@
 /*
-    queues.hpp - Master Control Command Queues Class
+    queues.hpp - Ruth Command Queues Class
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

@@ -1,5 +1,5 @@
 /*
-    main.cpp - Master Control Remote Main App
+    main.cpp - Ruth Remote Main App
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -104,8 +104,7 @@ void app_main() {
 
     // safety net 1:
     //    wait for the name to be set for 90 seconds, if the name is not
-    //    set within in 90 seconds then there's some problem (e.g. mcp or mqtt
-    //    are done) so reboot
+    //    set within in 90 seconds then there's some problem so reboot
     if (Net::waitForName(90000) == false) {
       Restart::now();
     }

@@ -1,5 +1,5 @@
 /*
-     mcpr_mqtt.cpp - Ruth MQTT
+     mqtt.cpp - Ruth MQTT
      Copyright (C) 2017  Tim Hughey
 
      This program is free software: you can redistribute it and/or modify
@@ -285,7 +285,7 @@ void MQTT::core(void *data) {
     // send the startup announcement once the time is available.
     // this solves a race condition when mqtt connection and subscription
     // to the commend feed completes before the time is set and avoids
-    // mcp receiving the announced statup time as epoch
+    // sending a startup announcement with epoch as the timestamp
     if ((startup_announced == false) && (Net::isTimeSet()) &&
         (announce_startup_delay > 300)) {
       ESP_LOGI(tagEngine(), "announcing startup");

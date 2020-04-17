@@ -35,9 +35,9 @@
 #include "engines/types.hpp"
 #include "misc/elapsedMillis.hpp"
 #include "misc/hw_config.hpp"
+#include "misc/local_types.hpp"
 #include "misc/nvs.hpp"
 #include "misc/restart.hpp"
-#include "misc/local_types.hpp"
 #include "net/network.hpp"
 #include "protocols/mqtt.hpp"
 #include "readings/readings.hpp"
@@ -645,4 +645,4 @@ protected:
 };
 } // namespace ruth
 
-#endif // mcp_engine_h
+#endif // engine_h
