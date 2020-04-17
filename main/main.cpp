@@ -122,7 +122,7 @@ void app_main() {
     // safety net 3:
     //    only after the above two checks succeed mark the ota partition
     //    valid after an ota update
-    mcrCmdOTA::markPartitionValid();
+    CmdOTA::markPartitionValid();
 
     // boot up is successful, process any previously committed NVS messages
     // and record the successful boot

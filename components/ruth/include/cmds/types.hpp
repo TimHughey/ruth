@@ -30,7 +30,7 @@
 
 namespace ruth {
 
-typedef enum class mcrCmdType {
+typedef enum class CmdType {
   unknown,
   none,
   timesync,
@@ -41,24 +41,24 @@ typedef enum class mcrCmdType {
   enginesSuspend,
   otaHTTPS,
   pwm
-} mcrCmdType_t;
+} CmdType_t;
 
-typedef class mcrCmdTypeMap mcrCmdTypeMap_t;
-class mcrCmdTypeMap {
+typedef class CmdTypeMap CmdTypeMap_t;
+class CmdTypeMap {
 public:
-  static mcrCmdTypeMap_t *instance();
-  static mcrCmdType_t fromByte(char byte) {
+  static CmdTypeMap_t *instance();
+  static CmdType_t fromByte(char byte) {
     return instance()->decodeByte(byte);
   }
-  static mcrCmdType_t fromString(const string_t &cmd) {
+  static CmdType_t fromString(const string_t &cmd) {
     return instance()->find(cmd);
   }
 
 private:
-  mcrCmdTypeMap();
+  CmdTypeMap();
 
-  mcrCmdType_t decodeByte(char byte);
-  mcrCmdType_t find(const string_t &cmd);
+  CmdType_t decodeByte(char byte);
+  CmdType_t find(const string_t &cmd);
 };
 
 } // namespace ruth

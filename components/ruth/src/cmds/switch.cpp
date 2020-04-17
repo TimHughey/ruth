@@ -5,7 +5,7 @@
 namespace ruth {
 
 cmdSwitch::cmdSwitch(JsonDocument &doc, elapsedMicros &e)
-    : mcrCmd(doc, e, "switch") {
+    : Cmd(doc, e, "switch") {
   // json format of states command:
   // {"switch":"ds/29463408000000",
   //   "states":[{"state":false,"pio":3}],
@@ -50,7 +50,7 @@ cmdSwitch::cmdSwitch(JsonDocument &doc, elapsedMicros &e)
 }
 
 bool cmdSwitch::process() {
-  for (auto cmd_q : mcrCmdQueues::all()) {
+  for (auto cmd_q : CmdQueues::all()) {
     auto fresh_cmd = new cmdSwitch(this);
     sendToQueue(cmd_q, fresh_cmd);
   }

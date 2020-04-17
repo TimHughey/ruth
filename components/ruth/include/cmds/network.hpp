@@ -27,18 +27,18 @@ using std::unique_ptr;
 
 namespace ruth {
 
-typedef class mcrCmdNetwork mcrCmdNetwork_t;
-class mcrCmdNetwork : public mcrCmd {
+typedef class CmdNetwork CmdNetwork_t;
+class CmdNetwork : public Cmd {
 private:
   string_t _name;
 
 public:
-  mcrCmdNetwork(JsonDocument &doc, elapsedMicros &e);
-  mcrCmdNetwork(mcrCmd *cmd) : mcrCmd(cmd) { _name = this->_name; };
-  ~mcrCmdNetwork(){};
+  CmdNetwork(JsonDocument &doc, elapsedMicros &e);
+  CmdNetwork(Cmd *cmd) : Cmd(cmd) { _name = this->_name; };
+  ~CmdNetwork(){};
 
   bool process();
-  size_t size() const { return sizeof(mcrCmdNetwork_t); };
+  size_t size() const { return sizeof(CmdNetwork_t); };
   const unique_ptr<char[]> debug();
 };
 

@@ -38,17 +38,17 @@ using std::vector;
 
 namespace ruth {
 
-typedef class mcrCmdQueues mcrCmdQueues_t;
-class mcrCmdQueues {
+typedef class CmdQueues CmdQueues_t;
+class CmdQueues {
 private:
   vector<cmdQueue_t> _queues;
 
-  mcrCmdQueues(){}; // SINGLETON!
+  CmdQueues(){}; // SINGLETON!
 
 public:
   void add(cmdQueue_t &cmd_q) { _queues.push_back(cmd_q); };
   static vector<cmdQueue_t> &all() { return instance()->queues(); };
-  static mcrCmdQueues_t *instance();
+  static CmdQueues_t *instance();
   vector<cmdQueue_t> &queues() { return _queues; };
   static void registerQ(cmdQueue_t &cmd_q);
 

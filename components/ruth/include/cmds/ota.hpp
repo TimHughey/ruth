@@ -33,8 +33,8 @@ using std::unique_ptr;
 
 namespace ruth {
 
-typedef class mcrCmdOTA mcrCmdOTA_t;
-class mcrCmdOTA : public mcrCmd {
+typedef class CmdOTA CmdOTA_t;
+class CmdOTA : public Cmd {
 private:
   rawMsg_t *_raw = nullptr;
   string_t _head;
@@ -50,14 +50,14 @@ private:
   static esp_err_t httpEventHandler(esp_http_client_event_t *evt);
 
 public:
-  mcrCmdOTA(JsonDocument &doc, elapsedMicros &parse);
-  ~mcrCmdOTA(){};
+  CmdOTA(JsonDocument &doc, elapsedMicros &parse);
+  ~CmdOTA(){};
 
   static void markPartitionValid();
 
   bool process();
   uint32_t reboot_delay_ms() { return _reboot_delay_ms; };
-  size_t size() const { return sizeof(mcrCmdOTA_t); };
+  size_t size() const { return sizeof(CmdOTA_t); };
 
   const unique_ptr<char[]> debug();
 };

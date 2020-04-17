@@ -3,36 +3,36 @@
 
 namespace ruth {
 
-static const char *TAG = "mcrCmdTypeMap";
+static const char *TAG = "CmdTypeMap";
 
-static const std::map<string_t, mcrCmdType> _cmd_map = {
-    {string_t("unknown"), mcrCmdType::unknown},
-    {string_t("none"), mcrCmdType::none},
-    {string_t("time.sync"), mcrCmdType::timesync},
-    {string_t("set.switch"), mcrCmdType::setswitch},
-    {string_t("set.name"), mcrCmdType::setname},
-    {string_t("heartbeat"), mcrCmdType::heartbeat},
-    {string_t("restart"), mcrCmdType::restart},
-    {string_t("engines.suspend"), mcrCmdType::enginesSuspend},
-    {string_t("ota.https"), mcrCmdType::otaHTTPS},
-    {string_t("pwm"), mcrCmdType::pwm}};
+static const std::map<string_t, CmdType> _cmd_map = {
+    {string_t("unknown"), CmdType::unknown},
+    {string_t("none"), CmdType::none},
+    {string_t("time.sync"), CmdType::timesync},
+    {string_t("set.switch"), CmdType::setswitch},
+    {string_t("set.name"), CmdType::setname},
+    {string_t("heartbeat"), CmdType::heartbeat},
+    {string_t("restart"), CmdType::restart},
+    {string_t("engines.suspend"), CmdType::enginesSuspend},
+    {string_t("ota.https"), CmdType::otaHTTPS},
+    {string_t("pwm"), CmdType::pwm}};
 
-static mcrCmdTypeMap_t *__singleton;
+static CmdTypeMap_t *__singleton;
 
-mcrCmdTypeMap::mcrCmdTypeMap() {
+CmdTypeMap::CmdTypeMap() {
   ESP_LOGD(TAG, "_cmd_set sizeof=%u", sizeof(_cmd_map));
 }
 
 // STATIC!
-mcrCmdTypeMap_t *mcrCmdTypeMap::instance() {
+CmdTypeMap_t *CmdTypeMap::instance() {
   if (__singleton == nullptr) {
-    __singleton = new mcrCmdTypeMap();
+    __singleton = new CmdTypeMap();
   }
 
   return __singleton;
 }
 
-mcrCmdType_t mcrCmdTypeMap::find(const string_t &cmd) {
+CmdType_t CmdTypeMap::find(const string_t &cmd) {
   auto search = _cmd_map.find(cmd);
 
   if (search != _cmd_map.end()) {
@@ -41,6 +41,6 @@ mcrCmdType_t mcrCmdTypeMap::find(const string_t &cmd) {
 
   ESP_LOGD(TAG, "unknown cmd=%s", cmd.c_str());
 
-  return mcrCmdType::unknown;
+  return CmdType::unknown;
 }
 } // namespace ruth

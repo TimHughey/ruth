@@ -79,7 +79,7 @@ void mcrI2c::command(void *data) {
 
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdSwitch_t *));
   cmdQueue_t cmd_q = {"mcrI2c", "i2c", _cmd_q};
-  mcrCmdQueues::registerQ(cmd_q);
+  CmdQueues::registerQ(cmd_q);
 
   while (true) {
     BaseType_t queue_rc = pdFALSE;

@@ -7,17 +7,17 @@ namespace ruth {
 // "refid":"0eb82430-0320-11e8-94b6-6cf049e7139f",
 // "mtime":1517029685,"cmd":"set.switch"}
 
-static const char *TAG = "mcrCmdFactory";
+static const char *TAG = "CmdFactory";
 
 static const int _jsonBufferCapacity =
     JSON_OBJECT_SIZE(10) + JSON_ARRAY_SIZE(8) + JSON_OBJECT_SIZE(2) * 8;
 
-mcrCmdFactory::mcrCmdFactory() {
+CmdFactory::CmdFactory() {
   // ESP_LOGI(TAG, "JSON static buffer capacity: %d", _jsonBufferCapacity);
 }
 
-mcrCmd_t *mcrCmdFactory::fromRaw(JsonDocument &doc, rawMsg_t *raw) {
-  mcrCmd_t *cmd = nullptr;
+Cmd_t *CmdFactory::fromRaw(JsonDocument &doc, rawMsg_t *raw) {
+  Cmd_t *cmd = nullptr;
   elapsedMicros parse_elapsed;
 
   // if the payload is empty there's nothing to do, return a nullptr
@@ -56,43 +56,43 @@ mcrCmd_t *mcrCmdFactory::fromRaw(JsonDocument &doc, rawMsg_t *raw) {
   return cmd;
 }
 
-mcrCmd_t *mcrCmdFactory::manufacture(JsonDocument &doc,
+Cmd_t *CmdFactory::manufacture(JsonDocument &doc,
                                      elapsedMicros &parse_elapsed) {
-  mcrCmd_t *cmd = nullptr;
-  mcrCmdType_t cmd_type = mcrCmdType::unknown;
+  Cmd_t *cmd = nullptr;
+  CmdType_t cmd_type = CmdType::unknown;
 
   auto cmd_str = doc["cmd"].as<string_t>();
-  cmd_type = mcrCmdTypeMap::fromString(cmd_str);
+  cmd_type = CmdTypeMap::fromString(cmd_str);
 
   switch (cmd_type) {
-  case mcrCmdType::unknown:
+  case CmdType::unknown:
     ESP_LOGW(TAG, "unknown command [%s]", cmd_str.c_str());
-    cmd = new mcrCmd(doc, parse_elapsed);
+    cmd = new Cmd(doc, parse_elapsed);
     break;
 
-  case mcrCmdType::none:
-  case mcrCmdType::heartbeat:
-  case mcrCmdType::timesync:
-    cmd = new mcrCmd(doc, parse_elapsed);
+  case CmdType::none:
+  case CmdType::heartbeat:
+  case CmdType::timesync:
+    cmd = new Cmd(doc, parse_elapsed);
     break;
 
-  case mcrCmdType::setswitch:
+  case CmdType::setswitch:
     cmd = new cmdSwitch(doc, parse_elapsed);
     break;
 
-  case mcrCmdType::setname:
-    cmd = new mcrCmdNetwork(doc, parse_elapsed);
+  case CmdType::setname:
+    cmd = new CmdNetwork(doc, parse_elapsed);
     break;
 
-  case mcrCmdType::otaHTTPS:
-  case mcrCmdType::restart:
-    cmd = new mcrCmdOTA(doc, parse_elapsed);
+  case CmdType::otaHTTPS:
+  case CmdType::restart:
+    cmd = new CmdOTA(doc, parse_elapsed);
     break;
 
-  case mcrCmdType::enginesSuspend:
+  case CmdType::enginesSuspend:
     break;
 
-  case mcrCmdType::pwm:
+  case CmdType::pwm:
     cmd = new cmdPWM(doc, parse_elapsed);
     break;
   }

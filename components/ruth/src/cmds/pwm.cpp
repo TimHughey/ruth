@@ -4,7 +4,7 @@
 
 namespace ruth {
 
-cmdPWM::cmdPWM(JsonDocument &doc, elapsedMicros &e) : mcrCmd(doc, e, "device") {
+cmdPWM::cmdPWM(JsonDocument &doc, elapsedMicros &e) : Cmd(doc, e, "device") {
   // json format of states command:
   // {"device":"pwm/mcr.xxx.pin:n",
   //   "duty":2048,
@@ -22,7 +22,7 @@ cmdPWM::cmdPWM(JsonDocument &doc, elapsedMicros &e) : mcrCmd(doc, e, "device") {
 }
 
 bool cmdPWM::process() {
-  for (auto cmd_q : mcrCmdQueues::all()) {
+  for (auto cmd_q : CmdQueues::all()) {
     auto *fresh_cmd = new cmdPWM(this);
     sendToQueue(cmd_q, fresh_cmd);
   }

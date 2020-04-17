@@ -41,15 +41,15 @@
 
 namespace ruth {
 
-typedef class mcrCmdFactory mcrCmdFactory_t;
-class mcrCmdFactory {
+typedef class CmdFactory CmdFactory_t;
+class CmdFactory {
 private:
-  mcrCmd_t *manufacture(JsonDocument &doc, elapsedMicros &parse_elapsed);
+  Cmd_t *manufacture(JsonDocument &doc, elapsedMicros &parse_elapsed);
 
 public:
-  mcrCmdFactory();
+  CmdFactory();
 
-  mcrCmd_t *fromRaw(JsonDocument &doc, rawMsg_t *raw);
+  Cmd_t *fromRaw(JsonDocument &doc, rawMsg_t *raw);
 };
 
 } // namespace ruth

@@ -64,7 +64,7 @@ void mcrMQTTin::restorePriority() {
 
 void mcrMQTTin::core(void *data) {
   mqttInMsg_t *msg;
-  mcrCmdFactory_t factory;
+  CmdFactory_t factory;
   DynamicJsonDocument doc(1024); // allocate the json buffer here
 
   // note:  no reason to wait for wifi, normal ops or other event group
@@ -87,8 +87,8 @@ void mcrMQTTin::core(void *data) {
 
       // reminder:  compare() == 0 is equals to
       if (msg->topic->compare(_cmd_feed) == 0) {
-        mcrCmd_t *cmd = factory.fromRaw(doc, msg->data);
-        mcrCmd_t_ptr cmd_ptr(cmd);
+        Cmd_t *cmd = factory.fromRaw(doc, msg->data);
+        Cmd_t_ptr cmd_ptr(cmd);
 
         if (cmd_ptr == nullptr) {
           ESP_LOGW(TAG, "could not create cmd from feed %s",

@@ -377,12 +377,12 @@ protected:
              task_info->_priority, task_info->_stackSize);
   }
 
-  DEV *getDeviceByCmd(mcrCmd_t &cmd) {
+  DEV *getDeviceByCmd(Cmd_t &cmd) {
     DEV *dev = findDevice(cmd.internalDevID());
     return dev;
   };
 
-  DEV *getDeviceByCmd(mcrCmd_t *cmd) {
+  DEV *getDeviceByCmd(Cmd_t *cmd) {
     DEV *dev = findDevice(cmd->internalDevID());
     return dev;
   };
@@ -467,7 +467,7 @@ protected:
     return false;
   }
 
-  bool publish(mcrCmd_t &cmd) { return publish(cmd.internalDevID()); };
+  bool publish(Cmd_t &cmd) { return publish(cmd.internalDevID()); };
   bool publish(const string_t &dev_id) {
     DEV *search = findDevice(dev_id);
 
@@ -504,7 +504,7 @@ protected:
 
   virtual bool resetBus(bool *additional_status = nullptr) { return true; }
 
-  void setCmdAck(mcrCmd_t &cmd) {
+  void setCmdAck(Cmd_t &cmd) {
     DEV *dev = findDevice(cmd.internalDevID());
 
     if (dev != nullptr) {

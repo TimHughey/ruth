@@ -93,7 +93,7 @@ void mcrDS::command(void *data) {
 
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdSwitch_t *));
   cmdQueue_t cmd_q = {"mcrDS", "ds", _cmd_q};
-  mcrCmdQueues::registerQ(cmd_q);
+  CmdQueues::registerQ(cmd_q);
 
   // no setup required before jumping into task loop
 

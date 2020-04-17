@@ -5,7 +5,7 @@
 
 namespace ruth {
 
-static const char *TAG = "mcrCmdOTA";
+static const char *TAG = "CmdOTA";
 static const char *k_reboot_delay_ms = "reboot_delay_ms";
 static const char *k_fw_url = "fw_url";
 
@@ -14,18 +14,18 @@ static bool _ota_in_progress = false;
 extern const uint8_t ca_start[] asm("_binary_ca_pem_start");
 extern const uint8_t ca_end[] asm("_binary_ca_pem_end");
 
-mcrCmdOTA::mcrCmdOTA(JsonDocument &doc, elapsedMicros &e) : mcrCmd(doc, e) {
+CmdOTA::CmdOTA(JsonDocument &doc, elapsedMicros &e) : Cmd(doc, e) {
 
   _fw_url = doc[k_fw_url] | "none";
   _reboot_delay_ms = doc[k_reboot_delay_ms] | 0;
 }
 
-void mcrCmdOTA::doUpdate() {
+void CmdOTA::doUpdate() {
   const esp_partition_t *run_part = esp_ota_get_running_partition();
   esp_http_client_config_t config = {};
   config.url = _fw_url.c_str();
   config.cert_pem = (char *)ca_start;
-  config.event_handler = mcrCmdOTA::httpEventHandler;
+  config.event_handler = CmdOTA::httpEventHandler;
   config.timeout_ms = 1000;
 
   if (_ota_in_progress) {
@@ -70,7 +70,7 @@ void mcrCmdOTA::doUpdate() {
 }
 
 // STATIC
-void mcrCmdOTA::markPartitionValid() {
+void CmdOTA::markPartitionValid() {
   static bool ota_marked_valid = false; // only do this once
 
   if (ota_marked_valid == true) {
@@ -96,7 +96,7 @@ void mcrCmdOTA::markPartitionValid() {
   ota_marked_valid = true;
 }
 
-bool mcrCmdOTA::process() {
+bool CmdOTA::process() {
 
   if (forThisHost() == false) {
     ESP_LOGD(TAG, "OTA command not for us, ignoring.");
@@ -107,12 +107,12 @@ bool mcrCmdOTA::process() {
   // 2. check this command is addressed to this host
   switch (type()) {
 
-  case mcrCmdType::otaHTTPS:
+  case CmdType::otaHTTPS:
     ESP_LOGI(TAG, "OTA via HTTPS requested");
     doUpdate();
     break;
 
-  case mcrCmdType::restart:
+  case CmdType::restart:
     mcrRestart::instance()->restart("restart requested", __PRETTY_FUNCTION__,
                                     reboot_delay_ms());
     break;
@@ -125,11 +125,11 @@ bool mcrCmdOTA::process() {
   return true;
 }
 
-const unique_ptr<char[]> mcrCmdOTA::debug() {
+const unique_ptr<char[]> CmdOTA::debug() {
   const size_t max_buf = 256;
   unique_ptr<char[]> debug_str(new char[max_buf]);
   snprintf(debug_str.get(), max_buf,
-           "mcrCmd(host(%s) fw_url(%s) start_delay_ms(%dms))", host().c_str(),
+           "Cmd(host(%s) fw_url(%s) start_delay_ms(%dms))", host().c_str(),
            _fw_url.c_str(), _start_delay_ms);
 
   return move(debug_str);
@@ -138,7 +138,7 @@ const unique_ptr<char[]> mcrCmdOTA::debug() {
 //
 // STATIC!
 //
-esp_err_t mcrCmdOTA::httpEventHandler(esp_http_client_event_t *evt) {
+esp_err_t CmdOTA::httpEventHandler(esp_http_client_event_t *evt) {
   switch (evt->event_id) {
   case HTTP_EVENT_ERROR:
     // ESP_LOGD(TAG, "HTTP_EVENT_ERROR");

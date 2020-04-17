@@ -44,11 +44,11 @@ namespace ruth {
 enum CmdMetrics { CREATE = 0, PARSE = 1 };
 typedef enum CmdMetrics CmdMetrics_t;
 
-typedef class mcrCmd mcrCmd_t;
-typedef unique_ptr<mcrCmd_t> mcrCmd_t_ptr;
-class mcrCmd {
+typedef class Cmd Cmd_t;
+typedef unique_ptr<Cmd_t> Cmd_t_ptr;
+class Cmd {
 private:
-  mcrCmdType_t _type;
+  CmdType_t _type;
   time_t _mtime = time(nullptr);
   string_t _host;
 
@@ -74,18 +74,18 @@ protected:
   virtual void translateExternalDeviceID(const char *replacement);
 
 public:
-  mcrCmd() = delete; // never create a default cmd
-  mcrCmd(const mcrCmd_t *cmd);
-  // mcrCmd(JsonDocument &doc, elapsedMicros &parse);
-  mcrCmd(JsonDocument &doc,     // common case for cmds that
+  Cmd() = delete; // never create a default cmd
+  Cmd(const Cmd_t *cmd);
+  // Cmd(JsonDocument &doc, elapsedMicros &parse);
+  Cmd(JsonDocument &doc,     // common case for cmds that
          elapsedMicros &parse); // do not reference a
   // specific device
 
-  mcrCmd(JsonDocument &doc,         // common case for cmds that
+  Cmd(JsonDocument &doc,         // common case for cmds that
          elapsedMicros &parse,      // do reference a
          const char *dev_name_key); // specific device
 
-  virtual ~mcrCmd(){};
+  virtual ~Cmd(){};
 
   void ack(bool ack) { _ack = ack; }
   bool ack() { return _ack; }
@@ -98,7 +98,7 @@ public:
   bool matchExternalDevID();
   bool IRAM_ATTR matchPrefix(const char *prefix);
   RefID_t &refID() { return _refid; };
-  virtual bool IRAM_ATTR sendToQueue(cmdQueue_t &cmd_q, mcrCmd_t *cmd);
+  virtual bool IRAM_ATTR sendToQueue(cmdQueue_t &cmd_q, Cmd_t *cmd);
 
   elapsedMicros &createElapsed() { return _create_elapsed; };
   bool recent() { return ((time(nullptr) - _mtime) <= 60) ? true : false; }
@@ -106,8 +106,8 @@ public:
   elapsedMicros &parseElapsed() { return _parse_elapsed; };
   virtual bool process() { return false; };
 
-  virtual size_t size() const { return sizeof(mcrCmd_t); };
-  mcrCmdType_t type() { return _type; };
+  virtual size_t size() const { return sizeof(Cmd_t); };
+  CmdType_t type() { return _type; };
 
   virtual const unique_ptr<char[]> debug();
 };

@@ -30,7 +30,7 @@ namespace ruth {
 typedef std::bitset<8> cmd_bitset_t;
 
 typedef class cmdSwitch cmdSwitch_t;
-class cmdSwitch : public mcrCmd {
+class cmdSwitch : public Cmd {
 private:
   cmd_bitset_t _mask;
   cmd_bitset_t _state;
@@ -38,14 +38,14 @@ private:
 public:
   // DERIVED CLASS copy from a pointer to a cmdSwitch_t
   // NOTE:  the BASE CLASS is leveraged for base class members
-  //        and is called (mcrCmd{cmd}) before setting the DERIVED class
+  //        and is called (Cmd{cmd}) before setting the DERIVED class
   //        members via the initialization list
   cmdSwitch(const cmdSwitch_t *cmd)
-      : mcrCmd{cmd}, _mask(cmd->_mask), _state(cmd->_state){};
+      : Cmd{cmd}, _mask(cmd->_mask), _state(cmd->_state){};
 
   cmdSwitch(JsonDocument &doc, elapsedMicros &parse);
   // cmdSwitch(const string_t &id, cmd_bitset_t mask, cmd_bitset_t state)
-  //     : mcrCmd(mcrCmdType::setswitch), _mask(mask), _state(state) {
+  //     : Cmd(CmdType::setswitch), _mask(mask), _state(state) {
   //   _external_dev_id = id;
   //   _internal_dev_id = id;
   // };

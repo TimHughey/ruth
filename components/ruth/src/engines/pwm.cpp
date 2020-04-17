@@ -54,7 +54,7 @@ void pwmEngine::command(void *data) {
 
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdPWM_t *));
   cmdQueue_t cmd_q = {"pwmEngine", "pwm", _cmd_q};
-  mcrCmdQueues::registerQ(cmd_q);
+  CmdQueues::registerQ(cmd_q);
 
   while (true) {
     BaseType_t queue_rc = pdFALSE;
