@@ -34,7 +34,7 @@
 #include <freertos/task.h>
 
 #include "cmds/factory.hpp"
-#include "misc/mcr_types.hpp"
+#include "misc/local_types.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {

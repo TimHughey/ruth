@@ -34,7 +34,7 @@
 
 #include "devs/addr.hpp"
 #include "devs/base.hpp"
-#include "misc/mcr_types.hpp"
+#include "misc/local_types.hpp"
 #include "readings/readings.hpp"
 
 using std::move;

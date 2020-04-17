@@ -17,7 +17,7 @@
 
 #include "misc/mcr_restart.hpp"
 #include "misc/timestamp_task.hpp"
-#include "net/mcr_net.hpp"
+#include "net/network.hpp"
 #include "protocols/mqtt.hpp"
 #include "readings/readings.hpp"
 

@@ -34,7 +34,7 @@
 #include "misc/mcr_nvs.hpp"
 #include "misc/status_led.hpp"
 #include "misc/timestamp_task.hpp"
-#include "net/mcr_net.hpp"
+#include "net/network.hpp"
 #include "protocols/mqtt.hpp"
 
 using namespace ruth;

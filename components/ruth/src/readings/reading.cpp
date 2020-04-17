@@ -25,7 +25,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "net/mcr_net.hpp"
+#include "net/network.hpp"
 #include "protocols/mqtt.hpp"
 #include "readings/reading.hpp"
 

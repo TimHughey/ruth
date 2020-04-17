@@ -22,7 +22,7 @@
 #include "misc/mcr_nvs.hpp"
 #include "misc/mcr_restart.hpp"
 #include "misc/status_led.hpp"
-#include "net/mcr_net.hpp"
+#include "net/network.hpp"
 
 extern "C" {
 int setenv(const char *envname, const char *envval, int overwrite);

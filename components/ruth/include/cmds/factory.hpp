@@ -37,7 +37,7 @@
 #include "cmds/switch.hpp"
 #include "cmds/types.hpp"
 #include "external/ArduinoJson.hpp"
-#include "misc/mcr_types.hpp"
+#include "misc/local_types.hpp"
 
 namespace ruth {
 

@@ -18,7 +18,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "misc/mcr_types.hpp"
+#include "misc/local_types.hpp"
 
 namespace ruth {
 

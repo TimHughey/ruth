@@ -37,8 +37,8 @@
 #include "misc/hw_config.hpp"
 #include "misc/mcr_nvs.hpp"
 #include "misc/mcr_restart.hpp"
-#include "misc/mcr_types.hpp"
-#include "net/mcr_net.hpp"
+#include "misc/local_types.hpp"
+#include "net/network.hpp"
 #include "protocols/mqtt.hpp"
 #include "readings/readings.hpp"
 

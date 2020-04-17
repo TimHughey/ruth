@@ -33,8 +33,8 @@
 
 #include "cmds/types.hpp"
 #include "misc/elapsedMillis.hpp"
-#include "misc/mcr_types.hpp"
-#include "net/mcr_net.hpp"
+#include "misc/local_types.hpp"
+#include "net/network.hpp"
 
 using std::string;
 using std::unique_ptr;

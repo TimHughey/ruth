@@ -30,7 +30,7 @@
 #include <driver/ledc.h>
 #include <esp_system.h>
 
-#include "misc/mcr_types.hpp"
+#include "misc/local_types.hpp"
 
 namespace ruth {
 

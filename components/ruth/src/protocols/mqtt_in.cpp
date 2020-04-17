@@ -32,8 +32,8 @@
 
 // MCR specific includes
 #include "cmds/factory.hpp"
-#include "misc/mcr_types.hpp"
-#include "net/mcr_net.hpp"
+#include "misc/local_types.hpp"
+#include "net/network.hpp"
 #include "protocols/mqtt_in.hpp"
 #include "readings/readings.hpp"
 

@@ -24,7 +24,7 @@
 #include <time.h>
 
 #include "misc/mcr_restart.hpp"
-#include "net/mcr_net.hpp"
+#include "net/network.hpp"
 #include "protocols/mqtt.hpp"
 
 namespace ruth {

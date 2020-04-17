@@ -29,8 +29,8 @@
 
 #include "devs/base.hpp"
 #include "devs/i2c_dev.hpp"
-#include "misc/mcr_types.hpp"
-#include "net/mcr_net.hpp"
+#include "misc/local_types.hpp"
+#include "net/network.hpp"
 
 using std::unique_ptr;
 
