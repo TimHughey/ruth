@@ -34,10 +34,10 @@
 
 namespace ruth {
 
-static mcrI2c_t *__singleton__ = nullptr;
-static const string_t engine_name = "mcrI2c";
+static I2c_t *__singleton__ = nullptr;
+static const string_t engine_name = "I2c";
 
-mcrI2c::mcrI2c() {
+I2c::I2c() {
   setTags(localTags());
   // setLoggingLevel(ESP_LOG_DEBUG);
   // setLoggingLevel(ESP_LOG_DEBUG);
@@ -74,11 +74,11 @@ mcrI2c::mcrI2c() {
 // Tasks
 //
 
-void mcrI2c::command(void *data) {
+void I2c::command(void *data) {
   logSubTaskStart(data);
 
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdSwitch_t *));
-  cmdQueue_t cmd_q = {"mcrI2c", "i2c", _cmd_q};
+  cmdQueue_t cmd_q = {"I2c", "i2c", _cmd_q};
   CmdQueues::registerQ(cmd_q);
 
   while (true) {
@@ -153,7 +153,7 @@ void mcrI2c::command(void *data) {
   }
 }
 
-bool mcrI2c::commandAck(cmdSwitch_t &cmd) {
+bool I2c::commandAck(cmdSwitch_t &cmd) {
   bool rc = true;
   elapsedMicros elapsed;
   i2cDev_t *dev = findDevice(cmd.internalDevID());
@@ -180,7 +180,7 @@ bool mcrI2c::commandAck(cmdSwitch_t &cmd) {
   return rc;
 }
 
-void mcrI2c::core(void *task_data) {
+void I2c::core(void *task_data) {
   bool driver_ready = false;
   bool net_name = false;
 
@@ -220,7 +220,7 @@ void mcrI2c::core(void *task_data) {
   }
 }
 
-void mcrI2c::discover(void *data) {
+void I2c::discover(void *data) {
   logSubTaskStart(data);
   saveTaskLastWake(DISCOVER);
   bool detect_rc = true;
@@ -257,7 +257,7 @@ void mcrI2c::discover(void *data) {
   }
 }
 
-void mcrI2c::report(void *data) {
+void I2c::report(void *data) {
 
   logSubTaskStart(data);
   saveTaskLastWake(REPORT);
@@ -304,7 +304,7 @@ void mcrI2c::report(void *data) {
   }
 }
 
-esp_err_t mcrI2c::busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
+esp_err_t I2c::busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
                           esp_err_t prev_esp_rc) {
   i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc;
@@ -348,7 +348,7 @@ esp_err_t mcrI2c::busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
   return esp_rc;
 }
 
-esp_err_t mcrI2c::busWrite(i2cDev_t *dev, uint8_t *bytes, uint32_t len,
+esp_err_t I2c::busWrite(i2cDev_t *dev, uint8_t *bytes, uint32_t len,
                            esp_err_t prev_esp_rc) {
   i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc;
@@ -387,7 +387,7 @@ esp_err_t mcrI2c::busWrite(i2cDev_t *dev, uint8_t *bytes, uint32_t len,
   return esp_rc;
 }
 
-bool mcrI2c::crcSHT31(const uint8_t *data) {
+bool I2c::crcSHT31(const uint8_t *data) {
   uint8_t crc = 0xFF;
 
   for (uint32_t j = 2; j; --j) {
@@ -402,7 +402,7 @@ bool mcrI2c::crcSHT31(const uint8_t *data) {
   return (crc == *data);
 }
 
-bool mcrI2c::detectDevice(i2cDev_t *dev) {
+bool I2c::detectDevice(i2cDev_t *dev) {
   bool rc = false;
   // i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc = ESP_FAIL;
@@ -440,7 +440,7 @@ bool mcrI2c::detectDevice(i2cDev_t *dev) {
   return rc;
 }
 
-bool mcrI2c::detectDevicesOnBus(int bus) {
+bool I2c::detectDevicesOnBus(int bus) {
   bool rc = true;
 
   mcrDevAddr_t *addrs = search_addrs();
@@ -475,7 +475,7 @@ bool mcrI2c::detectDevicesOnBus(int bus) {
   return rc;
 }
 
-bool mcrI2c::detectMultiplexer(const int max_attempts) {
+bool I2c::detectMultiplexer(const int max_attempts) {
   // NOTE:  as of 2019-03-10 support for old hardware that does
   // not provide the RST pin is via 'legacy'
 
@@ -492,7 +492,7 @@ bool mcrI2c::detectMultiplexer(const int max_attempts) {
   return _use_multiplexer;
 }
 
-bool mcrI2c::hardReset() {
+bool I2c::hardReset() {
   esp_err_t rc;
 
   ESP_LOGE(tagEngine(), "hard reset of i2c peripheral");
@@ -508,7 +508,7 @@ bool mcrI2c::hardReset() {
   return installDriver();
 }
 
-bool mcrI2c::installDriver() {
+bool I2c::installDriver() {
   esp_err_t esp_err = 0;
 
   bzero(&_conf, sizeof(_conf));
@@ -533,16 +533,16 @@ bool mcrI2c::installDriver() {
   return (esp_err == ESP_OK) ? true : false;
 }
 
-mcrI2c_t *mcrI2c::instance() {
+I2c_t *I2c::instance() {
   if (__singleton__ == nullptr) {
-    __singleton__ = new mcrI2c();
+    __singleton__ = new I2c();
   }
 
   return __singleton__;
 }
 
-uint32_t mcrI2c::maxBuses() { return _max_buses; }
-bool mcrI2c::pinReset() {
+uint32_t I2c::maxBuses() { return _max_buses; }
+bool I2c::pinReset() {
 
   ESP_LOGD(tagEngine(), "pulling reset pin low");
   gpio_set_level(RST_PIN, 0); // pull the pin low to reset i2c devices
@@ -553,13 +553,13 @@ bool mcrI2c::pinReset() {
   return true;
 }
 
-void mcrI2c::printUnhandledDev(i2cDev_t *dev) {
+void I2c::printUnhandledDev(i2cDev_t *dev) {
   ESP_LOGW(tagEngine(), "unhandled dev %s", dev->debug().get());
 }
 
-bool mcrI2c::useMultiplexer() { return _use_multiplexer; }
+bool I2c::useMultiplexer() { return _use_multiplexer; }
 
-bool mcrI2c::readDevice(i2cDev_t *dev) {
+bool I2c::readDevice(i2cDev_t *dev) {
   auto rc = false;
 
   if (selectBus(dev->bus())) {
@@ -594,7 +594,7 @@ bool mcrI2c::readDevice(i2cDev_t *dev) {
   return rc;
 }
 
-bool mcrI2c::readMCP23008(i2cDev_t *dev) {
+bool I2c::readMCP23008(i2cDev_t *dev) {
   auto rc = false;
   auto positions = 0b00000000;
   esp_err_t esp_rc;
@@ -637,7 +637,7 @@ bool mcrI2c::readMCP23008(i2cDev_t *dev) {
   return rc;
 }
 
-bool mcrI2c::readSeesawSoil(i2cDev_t *dev) {
+bool I2c::readSeesawSoil(i2cDev_t *dev) {
   auto rc = false;
   esp_err_t esp_rc;
   float tempC = 0.0;
@@ -721,7 +721,7 @@ bool mcrI2c::readSeesawSoil(i2cDev_t *dev) {
   return rc;
 }
 
-bool mcrI2c::readSHT31(i2cDev_t *dev) {
+bool I2c::readSHT31(i2cDev_t *dev) {
   auto rc = false;
   esp_err_t esp_rc;
 
@@ -765,7 +765,7 @@ bool mcrI2c::readSHT31(i2cDev_t *dev) {
   return rc;
 }
 
-esp_err_t mcrI2c::requestData(const char *TAG, i2cDev_t *dev, uint8_t *send,
+esp_err_t I2c::requestData(const char *TAG, i2cDev_t *dev, uint8_t *send,
                               uint8_t send_len, uint8_t *recv, uint8_t recv_len,
                               esp_err_t prev_esp_rc, int timeout) {
   i2c_cmd_handle_t cmd = nullptr;
@@ -836,7 +836,7 @@ esp_err_t mcrI2c::requestData(const char *TAG, i2cDev_t *dev, uint8_t *send,
   return esp_rc;
 }
 
-bool mcrI2c::selectBus(uint32_t bus) {
+bool I2c::selectBus(uint32_t bus) {
   bool rc = true; // default return is success, failures detected inline
   i2cDev_t multiplexer = i2cDev(_multiplexer_dev);
   esp_err_t esp_rc = ESP_FAIL;
@@ -877,7 +877,7 @@ bool mcrI2c::selectBus(uint32_t bus) {
   return rc;
 }
 
-bool mcrI2c::setMCP23008(cmdSwitch_t &cmd, i2cDev_t *dev) {
+bool I2c::setMCP23008(cmdSwitch_t &cmd, i2cDev_t *dev) {
   bool rc = false;
   auto esp_rc = ESP_OK;
 

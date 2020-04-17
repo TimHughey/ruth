@@ -54,16 +54,16 @@ typedef struct {
 #define RST_PIN GPIO_NUM_21
 #define RST_PIN_SEL GPIO_SEL_21
 
-typedef class mcrI2c mcrI2c_t;
-class mcrI2c : public mcrEngine<i2cDev_t> {
+typedef class I2c I2c_t;
+class I2c : public mcrEngine<i2cDev_t> {
 
 private:
-  mcrI2c();
+  I2c();
 
   bool commandAck(cmdSwitch_t &cmd);
 
 public:
-  static mcrI2c_t *instance();
+  static I2c_t *instance();
 
   //
   // Tasks
@@ -143,16 +143,16 @@ private:
 
   EngineTagMap_t &localTags() {
     static std::unordered_map<string_t, string_t> tag_map = {
-        {"engine", "mcrI2c"},
-        {"discover", "mcrI2c discover"},
-        {"convert", "mcrI2c convert"},
-        {"report", "mcrI2c report"},
-        {"command", "mcrI2c command"},
-        {"detect", "mcrI2c detectDev"},
-        {"readMCP23008", "mcrI2c readMCP23008"},
-        {"setMCP23008", "mcrI2c setMCP23008"},
-        {"readSHT31", "mcrI2c readSHT31"},
-        {"selectbus", "mcrI2c selectBus"}};
+        {"engine", "I2c"},
+        {"discover", "I2c discover"},
+        {"convert", "I2c convert"},
+        {"report", "I2c report"},
+        {"command", "I2c command"},
+        {"detect", "I2c detectDev"},
+        {"readMCP23008", "I2c readMCP23008"},
+        {"setMCP23008", "I2c setMCP23008"},
+        {"readSHT31", "I2c readSHT31"},
+        {"selectbus", "I2c selectBus"}};
 
     ESP_LOGD(tag_map["engine"].c_str(), "tag_map sizeof=%u", sizeof(tag_map));
     return tag_map;

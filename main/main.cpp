@@ -54,7 +54,7 @@ static Net *network = nullptr;
 static TimestampTask *timestampTask = nullptr;
 static MQTT *mqttTask = nullptr;
 static DallasSemi *dsEngineTask = nullptr;
-static mcrI2c *i2cEngineTask = nullptr;
+static I2c *i2cEngineTask = nullptr;
 static pwmEngine_t *pwmEngineTask = nullptr;
 
 void app_main() {
@@ -80,7 +80,7 @@ void app_main() {
   timestampTask = new TimestampTask();
   mqttTask = MQTT::instance();        // singleton
   dsEngineTask = DallasSemi::instance();      // singleton
-  i2cEngineTask = mcrI2c::instance();    // singleton
+  i2cEngineTask = I2c::instance();    // singleton
   pwmEngineTask = pwmEngine::instance(); // singleton
   statusLED::instance()->brighter();
 
