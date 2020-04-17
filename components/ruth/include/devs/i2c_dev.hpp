@@ -50,7 +50,7 @@ private:
 
 public:
   // construct a new i2cDev with a known address and compute the id
-  i2cDev(mcrDevAddr_t &addr, bool use_multiplexer = false, uint8_t bus = 0);
+  i2cDev(DeviceAddress_t &addr, bool use_multiplexer = false, uint8_t bus = 0);
 
   uint8_t devAddr();
   bool useMultiplexer();

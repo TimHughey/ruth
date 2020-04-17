@@ -35,7 +35,7 @@ using std::unique_ptr;
 
 namespace ruth {
 
-const char *pwmDev::pwmDevDesc(const mcrDevAddr_t &addr) {
+const char *pwmDev::pwmDevDesc(const DeviceAddress_t &addr) {
   switch (addr.firstAddressByte()) {
   case 0x01:
     return (const char *)"pin:1";
@@ -60,7 +60,7 @@ const char *pwmDev::pwmDevDesc(const mcrDevAddr_t &addr) {
 }
 
 // construct a new pwmDev with a known address and compute the id
-pwmDev::pwmDev(mcrDevAddr_t &num) : mcrDev(num) {
+pwmDev::pwmDev(DeviceAddress_t &num) : mcrDev(num) {
   unique_ptr<char[]> id(new char[pwm_max_id_len_ + 1]);
 
   gpio_pin_ = mapNumToGPIO(num);
@@ -145,7 +145,7 @@ void pwmDev::allOff() {
 }
 
 // STATIC
-ledc_channel_t pwmDev::mapNumToChannel(const mcrDevAddr_t &num) {
+ledc_channel_t pwmDev::mapNumToChannel(const DeviceAddress_t &num) {
   switch (num.firstAddressByte()) {
   case 0x01:
     // NOTE: LEDC_CHANNEL_0 is used for the onboard red status led
@@ -166,7 +166,7 @@ ledc_channel_t pwmDev::mapNumToChannel(const mcrDevAddr_t &num) {
 }
 
 // STATIC
-gpio_num_t pwmDev::mapNumToGPIO(const mcrDevAddr_t &num) {
+gpio_num_t pwmDev::mapNumToGPIO(const DeviceAddress_t &num) {
   switch (num.firstAddressByte()) {
   case 0x01:
     return GPIO_NUM_32;

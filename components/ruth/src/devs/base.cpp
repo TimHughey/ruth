@@ -43,9 +43,9 @@ using std::unique_ptr;
 namespace ruth {
 
 // construct a new mcrDev with only an address
-mcrDev::mcrDev(mcrDevAddr_t &addr) { _addr = addr; }
+mcrDev::mcrDev(DeviceAddress_t &addr) { _addr = addr; }
 
-mcrDev::mcrDev(const std::string &id, mcrDevAddr_t &addr) {
+mcrDev::mcrDev(const std::string &id, DeviceAddress_t &addr) {
   _id = id; // copy id and addr objects
   _addr = addr;
 }
@@ -88,7 +88,7 @@ void mcrDev::setReadingCmdAck(uint32_t latency_us, RefID_t &refid) {
 
 uint8_t mcrDev::firstAddressByte() { return _addr.firstAddressByte(); };
 uint8_t mcrDev::lastAddressByte() { return _addr.lastAddressByte(); };
-mcrDevAddr_t &mcrDev::addr() { return _addr; }
+DeviceAddress_t &mcrDev::addr() { return _addr; }
 uint8_t *mcrDev::addrBytes() { return (uint8_t *)_addr; }
 Reading_t *mcrDev::reading() { return _reading; }
 uint32_t mcrDev::idMaxLen() { return _id_len; };

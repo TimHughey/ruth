@@ -91,21 +91,21 @@ private:
   uint32_t _bus_select_errors = 0;
   const TickType_t _cmd_timeout = pdMS_TO_TICKS(1000);
 
-  mcrDevAddr_t _mplex_addr = mcrDevAddr(0x70);
+  DeviceAddress_t _mplex_addr = DeviceAddress(0x70);
   i2cDev_t _multiplexer_dev = i2cDev(_mplex_addr);
   int _reset_pin_level = 0;
 
 private:
   // array is zero terminated
-  mcrDevAddr_t _search_addrs[12] = {
-      {mcrDevAddr(0x44)}, {mcrDevAddr(0x5C)}, {mcrDevAddr(0x20)},
-      {mcrDevAddr(0x21)}, {mcrDevAddr(0x22)}, {mcrDevAddr(0x23)},
-      {mcrDevAddr(0x24)}, {mcrDevAddr(0x25)}, {mcrDevAddr(0x26)},
-      {mcrDevAddr(0x27)}, {mcrDevAddr(0x36)}, {mcrDevAddr(0x00)}};
+  DeviceAddress_t _search_addrs[12] = {
+      {DeviceAddress(0x44)}, {DeviceAddress(0x5C)}, {DeviceAddress(0x20)},
+      {DeviceAddress(0x21)}, {DeviceAddress(0x22)}, {DeviceAddress(0x23)},
+      {DeviceAddress(0x24)}, {DeviceAddress(0x25)}, {DeviceAddress(0x26)},
+      {DeviceAddress(0x27)}, {DeviceAddress(0x36)}, {DeviceAddress(0x00)}};
 
-  mcrDevAddr_t *search_addrs() { return _search_addrs; };
+  DeviceAddress_t *search_addrs() { return _search_addrs; };
   inline uint32_t search_addrs_count() {
-    return sizeof(_search_addrs) / sizeof(mcrDevAddr_t);
+    return sizeof(_search_addrs) / sizeof(DeviceAddress_t);
   };
 
   // generic read device that will call the specific methods

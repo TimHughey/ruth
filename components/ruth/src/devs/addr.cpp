@@ -30,49 +30,49 @@
 
 namespace ruth {
 
-mcrDevAddr::mcrDevAddr(uint8_t addr) {
+DeviceAddress::DeviceAddress(uint8_t addr) {
   _addr.resize(1);
   _addr.assign(&addr, &addr + 1);
 }
 
-mcrDevAddr::mcrDevAddr(uint8_t *addr, uint32_t len) {
+DeviceAddress::DeviceAddress(uint8_t *addr, uint32_t len) {
   _addr.reserve(len);
   _addr.assign(addr, addr + len);
 }
 
-uint32_t mcrDevAddr::len() const { return _addr.size(); }
-uint8_t mcrDevAddr::firstAddressByte() const { return _addr.front(); }
-// uint8_t mcrDevAddr::addressByteByIndex(uint32_t index) { return _addr[0]; }
-uint8_t mcrDevAddr::lastAddressByte() const { return _addr.back(); }
-uint32_t mcrDevAddr::max_len() const { return _max_len; }
+uint32_t DeviceAddress::len() const { return _addr.size(); }
+uint8_t DeviceAddress::firstAddressByte() const { return _addr.front(); }
+// uint8_t DeviceAddress::addressByteByIndex(uint32_t index) { return _addr[0]; }
+uint8_t DeviceAddress::lastAddressByte() const { return _addr.back(); }
+uint32_t DeviceAddress::max_len() const { return _max_len; }
 
-// support type casting from mcrDevAddr to a plain ole char array
-mcrDevAddr::operator uint8_t *() { return _addr.data(); }
+// support type casting from DeviceAddress to a plain ole char array
+DeviceAddress::operator uint8_t *() { return _addr.data(); }
 
-uint8_t mcrDevAddr::operator[](int i) { return _addr.at(i); }
+uint8_t DeviceAddress::operator[](int i) { return _addr.at(i); }
 
 // NOTE:
 //    1. the == ooperator will compare the actual addr and not the pointers
 //    2. the lhs argument decides the length of address to compare
-bool mcrDevAddr::operator==(const mcrDevAddr_t &rhs) {
+bool DeviceAddress::operator==(const DeviceAddress_t &rhs) {
   return (_addr == rhs._addr);
 }
 
-bool mcrDevAddr::isValid() const {
+bool DeviceAddress::isValid() const {
   if (_addr.empty() || _addr.front() == 0x00)
     return false;
 
   return true;
 }
 
-const std::unique_ptr<char[]> mcrDevAddr::debug() {
+const std::unique_ptr<char[]> DeviceAddress::debug() {
   auto const max_len = 63;
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
   char *str = debug_str.get();
   str[0] = 0x00; // terminate the char array for string use
   auto curr_len = strlen(str);
 
-  snprintf(str, max_len, "mcrDevAddr(0x");
+  snprintf(str, max_len, "DeviceAddress(0x");
 
   // append each of the address bytes
   for_each(_addr.begin(), _addr.end(), [this, str](uint8_t byte) {

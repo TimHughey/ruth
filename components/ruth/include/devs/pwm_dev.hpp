@@ -40,9 +40,9 @@ typedef class pwmDev pwmDev_t;
 class pwmDev : public mcrDev {
 public:
   pwmDev() {}
-  static const char *pwmDevDesc(const mcrDevAddr_t &addr);
-  static gpio_num_t mapNumToGPIO(const mcrDevAddr_t &num);
-  static ledc_channel_t mapNumToChannel(const mcrDevAddr_t &num);
+  static const char *pwmDevDesc(const DeviceAddress_t &addr);
+  static gpio_num_t mapNumToGPIO(const DeviceAddress_t &num);
+  static ledc_channel_t mapNumToChannel(const DeviceAddress_t &num);
   static void allOff();
 
 private:
@@ -65,7 +65,7 @@ private:
   esp_err_t last_rc_ = ESP_OK;
 
 public:
-  pwmDev(mcrDevAddr_t &num);
+  pwmDev(DeviceAddress_t &num);
   uint8_t devAddr();
 
   void configureChannel();

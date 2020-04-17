@@ -50,7 +50,7 @@ private:
 
 public:
   dsDev();
-  dsDev(mcrDevAddr_t &addr, bool power = false);
+  dsDev(DeviceAddress_t &addr, bool power = false);
 
   uint8_t family();
   uint8_t crc();
@@ -72,7 +72,7 @@ public:
   void logPresenceFailed();
 
   // static member function for validating an address (ROM) is validAddress
-  static bool validAddress(mcrDevAddr_t &addr);
+  static bool validAddress(DeviceAddress_t &addr);
 
   const unique_ptr<char[]> debug();
 };

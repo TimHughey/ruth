@@ -29,20 +29,20 @@ using std::unique_ptr;
 
 namespace ruth {
 
-typedef class mcrDevAddr mcrDevAddr_t;
+typedef class DeviceAddress DeviceAddress_t;
 
-class mcrDevAddr {
+class DeviceAddress {
 private:
   static const uint32_t _max_len = 10;
   std::vector<uint8_t> _addr;
 
 public:
   static const int max_addr_len = _max_len;
-  mcrDevAddr(){};
+  DeviceAddress(){};
   // construct a very simple device address of only one byte
-  mcrDevAddr(uint8_t addr);
+  DeviceAddress(uint8_t addr);
   // construct a slightly more complex device of a multi byte address
-  mcrDevAddr(uint8_t *addr, uint32_t len);
+  DeviceAddress(uint8_t *addr, uint32_t len);
 
   uint32_t len() const;
   uint8_t firstAddressByte() const;
@@ -51,12 +51,12 @@ public:
   uint32_t max_len() const;
   bool isValid() const;
 
-  // support type casting from mcrDevAddr to a plain ole uint8_t array
+  // support type casting from DeviceAddress to a plain ole uint8_t array
   operator uint8_t *();
 
   uint8_t operator[](int i);
 
-  bool operator==(const mcrDevAddr_t &rhs);
+  bool operator==(const DeviceAddress_t &rhs);
 
   const unique_ptr<char[]> debug();
 

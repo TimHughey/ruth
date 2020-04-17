@@ -46,8 +46,8 @@ class mcrDev {
 public:
   mcrDev() {} // all values are defaulted in definition of class(es)
 
-  mcrDev(mcrDevAddr_t &addr);
-  mcrDev(const string_t &id, mcrDevAddr_t &addr);
+  mcrDev(DeviceAddress_t &addr);
+  mcrDev(const string_t &id, DeviceAddress_t &addr);
   // mcrDev(const mcrDev_t &dev); // copy constructor
   virtual ~mcrDev(); // base class will handle deleting the reading, if needed
 
@@ -63,7 +63,7 @@ public:
 
   uint8_t firstAddressByte();
   uint8_t lastAddressByte();
-  mcrDevAddr_t &addr();
+  DeviceAddress_t &addr();
   uint8_t *addrBytes();
 
   void setID(const std::string &new_id);
@@ -114,14 +114,14 @@ public:
 
 private:
   std::string _id;    // unique identifier of this device
-  mcrDevAddr_t _addr; // address of this device
+  DeviceAddress_t _addr; // address of this device
   std::string _desc;
 
   typedef std::pair<std::string, uint32_t> statEntry_t;
   typedef std::map<std::string, uint32_t> statsMap_t;
 
 protected:
-  static const uint32_t _addr_len = mcrDevAddr::max_addr_len;
+  static const uint32_t _addr_len = DeviceAddress::max_addr_len;
   static const uint32_t _id_len = 30;
   static const uint32_t _desc_len = 15; // max length of desciption
 

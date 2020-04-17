@@ -36,7 +36,7 @@
 
 namespace ruth {
 
-dsDev::dsDev(mcrDevAddr_t &addr, bool power) : mcrDev(addr) {
+dsDev::dsDev(DeviceAddress_t &addr, bool power) : mcrDev(addr) {
   char buff[_id_len] = {0x00};
   // byte   0: 8-bit family code
   // byte 1-6: 48-bit unique serial number
@@ -157,7 +157,7 @@ void dsDev::logPresenceFailed() {
 }
 
 // static member function for validating an address (ROM) is validAddress
-bool dsDev::validAddress(mcrDevAddr_t &addr) {
+bool dsDev::validAddress(DeviceAddress_t &addr) {
   bool rc = true;
 
   if (addr[_family_byte] == 0x00)

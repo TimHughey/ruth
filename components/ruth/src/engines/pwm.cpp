@@ -185,7 +185,7 @@ void pwmEngine::discover(void *data) {
     trackDiscover(true);
 
     for (uint8_t i = 1; i <= 4; i++) {
-      mcrDevAddr_t addr(i);
+      DeviceAddress_t addr(i);
       pwmDev_t dev(addr);
 
       if (pwmDev_t *found = (pwmDev_t *)justSeenDevice(dev)) {

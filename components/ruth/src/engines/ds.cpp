@@ -394,7 +394,7 @@ void DallasSemi::discover(void *data) {
     while ((owb_s == OWB_STATUS_OK) && found && hold_bus) {
       device_found = true;
 
-      mcrDevAddr_t found_addr(search_state.rom_code.bytes, 8);
+      DeviceAddress_t found_addr(search_state.rom_code.bytes, 8);
       dsDev_t dev(found_addr, true);
 
       if (justSeenDevice(dev)) {

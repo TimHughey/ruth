@@ -443,10 +443,10 @@ bool I2c::detectDevice(i2cDev_t *dev) {
 bool I2c::detectDevicesOnBus(int bus) {
   bool rc = true;
 
-  mcrDevAddr_t *addrs = search_addrs();
+  DeviceAddress_t *addrs = search_addrs();
 
   for (uint8_t i = 0; addrs[i].isValid(); i++) {
-    mcrDevAddr_t &search_addr = addrs[i];
+    DeviceAddress_t &search_addr = addrs[i];
     i2cDev_t dev(search_addr, useMultiplexer(), bus);
 
     if (selectBus(bus)) {
