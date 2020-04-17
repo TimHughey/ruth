@@ -6,7 +6,7 @@
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
 #include <esp_attr.h>
-#include <esp_event_loop.h>
+#include <esp_event.h>
 #include <esp_log.h>
 #include <esp_system.h>
 #include <esp_wifi.h>
@@ -86,8 +86,9 @@ private: // member functions
 private:
   EventGroupHandle_t evg_;
   esp_err_t init_rc_ = ESP_FAIL;
-  tcpip_adapter_ip_info_t ip_info_;
-  tcpip_adapter_dns_info_t primary_dns_;
+  esp_netif_t *netif_ = nullptr;
+  esp_netif_ip_info_t ip_info_;
+  esp_netif_dns_info_t primary_dns_;
   char dns_str_[16] = {};
   esp_adc_cal_characteristics_t *adc_chars_ = nullptr;
   esp_adc_cal_value_t adc_cal_;

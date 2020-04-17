@@ -3,7 +3,7 @@
 #include <string>
 
 #include <esp_attr.h>
-#include <esp_event_loop.h>
+#include <esp_event.h>
 #include <esp_log.h>
 #include <esp_system.h>
 #include <esp_wifi.h>
@@ -49,13 +49,13 @@ Net::Net() {
 }
 
 void Net::acquiredIP(void *event_data) {
+
   wifi_ap_record_t ap;
 
-  tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info_);
-  tcpip_adapter_get_dns_info(TCPIP_ADAPTER_IF_STA, TCPIP_ADAPTER_DNS_MAIN,
-                             &primary_dns_);
+  esp_netif_get_ip_info(netif_, &ip_info_);
+  esp_netif_get_dns_info(netif_, ESP_NETIF_DNS_MAIN, &primary_dns_);
 
-  uint8_t *dns_ip = (uint8_t *)&(primary_dns_.ip);
+  auto *dns_ip = (uint8_t *)&(primary_dns_.ip);
   snprintf(dns_str_, sizeof(dns_str_), IPSTR, dns_ip[0], dns_ip[1], dns_ip[2],
            dns_ip[3]);
 
@@ -141,7 +141,7 @@ void Net::disconnected(void *event_data) {
 
   if (reconnect_) {
     ESP_LOGI(tagEngine(), "wifi ATTEMPTING connect");
-    ::esp_wifi_connect();
+    esp_wifi_connect();
   }
 }
 
@@ -180,8 +180,8 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
 
   switch (id) {
   case WIFI_EVENT_STA_START:
-    ::tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, "ruth");
-    ::esp_wifi_connect();
+    esp_netif_set_hostname(instance()->netif_, "ruth");
+    esp_wifi_connect();
     break;
 
   case WIFI_EVENT_STA_CONNECTED:
@@ -202,15 +202,15 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
 void Net::deinit() {
   instance()->reconnect_ = false;
 
-  auto rc = ::esp_wifi_disconnect();
+  auto rc = esp_wifi_disconnect();
   ESP_LOGI(tagEngine(), "[%s] esp_wifi_disconnect()", esp_err_to_name(rc));
   vTaskDelay(pdMS_TO_TICKS(500));
 
-  rc = ::esp_wifi_stop();
+  rc = esp_wifi_stop();
   ESP_LOGI(tagEngine(), "[%s] esp_wifi_stop()", esp_err_to_name(rc));
   vTaskDelay(pdMS_TO_TICKS(500));
 
-  rc = ::esp_wifi_deinit();
+  rc = esp_wifi_deinit();
   ESP_LOGI(tagEngine(), "[%s] esp_wifi_deinit()", esp_err_to_name(rc));
   vTaskDelay(pdMS_TO_TICKS(1000));
 }
@@ -231,25 +231,26 @@ void Net::init() {
   if (init_rc_ == ESP_OK)
     return;
 
-  ::tcpip_adapter_init();
+  esp_netif_init();
 
-  rc = ::esp_event_loop_create_default();
+  rc = esp_event_loop_create_default();
   checkError(__PRETTY_FUNCTION__, rc); // never returns if rc != ESP_OK
+  netif_ = esp_netif_create_default_wifi_sta();
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 
-  rc = ::esp_wifi_init(&cfg);
+  rc = esp_wifi_init(&cfg);
   checkError(__PRETTY_FUNCTION__, rc);
 
-  rc = ::esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_events,
+  rc = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_events,
                                     instance());
   checkError(__PRETTY_FUNCTION__, rc);
 
-  rc = ::esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &ip_events,
+  rc = esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &ip_events,
                                     instance());
   checkError(__PRETTY_FUNCTION__, rc);
 
-  rc = ::esp_wifi_set_storage(WIFI_STORAGE_FLASH);
+  rc = esp_wifi_set_storage(WIFI_STORAGE_FLASH);
   checkError(__PRETTY_FUNCTION__, rc);
 
   // finally, check the rc.  if any of the API calls above failed
@@ -355,10 +356,7 @@ void Net::setName(const string_t name) {
   instance()->name_ = name;
   ESP_LOGI(tagEngine(), "assigned name [%s]", instance()->name_.c_str());
 
-  tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, name.c_str());
-
-  // tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA);
-  // tcpip_adapter_dhcpc_start(TCPIP_ADAPTER_IF_STA);
+  esp_netif_set_hostname(instance()->netif_, name.c_str());
 
   xEventGroupSetBits(instance()->eventGroup(), nameBit());
 }
@@ -367,37 +365,37 @@ bool Net::start() {
   esp_err_t rc = ESP_OK;
   init();
 
-  rc = ::esp_wifi_set_mode(WIFI_MODE_STA);
+  rc = esp_wifi_set_mode(WIFI_MODE_STA);
   checkError(__PRETTY_FUNCTION__, rc);
 
   // auto powersave = WIFI_PS_NONE;
   auto powersave = WIFI_PS_MIN_MODEM;
 
-  rc = ::esp_wifi_set_ps(powersave);
+  rc = esp_wifi_set_ps(powersave);
   checkError(__PRETTY_FUNCTION__, rc);
   ESP_LOGI(tagEngine(), "[%s] wifi powersave [%d]", esp_err_to_name(rc),
            powersave);
 
-  rc = ::esp_wifi_set_protocol(
+  rc = esp_wifi_set_protocol(
       WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
   checkError(__PRETTY_FUNCTION__, rc);
 
   wifi_config_t cfg;
-  ::bzero(&cfg, sizeof(cfg));
+  bzero(&cfg, sizeof(cfg));
   cfg.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
   cfg.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
   cfg.sta.bssid_set = 0;
-  ::strncpy((char *)cfg.sta.ssid, CONFIG_WIFI_SSID, sizeof(cfg.sta.ssid));
-  ::strncpy((char *)cfg.sta.password, CONFIG_WIFI_PASSWORD,
+  strncpy((char *)cfg.sta.ssid, CONFIG_WIFI_SSID, sizeof(cfg.sta.ssid));
+  strncpy((char *)cfg.sta.password, CONFIG_WIFI_PASSWORD,
             sizeof(cfg.sta.password));
 
-  rc = ::esp_wifi_set_config(WIFI_IF_STA, &cfg);
+  rc = esp_wifi_set_config(WIFI_IF_STA, &cfg);
   checkError(__PRETTY_FUNCTION__, rc);
 
   // wifi is initialized so signal to processes waiting they can continue
   xEventGroupSetBits(evg_, initializedBit());
 
-  ::esp_wifi_start();
+  esp_wifi_start();
   statusLED::instance()->brighter();
 
   ESP_LOGI(tagEngine(), "standing by for IP address...");
