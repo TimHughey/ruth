@@ -69,7 +69,7 @@ Author: Tim Hughey <timhughey@mac.com>
 Date:   Mon May 6 11:07:59 2019 -0400
 
     MCR Refactor to Remove sstrem and Related Functions
-    
+
     -effort reduced .bin size ~200k
     -completed effort of converting to unique_ptr in debug() methods
     -eliminated mcrDevID class (which was just a wrapper for std::string)
@@ -96,7 +96,7 @@ Author: Tim Hughey <timhughey@mac.com>
 Date:   Mon May 6 11:07:59 2019 -0400
 
     MCR Refactor to Remove sstrem and Related Functions
-    
+
     -effort reduced .bin size ~200k
     -completed effort of converting to unique_ptr in debug() methods
     -eliminated mcrDevID class (which was just a wrapper for std::string)
@@ -144,7 +144,7 @@ Author: Tim Hughey <timhughey@mac.com>
 Date:   Tue May 7 11:28:28 2019 -0400
 
     MCR Code Cleanup (continued)
-    
+
     -moved mcrDS owb_reset() to higher level method to eliminate redundant
     code
     -began renaming classes to elminiate mcr prefix in favor of mcr
@@ -200,7 +200,7 @@ Author: Tim Hughey <timhughey@mac.com>
 Date:   Thu May 9 08:52:11 2019 -0400
 
     Clean-up of Build and Deploy Scripts
-    
+
     -Fixed MCP Dutycycle startup parameterization
 Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
 Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
@@ -292,7 +292,7 @@ Author: Tim Hughey <timhughey@mac.com>
 Date:   Sun May 19 00:06:27 2019 -0400
 
     MCR Cleanup of Log Message Levels
-    
+
     It is now safe to set logging to info for Engines
 Toolchain path: /Users/thughey/devel/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
 Toolchain version: crosstool-ng-1.22.0-80-g6c4433a
@@ -314,7 +314,7 @@ Author: Tim Hughey <timhughey@mac.com>
 Date:   Thu May 23 00:38:21 2019 -0400
 
     MCR Implemented MCP23008 Set and Other Refactoring
-    
+
     Continued roll-out of:
      -elapsedMillis/Micros
      -string_t
@@ -343,7 +343,7 @@ Author: Tim Hughey <timhughey@mac.com>
 Date:   Thu May 23 00:38:21 2019 -0400
 
     MCR Implemented MCP23008 Set and Other Refactoring
-    
+
     Continued roll-out of:
      -elapsedMillis/Micros
      -string_t
@@ -424,4 +424,16 @@ Executing "ninja size"...
 App build complete. To flash, run this command:
 ../../esp-idf/components/esptool_py/esptool/esptool.py -p (PORT) -b 460800 --after hard_reset write_flash 0x10000 build/mcr_esp.bin
 or run 'idf.py -p (PORT) app-flash'
+<<<
+>>>
+3f9c0eb6 Ruth Renaming Checkpoint
+
+Total sizes:
+ DRAM .data size:   13988 bytes
+ DRAM .bss  size:   24616 bytes
+Used static DRAM:   38604 bytes ( 142132 available, 21.4% used)
+Used static IRAM:   74946 bytes (  56126 available, 57.2% used)
+      Flash code:  679229 bytes
+    Flash rodata:  153224 bytes
+Total image size:~ 921387 bytes (.bin may be padded larger)
 <<<

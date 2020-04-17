@@ -1,4 +1,5 @@
 build/
+esp-idf*
 CMakeFiles
 esp-idf
 bootloader

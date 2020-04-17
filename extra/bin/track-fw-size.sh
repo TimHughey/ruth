@@ -3,7 +3,7 @@
 base=${HOME}/devel/ruth
 extra=${base}/extra
 
-tracker=${extra}/firmware-size-tracker.txt
+tracker=${extra}/firmware-size/tracker.txt
 
 pushd $base
 
