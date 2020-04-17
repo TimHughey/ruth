@@ -180,7 +180,7 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
 
   switch (id) {
   case WIFI_EVENT_STA_START:
-    ::tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, "mcr");
+    ::tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, "ruth");
     ::esp_wifi_connect();
     break;
 
@@ -316,7 +316,7 @@ const string_t &Net::hostID() {
   static string_t _host_id;
 
   if (_host_id.length() == 0) {
-    _host_id = "mcr.";
+    _host_id = "ruth.";
     _host_id += macAddress();
   }
 

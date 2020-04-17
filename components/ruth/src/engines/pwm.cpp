@@ -25,7 +25,7 @@ using std::unique_ptr;
 namespace ruth {
 
 static pwmEngine_t *__singleton__ = nullptr;
-static const string_t engine_name = "mcrPWM";
+static const string_t engine_name = "PWM";
 
 pwmEngine::pwmEngine() {
   pwmDev::allOff(); // ensure all pins are off at initialization
@@ -70,7 +70,7 @@ void pwmEngine::command(void *data) {
       continue;
     }
 
-    // is the command for this mcr?
+    // is the command for this host?
 
     if (cmd->matchExternalDevID() == false) {
       continue;
@@ -152,7 +152,7 @@ void pwmEngine::core(void *task_data) {
 
   // wait for up to 30 seconds for name assigned by mcp
   // if the assigned name is not available then device names will use
-  // the pwm/mcr.<mac addr>.<bus>.<device> format
+  // the pwm/ruth.<mac addr>.<bus>.<device> format
 
   // this is because pwm devices do not have a globally assigned
   // unique identifier (like Maxim / Dallas Semiconductors devices)

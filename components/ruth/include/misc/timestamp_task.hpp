@@ -1,6 +1,6 @@
 
-#ifndef _MCR_TIMESTAMP_TASK_H_
-#define _MCR_TIMESTAMP_TASK_H_
+#ifndef _TIMESTAMP_TASK_HPP_
+#define _TIMESTAMP_TASK_HPP_
 
 #include <memory>
 #include <string>
@@ -64,7 +64,7 @@ private:
     xTaskHandle handle;
     uint32_t stack_high_water;
     uint32_t stack_depth = 0;
-    bool mcr_task = false;
+    bool task = false;
   } TaskStat_t;
 
   typedef TaskStat_t *TaskStat_ptr_t;
@@ -97,4 +97,4 @@ private:
 };
 } // namespace ruth
 
-#endif /* _MCR_TIMESTAMP_TASK_H_ */
+#endif // _TIMESTAMP_TASK_HPP_

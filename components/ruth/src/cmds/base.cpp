@@ -58,8 +58,8 @@ bool Cmd::forThisHost() const {
 }
 
 bool Cmd::matchExternalDevID() {
-  const string_t &mcr_name = Net::getName();
-  auto match_pos = _external_dev_id.find(mcr_name);
+  const string_t &name = Net::getName();
+  auto match_pos = _external_dev_id.find(name);
 
   return (match_pos == string::npos) ? false : true;
 }
@@ -144,15 +144,15 @@ bool Cmd::sendToQueue(cmdQueue_t &cmd_q, Cmd_t *cmd) {
 }
 
 void Cmd::translateExternalDeviceID(const char *replacement) {
-  const string_t &mcr_name = Net::getName();
+  const string_t &name = Net::getName();
 
   // update the internal dev ID (originally external ID)
-  auto pos = _internal_dev_id.find(mcr_name);
+  auto pos = _internal_dev_id.find(name);
 
   if (pos == string::npos) {
     // didn't find the name of this host, not for us
   } else {
-    _internal_dev_id.replace(pos, mcr_name.length(), replacement);
+    _internal_dev_id.replace(pos, name.length(), replacement);
   }
 }
 

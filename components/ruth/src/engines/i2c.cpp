@@ -97,7 +97,7 @@ void I2c::command(void *data) {
 
     ESP_LOGD(tagCommand(), "processing %s", cmd->debug().get());
 
-    // is the command for this mcr?
+    // is the command for this host?
     if (cmd->matchExternalDevID() == false) {
       continue;
     }
@@ -196,7 +196,7 @@ void I2c::core(void *task_data) {
 
   // wait for up to 30 seconds for name assigned by mcp
   // if the assigned name is not available then device names will use
-  // the i2.c/mcr.<mac addr>.<bus>.<device> format
+  // the i2.c/ruth.<mac addr>.<bus>.<device> format
 
   // this is because i2c devices do not have a globally assigned
   // unique identifier (like Maxim / Dallas Semiconductors devices)
@@ -305,7 +305,7 @@ void I2c::report(void *data) {
 }
 
 esp_err_t I2c::busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
-                          esp_err_t prev_esp_rc) {
+                       esp_err_t prev_esp_rc) {
   i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc;
 
@@ -349,7 +349,7 @@ esp_err_t I2c::busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
 }
 
 esp_err_t I2c::busWrite(i2cDev_t *dev, uint8_t *bytes, uint32_t len,
-                           esp_err_t prev_esp_rc) {
+                        esp_err_t prev_esp_rc) {
   i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc;
 
@@ -766,8 +766,8 @@ bool I2c::readSHT31(i2cDev_t *dev) {
 }
 
 esp_err_t I2c::requestData(const char *TAG, i2cDev_t *dev, uint8_t *send,
-                              uint8_t send_len, uint8_t *recv, uint8_t recv_len,
-                              esp_err_t prev_esp_rc, int timeout) {
+                           uint8_t send_len, uint8_t *recv, uint8_t recv_len,
+                           esp_err_t prev_esp_rc, int timeout) {
   i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc;
 

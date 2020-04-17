@@ -120,7 +120,7 @@ esp_err_t NVS::__commitMsg(const char *key, const char *msg) {
   }
 
   _blob->time = time(nullptr);
-  strncpy(_blob->msg, msg, MCR_NVS_MSG_MAX_LEN);
+  strncpy(_blob->msg, msg, NVS_MSG_MAX_LEN);
 
   _esp_rc = nvs_set_blob(_handle, key, _blob, sizeof(NVSMessage_t));
 

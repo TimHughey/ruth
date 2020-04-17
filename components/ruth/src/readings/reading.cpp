@@ -115,8 +115,8 @@ void Reading::setCmdAck(uint32_t latency_us, RefID_t &refid) {
 }
 
 static const char *__type_string[] = {
-    "base", "mcr_stat", "ph",     "stats", "remote_runtime", "relhum",
-    "soil", "boot",     "switch", "temp",  "text",           "pwm"};
+    "base", "stat", "ph",     "stats", "remote_runtime", "relhum",
+    "soil", "boot", "switch", "temp",  "text",           "pwm"};
 
 const char *Reading::typeString(ReadingType_t index) {
   return __type_string[index];

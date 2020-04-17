@@ -1,5 +1,5 @@
 /*
-    nvs.hpp -- MCR abstraction for ESP32 NVS
+    nvs.hpp -- Abstraction for ESP32 NVS
     Copyright (C) 2019  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -30,13 +30,13 @@
 #include <nvs.h>
 #include <nvs_flash.h>
 
-#define MCR_NVS_MSG_MAX_LEN 256
+#define NVS_MSG_MAX_LEN 256
 
 namespace ruth {
 
 typedef struct {
   time_t time = 0;
-  char msg[MCR_NVS_MSG_MAX_LEN] = {};
+  char msg[NVS_MSG_MAX_LEN] = {};
 } NVSMessage_t;
 
 typedef class NVS NVS_t;
@@ -47,7 +47,7 @@ private:
   // allocate from the heap and use member variables.
   // this does have the potential downside of heap fragmentation.
   // this approach should be monitored to ensure it is meeting the goal.
-  const char *_nvs_namespace = "mcr";
+  const char *_nvs_namespace = "ruth";
   nvs_handle _handle;
   esp_err_t _esp_rc = ESP_OK;
   esp_err_t _nvs_open_rc = ESP_FAIL;
@@ -58,9 +58,8 @@ private:
   size_t _time_str_max_len = 25;
   size_t _msg_len = 0;
 
-  const char *_possible_keys[7] = {"BOOT",    "mcrNet",  "mcrNet-connection",
-                                   "I2c",  "MQTT", "hostname",
-                                   "END_KEYS"};
+  const char *_possible_keys[7] = {"BOOT", "Net",      "Net-connection", "I2c",
+                                   "MQTT", "hostname", "END_KEYS"};
 
   bool _committed_msgs_processed = false;
 

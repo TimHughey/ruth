@@ -1,5 +1,5 @@
 /*
-    restart.hpp -- MCR abstraction for esp_restart()
+    status_led.hpp -- Abstraction for ESP Status LED (pin 13)
     Copyright (C) 2019  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify

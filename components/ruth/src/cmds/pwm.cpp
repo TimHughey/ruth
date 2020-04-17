@@ -6,7 +6,7 @@ namespace ruth {
 
 cmdPWM::cmdPWM(JsonDocument &doc, elapsedMicros &e) : Cmd(doc, e, "device") {
   // json format of states command:
-  // {"device":"pwm/mcr.xxx.pin:n",
+  // {"device":"pwm/ruth.xxx.pin:n",
   //   "duty":2048,
   //   "refid":"0fc4417c-f1bb-11e7-86bd-6cf049e7139f",
   //   "mtime":1515117138,

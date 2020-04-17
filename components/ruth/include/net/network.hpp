@@ -63,7 +63,7 @@ public:
   static EventBits_t initializedBit() { return BIT6; };
   static EventBits_t transportBit() { return BIT7; };
 
-  static const char *tagEngine() { return (const char *)"mcrNet"; };
+  static const char *tagEngine() { return (const char *)"Net"; };
 
   uint32_t batt_mv();
   static uint32_t vref() { return 1100; };
