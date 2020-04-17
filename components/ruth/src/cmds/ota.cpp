@@ -1,7 +1,7 @@
 
 
 #include "cmds/ota.hpp"
-#include "misc/mcr_restart.hpp"
+#include "misc/restart.hpp"
 
 namespace ruth {
 

@@ -31,7 +31,7 @@
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
 #include "engines/pwm.hpp"
-#include "misc/mcr_nvs.hpp"
+#include "misc/nvs.hpp"
 #include "misc/status_led.hpp"
 #include "misc/timestamp_task.hpp"
 #include "net/network.hpp"

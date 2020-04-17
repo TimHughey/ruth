@@ -1,5 +1,5 @@
 /*
-    mcr_nvs.hpp -- MCR abstraction for ESP32 NVS
+    nvs.hpp -- MCR abstraction for ESP32 NVS
     Copyright (C) 2019  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -86,4 +86,4 @@ public:
 };
 } // namespace ruth
 
-#endif // mcr_nvs_hpp
+#endif // nvs.hpp

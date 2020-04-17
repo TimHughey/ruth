@@ -1,5 +1,5 @@
 /*
-    mcr_restart.hpp -- MCR abstraction for esp_restart()
+    restart.hpp -- MCR abstraction for esp_restart()
     Copyright (C) 2019  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -48,4 +48,4 @@ public:
 
 } // namespace ruth
 
-#endif // mcr_restart_hpp
+#endif // restart.hpp

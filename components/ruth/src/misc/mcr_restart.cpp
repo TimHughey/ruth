@@ -23,7 +23,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "misc/mcr_restart.hpp"
+#include "misc/restart.hpp"
 #include "net/network.hpp"
 #include "protocols/mqtt.hpp"
 

@@ -19,8 +19,8 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#include "misc/mcr_nvs.hpp"
-#include "misc/mcr_restart.hpp"
+#include "misc/nvs.hpp"
+#include "misc/restart.hpp"
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
 

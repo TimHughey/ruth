@@ -18,7 +18,7 @@
     https://www.wisslanding.com
 */
 
-#include "misc/mcr_nvs.hpp"
+#include "misc/nvs.hpp"
 #include "protocols/mqtt.hpp"
 
 namespace ruth {
