@@ -267,7 +267,7 @@ bool pwmEngine::configureTimer() {
 
   ledc_timer_config_t ledc_timer = {.speed_mode = LEDC_HIGH_SPEED_MODE,
                                     .duty_resolution = LEDC_TIMER_13_BIT,
-                                    .timer_num = LEDC_TIMER_0,
+                                    .timer_num = LEDC_TIMER_1,
                                     .freq_hz = 5000,
                                     .clk_cfg = LEDC_AUTO_CLK};
 
