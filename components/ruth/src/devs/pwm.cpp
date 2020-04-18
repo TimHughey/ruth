@@ -113,9 +113,15 @@ bool pwmDev::updateDuty(uint32_t duty, uint32_t fade_ms) {
   //
   // esp_rc = ledc_update_duty(ledc_channel_.speed_mode, ledc_channel_.channel);
 
-  esp_rc = ledc_set_fade_time_and_start(ledc_channel_.speed_mode,
-                                        ledc_channel_.channel, duty, fade_ms,
-                                        LEDC_FADE_NO_WAIT);
+  // esp_rc = ledc_set_fade_time_and_start(ledc_channel_.speed_mode,
+  //                                       ledc_channel_.channel, duty, fade_ms,
+  //                                       LEDC_FADE_NO_WAIT);
+
+  esp_rc = ledc_set_fade_with_time(ledc_channel_.speed_mode,
+                                   ledc_channel_.channel, duty, fade_ms);
+
+  ledc_fade_start(ledc_channel_.speed_mode, ledc_channel_.channel,
+                  LEDC_FADE_NO_WAIT);
 
   writeStop();
 

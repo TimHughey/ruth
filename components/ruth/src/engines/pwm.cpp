@@ -269,7 +269,7 @@ bool pwmEngine::configureTimer() {
                                     .duty_resolution = LEDC_TIMER_13_BIT,
                                     .timer_num = LEDC_TIMER_1,
                                     .freq_hz = 5000,
-                                    .clk_cfg = LEDC_USE_REF_TICK};
+                                    .clk_cfg = LEDC_AUTO_CLK};
 
   timer_rc = ledc_timer_config(&ledc_timer);
 
