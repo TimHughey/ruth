@@ -1,6 +1,6 @@
-Hello, I am Ruth.
+# Hello, I am Ruth.
 
-Ruth firmware provides:
+## Ruth firmware provides:
 - Detect, read and report Dallas Semiconductor devices (sensors and switches)
 - Detect, read and report I2C devices
 - Publish readings and metrics to a MQTT broker
