@@ -54,9 +54,9 @@ private:
 
   ledc_channel_config_t ledc_channel_ = {.gpio_num = GPIO_NUM_32,
                                          .speed_mode = LEDC_HIGH_SPEED_MODE,
-                                         .channel = LEDC_CHANNEL_1,
+                                         .channel = LEDC_CHANNEL_2,
                                          .intr_type = LEDC_INTR_DISABLE,
-                                         .timer_sel = LEDC_TIMER_0,
+                                         .timer_sel = LEDC_TIMER_1,
                                          .duty = duty_,
                                          .hpoint = 0};
 

@@ -149,19 +149,19 @@ ledc_channel_t pwmDev::mapNumToChannel(const DeviceAddress_t &num) {
   switch (num.firstAddressByte()) {
   case 0x01:
     // NOTE: LEDC_CHANNEL_0 is used for the onboard red status led
-    return (LEDC_CHANNEL_1);
-
-  case 0x02:
     return (LEDC_CHANNEL_2);
 
-  case 0x03:
+  case 0x02:
     return (LEDC_CHANNEL_3);
 
-  case 0x04:
+  case 0x03:
     return (LEDC_CHANNEL_4);
 
+  case 0x04:
+    return (LEDC_CHANNEL_5);
+
   default:
-    return (LEDC_CHANNEL_1);
+    return (LEDC_CHANNEL_5);
   }
 }
 

@@ -406,8 +406,8 @@ bool I2c::detectDevice(i2cDev_t *dev) {
   bool rc = false;
   // i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc = ESP_FAIL;
-  // uint8_t sht31_cmd_data[] = {0x30, // soft-reset
-  //                             0xa2};
+  uint8_t sht31_cmd_data[] = {0x30, // soft-reset
+                              0xa2};
   uint8_t detect_cmd[] = {dev->devAddr()};
 
   ESP_LOGV(tagDetectDev(), "looking for %s", dev->debug().get());
@@ -416,6 +416,8 @@ bool I2c::detectDevice(i2cDev_t *dev) {
 
   case 0x70: // TCA9548B - TI i2c bus multiplexer
   case 0x44: // SHT-31 humidity sensor
+    esp_rc = busWrite(dev, sht31_cmd_data, sizeof(sht31_cmd_data));
+    break;
   case 0x20: // MCP23008 0x20 - 0x27
   case 0x21:
   case 0x22:
