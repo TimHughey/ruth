@@ -49,8 +49,12 @@ private:
   string_t external_name_; // name used to report externally
   static const uint32_t pwm_max_addr_len_ = 1;
   static const uint32_t pwm_max_id_len_ = 40;
-  static const uint32_t duty_max_ = 4095;
+  static const uint32_t duty_max_ = 0x1fff;
   static const uint32_t duty_min_ = 0;
+
+  gpio_num_t gpio_pin_;
+  uint32_t duty_ = 0; // default to zero (off)
+  esp_err_t last_rc_ = ESP_OK;
 
   ledc_channel_config_t ledc_channel_ = {.gpio_num = GPIO_NUM_32,
                                          .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -59,10 +63,6 @@ private:
                                          .timer_sel = LEDC_TIMER_1,
                                          .duty = duty_,
                                          .hpoint = 0};
-
-  gpio_num_t gpio_pin_;
-  uint32_t duty_ = 0; // default to zero (off)
-  esp_err_t last_rc_ = ESP_OK;
 
 public:
   pwmDev(DeviceAddress_t &num);

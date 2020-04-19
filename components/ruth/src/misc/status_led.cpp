@@ -16,7 +16,7 @@ statusLED::statusLED() {
     config_rc = ledc_channel_config(&ledc_channel_);
 
     if (config_rc == ESP_OK) {
-      fade_func_rc = ledc_fade_func_install(ESP_INTR_FLAG_LOWMED);
+      fade_func_rc = ledc_fade_func_install(ESP_INTR_FLAG_LEVEL3);
     }
   }
 
