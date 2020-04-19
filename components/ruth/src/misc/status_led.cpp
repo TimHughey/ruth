@@ -6,21 +6,23 @@ static const char *TAG = "statusLED";
 static statusLED_t *__singleton__ = nullptr;
 
 statusLED::statusLED() {
-  esp_err_t timer_rc, config_rc;
+  esp_err_t timer_rc = ESP_FAIL;
+  esp_err_t config_rc = ESP_FAIL;
+  esp_err_t fade_func_rc = ESP_FAIL;
 
   timer_rc = ledc_timer_config(&ledc_timer_);
 
   if (timer_rc == ESP_OK) {
     config_rc = ledc_channel_config(&ledc_channel_);
-    ESP_LOGI(TAG, "timer_rc: [%s] config_rc: [%s]", esp_err_to_name(timer_rc),
-             esp_err_to_name(config_rc));
 
     if (config_rc == ESP_OK) {
-      ledc_fade_func_install(0);
+      fade_func_rc = ledc_fade_func_install(ESP_INTR_FLAG_LOWMED);
     }
-  } else {
-    ESP_LOGI(TAG, "timer_rc: [%s]", esp_err_to_name(timer_rc));
   }
+
+  ESP_LOGI(TAG, "timer: [%s] config: [%s] fade_func: [%s]",
+           esp_err_to_name(timer_rc), esp_err_to_name(config_rc),
+           esp_err_to_name(fade_func_rc));
 }
 
 void statusLED::bright() {
