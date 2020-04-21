@@ -17,3 +17,5 @@ config
 Makefile
 kconfig_bin
 sdkconfig
+
+.DS_Store
