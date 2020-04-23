@@ -88,7 +88,7 @@ void pwmEngine::command(void *data) {
       ESP_LOGD(tagCommand(), "processing cmd for: %s", dev->id().c_str());
 
       dev->writeStart();
-      set_rc = dev->updateDuty(cmd->duty(), cmd->fade_ms());
+      set_rc = dev->updateDuty(cmd);
       dev->writeStop();
 
       if (set_rc) {

@@ -27,6 +27,7 @@
 #include <driver/gpio.h>
 #include <driver/ledc.h>
 
+#include "cmds/pwm.hpp"
 #include "devs/base.hpp"
 
 using std::unique_ptr;
@@ -75,7 +76,7 @@ public:
   uint32_t dutyMin() { return duty_min_; };
   gpio_num_t gpioPin() { return gpio_pin_; };
 
-  bool updateDuty(uint32_t duty, uint32_t fade_ms);
+  bool updateDuty(cmdPWM_t *cmd);
 
   const char *externalName();
   esp_err_t lastRC() { return last_rc_; };

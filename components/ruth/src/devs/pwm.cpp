@@ -99,21 +99,35 @@ void pwmDev::configureChannel() {
   last_rc_ = ledc_channel_config(&ledc_channel_);
 }
 
-bool pwmDev::updateDuty(uint32_t duty, uint32_t fade_ms) {
+bool pwmDev::updateDuty(cmdPWM_t *cmd) {
   auto esp_rc = ESP_OK;
+
+  const ledc_mode_t mode = ledc_channel_.speed_mode;
+  const ledc_channel_t channel = ledc_channel_.channel;
 
   writeStart();
 
-  // esp_rc = ledc_set_fade_time_and_start(ledc_channel_.speed_mode,
-  //                                       ledc_channel_.channel, duty, fade_ms,
-  //                                       LEDC_FADE_NO_WAIT);
+  if (cmd->is_fade()) {
+    ledc_duty_direction_t fade_direction = (cmd->direction() == 0)
+                                               ? LEDC_DUTY_DIR_DECREASE
+                                               : LEDC_DUTY_DIR_INCREASE;
 
-  ledc_set_duty_and_update(ledc_channel_.speed_mode, ledc_channel_.channel,
-                           duty, 0);
+    // sets the fade options, must call ledc_update_duty to begin fade
+    esp_rc = ledc_set_fade(mode, channel, cmd->duty(), fade_direction,
+                           cmd->step_num(), cmd->duty_cycle_num(),
+                           cmd->duty_scale());
+
+    if (esp_rc == ESP_OK) {
+      esp_rc = ledc_update_duty(mode, channel);
+    }
+
+  } else {
+    ledc_set_duty_and_update(mode, channel, cmd->duty(), 0);
+  }
 
   writeStop();
 
-  duty_ = duty;
+  duty_ = cmd->duty();
 
   return (esp_rc == ESP_OK) ? true : false;
 }
