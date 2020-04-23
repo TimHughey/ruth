@@ -28,7 +28,13 @@ fw_suffixes=(bin elf)
 vsn=$(git describe)
 htdocs=/dar/www/wisslanding/htdocs/helen/firmware
 
-. ${base}/esp-idf/export.sh 1> /dev/null 2> /dev/null
+esp_export=${base}/esp-idf/export.sh
+if [[ -f $esp_export ]]; then
+  . ${esp_export} 1> /dev/null 2> /dev/null
+else
+  echo "Unable to source ${esp_export}, aborting."
+  exit 1
+fi
 
 pushd -q $base
 
