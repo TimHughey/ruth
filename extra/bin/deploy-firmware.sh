@@ -26,7 +26,9 @@ base=${HOME}/devel/ruth
 build=${base}/build
 fw_suffixes=(bin elf)
 vsn=$(git describe)
-htdocs=/dar/www/wisslanding/htdocs/ruth/firmware
+htdocs=/dar/www/wisslanding/htdocs/helen/firmware
+
+. ${base}/esp-idf/export.sh 1> /dev/null 2> /dev/null
 
 pushd -q $base
 
@@ -44,7 +46,7 @@ run_cmd idf.py build
 for suffix in "${fw_suffixes[@]}"; do
   src=${build}/ruth.${suffix}
   dest=${vsn}-ruth.${suffix}
-  latest=latest-ruth.${suffix}
+  latest=latest.${suffix}
 
   if [[ "${host}" != "jophiel" ]]; then
     run_cmd scp ${src} jophiel:${htdocs}/${dest}
