@@ -58,7 +58,7 @@ private:
 
   TickType_t _last_wake;
   const TickType_t _loop_frequency = pdMS_TO_TICKS(3000);
-  time_t _timestamp_freq_secs = (6 * 60 * 60); // six (6) hours
+  time_t _timestamp_freq_secs = (2 * 60 * 60); // two (2) hours
 
   typedef struct {
     xTaskHandle handle;
