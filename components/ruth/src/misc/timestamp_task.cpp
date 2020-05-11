@@ -93,7 +93,7 @@ void TimestampTask::core(void *data) {
                (_maxHeap / 1024), delta_str, (max_alloc / 1024),
                (float)(batt_mv / 1024.0));
 
-      // reportTaskStacks();
+      reportTaskStacks();
 
       if ((last_timestamp == 0) && (_timestamp_freq_secs > 300)) {
         ESP_LOGI(name, "--> next timestamp report in %0.2f minutes",
