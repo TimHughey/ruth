@@ -43,7 +43,7 @@ static char TAG[] = "MQTTin";
 static MQTTin_t *__singleton = nullptr;
 
 // inclusive of large configuration documents
-static const size_t capacity =
+static const size_t _doc_capacity =
     4 * JSON_OBJECT_SIZE(2) + 9 * JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(4) +
     3 * JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(9) + 680;
 
