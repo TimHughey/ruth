@@ -9,12 +9,7 @@ namespace ruth {
 
 static const char *TAG = "CmdFactory";
 
-static const int _jsonBufferCapacity =
-    JSON_OBJECT_SIZE(10) + JSON_ARRAY_SIZE(8) + JSON_OBJECT_SIZE(2) * 8;
-
-CmdFactory::CmdFactory() {
-  // ESP_LOGI(TAG, "JSON static buffer capacity: %d", _jsonBufferCapacity);
-}
+CmdFactory::CmdFactory() {}
 
 Cmd_t *CmdFactory::fromRaw(JsonDocument &doc, rawMsg_t *raw) {
   Cmd_t *cmd = nullptr;

@@ -42,6 +42,11 @@ static char TAG[] = "MQTTin";
 
 static MQTTin_t *__singleton = nullptr;
 
+// inclusive of large configuration documents
+static const size_t capacity =
+    4 * JSON_OBJECT_SIZE(2) + 9 * JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(4) +
+    3 * JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(9) + 680;
+
 MQTTin::MQTTin(QueueHandle_t q_in, const char *cmd_feed)
     : _q_in(q_in), _cmd_feed(cmd_feed) {
   esp_log_level_set(TAG, ESP_LOG_INFO);
@@ -64,7 +69,7 @@ void MQTTin::restorePriority() {
 void MQTTin::core(void *data) {
   mqttInMsg_t *msg;
   CmdFactory_t factory;
-  DynamicJsonDocument doc(1024); // allocate the json buffer here
+  DynamicJsonDocument doc(_doc_capacity); // allocate the document here
 
   // note:  no reason to wait for wifi, normal ops or other event group
   //        bits since MQTTin waits for queue data from other tasks via
@@ -94,9 +99,9 @@ void MQTTin::core(void *data) {
                    msg->topic->c_str());
         } else if (cmd->recent() && cmd->forThisHost()) {
           cmd->process();
-        } else {
-          ESP_LOGD(TAG, "ignoring topic(%s)", msg->topic->c_str());
         }
+      } else {
+        ESP_LOGI(TAG, "ignoring topic(%s)", msg->topic->c_str());
       }
 
       // ok, we're done with the contents of the previously allocated msg

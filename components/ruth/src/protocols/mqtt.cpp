@@ -59,6 +59,7 @@ MQTT::MQTT() {
   // RUTH_ENV and RUTH_MQTT_RPT_FEED and RUTH_MQTT_CMD_FEED
   _rpt_feed.append(CONFIG_RUTH_MQTT_RPT_FEED);
   _cmd_feed.append(CONFIG_RUTH_MQTT_CMD_FEED);
+  _host_feed.reserve(24);
 
   // create the endpoint URI
   const auto max_endpoint = 127;
@@ -88,7 +89,7 @@ void MQTT::connect(int wait_ms) {
 
   // establish the client id
   if (_client_id.length() == 0) {
-    _client_id = "esp-" + Net::macAddress();
+    _client_id = "ruth-" + Net::macAddress();
   }
 
   TickType_t last_wake = xTaskGetTickCount();
@@ -135,7 +136,7 @@ void MQTT::handshake(struct mg_connection *nc) {
 void MQTT::incomingMsg(struct mg_str *in_topic, struct mg_str *in_payload) {
   // allocate a new string here and deallocate it once processed through MQTTin
   mqttInMsg_t *entry = new mqttInMsg_t;
-  auto *topic = new std::string(in_topic->p, in_topic->len);
+  auto *topic = new string_t(in_topic->p, in_topic->len);
   auto *data =
       new std::vector<char>(in_payload->p, (in_payload->p + in_payload->len));
 
@@ -314,6 +315,9 @@ void MQTT::subACK(struct mg_mqtt_message *msg) {
     Net::setTransportReady();
     // NOTE: do not announce startup here.  doing so creates a race condition
     // that results in occasionally using epoch as the startup time
+  } else if (msg->message_id == _host_feed_msg_id) {
+    ESP_LOGI(tagEngine(), "subscribed to HOST feed (suback msg_id(%d))",
+             msg->message_id);
   } else {
     ESP_LOGW(tagEngine(),
              "suback msg_id(%d) did not match known subscription requests",
@@ -322,6 +326,8 @@ void MQTT::subACK(struct mg_mqtt_message *msg) {
 }
 
 void MQTT::subscribeCommandFeed(struct mg_connection *nc) {
+  const char *replace = "__HOST__";
+
   struct mg_mqtt_topic_expression sub[] = {
       {.topic = _cmd_feed.c_str(), .qos = 1}};
 
@@ -329,6 +335,15 @@ void MQTT::subscribeCommandFeed(struct mg_connection *nc) {
   ESP_LOGI(tagEngine(), "subscribe feed=%s msg_id=%d", sub[0].topic,
            _cmd_feed_msg_id);
   mg_mqtt_subscribe(nc, sub, 1, _cmd_feed_msg_id);
+
+  _host_feed.replace(_host_feed.find(replace), strlen(replace), Net::hostID());
+
+  sub[0].topic = _host_feed.c_str();
+
+  _host_feed_msg_id = _msg_id++;
+  ESP_LOGI(tagEngine(), "subscribe feed=%s msg_id=%d", sub[0].topic,
+           _host_feed_msg_id);
+  mg_mqtt_subscribe(nc, sub, 1, _host_feed_msg_id);
 }
 
 // STATIC
