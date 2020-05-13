@@ -326,7 +326,7 @@ void MQTT::subACK(struct mg_mqtt_message *msg) {
 }
 
 void MQTT::subscribeCommandFeed(struct mg_connection *nc) {
-  const char *replace = "__HOST__";
+  const char *replace = "_HOST_";
 
   struct mg_mqtt_topic_expression sub[] = {
       {.topic = _cmd_feed.c_str(), .qos = 1}};

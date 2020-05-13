@@ -66,7 +66,7 @@ public:
   };
 
 private:
-  static const uint32_t _max_len = 640;
+  static const uint32_t _max_len = 1024;
 
   char _actual[_max_len + 1];
   char *_append_text = _actual;

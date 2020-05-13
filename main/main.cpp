@@ -96,7 +96,8 @@ void app_main() {
   network->start();
 
   // now that all tasks are started signal to begin watching task stacks
-  timestampTask->watchTaskStacks();
+  // DISABLED 2020-05-13 - possible source of panics
+  // timestampTask->watchTaskStacks();
 
   // the main loop is a safety net for overall platform failures
   bool boot_complete = false;
