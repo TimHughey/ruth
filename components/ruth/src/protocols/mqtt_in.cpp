@@ -18,8 +18,6 @@
     https://www.wisslanding.com
 */
 
-// #define VERBOSE 1
-
 #include <cstdlib>
 #include <cstring>
 #include <vector>
@@ -45,7 +43,8 @@ static MQTTin_t *__singleton = nullptr;
 // inclusive of large configuration documents
 static const size_t _doc_capacity =
     4 * JSON_OBJECT_SIZE(2) + 9 * JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(4) +
-    3 * JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(9) + 680;
+    2 * JSON_OBJECT_SIZE(5) + 2 * JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(9) +
+    700;
 
 MQTTin::MQTTin(QueueHandle_t q_in, const char *cmd_feed)
     : _q_in(q_in), _cmd_feed(cmd_feed) {
@@ -101,7 +100,7 @@ void MQTTin::core(void *data) {
           cmd->process();
         }
       } else {
-        ESP_LOGI(TAG, "ignoring topic(%s)", msg->topic->c_str());
+        ESP_LOGD(TAG, "ignoring topic(%s)", msg->topic->c_str());
       }
 
       // ok, we're done with the contents of the previously allocated msg

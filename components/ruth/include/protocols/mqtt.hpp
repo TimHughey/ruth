@@ -132,7 +132,7 @@ private:
   // with the configured environment
   string_t _rpt_feed = CONFIG_RUTH_ENV "/";
   string_t _cmd_feed = CONFIG_RUTH_ENV "/";
-  string_t _host_feed = CONFIG_RUTH_ENV "/__HOST__";
+  string_t _host_feed = CONFIG_RUTH_ENV "/_HOST_/#";
 
   uint16_t _cmd_feed_msg_id = 1;
   uint16_t _host_feed_msg_id;
