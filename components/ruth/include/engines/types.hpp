@@ -64,7 +64,7 @@ public:
   TaskHandle_t _handle = nullptr;
   TickType_t _lastWake = 0;
   UBaseType_t _priority = 1;
-  UBaseType_t _stackSize = 1536;
+  UBaseType_t _stackSize = 1792;
   void *_data = nullptr;
 };
 
