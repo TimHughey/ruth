@@ -96,6 +96,7 @@ const char *pwmDev::externalName() {
 uint8_t pwmDev::devAddr() { return firstAddressByte(); };
 
 void pwmDev::configureChannel() {
+  gpio_set_level(gpio_pin_, 0);
   last_rc_ = ledc_channel_config(&ledc_channel_);
 }
 

@@ -65,7 +65,8 @@ bool Profile::_parseRawMsg(rawMsg_t *raw) {
 
 void Profile::_postParseActions() {
 
-  ESP_LOGI(TAG, "doc parse: %lldus", (uint64_t)_parse_elapsed);
+  ESP_LOGI(TAG, "msgpack deserialization took %lldus",
+           (uint64_t)_parse_elapsed);
 
   Net::setName(_assignedName());
 }

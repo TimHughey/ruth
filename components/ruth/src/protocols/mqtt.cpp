@@ -55,11 +55,12 @@ MQTT_t *MQTT::instance() {
 
 // SINGLETON! constructor is private
 MQTT::MQTT() {
-  // create the report and command feed topics using the configured
-  // RUTH_ENV and RUTH_MQTT_RPT_FEED and RUTH_MQTT_CMD_FEED
-  _rpt_feed.append(CONFIG_RUTH_MQTT_RPT_FEED);
-  _cmd_feed.append(CONFIG_RUTH_MQTT_CMD_FEED);
-  _host_feed.reserve(24);
+  // create the report and command feed topics using the configuration
+  // strings present in the object
+  _feed_rpt_actual = _feed_prefix + _feed_rpt_config;
+  _feed_cmd_actual = _feed_prefix + _feed_cmd_config;
+
+  // NOTE:  _feed_host_actual is created once the network is available
 
   // create the endpoint URI
   const auto max_endpoint = 127;
@@ -86,15 +87,11 @@ void MQTT::announceStartup() {
 }
 
 void MQTT::connect(int wait_ms) {
-
-  // establish the client id
-  if (_client_id.length() == 0) {
-    _client_id = "ruth-" + Net::macAddress();
-  }
-
-  TickType_t last_wake = xTaskGetTickCount();
+  // establish a unique client id
+  _client_id = "ruth-" + Net::macAddress();
 
   if (wait_ms > 0) {
+    TickType_t last_wake = xTaskGetTickCount();
     vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(wait_ms));
   }
 
@@ -117,7 +114,7 @@ void MQTT::connectionClosed() {
 
   Net::clearTransportReady();
 
-  connect(500); // wait five seconds before reconnect
+  connect();
 }
 
 void MQTT::handshake(struct mg_connection *nc) {
@@ -207,8 +204,8 @@ void MQTT::outboundMsg() {
 
     ESP_LOGV(tagEngine(), "send msg(len=%u), payload(len=%u)", len, json_len);
 
-    mg_mqtt_publish(_connection, _rpt_feed.c_str(), _msg_id++, MG_MQTT_QOS(1),
-                    json->data(), json_len);
+    mg_mqtt_publish(_connection, _feed_rpt_actual.c_str(), _msg_id++,
+                    MG_MQTT_QOS(1), json->data(), json_len);
 
     delete json;
     delete entry;
@@ -264,7 +261,7 @@ void MQTT::core(void *data) {
 
   esp_log_level_set(tagEngine(), ESP_LOG_INFO);
 
-  _mqtt_in = new MQTTin(_q_in, _cmd_feed.c_str());
+  _mqtt_in = new MQTTin(_q_in, _feed_cmd_actual.c_str());
   ESP_LOGD(tagEngine(), "started, created MQTTin task %p", (void *)_mqtt_in);
   _mqtt_in->start();
 
@@ -285,7 +282,7 @@ void MQTT::core(void *data) {
   for (;;) {
     // send the startup announcement once the time is available.
     // this solves a race condition when mqtt connection and subscription
-    // to the commend feed completes before the time is set and avoids
+    // to the command feed completes before the time is set and avoids
     // sending a startup announcement with epoch as the timestamp
     if ((startup_announced == false) && (Net::isTimeSet()) &&
         (announce_startup_delay > 300)) {
@@ -308,38 +305,30 @@ void MQTT::core(void *data) {
 
 void MQTT::subACK(struct mg_mqtt_message *msg) {
 
-  if (msg->message_id == _cmd_feed_msg_id) {
-    ESP_LOGI(tagEngine(), "subACK for CMD feed msg_id=%d", msg->message_id);
+  if (msg->message_id == _subscribe_msg_id) {
+    ESP_LOGI(tagEngine(), "subACK for EXPECTED msg_id=%d", msg->message_id);
     _mqtt_ready = true;
     Net::setTransportReady();
     // NOTE: do not announce startup here.  doing so creates a race condition
     // that results in occasionally using epoch as the startup time
-  } else if (msg->message_id == _host_feed_msg_id) {
-    ESP_LOGI(tagEngine(), "subACK for HOST feedmsg_id=%d", msg->message_id);
   } else {
     ESP_LOGW(tagEngine(), "subACK for UNKNOWN msg_id=%d", msg->message_id);
   }
 }
 
-void MQTT::subscribeCommandFeed(struct mg_connection *nc) {
-  const char *replace = "_HOST_";
+void MQTT::subscribeFeeds(struct mg_connection *nc) {
+  // build the host specific feed
+  _feed_host_actual = _feed_prefix + Net::hostID();
+  _feed_host_actual.append("/#");
 
   struct mg_mqtt_topic_expression sub[] = {
-      {.topic = _cmd_feed.c_str(), .qos = 1}};
+      {.topic = _feed_cmd_actual.c_str(), .qos = 1},
+      {.topic = _feed_host_actual.c_str(), .qos = 1}};
 
-  _cmd_feed_msg_id = _msg_id++;
-  ESP_LOGI(tagEngine(), "subscribe feed=%s msg_id=%d", sub[0].topic,
-           _cmd_feed_msg_id);
-  mg_mqtt_subscribe(nc, sub, 1, _cmd_feed_msg_id);
-
-  _host_feed.replace(_host_feed.find(replace), strlen(replace), Net::hostID());
-
-  sub[0].topic = _host_feed.c_str();
-
-  _host_feed_msg_id = _msg_id++;
-  ESP_LOGI(tagEngine(), "subscribe feed=%s msg_id=%d", sub[0].topic,
-           _host_feed_msg_id);
-  mg_mqtt_subscribe(nc, sub, 1, _host_feed_msg_id);
+  _subscribe_msg_id = _msg_id++;
+  ESP_LOGI(tagEngine(), "subscribe feeds[%s %s] msg_id=%d", sub[0].topic,
+           sub[1].topic, _subscribe_msg_id);
+  mg_mqtt_subscribe(nc, sub, 2, _subscribe_msg_id);
 }
 
 // STATIC
@@ -367,7 +356,7 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
 
     ESP_LOGV(MQTT::tagEngine(), "MG_EV_MQTT_CONNACK rc=%d",
              msg->connack_ret_code);
-    MQTT::instance()->subscribeCommandFeed(nc);
+    MQTT::instance()->subscribeFeeds(nc);
 
     break;
 

@@ -37,7 +37,7 @@ pwmEngine::pwmEngine() {
   EngineTask_t core("core");
   EngineTask_t command("cmd", 12, 3072);
   EngineTask_t discover("dis", 12, 4096);
-  EngineTask_t report("rpt", 12, 4096);
+  EngineTask_t report("rpt", 12, 3072);
 
   addTask(engine_name, CORE, core);
   addTask(engine_name, COMMAND, command);

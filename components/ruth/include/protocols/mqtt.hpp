@@ -59,7 +59,7 @@ public:
   void publish(std::unique_ptr<Reading_t> reading);
   void core(void *data);
   void subACK(struct mg_mqtt_message *msg);
-  void subscribeCommandFeed(struct mg_connection *nc);
+  void subscribeFeeds(struct mg_connection *nc);
 
   void start(void *task_data = nullptr) {
     if (_task.handle != nullptr) {
@@ -91,8 +91,8 @@ private:
   MQTT(); // singleton, constructor is private
   static void _ev_handler(struct mg_connection *nc, int ev, void *p);
 
-  string_t _client_id;
-  string_t _endpoint;
+  string_t _client_id = "ruth.xxxxxxxxxxxx +extra";
+  string_t _endpoint = "example.wisslanding.com +extra";
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .lastWake = 0,
@@ -103,8 +103,6 @@ private:
   struct mg_connection *_connection = nullptr;
   uint16_t _msg_id = (uint16_t)esp_random() + 1;
   bool _mqtt_ready = false;
-
-  const string_t _env = CONFIG_RUTH_ENV;
 
   // mg_mgr uses LWIP and the timeout is specified in ms
   int _inbound_msg_ms = CONFIG_RUTH_MQTT_INBOUND_MSG_WAIT_MS;
@@ -128,14 +126,19 @@ private:
   const char *_user = CONFIG_RUTH_MQTT_USER;
   const char *_passwd = CONFIG_RUTH_MQTT_PASSWD;
 
-  // actual feeds are built in the constructor however always begin
-  // with the configured environment
-  string_t _rpt_feed = CONFIG_RUTH_ENV "/";
-  string_t _cmd_feed = CONFIG_RUTH_ENV "/";
-  string_t _host_feed = CONFIG_RUTH_ENV "/_HOST_/#";
+  // NOTES:
+  //   1. final feeds are built in the constructor
+  //   2. feeds are always prefixed by the environment
+  //   3. the '+extra' is intended to preallocate enough space to prevent
+  //      string_t re-allocs while building the actual feed
+  const string_t _feed_prefix = CONFIG_RUTH_ENV "/";
+  string_t _feed_rpt_config = CONFIG_RUTH_MQTT_RPT_FEED;
+  string_t _feed_cmd_config = CONFIG_RUTH_MQTT_CMD_FEED;
+  string_t _feed_rpt_actual = CONFIG_RUTH_ENV "/ruth/f/command +extra";
+  string_t _feed_cmd_actual = CONFIG_RUTH_ENV "/ruth/f/report +extra";
+  string_t _feed_host_actual = CONFIG_RUTH_ENV "/ruth.xxxxxxxxxxxx/# +extra";
 
-  uint16_t _cmd_feed_msg_id = 1;
-  uint16_t _host_feed_msg_id;
+  uint16_t _subscribe_msg_id;
 
   void announceStartup();
   void outboundMsg();
