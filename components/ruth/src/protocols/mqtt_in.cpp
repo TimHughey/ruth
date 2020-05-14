@@ -30,6 +30,7 @@
 
 #include "cmds/factory.hpp"
 #include "misc/local_types.hpp"
+#include "misc/profile.hpp"
 #include "net/network.hpp"
 #include "protocols/mqtt_in.hpp"
 #include "readings/readings.hpp"
@@ -40,11 +41,8 @@ static char TAG[] = "MQTTin";
 
 static MQTTin_t *__singleton = nullptr;
 
-// inclusive of large configuration documents
-static const size_t _doc_capacity =
-    4 * JSON_OBJECT_SIZE(2) + 9 * JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(4) +
-    2 * JSON_OBJECT_SIZE(5) + 2 * JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(9) +
-    700;
+// NOTE:  should be set to appropriate size based on ArduinoJson
+static const size_t _doc_capacity = 768;
 
 MQTTin::MQTTin(QueueHandle_t q_in, const char *cmd_feed)
     : _q_in(q_in), _cmd_feed(cmd_feed) {
@@ -89,17 +87,25 @@ void MQTTin::core(void *data) {
       // msg->data);
 
       // reminder:  compare() == 0 is equals to
+      // was this message sent to the legacy command topic?
       if (msg->topic->compare(_cmd_feed) == 0) {
         Cmd_t *cmd = factory.fromRaw(doc, msg->data);
         Cmd_t_ptr cmd_ptr(cmd);
 
         if (cmd_ptr == nullptr) {
-          ESP_LOGW(TAG, "could not create cmd from feed %s",
+          ESP_LOGD(TAG, "could not create cmd from feed %s",
                    msg->topic->c_str());
         } else if (cmd->recent() && cmd->forThisHost()) {
           cmd->process();
         }
+      }
+      // was this message sent to the profile topic?
+      else if (msg->topic->find("profile") != string_t::npos) {
+        if (Profile::parseRawMsg(msg->data)) {
+          Profile::postParseActions();
+        }
       } else {
+
         ESP_LOGD(TAG, "ignoring topic(%s)", msg->topic->c_str());
       }
 
@@ -107,7 +113,6 @@ void MQTTin::core(void *data) {
       delete msg->topic;
       delete msg->data;
       delete msg;
-
     } else {
       ESP_LOGW(TAG, "queue received failed");
       continue;

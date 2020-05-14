@@ -35,8 +35,8 @@ pwmEngine::pwmEngine() {
   setLoggingLevel(ESP_LOG_INFO);
 
   EngineTask_t core("core");
-  EngineTask_t command("cmd", 14, 3072);
-  EngineTask_t discover("dis", 12, 2048);
+  EngineTask_t command("cmd", 12, 3072);
+  EngineTask_t discover("dis", 12, 4096);
   EngineTask_t report("rpt", 12, 4096);
 
   addTask(engine_name, CORE, core);
@@ -281,7 +281,7 @@ bool pwmEngine::configureTimer() {
 }
 
 pwmEngine_t *pwmEngine::instance() {
-  if (__singleton__ == nullptr) {
+  if (Profile::pwmEnable() && (__singleton__ == nullptr)) {
     __singleton__ = new pwmEngine();
   }
 

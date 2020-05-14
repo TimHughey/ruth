@@ -3,7 +3,7 @@ set(
   RUTH_MISC
     "src/misc/restart"      "src/misc/nvs"
     "src/misc/timestamp_task"   "src/misc/status_led"
-    "src/misc/hw_config")
+    "src/misc/profile")
 
 set(
   RUTH_NET

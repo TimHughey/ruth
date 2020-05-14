@@ -76,7 +76,7 @@ Cmd_t *CmdFactory::manufacture(JsonDocument &doc,
     break;
 
   case CmdType::setname:
-    cmd = new CmdNetwork(doc, parse_elapsed);
+    // cmd = new CmdNetwork(doc, parse_elapsed);
     break;
 
   case CmdType::otaHTTPS:

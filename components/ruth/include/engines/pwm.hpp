@@ -54,7 +54,7 @@ private:
 public:
   static pwmEngine_t *instance();
 
-  bool shouldStart() { return hwConfig::havePWM(); };
+  bool shouldStart() { return Profile::pwmEnable(); };
 
   //
   // Tasks

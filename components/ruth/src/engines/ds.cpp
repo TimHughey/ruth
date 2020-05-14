@@ -453,7 +453,7 @@ void DallasSemi::discover(void *data) {
 }
 
 DallasSemi_t *DallasSemi::instance() {
-  if (__singleton__ == nullptr) {
+  if (Profile::dalsemiEnable() && (__singleton__ == nullptr)) {
     __singleton__ = new DallasSemi();
   }
 
@@ -1153,7 +1153,7 @@ bool DallasSemi::setDS2413(cmdSwitch_t &cmd, dsDev_t *dev) {
 }
 
 bool DallasSemi::check_crc16(const uint8_t *input, uint16_t len,
-                        const uint8_t *inverted_crc, uint16_t crc) {
+                             const uint8_t *inverted_crc, uint16_t crc) {
   crc = ~crc16(input, len, crc);
   return (crc & 0xFF) == inverted_crc[0] && (crc >> 8) == inverted_crc[1];
 }

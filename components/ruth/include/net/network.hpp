@@ -35,7 +35,7 @@ public:
   static const string_t &hostID();
   static Net_t *instance();
   static const string_t &macAddress();
-  static void setName(const string_t name);
+  static void setName(const char *name);
   static void resumeNormalOps();
   static void suspendNormalOps();
   static bool waitForConnection(uint32_t wait_ms = UINT32_MAX);

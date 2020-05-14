@@ -309,19 +309,15 @@ void MQTT::core(void *data) {
 void MQTT::subACK(struct mg_mqtt_message *msg) {
 
   if (msg->message_id == _cmd_feed_msg_id) {
-    ESP_LOGI(tagEngine(), "subscribed to CMD feed (suback msg_id(%d))",
-             msg->message_id);
+    ESP_LOGI(tagEngine(), "subACK for CMD feed msg_id=%d", msg->message_id);
     _mqtt_ready = true;
     Net::setTransportReady();
     // NOTE: do not announce startup here.  doing so creates a race condition
     // that results in occasionally using epoch as the startup time
   } else if (msg->message_id == _host_feed_msg_id) {
-    ESP_LOGI(tagEngine(), "subscribed to HOST feed (suback msg_id(%d))",
-             msg->message_id);
+    ESP_LOGI(tagEngine(), "subACK for HOST feedmsg_id=%d", msg->message_id);
   } else {
-    ESP_LOGW(tagEngine(),
-             "suback msg_id(%d) did not match known subscription requests",
-             msg->message_id);
+    ESP_LOGW(tagEngine(), "subACK for UNKNOWN msg_id=%d", msg->message_id);
   }
 }
 

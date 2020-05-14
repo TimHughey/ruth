@@ -57,6 +57,9 @@ static DallasSemi *dsEngineTask = nullptr;
 static I2c *i2cEngineTask = nullptr;
 static pwmEngine_t *pwmEngineTask = nullptr;
 
+// prototype
+void startEngines();
+
 void app_main() {
   // set status LED to 8%% to signal startup and initialization are
   // underway
@@ -75,29 +78,18 @@ void app_main() {
   NVS::init();
   statusLED::instance()->brighter();
 
-  // must create network first!
+  // let's get the network up and running as quick as possible
   network = Net::instance(); // singleton
-  timestampTask = new TimestampTask();
-  mqttTask = MQTT::instance();           // singleton
-  dsEngineTask = DallasSemi::instance(); // singleton
-  i2cEngineTask = I2c::instance();       // singleton
-  pwmEngineTask = pwmEngine::instance(); // singleton
-  statusLED::instance()->brighter();
-
-  // create and start our tasks
-  // NOTE: each task is responsible for required coordination
-
-  timestampTask->start();
-  mqttTask->start();
-  dsEngineTask->start();
-  i2cEngineTask->start();
-  pwmEngineTask->start();
-
   network->start();
 
-  // now that all tasks are started signal to begin watching task stacks
-  // DISABLED 2020-05-13 - possible source of panics
-  // timestampTask->watchTaskStacks();
+  // now create and start the essential tasks
+  timestampTask = new TimestampTask();
+  timestampTask->start();
+
+  mqttTask = MQTT::instance(); // singleton
+  mqttTask->start();
+
+  statusLED::instance()->brighter();
 
   // the main loop is a safety net for overall platform failures
   bool boot_complete = false;
@@ -142,7 +134,41 @@ void app_main() {
       boot_complete = true;
     }
 
+    // now that the sysytem has successfully booted start the engines
+    startEngines();
+
+    // NOTE:  fix watchTaskStacks so it can be called repeatedly in this loop
+    // timestampTask->watchTaskStacks();
+
     // sleep for 60 seconds
     vTaskDelay(pdMS_TO_TICKS(60 * 1000));
   }
+}
+
+void startEngines() {
+  static auto tasks_started = false;
+
+  if (tasks_started) {
+    return;
+  }
+
+  tasks_started = true;
+
+  // NOTE:
+  //  Engine instance() checks if the engine is enabled in the Profile
+  //   1. if so, creates the singleton and returns a pointer to it
+  //   2. if not, allocates nothing and returns a nullptr
+  dsEngineTask = DallasSemi::instance(); // singleton
+  i2cEngineTask = I2c::instance();       // singleton
+  pwmEngineTask = pwmEngine::instance(); // singleton
+
+  // these could be nullptrs if the engine isn't enabled in the Profile
+  if (dsEngineTask)
+    dsEngineTask->start();
+
+  if (i2cEngineTask)
+    i2cEngineTask->start();
+
+  if (pwmEngineTask)
+    pwmEngineTask->start();
 }

@@ -243,11 +243,11 @@ void Net::init() {
   checkError(__PRETTY_FUNCTION__, rc);
 
   rc = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_events,
-                                    instance());
+                                  instance());
   checkError(__PRETTY_FUNCTION__, rc);
 
   rc = esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &ip_events,
-                                    instance());
+                                  instance());
   checkError(__PRETTY_FUNCTION__, rc);
 
   rc = esp_wifi_set_storage(WIFI_STORAGE_FLASH);
@@ -351,12 +351,12 @@ const string_t &Net::macAddress() {
   return _mac;
 };
 
-void Net::setName(const string_t name) {
+void Net::setName(const char *name) {
 
   instance()->name_ = name;
   ESP_LOGI(tagEngine(), "assigned name [%s]", instance()->name_.c_str());
 
-  esp_netif_set_hostname(instance()->netif_, name.c_str());
+  esp_netif_set_hostname(instance()->netif_, instance()->name_.c_str());
 
   xEventGroupSetBits(instance()->eventGroup(), nameBit());
 }
@@ -387,7 +387,7 @@ bool Net::start() {
   cfg.sta.bssid_set = 0;
   strncpy((char *)cfg.sta.ssid, CONFIG_WIFI_SSID, sizeof(cfg.sta.ssid));
   strncpy((char *)cfg.sta.password, CONFIG_WIFI_PASSWORD,
-            sizeof(cfg.sta.password));
+          sizeof(cfg.sta.password));
 
   rc = esp_wifi_set_config(WIFI_IF_STA, &cfg);
   checkError(__PRETTY_FUNCTION__, rc);

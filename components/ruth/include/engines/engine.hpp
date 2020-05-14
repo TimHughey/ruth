@@ -34,9 +34,9 @@
 #include "devs/base.hpp"
 #include "engines/types.hpp"
 #include "misc/elapsedMillis.hpp"
-#include "misc/hw_config.hpp"
 #include "misc/local_types.hpp"
 #include "misc/nvs.hpp"
+#include "misc/profile.hpp"
 #include "misc/restart.hpp"
 #include "net/network.hpp"
 #include "protocols/mqtt.hpp"
@@ -186,10 +186,11 @@ public:
     vTaskSuspend(coretask->_handle);
   };
 
-  // determines if the engine should start or not.  the default is years.
-  // subclasses can implement their own check.  if this method returns false
-  // no tasks are created and start() quietly returns
-  virtual bool shouldStart() { return true; };
+  // pure virtual, subclass must implement.
+  // determines if the engine should start or not.
+  // if this method returns false tasks are not created, start() quietly returns
+  // however, the allocated instance remains
+  virtual bool shouldStart() = 0;
 
   void start(void *task_data = nullptr) {
     // first things first...  check that the engine should start.  subclasses

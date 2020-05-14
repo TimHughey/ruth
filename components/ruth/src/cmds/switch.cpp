@@ -16,11 +16,11 @@ cmdSwitch::cmdSwitch(JsonDocument &doc, elapsedMicros &e)
   // switch cmds for i2c devices require the internal device id
   // to be translated
   auto i2c_str = _internal_dev_id.find("i2c");
-  if (i2c_str != std::string::npos) {
+  if (i2c_str != string_t::npos) {
     translateExternalDeviceID("self");
   }
 
-  const JsonArray states = doc["states"].as<JsonArray>();
+  const JsonArray &states = doc["states"].as<JsonArray>();
   uint32_t mask = 0x00;
   uint32_t tobe_state = 0x00;
 

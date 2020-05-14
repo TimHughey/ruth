@@ -65,6 +65,8 @@ private:
 public:
   static I2c_t *instance();
 
+  bool shouldStart() { return Profile::i2cEnable(); };
+
   //
   // Tasks
   //

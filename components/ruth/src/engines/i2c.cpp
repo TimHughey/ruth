@@ -50,9 +50,9 @@ I2c::I2c() {
   // setLoggingLevel(tagReadSHT31(), ESP_LOG_INFO);
 
   EngineTask_t core("core");
-  EngineTask_t command("cmd", CONFIG_RUTH_I2C_COMMAND_TASK_PRIORITY, 3072);
+  EngineTask_t command("cmd", CONFIG_RUTH_I2C_COMMAND_TASK_PRIORITY, 4096);
   EngineTask_t discover("dis", CONFIG_RUTH_I2C_DISCOVER_TASK_PRIORITY, 4096);
-  EngineTask_t report("rpt", CONFIG_RUTH_I2C_REPORT_TASK_PRIORITY, 3072);
+  EngineTask_t report("rpt", CONFIG_RUTH_I2C_REPORT_TASK_PRIORITY, 4096);
 
   addTask(engine_name, CORE, core);
   addTask(engine_name, COMMAND, command);
@@ -478,12 +478,9 @@ bool I2c::detectDevicesOnBus(int bus) {
 }
 
 bool I2c::detectMultiplexer(const int max_attempts) {
-  // NOTE:  as of 2019-03-10 support for old hardware that does
-  // not provide the RST pin is via 'legacy'
-
-  // _use_multiplexer initially set to hardware configuration
+  // _use_multiplexer initially set based on profile
   // however is updated based on actual multiplexer detection
-  _use_multiplexer = hwConfig::legacy() | hwConfig::haveMultiplexer();
+  _use_multiplexer = Profile::i2cUseMultiplexer();
 
   if (_use_multiplexer && detectDevice(&_multiplexer_dev)) {
     ESP_LOGD(tagEngine(), "will use TCA9548A i2c multiplexer");
@@ -536,7 +533,7 @@ bool I2c::installDriver() {
 }
 
 I2c_t *I2c::instance() {
-  if (__singleton__ == nullptr) {
+  if (Profile::i2cEnable() && (__singleton__ == nullptr)) {
     __singleton__ = new I2c();
   }
 

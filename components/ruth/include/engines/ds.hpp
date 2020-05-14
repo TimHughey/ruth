@@ -49,6 +49,8 @@ private:
 public:
   static DallasSemi_t *instance();
 
+  bool shouldStart() { return Profile::dalsemiEnable(); };
+
   //
   // Tasks
   //

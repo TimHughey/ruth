@@ -11,7 +11,7 @@ CmdNetwork::CmdNetwork(JsonDocument &doc, elapsedMicros &e) : Cmd{doc, e} {
 
 bool CmdNetwork::process() {
   if (forThisHost() && (_name.empty() == false)) {
-    Net::setName(_name);
+    // Net::setName(_name);
     return true;
   }
 
