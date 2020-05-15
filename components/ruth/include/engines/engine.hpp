@@ -186,19 +186,7 @@ public:
     vTaskSuspend(coretask->_handle);
   };
 
-  // pure virtual, subclass must implement.
-  // determines if the engine should start or not.
-  // if this method returns false tasks are not created, start() quietly returns
-  // however, the allocated instance remains
-  virtual bool shouldStart() = 0;
-
   void start(void *task_data = nullptr) {
-    // first things first...  check that the engine should start.  subclasses
-    // can implement their own
-    if (shouldStart() == false) {
-      return;
-    }
-
     // we make an assumption that the 'core' task was added
     auto task = _task_map[CORE];
 
@@ -497,7 +485,7 @@ protected:
     auto rc = false;
 
     if (reading) {
-      MQTT::instance()->publish(reading);
+      MQTT::publish(reading);
     }
 
     return rc;

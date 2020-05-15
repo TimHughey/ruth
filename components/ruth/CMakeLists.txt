@@ -1,8 +1,13 @@
 
 set(
+  RUTH_CORE
+    "src/core/core"
+  )
+
+set(
   RUTH_MISC
     "src/misc/restart"      "src/misc/nvs"
-    "src/misc/timestamp_task"   "src/misc/status_led"
+    "src/misc/status_led"
     "src/misc/profile")
 
 set(
@@ -31,10 +36,9 @@ set(
   RUTH_READINGS
     "src/readings/celsius"      "src/readings/reading"
     "src/readings/humidity"     "src/readings/soil"
-    "src/readings/ramutil"      "src/readings/startup"
+    "src/readings/startup"      "src/readings/pwm"
     "src/readings/simple_text"  "src/readings/positions"
-    "src/readings/remote"       "src/readings/engine"
-    "src/readings/pwm")
+    "src/readings/remote"       "src/readings/engine")
 
 set(
   RUTH_PROTOCOLS
@@ -53,8 +57,8 @@ set(
 # component for idf to build
 idf_component_register(
   SRCS
-    ${RUTH_MISC} ${RUTH_NET} ${RUTH_DEVS} ${RUTH_CMDS} ${RUTH_ENGINES}
-    ${RUTH_READINGS} ${RUTH_PROTOCOLS} ${RUTH_EXTERNAL_LIBS} ${RUTH_DRIVERS}
+    ${RUTH_CORE} ${RUTH_MISC} ${RUTH_NET} ${RUTH_DEVS} ${RUTH_CMDS}
+    ${RUTH_ENGINES} ${RUTH_READINGS} ${RUTH_PROTOCOLS} ${RUTH_EXTERNAL_LIBS} ${RUTH_DRIVERS}
   INCLUDE_DIRS
     "include" "include/external"
   REQUIRES

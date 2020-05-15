@@ -85,8 +85,12 @@ bool Profile::_subSystemBoolean(const char *subsystem, const char *key) {
   return _doc[subsystem][key];
 }
 
+uint32_t Profile::_subSystemUINT32(const char *subsystem, const char *key) {
+  return _doc[subsystem][key].as<uint32_t>();
+}
+
 // STATIC
-Profile_t *Profile::instance() {
+Profile_t *Profile::_instance_() {
   if (__singleton__ == nullptr) {
     __singleton__ = new Profile();
   }

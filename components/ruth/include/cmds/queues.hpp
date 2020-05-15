@@ -47,8 +47,8 @@ private:
 
 public:
   void add(cmdQueue_t &cmd_q) { _queues.push_back(cmd_q); };
-  static vector<cmdQueue_t> &all() { return instance()->queues(); };
-  static CmdQueues_t *instance();
+  static vector<cmdQueue_t> &all() { return _instance_()->queues(); };
+  static CmdQueues_t *_instance_();
   vector<cmdQueue_t> &queues() { return _queues; };
   static void registerQ(cmdQueue_t &cmd_q);
 

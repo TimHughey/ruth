@@ -35,15 +35,22 @@ typedef class Restart Restart_t;
 
 class Restart {
 private:
+  static Restart_t *_instance_();
+  void _now_();
+
+  void _restart_(const char *text = nullptr, const char *func = nullptr,
+                 uint32_t reboot_delay_ms = DEFAULT_WAIT_MS);
+
 public:
   Restart();
-  static Restart_t *instance();
 
   ~Restart();
 
-  static void now();
-  void restart(const char *text = nullptr, const char *func = nullptr,
-               uint32_t reboot_delay_ms = DEFAULT_WAIT_MS);
+  static void now() { _instance_()->_now_(); };
+  static void restart(const char *text = nullptr, const char *func = nullptr,
+                      uint32_t reboot_delay_ms = DEFAULT_WAIT_MS) {
+    _instance_()->_restart_(text, func, reboot_delay_ms);
+  }
 };
 
 } // namespace ruth

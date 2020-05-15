@@ -52,7 +52,7 @@ MQTTin::MQTTin(QueueHandle_t q_in, const char *cmd_feed)
   __singleton = this;
 }
 
-MQTTin_t *MQTTin::instance() { return __singleton; }
+MQTTin_t *MQTTin::_instance_() { return __singleton; }
 
 UBaseType_t MQTTin::changePriority(UBaseType_t priority) {
   vTaskPrioritySet(_task.handle, priority);

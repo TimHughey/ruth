@@ -23,19 +23,10 @@
 #include <driver/periph_ctrl.h>
 #include <esp_log.h>
 #include <esp_spi_flash.h>
-// #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "cmds/ota.hpp"
-#include "engines/ds.hpp"
-#include "engines/i2c.hpp"
-#include "engines/pwm.hpp"
-#include "misc/nvs.hpp"
-#include "misc/status_led.hpp"
-#include "misc/timestamp_task.hpp"
-#include "net/network.hpp"
-#include "protocols/mqtt.hpp"
+#include "core/core.hpp"
 
 using namespace ruth;
 
@@ -45,130 +36,28 @@ int setenv(const char *envname, const char *envval, int overwrite);
 void tzset(void);
 }
 
-extern const uint8_t ca_start[] asm("_binary_ca_pem_start");
-extern const uint8_t ca_end[] asm("_binary_ca_pem_end");
-
-static const char *TAG = "Ruth";
-
-static Net *network = nullptr;
-static TimestampTask *timestampTask = nullptr;
-static MQTT *mqttTask = nullptr;
-static DallasSemi *dsEngineTask = nullptr;
-static I2c *i2cEngineTask = nullptr;
-static pwmEngine_t *pwmEngineTask = nullptr;
-
-// prototype
-void startEngines();
+// app_main() contains minimal implementation to keep code base maintainable
+// for actual implementation see component/ruth
 
 void app_main() {
-  // set status LED to 8%% to signal startup and initialization are
-  // underway
-  statusLED::instance()->dim();
 
-  ESP_LOGI(TAG, "%s entered", __PRETTY_FUNCTION__);
-  ESP_LOGI(TAG, "portTICK_PERIOD_MS=%u and 10ms=%u tick%s", portTICK_PERIOD_MS,
-           pdMS_TO_TICKS(10), (pdMS_TO_TICKS(10) > 1) ? "s" : "");
+  // since app_main() is the application entry point, we log something
+  // so it's obvious where base ESP32 initialization code is complete and
+  // our implementation begins
+  ESP_LOGI("app_main", "%s entered", __PRETTY_FUNCTION__);
+  ESP_LOGI("app_main", "portTICK_PERIOD_MS=%u and 10ms=%u tick %s",
+           portTICK_PERIOD_MS, pdMS_TO_TICKS(10),
+           (pdMS_TO_TICKS(10) > 1) ? "s" : "");
 
   // set timezone to Eastern Standard Time
-  // this is done very early to ensure the timezone is available for any
-  // functions that need it.
+  // for now we set the timezone here in app_main() since it's foundational
   setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
   tzset();
 
-  NVS::init();
-  statusLED::instance()->brighter();
+  // this is where our implementation begins by starting the Core
+  Core::start();
 
-  // let's get the network up and running as quick as possible
-  network = Net::instance(); // singleton
-  network->start();
-
-  // now create and start the essential tasks
-  timestampTask = new TimestampTask();
-  timestampTask->start();
-
-  mqttTask = MQTT::instance(); // singleton
-  mqttTask->start();
-
-  statusLED::instance()->brighter();
-
-  // the main loop is a safety net for overall platform failures
-  bool boot_complete = false;
   for (;;) {
-
-    // safety net 1:
-    //    wait for the name to be set for 90 seconds, if the name is not
-    //    set within in 90 seconds then there's some problem so reboot
-    if (Net::waitForName(90000) == false) {
-      Restart::now();
-    }
-
-    // safety net 2:
-    //    wait for the transport to be ready for up to 60 seconds (60000ms).
-    //    if transport does not become ready then a problem has occurred
-    //    after startup (since we wouldn't be here if transport never
-    //    became available)
-    if (Net::waitForReady(60000) == false) {
-      Restart::now();
-    }
-
-    // safety net 3:
-    //    only after the above two checks succeed mark the ota partition
-    //    valid after an ota update
-    CmdOTA::markPartitionValid();
-
-    // boot up is successful, process any previously committed NVS messages
-    // and record the successful boot
-    if (boot_complete == false) {
-      ESP_LOGI(TAG, "certificate authority pem available [%d bytes]",
-               ca_end - ca_start);
-
-      UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
-      UBaseType_t num_tasks = uxTaskGetNumberOfTasks();
-
-      ESP_LOGI(TAG, "boot complete [stack high water: %d, num of tasks: %d]",
-               stack_high_water, num_tasks);
-
-      NVS::processCommittedMsgs();
-      NVS::commitMsg("BOOT", "LAST SUCCESSUL BOOT");
-
-      boot_complete = true;
-    }
-
-    // now that the sysytem has successfully booted start the engines
-    startEngines();
-
-    // NOTE:  fix watchTaskStacks so it can be called repeatedly in this loop
-    // timestampTask->watchTaskStacks();
-
-    // sleep for 60 seconds
-    vTaskDelay(pdMS_TO_TICKS(60 * 1000));
+    Core::loop();
   }
-}
-
-void startEngines() {
-  static auto tasks_started = false;
-
-  if (tasks_started) {
-    return;
-  }
-
-  tasks_started = true;
-
-  // NOTE:
-  //  Engine instance() checks if the engine is enabled in the Profile
-  //   1. if so, creates the singleton and returns a pointer to it
-  //   2. if not, allocates nothing and returns a nullptr
-  dsEngineTask = DallasSemi::instance(); // singleton
-  i2cEngineTask = I2c::instance();       // singleton
-  pwmEngineTask = pwmEngine::instance(); // singleton
-
-  // these could be nullptrs if the engine isn't enabled in the Profile
-  if (dsEngineTask)
-    dsEngineTask->start();
-
-  if (i2cEngineTask)
-    i2cEngineTask->start();
-
-  if (pwmEngineTask)
-    pwmEngineTask->start();
 }

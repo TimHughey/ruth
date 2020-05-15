@@ -24,7 +24,7 @@ CmdTypeMap::CmdTypeMap() {
 }
 
 // STATIC!
-CmdTypeMap_t *CmdTypeMap::instance() {
+CmdTypeMap_t *CmdTypeMap::_instance_() {
   if (__singleton == nullptr) {
     __singleton = new CmdTypeMap();
   }

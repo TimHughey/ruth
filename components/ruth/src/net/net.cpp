@@ -35,18 +35,7 @@ namespace ruth {
 
 static Net_t *__singleton__ = nullptr;
 
-Net::Net() {
-  evg_ = xEventGroupCreate();
-
-  // Characterize and setup ADC for measuring battery millivolts
-  adc_chars_ = (esp_adc_cal_characteristics_t *)calloc(
-      1, sizeof(esp_adc_cal_characteristics_t));
-  adc_cal_ = esp_adc_cal_characterize(
-      ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, Net::vref(), adc_chars_);
-
-  adc1_config_width(ADC_WIDTH_BIT_12);
-  adc1_config_channel_atten((adc1_channel_t)battery_adc_, ADC_ATTEN_DB_11);
-}
+Net::Net() { evg_ = xEventGroupCreate(); }
 
 void Net::acquiredIP(void *event_data) {
 
@@ -67,25 +56,6 @@ void Net::acquiredIP(void *event_data) {
            dns_str_);
 
   xEventGroupSetBits(evg_, ipBit());
-}
-
-uint32_t Net::batt_mv() {
-  uint32_t batt_raw = 0;
-  uint32_t batt_mv = 0;
-
-  // ADC readings can be rather noisy.  so, perform more than one reading
-  // then take the average
-  for (uint32_t i = 0; i < batt_measurements_; i++) {
-    batt_raw += adc1_get_raw((adc1_channel_t)battery_adc_);
-  }
-
-  batt_raw /= batt_measurements_;
-
-  // the pin used to measure battery millivolts is connected to a voltage
-  // divider so double the voltage
-  batt_mv = esp_adc_cal_raw_to_voltage(batt_raw, adc_chars_) * 2;
-
-  return batt_mv;
 }
 
 // STATIC!!
@@ -124,7 +94,7 @@ void Net::checkError(const char *func, esp_err_t err) {
   // ptr[0] = 0;
 
   NVS::commitMsg(tagEngine(), msg);
-  Restart::instance()->restart(msg, __PRETTY_FUNCTION__, 3000);
+  Restart::restart(msg, __PRETTY_FUNCTION__, 3000);
 }
 
 void Net::connected(void *event_data) {
@@ -144,8 +114,6 @@ void Net::disconnected(void *event_data) {
     esp_wifi_connect();
   }
 }
-
-const char *Net::dnsIP() { return dns_str_; }
 
 // STATIC!!
 void Net::ip_events(void *ctx, esp_event_base_t base, int32_t id, void *data) {
@@ -180,7 +148,7 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
 
   switch (id) {
   case WIFI_EVENT_STA_START:
-    esp_netif_set_hostname(instance()->netif_, "ruth");
+    esp_netif_set_hostname(_instance_()->netif_, "ruth");
     esp_wifi_connect();
     break;
 
@@ -200,7 +168,7 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
 }
 
 void Net::deinit() {
-  instance()->reconnect_ = false;
+  _instance_()->reconnect_ = false;
 
   auto rc = esp_wifi_disconnect();
   ESP_LOGI(tagEngine(), "[%s] esp_wifi_disconnect()", esp_err_to_name(rc));
@@ -215,9 +183,9 @@ void Net::deinit() {
   vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
-EventGroupHandle_t Net::eventGroup() { return instance()->evg_; }
+EventGroupHandle_t Net::eventGroup() { return _instance_()->evg_; }
 
-Net_t *Net::instance() {
+Net_t *Net::_instance_() {
   if (__singleton__ == nullptr) {
     __singleton__ = new Net();
   }
@@ -243,11 +211,11 @@ void Net::init() {
   checkError(__PRETTY_FUNCTION__, rc);
 
   rc = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_events,
-                                  instance());
+                                  _instance_());
   checkError(__PRETTY_FUNCTION__, rc);
 
   rc = esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &ip_events,
-                                  instance());
+                                  _instance_());
   checkError(__PRETTY_FUNCTION__, rc);
 
   rc = esp_wifi_set_storage(WIFI_STORAGE_FLASH);
@@ -256,6 +224,9 @@ void Net::init() {
   // finally, check the rc.  if any of the API calls above failed
   // the rc represents the error of the specific API.
   checkError(__PRETTY_FUNCTION__, rc);
+
+  ESP_LOGI(tagEngine(), "certificate authority pem available [%d bytes]",
+           _ca_end_ - _ca_start_);
 
   init_rc_ = rc;
 }
@@ -277,13 +248,13 @@ void Net::ensureTimeIsSet() {
     if ((retry > (retry_count - 5)) || ((retry % 50) == 0)) {
       ESP_LOGW(tagEngine(), "waiting for SNTP... (%d/%d)", retry, retry_count);
     }
-    statusLED::instance()->brighter();
+    StatusLED::brighter();
     vTaskDelay(pdMS_TO_TICKS(check_wait_ms));
-    statusLED::instance()->dimmer();
+    StatusLED::dimmer();
     gettimeofday(&curr_time, nullptr);
   }
 
-  statusLED::instance()->brighter();
+  StatusLED::brighter();
 
   if (retry == retry_count) {
     ESP_LOGE(tagEngine(), "timeout waiting for SNTP");
@@ -306,11 +277,11 @@ void Net::ensureTimeIsSet() {
 }
 
 const string_t &Net::getName() {
-  if (instance()->name_.length() == 0) {
+  if (_instance_()->name_.length() == 0) {
     return macAddress();
   }
 
-  return instance()->name_;
+  return _instance_()->name_;
 }
 
 const string_t &Net::hostID() {
@@ -353,16 +324,18 @@ const string_t &Net::macAddress() {
 
 void Net::setName(const char *name) {
 
-  instance()->name_ = name;
-  ESP_LOGI(tagEngine(), "assigned name [%s]", instance()->name_.c_str());
+  _instance_()->name_ = name;
+  ESP_LOGI(tagEngine(), "assigned name [%s]", _instance_()->name_.c_str());
 
-  esp_netif_set_hostname(instance()->netif_, instance()->name_.c_str());
+  esp_netif_set_hostname(_instance_()->netif_, _instance_()->name_.c_str());
 
-  xEventGroupSetBits(instance()->eventGroup(), nameBit());
+  xEventGroupSetBits(_instance_()->eventGroup(), nameBit());
 }
 
-bool Net::start() {
+bool Net::_start_() {
   esp_err_t rc = ESP_OK;
+
+  // get the network initialized
   init();
 
   rc = esp_wifi_set_mode(WIFI_MODE_STA);
@@ -396,7 +369,7 @@ bool Net::start() {
   xEventGroupSetBits(evg_, initializedBit());
 
   esp_wifi_start();
-  statusLED::instance()->brighter();
+  StatusLED::brighter();
 
   ESP_LOGI(tagEngine(), "standing by for IP address...");
   if (waitForIP()) {
@@ -420,24 +393,24 @@ bool Net::start() {
 }
 
 void Net::resumeNormalOps() {
-  xEventGroupSetBits(instance()->eventGroup(), Net::normalOpsBit());
+  xEventGroupSetBits(_instance_()->eventGroup(), Net::normalOpsBit());
 }
 
 void Net::suspendNormalOps() {
   ESP_LOGW(tagEngine(), "suspending normal ops");
-  xEventGroupClearBits(instance()->eventGroup(), Net::normalOpsBit());
+  xEventGroupClearBits(_instance_()->eventGroup(), Net::normalOpsBit());
 }
 
 // wait_ms defaults to UINT32_MAX
 bool Net::waitForConnection(uint32_t wait_ms) {
   EventBits_t wait_bit = connectedBit();
-  EventGroupHandle_t eg = instance()->eventGroup();
+  EventGroupHandle_t eg = _instance_()->eventGroup();
   uint32_t wait_ticks =
       (wait_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms);
   EventBits_t bits_set;
 
   // set status LED to 75% while waiting for WiFi
-  statusLED::instance()->brighter();
+  StatusLED::brighter();
   bits_set = xEventGroupWaitBits(eg, wait_bit, noClearBits(), waitAllBits(),
                                  wait_ticks);
 
@@ -447,7 +420,7 @@ bool Net::waitForConnection(uint32_t wait_ms) {
 // wait_ms defaults to UINT32_MAX
 bool Net::waitForInitialization(uint32_t wait_ms) {
   EventBits_t wait_bit = initializedBit();
-  EventGroupHandle_t eg = instance()->eventGroup();
+  EventGroupHandle_t eg = _instance_()->eventGroup();
   uint32_t wait_ticks =
       (wait_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms);
   EventBits_t bits_set;
@@ -461,7 +434,7 @@ bool Net::waitForInitialization(uint32_t wait_ms) {
 // wait_ms defaults to 10 seconds
 bool Net::waitForIP(uint32_t wait_ms) {
   EventBits_t wait_bit = ipBit();
-  EventGroupHandle_t eg = instance()->eventGroup();
+  EventGroupHandle_t eg = _instance_()->eventGroup();
   uint32_t wait_ticks =
       (wait_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms);
   EventBits_t bits_set;
@@ -475,7 +448,7 @@ bool Net::waitForIP(uint32_t wait_ms) {
 // wait_ms defaults to zero
 bool Net::waitForName(uint32_t wait_ms) {
   EventBits_t wait_bit = nameBit();
-  EventGroupHandle_t eg = instance()->eventGroup();
+  EventGroupHandle_t eg = _instance_()->eventGroup();
   uint32_t wait_ticks =
       (wait_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms);
   EventBits_t bits_set;
@@ -489,7 +462,7 @@ bool Net::waitForName(uint32_t wait_ms) {
 // wait_ms defaults to portMAX_DELAY when not passed
 bool Net::waitForNormalOps(uint32_t wait_ms) {
   EventBits_t wait_bit = connectedBit() | transportBit() | normalOpsBit();
-  EventGroupHandle_t eg = instance()->eventGroup();
+  EventGroupHandle_t eg = _instance_()->eventGroup();
   uint32_t wait_ticks =
       (wait_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms);
   EventBits_t bits_set;
@@ -502,7 +475,7 @@ bool Net::waitForNormalOps(uint32_t wait_ms) {
 
 bool Net::isTimeSet() {
   EventBits_t wait_bit = timeSetBit();
-  EventGroupHandle_t eg = instance()->eventGroup();
+  EventGroupHandle_t eg = _instance_()->eventGroup();
   uint32_t wait_ticks = 0;
   EventBits_t bits_set;
 
@@ -519,7 +492,7 @@ bool Net::isTimeSet() {
 // wait_ms defaults to portMAX_DELAY
 bool Net::waitForReady(uint32_t wait_ms) {
   EventBits_t wait_bit = connectedBit() | ipBit() | readyBit();
-  EventGroupHandle_t eg = instance()->eventGroup();
+  EventGroupHandle_t eg = _instance_()->eventGroup();
   uint32_t wait_ticks =
       (wait_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms);
   EventBits_t bits_set;
@@ -533,7 +506,7 @@ bool Net::waitForReady(uint32_t wait_ms) {
 // wait_ms defaults to portMAX_DELAY
 bool Net::waitForTimeset(uint32_t wait_ms) {
   EventBits_t wait_bit = timeSetBit();
-  EventGroupHandle_t eg = instance()->eventGroup();
+  EventGroupHandle_t eg = _instance_()->eventGroup();
   uint32_t wait_ticks =
       (wait_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms);
   EventBits_t bits_set;
@@ -546,9 +519,9 @@ bool Net::waitForTimeset(uint32_t wait_ms) {
 
 void Net::setTransportReady(bool val) {
   if (val) {
-    xEventGroupSetBits(instance()->eventGroup(), transportBit());
+    xEventGroupSetBits(_instance_()->eventGroup(), transportBit());
   } else {
-    xEventGroupClearBits(instance()->eventGroup(), transportBit());
+    xEventGroupClearBits(_instance_()->eventGroup(), transportBit());
   }
 }
 } // namespace ruth

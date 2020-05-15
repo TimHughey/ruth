@@ -63,9 +63,11 @@ private:
   bool commandAck(cmdSwitch_t &cmd);
 
 public:
-  static I2c_t *instance();
-
-  bool shouldStart() { return Profile::i2cEnable(); };
+  static void startIfEnabled() {
+    if (Profile::i2cEnable()) {
+      _instance_()->start();
+    }
+  }
 
   //
   // Tasks
@@ -104,6 +106,8 @@ private:
       {DeviceAddress(0x21)}, {DeviceAddress(0x22)}, {DeviceAddress(0x23)},
       {DeviceAddress(0x24)}, {DeviceAddress(0x25)}, {DeviceAddress(0x26)},
       {DeviceAddress(0x27)}, {DeviceAddress(0x36)}, {DeviceAddress(0x00)}};
+
+  static I2c_t *_instance_();
 
   DeviceAddress_t *search_addrs() { return _search_addrs; };
   inline uint32_t search_addrs_count() {

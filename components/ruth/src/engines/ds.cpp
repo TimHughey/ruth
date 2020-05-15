@@ -452,8 +452,8 @@ void DallasSemi::discover(void *data) {
   }
 }
 
-DallasSemi_t *DallasSemi::instance() {
-  if (Profile::dalsemiEnable() && (__singleton__ == nullptr)) {
+DallasSemi_t *DallasSemi::_instance_() {
+  if (__singleton__ == nullptr) {
     __singleton__ = new DallasSemi();
   }
 

@@ -23,7 +23,6 @@
 #include "readings/humidity.hpp"
 #include "readings/positions.hpp"
 #include "readings/pwm.hpp"
-#include "readings/ramutil.hpp"
 #include "readings/remote.hpp"
 #include "readings/simple_text.hpp"
 #include "readings/soil.hpp"

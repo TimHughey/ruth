@@ -3,8 +3,6 @@
 
 #include <cstdlib>
 
-#include <driver/adc.h>
-#include <esp_adc_cal.h>
 #include <esp_attr.h>
 #include <esp_event.h>
 #include <esp_log.h>
@@ -25,17 +23,21 @@ namespace ruth {
 typedef class Net Net_t;
 class Net {
 public:
-  const char *dnsIP();
   void ensureTimeIsSet();
-  bool start();
+  static bool start() { return _instance_()->_start_(); };
 
   static void deinit();
   static EventGroupHandle_t eventGroup();
   static const string_t &getName();
   static const string_t &hostID();
-  static Net_t *instance();
+  static const char *dnsIP() { return _instance_()->dns_str_; };
+
   static const string_t &macAddress();
   static void setName(const char *name);
+
+  static const char *ca_start() { return (const char *)_ca_start_; };
+  static const uint8_t *ca_end() { return _ca_end_; };
+
   static void resumeNormalOps();
   static void suspendNormalOps();
   static bool waitForConnection(uint32_t wait_ms = UINT32_MAX);
@@ -65,17 +67,21 @@ public:
 
   static const char *tagEngine() { return (const char *)"Net"; };
 
-  uint32_t batt_mv();
-  static uint32_t vref() { return 1100; };
-
 private: // member functions
   Net(); // SINGLETON!  constructor is private
   void acquiredIP(void *event_data);
 
   static void checkError(const char *func, esp_err_t err);
   void connected(void *event_data);
+
   void disconnected(void *event_data);
   void init();
+
+  // object specific methods of static methods
+
+  const char *_dnsIP_();
+  static Net_t *_instance_();
+  bool _start_();
 
   // Event Handlers
   static void ip_events(void *ctx, esp_event_base_t base, int32_t id,
@@ -90,14 +96,12 @@ private:
   esp_netif_ip_info_t ip_info_;
   esp_netif_dns_info_t primary_dns_;
   char dns_str_[16] = {};
-  esp_adc_cal_characteristics_t *adc_chars_ = nullptr;
-  esp_adc_cal_value_t adc_cal_;
-  uint32_t batt_measurements_ = 64; // measurements to avg out noise
-
-  static const adc_channel_t battery_adc_ = ADC_CHANNEL_7;
 
   string_t name_;
   bool reconnect_ = true;
+
+  static const uint8_t _ca_start_[] asm("_binary_ca_pem_start");
+  static const uint8_t _ca_end_[] asm("_binary_ca_pem_end");
 };
 } // namespace ruth
 

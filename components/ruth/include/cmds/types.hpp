@@ -46,16 +46,16 @@ typedef enum class CmdType {
 typedef class CmdTypeMap CmdTypeMap_t;
 class CmdTypeMap {
 public:
-  static CmdTypeMap_t *instance();
   static CmdType_t fromByte(char byte) {
-    return instance()->decodeByte(byte);
+    return _instance_()->decodeByte(byte);
   }
   static CmdType_t fromString(const string_t &cmd) {
-    return instance()->find(cmd);
+    return _instance_()->find(cmd);
   }
 
 private:
   CmdTypeMap();
+  static CmdTypeMap_t *_instance_();
 
   CmdType_t decodeByte(char byte);
   CmdType_t find(const string_t &cmd);

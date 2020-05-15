@@ -40,28 +40,33 @@ typedef class Profile Profile_t;
 
 class Profile {
 public:
-  static const char *assignedName() { return instance()->_assignedName(); };
-  static size_t capacity() { return instance()->_capacity(); };
+  static const char *assignedName() { return _instance_()->_assignedName(); };
+  static size_t capacity() { return _instance_()->_capacity(); };
   static bool parseRawMsg(rawMsg_t *raw) {
-    return instance()->_parseRawMsg(raw);
+    return _instance_()->_parseRawMsg(raw);
   };
-  static void postParseActions() { instance()->_postParseActions(); };
-  static const char *version() { return instance()->_version(); };
+  static void postParseActions() { _instance_()->_postParseActions(); };
+  static const char *version() { return _instance_()->_version(); };
 
   // DallasSemi
-  static bool dalsemiEnable() { return instance()->_subSystemEnable("ds"); };
+  static bool dalsemiEnable() { return _instance_()->_subSystemEnable("ds"); };
 
   // i2c
-  static bool i2cEnable() { return instance()->_subSystemEnable("i2c"); };
+  static bool i2cEnable() { return _instance_()->_subSystemEnable("i2c"); };
   static bool i2cUseMultiplexer() {
-    return instance()->_subSystemBoolean("i2c", "use_multiplexer");
+    return _instance_()->_subSystemBoolean("i2c", "use_multiplexer");
   };
 
   // PWM
-  static bool pwmEnable() { return instance()->_subSystemEnable("pwm"); };
+  static bool pwmEnable() { return _instance_()->_subSystemEnable("pwm"); };
+
+  // timestamp
+  static uint32_t timestampFrequencySecs() {
+    return _instance_()->_subSystemUINT32("timestamp", "report_interval_secs");
+  }
 
 private:
-  static Profile_t *instance();
+  static Profile_t *_instance_();
   Profile(); // SINGLETON!  constructor is private
 
   const char *_assignedName();
@@ -70,6 +75,7 @@ private:
   void _postParseActions();
   bool _subSystemEnable(const char *subsystem);
   bool _subSystemBoolean(const char *subsystem, const char *key);
+  uint32_t _subSystemUINT32(const char *subsystem, const char *key);
   const char *_version();
 
 private:

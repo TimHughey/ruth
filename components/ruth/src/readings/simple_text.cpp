@@ -90,7 +90,7 @@ void textReading::printf(struct tm *timeinfo, const char *format, ...) {
 
 void textReading::publish() {
   if (_actual[0]) {
-    MQTT::instance()->publish(this);
+    MQTT::publish(this);
   }
 }
 

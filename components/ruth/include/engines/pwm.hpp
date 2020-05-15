@@ -43,18 +43,20 @@ typedef struct {
   TickType_t report;
 } pwmLastWakeTime_t;
 
-typedef class pwmEngine pwmEngine_t;
-class pwmEngine : public Engine<pwmDev_t> {
+typedef class PulseWidth PulseWidth_t;
+class PulseWidth : public Engine<pwmDev_t> {
 
 private:
-  pwmEngine();
+  PulseWidth();
 
   bool commandAck(cmdPWM_t &cmd);
 
 public:
-  static pwmEngine_t *instance();
-
-  bool shouldStart() { return Profile::pwmEnable(); };
+  static void startIfEnabled() {
+    if (Profile::pwmEnable()) {
+      _instance_()->start();
+    }
+  }
 
   //
   // Tasks
@@ -74,6 +76,7 @@ private:
   pwmLastWakeTime_t _last_wake;
 
 private:
+  static PulseWidth_t *_instance_();
   // generic read device that will call the specific methods
   bool readDevice(pwmDev_t *dev);
 

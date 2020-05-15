@@ -29,6 +29,7 @@
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
 
+#include "core/core.hpp"
 #include "external/mongoose.h"
 #include "misc/local_types.hpp"
 #include "misc/nvs.hpp"
@@ -44,8 +45,8 @@ namespace ruth {
 
 static MQTT *__singleton = nullptr;
 
-// SINGLETON!  use instance() for object access
-MQTT_t *MQTT::instance() {
+// SINGLETON!  use _instance_() for object access
+MQTT_t *MQTT::_instance_() {
   if (__singleton == nullptr) {
     __singleton = new MQTT();
   }
@@ -79,11 +80,11 @@ MQTT::MQTT() {
 }
 
 void MQTT::announceStartup() {
-  uint32_t batt_mv = Net::instance()->batt_mv();
+  uint32_t batt_mv = Core::batteryMilliVolt();
   startupReading_t startup(batt_mv);
 
-  publish(&startup);
-  statusLED::instance()->off();
+  _publish_(&startup);
+  StatusLED::off();
 }
 
 void MQTT::connect(int wait_ms) {
@@ -97,7 +98,7 @@ void MQTT::connect(int wait_ms) {
 
   Net::waitForReady();
 
-  statusLED::instance()->brighter();
+  StatusLED::brighter();
   _connection = mg_connect(&_mgr, _endpoint.c_str(), _ev_handler);
 
   if (_connection) {
@@ -107,7 +108,7 @@ void MQTT::connect(int wait_ms) {
 }
 
 void MQTT::connectionClosed() {
-  statusLED::instance()->dim();
+  StatusLED::dim();
   ESP_LOGW(tagEngine(), "connection closed");
   _mqtt_ready = false;
   _connection = nullptr;
@@ -117,7 +118,7 @@ void MQTT::connectionClosed() {
   connect();
 }
 
-void MQTT::handshake(struct mg_connection *nc) {
+void MQTT::_handshake_(struct mg_connection *nc) {
   struct mg_send_mqtt_handshake_opts opts;
   bzero(&opts, sizeof(opts));
 
@@ -130,7 +131,7 @@ void MQTT::handshake(struct mg_connection *nc) {
   mg_send_mqtt_handshake_opt(nc, _client_id.c_str(), opts);
 }
 
-void MQTT::incomingMsg(struct mg_str *in_topic, struct mg_str *in_payload) {
+void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
   // allocate a new string here and deallocate it once processed through MQTTin
   mqttInMsg_t *entry = new mqttInMsg_t;
   auto *topic = new string_t(in_topic->p, in_topic->len);
@@ -151,7 +152,7 @@ void MQTT::incomingMsg(struct mg_str *in_topic, struct mg_str *in_payload) {
 
   if (q_rc) {
     ESP_LOGV(tagEngine(),
-             "INCOMING msg SENT to QUEUE (topic=%s,len=%u,json_len=%u)",
+             "INCOMING msg SENT to QUEUE (topic=%s,len=%u,msg_len=%u)",
              topic->c_str(), sizeof(mqttInMsg_t), in_payload->len);
   } else {
     delete data;
@@ -167,26 +168,26 @@ void MQTT::incomingMsg(struct mg_str *in_topic, struct mg_str *in_payload) {
     free(msg);
 
     // pass a nullptr for the message so Restart doesn't attempt to publish
-    Restart::instance()->restart(nullptr, __PRETTY_FUNCTION__);
+    Restart::restart(nullptr, __PRETTY_FUNCTION__);
   }
 }
 
-void MQTT::publish(Reading_t *reading) {
-  auto *json = reading->json();
+void MQTT::_publish_(Reading_t *reading) {
+  auto *msg = reading->json();
 
-  publish(json);
+  publish_msg(msg);
 }
 
-void MQTT::publish(Reading_t &reading) {
-  auto *json = reading.json();
+void MQTT::_publish_(Reading_t &reading) {
+  auto *msg = reading.json();
 
-  publish(json);
+  publish_msg(msg);
 }
 
-void MQTT::publish(Reading_ptr_t reading) {
-  auto *json = reading->json();
+void MQTT::_publish_(Reading_ptr_t reading) {
+  auto *msg = reading->json();
 
-  publish(json);
+  publish_msg(msg);
 }
 
 void MQTT::outboundMsg() {
@@ -199,15 +200,15 @@ void MQTT::outboundMsg() {
   while ((q_rc == pdTRUE) && Net::waitForReady(0)) {
     elapsedMicros publish_elapse;
 
-    const auto *json = entry->data;
-    size_t json_len = entry->len;
+    const auto *msg = entry->data;
+    size_t msg_len = entry->len;
 
-    ESP_LOGV(tagEngine(), "send msg(len=%u), payload(len=%u)", len, json_len);
+    ESP_LOGV(tagEngine(), "send msg(len=%u), payload(len=%u)", len, msg_len);
 
     mg_mqtt_publish(_connection, _feed_rpt_actual.c_str(), _msg_id++,
-                    MG_MQTT_QOS(1), json->data(), json_len);
+                    MG_MQTT_QOS(1), msg->data(), msg_len);
 
-    delete json;
+    delete msg;
     delete entry;
 
     int64_t publish_us = publish_elapse;
@@ -222,15 +223,15 @@ void MQTT::outboundMsg() {
   }
 }
 
-void MQTT::publish(string_t *json) {
+void MQTT::publish_msg(string_t *msg) {
   auto q_rc = pdFALSE;
   mqttOutMsg_t *entry = new mqttOutMsg_t;
 
   // setup the entry noting that the actual pointer to the string will
   // be included so be certain to deallocate when it comes out of the
   // ringbuffer
-  entry->len = json->length();
-  entry->data = json;
+  entry->len = msg->length();
+  entry->data = msg;
 
   // queue send takes a pointer to what should be copied to the queue
   // using the size defined when the queue was created
@@ -238,21 +239,21 @@ void MQTT::publish(string_t *json) {
 
   if (q_rc == pdFALSE) {
     delete entry;
-    delete json;
+    delete msg;
 
-    std::unique_ptr<char[]> msg(new char[128]);
+    std::unique_ptr<char[]> log_msg(new char[128]);
     auto space_avail = uxQueueSpacesAvailable(_q_out);
 
-    sprintf(msg.get(), "PUBLISH msg FAILED space_avail(%d)", space_avail);
+    sprintf(log_msg.get(), "PUBLISH msg FAILED space_avail(%d)", space_avail);
 
-    ESP_LOGW(tagEngine(), "%s", msg.get());
+    ESP_LOGW(tagEngine(), "%s", log_msg.get());
 
     // we only commit the failure to NVS and directly call esp_restart()
     // since MQTT is broken
-    NVS::commitMsg(tagEngine(), msg.get());
+    NVS::commitMsg(tagEngine(), log_msg.get());
 
     // pass a nullptr for the message so Restart doesn't attempt to publish
-    Restart::instance()->restart(nullptr, __PRETTY_FUNCTION__);
+    Restart::restart(nullptr, __PRETTY_FUNCTION__);
   }
 }
 
@@ -270,7 +271,7 @@ void MQTT::core(void *data) {
   Net::waitForReady();
 
   // mongoose uses it's own dns resolver so set the namserver from dhcp
-  opts.nameserver = Net::instance()->dnsIP();
+  opts.nameserver = Net::dnsIP();
 
   mg_mgr_init_opt(&_mgr, NULL, opts);
 
@@ -303,7 +304,7 @@ void MQTT::core(void *data) {
   }
 }
 
-void MQTT::subACK(struct mg_mqtt_message *msg) {
+void MQTT::_subACK_(struct mg_mqtt_message *msg) {
 
   if (msg->message_id == _subscribe_msg_id) {
     ESP_LOGI(tagEngine(), "subACK for EXPECTED msg_id=%d", msg->message_id);
@@ -316,7 +317,7 @@ void MQTT::subACK(struct mg_mqtt_message *msg) {
   }
 }
 
-void MQTT::subscribeFeeds(struct mg_connection *nc) {
+void MQTT::_subscribeFeeds_(struct mg_connection *nc) {
   // build the host specific feed
   _feed_host_actual = _feed_prefix + Net::hostID();
   _feed_host_actual.append("/#");
@@ -342,8 +343,8 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
     ESP_LOGI(MQTT::tagEngine(), "CONNECT msg=%p err_code=%d err_str=%s",
              (void *)msg, *status, strerror(*status));
 
-    MQTT::instance()->handshake(nc);
-    statusLED::instance()->off();
+    MQTT::handshake(nc);
+    StatusLED::off();
     break;
   }
 
@@ -356,12 +357,12 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
 
     ESP_LOGV(MQTT::tagEngine(), "MG_EV_MQTT_CONNACK rc=%d",
              msg->connack_ret_code);
-    MQTT::instance()->subscribeFeeds(nc);
+    MQTT::subscribeFeeds(nc);
 
     break;
 
   case MG_EV_MQTT_SUBACK:
-    MQTT::instance()->subACK(msg);
+    MQTT::subACK(msg);
 
     break;
 
@@ -378,10 +379,10 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
     // ESP_LOGI(MQTT::tagEngine(), "%s qos(%d)", topic.c_str(), msg->qos);
     if (msg->qos == 1) {
 
-      mg_mqtt_puback(MQTT::instance()->_connection, msg->message_id);
+      mg_mqtt_puback(MQTT::_instance_()->_connection, msg->message_id);
     }
 
-    MQTT::instance()->incomingMsg(&(msg->topic), &(msg->payload));
+    MQTT::incomingMsg(&(msg->topic), &(msg->payload));
     break;
 
   case MG_EV_MQTT_PINGRESP:
@@ -389,8 +390,8 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
     break;
 
   case MG_EV_CLOSE:
-    statusLED::instance()->dim();
-    MQTT::instance()->connectionClosed();
+    StatusLED::dim();
+    MQTT::_instance_()->connectionClosed();
     break;
 
   case MG_EV_POLL:

@@ -33,15 +33,12 @@ static Restart_t *__singleton__ = nullptr;
 Restart::Restart() {}
 
 // STATIC
-Restart_t *Restart::instance() {
-  if (__singleton__) {
-    return __singleton__;
-
-  } else {
-
+Restart_t *Restart::_instance_() {
+  if (__singleton__ == nullptr) {
     __singleton__ = new Restart();
-    return __singleton__;
   }
+
+  return __singleton__;
 }
 
 Restart::~Restart() {
@@ -51,11 +48,10 @@ Restart::~Restart() {
   }
 }
 
-// STATIC
-void Restart::now() { instance()->restart(nullptr, nullptr, 0); }
+void Restart::_now_() { _instance_()->restart(nullptr, nullptr, 0); }
 
-void Restart::restart(const char *text, const char *func,
-                      uint32_t reboot_delay_ms) {
+void Restart::_restart_(const char *text, const char *func,
+                        uint32_t reboot_delay_ms) {
 
   ESP_LOGW("Restart", "%s requested restart [%s]",
            (func == nullptr) ? "<UNKNOWN FUNCTION>" : func,
@@ -65,7 +61,7 @@ void Restart::restart(const char *text, const char *func,
     textReading_t *rlog = new textReading(text);
     textReading_ptr_t rlog_ptr(rlog);
 
-    MQTT::instance()->publish(rlog);
+    MQTT::publish(rlog);
 
     // pause to ensure reading has been published
     // FUTURE:  query MQTT to ensure all messages have been sent

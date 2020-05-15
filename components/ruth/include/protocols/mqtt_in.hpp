@@ -59,6 +59,8 @@ private:
   time_t _lastLoop;
   uint16_t _msg_id = 0;
 
+  static MQTTin_t *_instance_();
+
   // Task implementation
   static void runEngine(void *task_instance) {
     MQTTin_t *task = (MQTTin_t *)task_instance;
@@ -67,7 +69,6 @@ private:
 
 public:
   MQTTin(QueueHandle_t q, const char *cmd_feed);
-  static MQTTin_t *instance();
 
   UBaseType_t changePriority(UBaseType_t priority);
   void restorePriority();

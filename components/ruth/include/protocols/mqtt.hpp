@@ -46,32 +46,32 @@ typedef struct {
 typedef class MQTT MQTT_t;
 class MQTT {
 public:
-  static MQTT_t *instance(); // singleton, use instance() for object
+  static void start() { _instance_()->_start_(); }
+  static void publish(Reading_t *reading) { _instance_()->_publish_(reading); }
+  static void publish(Reading_t &reading) { _instance_()->_publish_(reading); }
+  static void publish(unique_ptr<Reading_t> reading) {
+    _instance_()->_publish_(move(reading));
+  }
 
   void connect(int wait_ms = 0);
   void connectionClosed();
 
-  void handshake(struct mg_connection *nc);
-  void incomingMsg(struct mg_str *topic, struct mg_str *payload);
-  bool isReady() { return _mqtt_ready; };
-  void publish(Reading_t *reading);
-  void publish(Reading_t &reading);
-  void publish(std::unique_ptr<Reading_t> reading);
-  void core(void *data);
-  void subACK(struct mg_mqtt_message *msg);
-  void subscribeFeeds(struct mg_connection *nc);
-
-  void start(void *task_data = nullptr) {
-    if (_task.handle != nullptr) {
-      ESP_LOGW(tagEngine(), "there may already be a task running %p",
-               (void *)_task.handle);
-    }
-
-    // this (object) is passed as the data to the task creation and is
-    // used by the static runEngine method to call the run method
-    ::xTaskCreate(&runEngine, tagEngine(), _task.stackSize, this,
-                  _task.priority, &_task.handle);
+  static void handshake(struct mg_connection *nc) {
+    _instance_()->_handshake_(nc);
   }
+  static void subscribeFeeds(struct mg_connection *nc) {
+    _instance_()->_subscribeFeeds_(nc);
+  }
+
+  static void subACK(struct mg_mqtt_message *msg) {
+    _instance_()->_subACK_(msg);
+  }
+  static void incomingMsg(struct mg_str *topic, struct mg_str *payload) {
+    _instance_()->_incomingMsg_(topic, payload);
+  };
+  bool isReady() { return _mqtt_ready; };
+
+  void core(void *data);
 
   void stop() {
     if (_task.handle == nullptr) {
@@ -89,6 +89,24 @@ public:
 
 private:
   MQTT(); // singleton, constructor is private
+  static MQTT_t *_instance_();
+  void _handshake_(struct mg_connection *nc);
+  void _incomingMsg_(struct mg_str *topic, struct mg_str *payload);
+  void _subscribeFeeds_(struct mg_connection *nc);
+  void _subACK_(struct mg_mqtt_message *msg);
+
+  void _start_(void *task_data = nullptr) {
+    if (_task.handle != nullptr) {
+      ESP_LOGW(tagEngine(), "there may already be a task running %p",
+               (void *)_task.handle);
+    }
+
+    // this (object) is passed as the data to the task creation and is
+    // used by the static runEngine method to call the run method
+    ::xTaskCreate(&runEngine, tagEngine(), _task.stackSize, this,
+                  _task.priority, &_task.handle);
+  }
+
   static void _ev_handler(struct mg_connection *nc, int ev, void *p);
 
   string_t _client_id = "ruth.xxxxxxxxxxxx +extra";
@@ -143,7 +161,11 @@ private:
   void announceStartup();
   void outboundMsg();
 
-  void publish(string_t *json);
+  void _publish_(Reading_t *reading);
+  void _publish_(Reading_t &reading);
+  void _publish_(std::unique_ptr<Reading_t> reading);
+
+  void publish_msg(string_t *msg);
 
   // Task implementation
   static void runEngine(void *task_instance) {

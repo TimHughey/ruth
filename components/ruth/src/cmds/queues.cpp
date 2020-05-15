@@ -7,7 +7,7 @@ namespace ruth {
 static const char *TAG = "CmdQueues";
 static CmdQueues_t *__singleton = nullptr;
 
-CmdQueues *CmdQueues::instance() {
+CmdQueues *CmdQueues::_instance_() {
   if (__singleton == nullptr) {
     __singleton = new CmdQueues();
   }
@@ -19,7 +19,7 @@ void CmdQueues::registerQ(cmdQueue_t &cmd_q) {
   ESP_LOGI(TAG, "registering cmd_q id=%s prefix=%s q=%p", cmd_q.id,
            cmd_q.prefix, (void *)cmd_q.q);
 
-  instance()->add(cmd_q);
+  _instance_()->add(cmd_q);
 }
 
 const unique_ptr<char[]> CmdQueues::debug() {

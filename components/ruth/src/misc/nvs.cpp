@@ -77,10 +77,10 @@ NVS::NVS() {
 }
 
 // STATIC
-NVS_t *NVS::init() { return NVS::instance(); }
+NVS_t *NVS::init() { return NVS::_instance_(); }
 
 // STATIC
-NVS_t *NVS::instance() {
+NVS_t *NVS::_instance_() {
   if (__singleton__ == nullptr) {
     __singleton__ = new NVS();
   }
@@ -106,7 +106,7 @@ NVS::~NVS() {
 
 // STATIC
 esp_err_t NVS::commitMsg(const char *key, const char *msg) {
-  return instance()->__commitMsg(key, msg);
+  return _instance_()->__commitMsg(key, msg);
 }
 
 // PRIVATE
@@ -133,9 +133,9 @@ esp_err_t NVS::__commitMsg(const char *key, const char *msg) {
 
 // STATIC
 esp_err_t NVS::processCommittedMsgs() {
-  if (instance()->_committed_msgs_processed == false) {
-    instance()->_committed_msgs_processed = true;
-    return instance()->__processCommittedMsgs();
+  if (_instance_()->_committed_msgs_processed == false) {
+    _instance_()->_committed_msgs_processed = true;
+    return _instance_()->__processCommittedMsgs();
   } else {
     return ESP_OK;
   }
@@ -198,7 +198,7 @@ void NVS::publishMsg(const char *key, NVSMessage_t *blob) {
 
   rlog->printf(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
 
-  MQTT::instance()->publish(rlog);
+  MQTT::publish(rlog);
 }
 
 void NVS::zeroBuffers() {

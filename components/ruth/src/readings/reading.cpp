@@ -102,10 +102,7 @@ std::string *Reading::json(char *buffer, size_t len) {
   return json_string;
 }
 
-void Reading::publish() {
-  MQTT_t *mqtt = MQTT::instance();
-  mqtt->publish(this);
-}
+void Reading::publish() { MQTT::publish(this); }
 
 void Reading::setCmdAck(uint32_t latency_us, RefID_t &refid) {
   _cmd_ack = true;

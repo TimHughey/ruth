@@ -532,8 +532,8 @@ bool I2c::installDriver() {
   return (esp_err == ESP_OK) ? true : false;
 }
 
-I2c_t *I2c::instance() {
-  if (Profile::i2cEnable() && (__singleton__ == nullptr)) {
+I2c_t *I2c::_instance_() {
+  if (__singleton__ == nullptr) {
     __singleton__ = new I2c();
   }
 
@@ -869,7 +869,7 @@ bool I2c::selectBus(uint32_t bus) {
       const char *msg = "BUS SELECT ERRORS EXCEEDED";
       ESP_LOGE(tagEngine(), "bus select errors exceeded, JUMP!");
       NVS::commitMsg(tagEngine(), msg);
-      Restart::instance()->restart(msg, __PRETTY_FUNCTION__, 0);
+      Restart::restart(msg, __PRETTY_FUNCTION__, 0);
     }
   }
 

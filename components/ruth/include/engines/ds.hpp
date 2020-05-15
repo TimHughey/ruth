@@ -47,9 +47,11 @@ private:
   DallasSemi();
 
 public:
-  static DallasSemi_t *instance();
-
-  bool shouldStart() { return Profile::dalsemiEnable(); };
+  static void startIfEnabled() {
+    if (Profile::dalsemiEnable()) {
+      _instance_()->start();
+    }
+  }
 
   //
   // Tasks
@@ -85,6 +87,8 @@ private:
       pdMS_TO_TICKS(CONFIG_RUTH_DS_TEMP_CONVERT_POLL_MS);
   const uint64_t _max_temp_convert_us =
       (1000 * 1000); // one second in microsecs
+
+  static DallasSemi_t *_instance_();
 
   bool checkDevicesPowered();
   bool commandAck(cmdSwitch_t &cmd);

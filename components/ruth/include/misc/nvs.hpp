@@ -65,6 +65,7 @@ private:
 
   NVS();
   ~NVS();
+  static NVS *_instance_();
 
   bool notOpen();
   void publishMsg(const char *key, NVSMessage_t *msg);
@@ -77,7 +78,6 @@ private:
 
 public:
   static NVS_t *init();
-  static NVS *instance();
 
   static esp_err_t commitMsg(const char *key, const char *msg);
   static esp_err_t processCommittedMsgs();

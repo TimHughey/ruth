@@ -24,10 +24,10 @@ using std::unique_ptr;
 
 namespace ruth {
 
-static pwmEngine_t *__singleton__ = nullptr;
+static PulseWidth_t *__singleton__ = nullptr;
 static const string_t engine_name = "PWM";
 
-pwmEngine::pwmEngine() {
+PulseWidth::PulseWidth() {
   pwmDev::allOff(); // ensure all pins are off at initialization
 
   setTags(localTags());
@@ -49,11 +49,11 @@ pwmEngine::pwmEngine() {
 // Tasks
 //
 
-void pwmEngine::command(void *data) {
+void PulseWidth::command(void *data) {
   logSubTaskStart(data);
 
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdPWM_t *));
-  cmdQueue_t cmd_q = {"pwmEngine", "pwm", _cmd_q};
+  cmdQueue_t cmd_q = {"PulseWidth", "pwm", _cmd_q};
   CmdQueues::registerQ(cmd_q);
 
   while (true) {
@@ -111,7 +111,7 @@ void pwmEngine::command(void *data) {
   }
 }
 
-bool pwmEngine::commandAck(cmdPWM_t &cmd) {
+bool PulseWidth::commandAck(cmdPWM_t &cmd) {
   bool rc = false;
   pwmDev_t *dev = findDevice(cmd.internalDevID());
 
@@ -138,7 +138,7 @@ bool pwmEngine::commandAck(cmdPWM_t &cmd) {
   return rc;
 }
 
-void pwmEngine::core(void *task_data) {
+void PulseWidth::core(void *task_data) {
   bool net_name = false;
 
   if (configureTimer() == false) {
@@ -174,7 +174,7 @@ void pwmEngine::core(void *task_data) {
   }
 }
 
-void pwmEngine::discover(void *data) {
+void PulseWidth::discover(void *data) {
   logSubTaskStart(data);
   saveTaskLastWake(DISCOVER);
 
@@ -217,7 +217,7 @@ void pwmEngine::discover(void *data) {
   }
 }
 
-void pwmEngine::report(void *data) {
+void PulseWidth::report(void *data) {
 
   logSubTaskStart(data);
   saveTaskLastWake(REPORT);
@@ -260,7 +260,7 @@ void pwmEngine::report(void *data) {
   }
 }
 
-bool pwmEngine::configureTimer() {
+bool PulseWidth::configureTimer() {
   esp_err_t timer_rc;
 
   ledc_timer_config_t ledc_timer = {.speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -280,19 +280,19 @@ bool pwmEngine::configureTimer() {
   }
 }
 
-pwmEngine_t *pwmEngine::instance() {
-  if (Profile::pwmEnable() && (__singleton__ == nullptr)) {
-    __singleton__ = new pwmEngine();
+PulseWidth_t *PulseWidth::_instance_() {
+  if (__singleton__ == nullptr) {
+    __singleton__ = new PulseWidth();
   }
 
   return __singleton__;
 }
 
-void pwmEngine::printUnhandledDev(pwmDev_t *dev) {
+void PulseWidth::printUnhandledDev(pwmDev_t *dev) {
   ESP_LOGW(tagEngine(), "unhandled dev %s", dev->debug().get());
 }
 
-bool pwmEngine::readDevice(pwmDev_t *dev) {
+bool PulseWidth::readDevice(pwmDev_t *dev) {
   auto rc = false;
 
   dev->readStart();

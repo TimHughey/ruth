@@ -32,26 +32,38 @@
 
 namespace ruth {
 
-typedef class statusLED statusLED_t;
+typedef class StatusLED StatusLED_t;
 
-class statusLED {
+class StatusLED {
 public:
-  static statusLED_t *instance();
-  static void duty(uint32_t duty);
+  // initialize the singleton
+  static void init() { _instance_(); };
 
-  void bright();
-  void brighter();
-  void dimmer();
-  void dim();
-  void off();
+  // control the brightness of the status led
+  static void bright() { _instance_()->_bright_(); };
+  static void brighter() { _instance_()->_brighter_(); };
+  static void dim() { _instance_()->_dim_(); };
+  static void dimmer() { _instance_()->_dimmer_(); };
+  static void duty(uint32_t duty) { _instance_()->_duty_(duty); };
+  static void off() { _instance_()->_off_(); };
 
 private:
-  statusLED(); // SINGLETON!  constructor is private
+  StatusLED(); // SINGLETON!  constructor is private
+  static StatusLED_t *_instance_();
 
   void activate_duty();
 
+  // private implementation of static instance methods
+  void _bright_();
+  void _brighter_();
+  void _dim_();
+  void _dimmer_();
+  void _duty_(uint32_t new_duty);
+  void _off_();
+
 private:
-  uint32_t duty_ = 128; // initial duty is very dim
+  uint32_t duty_max_ = 0b1111111111111; // 13 bits, 8191
+  uint32_t duty_ = duty_max_ / 100;     // initial duty is very dim
 
   ledc_timer_config_t ledc_timer_ = {.speed_mode = LEDC_HIGH_SPEED_MODE,
                                      .duty_resolution = LEDC_TIMER_13_BIT,

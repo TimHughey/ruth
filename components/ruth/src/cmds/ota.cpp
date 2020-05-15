@@ -1,4 +1,22 @@
+/*
+    cmd_ota.cpp - Ruth OTA Command Processing
+    Copyright (C) 2020  Tim Hughey
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    https://www.wisslanding.com
+*/
 
 #include "cmds/ota.hpp"
 #include "misc/restart.hpp"
@@ -11,9 +29,6 @@ static const char *k_fw_url = "fw_url";
 
 static bool _ota_in_progress = false;
 
-extern const uint8_t ca_start[] asm("_binary_ca_pem_start");
-extern const uint8_t ca_end[] asm("_binary_ca_pem_end");
-
 CmdOTA::CmdOTA(JsonDocument &doc, elapsedMicros &e) : Cmd(doc, e) {
 
   _fw_url = doc[k_fw_url] | "none";
@@ -24,7 +39,7 @@ void CmdOTA::doUpdate() {
   const esp_partition_t *run_part = esp_ota_get_running_partition();
   esp_http_client_config_t config = {};
   config.url = _fw_url.c_str();
-  config.cert_pem = (char *)ca_start;
+  config.cert_pem = Net::ca_start();
   config.event_handler = CmdOTA::httpEventHandler;
   config.timeout_ms = 1000;
 
@@ -46,17 +61,12 @@ void CmdOTA::doUpdate() {
   textReading_t *rlog = new textReading_t;
   textReading_ptr_t rlog_ptr(rlog);
 
-  ramUtilReading_t_ptr ram(new ramUtilReading_t);
-  ram->publish();
-
   // track the time it takes to perform ota
   elapsedMicros ota_elapsed;
   esp_err_t esp_rc = esp_https_ota(&config);
 
   rlog->printf("[%s] OTA elapsed(%0.2fs)", esp_err_to_name(esp_rc),
                ota_elapsed.asSeconds());
-
-  ram->publish();
 
   if (esp_rc == ESP_OK) {
     ESP_LOGI(TAG, "%s", rlog->text());
@@ -65,8 +75,7 @@ void CmdOTA::doUpdate() {
     ESP_LOGE(TAG, "%s", rlog->text());
   }
 
-  Restart::instance()->restart(rlog->text(), __PRETTY_FUNCTION__,
-                                  reboot_delay_ms());
+  Restart::restart(rlog->text(), __PRETTY_FUNCTION__, reboot_delay_ms());
 }
 
 // STATIC
@@ -113,8 +122,8 @@ bool CmdOTA::process() {
     break;
 
   case CmdType::restart:
-    Restart::instance()->restart("restart requested", __PRETTY_FUNCTION__,
-                                    reboot_delay_ms());
+    Restart::restart("restart requested", __PRETTY_FUNCTION__,
+                     reboot_delay_ms());
     break;
 
   default:
