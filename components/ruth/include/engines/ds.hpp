@@ -68,7 +68,7 @@ protected:
   bool resetBus(bool *present = nullptr);
 
 private:
-  uint8_t _pin = CONFIG_RUTH_W1_PIN;
+  uint8_t _pin = 14;
   OneWireBus *_ds = nullptr;
 
   bool _devices_powered = true;
@@ -76,17 +76,20 @@ private:
 
   // delay times
   const TickType_t _loop_frequency =
-      pdMS_TO_TICKS(CONFIG_RUTH_DS_ENGINE_FREQUENCY_SECS * 1000);
+      Profile::subSystemTaskInterval("ds", "core");
+
   const TickType_t _convert_frequency =
-      pdMS_TO_TICKS(CONFIG_RUTH_DS_CONVERT_FREQUENCY_SECS * 1000);
+      Profile::subSystemTaskInterval("ds", "convert");
+
   const TickType_t _discover_frequency =
-      pdMS_TO_TICKS(CONFIG_RUTH_DS_DISCOVER_FREQUENCY_SECS * 1000);
+      Profile::subSystemTaskInterval("ds", "discover");
+
   const TickType_t _report_frequency =
-      pdMS_TO_TICKS(CONFIG_RUTH_DS_REPORT_FREQUENCY_SECS * 1000);
-  const TickType_t _temp_convert_wait =
-      pdMS_TO_TICKS(CONFIG_RUTH_DS_TEMP_CONVERT_POLL_MS);
-  const uint64_t _max_temp_convert_us =
-      (1000 * 1000); // one second in microsecs
+      Profile::subSystemTaskInterval("ds", "report");
+
+  const TickType_t _temp_convert_wait = pdMS_TO_TICKS(50);
+
+  const uint64_t _max_temp_convert_us = (1000 * 1000); // one second
 
   static DallasSemi_t *_instance_();
 

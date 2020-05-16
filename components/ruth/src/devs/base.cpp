@@ -75,6 +75,9 @@ void Device::setReading(Reading_t *reading) {
     reading->setReadUS(_read_us);
     reading->setWriteErrors(_write_errors);
     reading->setWriteUS(_write_us);
+
+    // when there is an actual reading mark the device as just seen
+    justSeen();
   }
 
   _reading = reading;

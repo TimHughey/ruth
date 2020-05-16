@@ -34,14 +34,14 @@ PulseWidth::PulseWidth() {
 
   setLoggingLevel(ESP_LOG_INFO);
 
-  EngineTask_t core("core");
-  EngineTask_t command("cmd", 12, 3072);
-  EngineTask_t discover("dis", 12, 4096);
-  EngineTask_t report("rpt", 12, 3072);
+  EngineTask_t core("pwm", "core");
+  EngineTask_t discover("pwm", "discover");
+  EngineTask_t command("pwm", "command");
+  EngineTask_t report("pwm", "report");
 
   addTask(engine_name, CORE, core);
-  addTask(engine_name, COMMAND, command);
   addTask(engine_name, DISCOVER, discover);
+  addTask(engine_name, COMMAND, command);
   addTask(engine_name, REPORT, report);
 }
 
@@ -139,34 +139,24 @@ bool PulseWidth::commandAck(cmdPWM_t &cmd) {
 }
 
 void PulseWidth::core(void *task_data) {
-  bool net_name = false;
-
   if (configureTimer() == false) {
     return;
   }
 
-  ESP_LOGV(tagEngine(), "waiting for normal ops...");
   Net::waitForNormalOps();
 
-  // wait for up to 30 seconds for name assignment via MQTT
-  // if the assigned name is not available then device names will use
-  // the pwm/ruth.<mac addr>.<bus>.<device> format
+  // NOTE:
+  //   As of 2020-05-18 engines are started after name assignment is complete
+  //   so the following line is not necessary
+  // net_name = Net::waitForName();
 
-  // this is because pwm devices do not have a globally assigned
-  // unique identifier (like Maxim / Dallas Semiconductors devices)
-  ESP_LOGV(tagEngine(), "waiting for network name...");
-  net_name = Net::waitForName();
-
-  if (net_name == false) {
-    ESP_LOGW(tagEngine(), "network name not available, using host name");
-  }
-
-  ESP_LOGV(tagEngine(), "normal ops, proceeding to task loop");
+  // signal to other tasks the dsEngine task is in it's run loop
+  // this ensures other tasks wait until core setup is complete
 
   saveTaskLastWake(CORE);
+
+  // task run loop
   for (;;) {
-    // signal to other tasks the dsEngine task is in it's run loop
-    // this ensures all other set-up activities are complete before
     engineRunning();
 
     // do high-level engine actions here (e.g. general housekeeping)
@@ -175,11 +165,18 @@ void PulseWidth::core(void *task_data) {
 }
 
 void PulseWidth::discover(void *data) {
+  static bool first_discover = true;
+  static elapsedMillis last_elapsed;
+
   logSubTaskStart(data);
   saveTaskLastWake(DISCOVER);
 
-  while (waitForEngine()) {
+  if ((first_discover == false) &&
+      (last_elapsed.asSeconds() < _discover_frequency)) {
+    return;
+  }
 
+  while (waitForEngine()) {
     trackDiscover(true);
 
     for (uint8_t i = 1; i <= 4; i++) {

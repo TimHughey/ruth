@@ -45,9 +45,11 @@ void app_main() {
   // so it's obvious where base ESP32 initialization code is complete and
   // our implementation begins
   ESP_LOGI("app_main", "%s entered", __PRETTY_FUNCTION__);
-  ESP_LOGI("app_main", "portTICK_PERIOD_MS=%u and 10ms=%u tick %s",
+  float tick_us = 1000.0 / (float)portTICK_PERIOD_MS;
+
+  ESP_LOGI("app_main", "portTICK_PERIOD_MS=%u 10ms=%u tick%s tick=%0.2fµs",
            portTICK_PERIOD_MS, pdMS_TO_TICKS(10),
-           (pdMS_TO_TICKS(10) > 1) ? "s" : "");
+           ((pdMS_TO_TICKS(10) > 1) ? "s" : " "), tick_us);
 
   // set timezone to Eastern Standard Time
   // for now we set the timezone here in app_main() since it's foundational

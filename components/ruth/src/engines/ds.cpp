@@ -49,11 +49,11 @@ DallasSemi::DallasSemi() {
   // setLoggingLevel(tagCommand(), ESP_LOG_INFO);
   // setLoggingLevel(tagSetDS2408(), ESP_LOG_INFO);
 
-  EngineTask_t core("core");
-  EngineTask_t convert("con", CONFIG_RUTH_DS_CONVERT_TASK_PRIORITY);
-  EngineTask_t command("cmd", CONFIG_RUTH_DS_COMMAND_TASK_PRIORITY, 3072);
-  EngineTask_t discover("dis", CONFIG_RUTH_DS_DISCOVER_TASK_PRIORITY, 4096);
-  EngineTask_t report("rpt", CONFIG_RUTH_DS_REPORT_TASK_PRIORITY, 3072);
+  EngineTask_t core("ds", "core");
+  EngineTask_t convert("ds", "convert");
+  EngineTask_t command("ds", "command");
+  EngineTask_t discover("ds", "discover");
+  EngineTask_t report("ds", "report");
 
   addTask(engine_name, CORE, core);
   addTask(engine_name, CONVERT, convert);

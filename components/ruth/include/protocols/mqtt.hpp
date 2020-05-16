@@ -114,7 +114,7 @@ private:
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .lastWake = 0,
-                  .priority = CONFIG_RUTH_MQTT_TASK_PRIORITY,
+                  .priority = 14,
                   .stackSize = (4 * 1024)};
 
   struct mg_mgr _mgr = {};
@@ -123,16 +123,12 @@ private:
   bool _mqtt_ready = false;
 
   // mg_mgr uses LWIP and the timeout is specified in ms
-  int _inbound_msg_ms = CONFIG_RUTH_MQTT_INBOUND_MSG_WAIT_MS;
-  TickType_t _inbound_rb_wait_ticks =
-      pdMS_TO_TICKS(CONFIG_RUTH_MQTT_INBOUND_RB_WAIT_MS);
-  TickType_t _outbound_msg_ticks =
-      pdMS_TO_TICKS(CONFIG_RUTH_MQTT_OUTBOUND_MSG_WAIT_MS);
+  int _inbound_msg_ms = 1;
+  TickType_t _inbound_rb_wait_ticks = pdMS_TO_TICKS(1000);
+  TickType_t _outbound_msg_ticks = pdMS_TO_TICKS(30);
 
-  const size_t _q_out_len =
-      (sizeof(mqttOutMsg_t) * CONFIG_RUTH_MQTT_RINGBUFFER_PENDING_MSGS);
-  const size_t _q_in_len =
-      ((sizeof(mqttInMsg_t) * CONFIG_RUTH_MQTT_RINGBUFFER_PENDING_MSGS) / 2);
+  const size_t _q_out_len = (sizeof(mqttOutMsg_t) * 128);
+  const size_t _q_in_len = ((sizeof(mqttInMsg_t) * 128) / 2);
   QueueHandle_t _q_out = nullptr;
   QueueHandle_t _q_in = nullptr;
 
@@ -150,8 +146,8 @@ private:
   //   3. the '+extra' is intended to preallocate enough space to prevent
   //      string_t re-allocs while building the actual feed
   const string_t _feed_prefix = CONFIG_RUTH_ENV "/";
-  string_t _feed_rpt_config = CONFIG_RUTH_MQTT_RPT_FEED;
-  string_t _feed_cmd_config = CONFIG_RUTH_MQTT_CMD_FEED;
+  string_t _feed_rpt_config = "ruth/f/report";
+  string_t _feed_cmd_config = "ruth/f/command";
   string_t _feed_rpt_actual = CONFIG_RUTH_ENV "/ruth/f/command +extra";
   string_t _feed_cmd_actual = CONFIG_RUTH_ENV "/ruth/f/report +extra";
   string_t _feed_host_actual = CONFIG_RUTH_ENV "/ruth.xxxxxxxxxxxx/# +extra";

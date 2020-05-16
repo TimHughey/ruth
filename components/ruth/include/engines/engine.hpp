@@ -44,11 +44,13 @@
 
 namespace ruth {
 
+using std::unordered_map;
+
 template <class DEV> class Engine {
 private:
   TaskMap_t _task_map;
 
-  typedef std::unordered_map<string_t, DEV *> DeviceMap_t;
+  typedef unordered_map<string_t, DEV *> DeviceMap_t;
   DeviceMap_t _devices;
 
   EventGroupHandle_t _evg;
@@ -139,7 +141,7 @@ public:
     EngineTask_ptr_t new_task = new EngineTask(task);
     // when the task name is 'core' then set it to the engine name
     // otherwise prepend the engine name
-    if (new_task->_name.find("core") != std::string::npos) {
+    if (new_task->_name.find("core") != string_t::npos) {
       new_task->_name = engine_name;
     } else {
       new_task->_name.insert(0, engine_name);
@@ -167,7 +169,7 @@ public:
     return task->_handle;
   }
 
-  void delay(int ms) { ::vTaskDelay(pdMS_TO_TICKS(ms)); }
+  void delay(int ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
 
   virtual void core(void *data) = 0; // pure virtual, subclass must implement
   virtual void suspend() {
@@ -177,7 +179,7 @@ public:
 
       ESP_LOGW(tagEngine(), "suspending subtask %s(%p)", subtask->_name.c_str(),
                subtask->_handle);
-      ::vTaskSuspend(subtask->_handle);
+      vTaskSuspend(subtask->_handle);
     });
 
     auto coretask = _task_map[CORE];
@@ -197,8 +199,8 @@ public:
     // this (object) is passed as the data to the task creation and is
     // used by the static runCore method to call the implemented run
     // method
-    ::xTaskCreate(&runCore, task->_name.c_str(), task->_stackSize, this,
-                  task->_priority, &task->_handle);
+    xTaskCreate(&runCore, task->_name.c_str(), task->_stackSize, this,
+                task->_priority, &task->_handle);
     ESP_LOGD(task->_name.c_str(), "core(%p) priority(%d) stack(%d)",
              task->_handle, task->_priority, task->_stackSize);
 
@@ -262,7 +264,9 @@ public:
   static uint32_t maxDevices() { return 100; };
 
   bool any_of_devices(bool (*func)(const DEV &)) {
-    return std::any_of(_devices.cbegin(), _devices.cend(), func);
+    using std::any_of;
+
+    return any_of(_devices.cbegin(), _devices.cend(), func);
   }
 
   // justSeenDevice():
@@ -570,7 +574,7 @@ protected:
   // Command Queue
   //
 protected:
-  const int _max_queue_depth = CONFIG_RUTH_CMD_Q_MAX_DEPTH;
+  const int _max_queue_depth = 30;
   QueueHandle_t _cmd_q = nullptr;
 
 public:

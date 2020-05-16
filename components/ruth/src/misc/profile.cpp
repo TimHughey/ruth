@@ -68,11 +68,20 @@ void Profile::_postParseActions() {
   ESP_LOGI(TAG, "msgpack deserialization took %lldus",
            (uint64_t)_parse_elapsed);
 
+  ESP_LOGI(TAG, "using profile=\"%s\" version=\"%s\"", _profileName(),
+           _version());
+
   Net::setName(_assignedName());
 }
 
+const char *Profile::_profileName() {
+  return _doc.isNull() ? _empty_string
+                       : _doc["meta"]["profile"].as<const char *>();
+}
+
 const char *Profile::_version() {
-  return _doc.isNull() ? _empty_string : _doc["meta"]["version"];
+  return _doc.isNull() ? _empty_string
+                       : _doc["meta"]["version"].as<const char *>();
 }
 
 // Access to Subsystem Keys
@@ -87,6 +96,23 @@ bool Profile::_subSystemBoolean(const char *subsystem, const char *key) {
 
 uint32_t Profile::_subSystemUINT32(const char *subsystem, const char *key) {
   return _doc[subsystem][key].as<uint32_t>();
+}
+
+// Acces to Subsystem Task Keys
+TickType_t Profile::_subSystemTaskInterval(const char *subsystem,
+                                           const char *task) {
+  const uint32_t secs = _doc[subsystem][task]["interval_secs"].as<uint32_t>();
+
+  return pdMS_TO_TICKS(secs * 1000);
+}
+
+uint32_t Profile::_subSystemTaskPriority(const char *subsystem,
+                                         const char *task) {
+  return _doc[subsystem][task]["pri"].as<uint32_t>();
+}
+
+size_t Profile::_subSystemTaskStack(const char *subsystem, const char *task) {
+  return _doc[subsystem][task]["stack"].as<size_t>();
 }
 
 // STATIC

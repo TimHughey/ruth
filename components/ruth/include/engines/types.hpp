@@ -31,6 +31,7 @@
 
 #include "misc/elapsedMillis.hpp"
 #include "misc/local_types.hpp"
+#include "misc/profile.hpp"
 
 namespace ruth {
 
@@ -55,16 +56,25 @@ typedef std::pair<TaskTypes_t, EngineTask_t *> TaskMapItem_t;
 
 class EngineTask {
 public:
+  // [deprecated] create a new EngineTask with compile time settings
   EngineTask(char const *name, UBaseType_t priority = 1,
              UBaseType_t stacksize = 2048, void *data = nullptr)
       : _name(name), _priority(priority), _stackSize(stacksize), _data(data){};
+
+  // create a new EngineTask with settings from Profile
+  EngineTask(char const *subsystem, char const *task, void *data = nullptr)
+      : _data(data) {
+    string_t _name = subsystem;
+    _priority = Profile::subSystemTaskPriority(subsystem, task);
+    _stackSize = Profile::subSystemTaskStack(subsystem, task);
+  };
 
 public:
   string_t _name = "unamed";
   TaskHandle_t _handle = nullptr;
   TickType_t _lastWake = 0;
-  UBaseType_t _priority = 1;
-  UBaseType_t _stackSize = 2048;
+  UBaseType_t _priority = 0;
+  UBaseType_t _stackSize = 0;
   void *_data = nullptr;
 };
 

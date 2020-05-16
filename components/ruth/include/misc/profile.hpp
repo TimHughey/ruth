@@ -46,7 +46,23 @@ public:
     return _instance_()->_parseRawMsg(raw);
   };
   static void postParseActions() { _instance_()->_postParseActions(); };
+  static const char *profileName() { return _instance_()->_profileName(); };
   static const char *version() { return _instance_()->_version(); };
+
+  // Generalized Subsystem Task Prioirty and Stack Access
+  static TickType_t subSystemTaskInterval(const char *subsystem,
+                                          const char *task) {
+    return _instance_()->_subSystemTaskInterval(subsystem, task);
+  }
+
+  static uint32_t subSystemTaskPriority(const char *subsystem,
+                                        const char *task) {
+    return _instance_()->_subSystemTaskPriority(subsystem, task);
+  }
+
+  static size_t subSystemTaskStack(const char *subsystem, const char *task) {
+    return _instance_()->_subSystemTaskStack(subsystem, task);
+  }
 
   // DallasSemi
   static bool dalsemiEnable() { return _instance_()->_subSystemEnable("ds"); };
@@ -59,6 +75,9 @@ public:
 
   // PWM
   static bool pwmEnable() { return _instance_()->_subSystemEnable("pwm"); };
+  static uint32_t pwmTaskInterval(const char *task) {
+    return _instance_()->_subSystemTaskInterval("pwm", task);
+  };
 
   // timestamp
   static uint32_t timestampFrequencySecs() {
@@ -75,7 +94,15 @@ private:
   void _postParseActions();
   bool _subSystemEnable(const char *subsystem);
   bool _subSystemBoolean(const char *subsystem, const char *key);
+
   uint32_t _subSystemUINT32(const char *subsystem, const char *key);
+
+  // subsystem task settings
+  TickType_t _subSystemTaskInterval(const char *subsystem, const char *task);
+  uint32_t _subSystemTaskPriority(const char *subsystem, const char *task);
+  size_t _subSystemTaskStack(const char *subsystem, const char *task);
+
+  const char *_profileName();
   const char *_version();
 
 private:
@@ -83,7 +110,7 @@ private:
   DeserializationError _parse_rc;
 
   // ArduinoJson::DynamicJsonDocument _doc(1024);
-};
+}; // namespace ruth
 
 } // namespace ruth
 

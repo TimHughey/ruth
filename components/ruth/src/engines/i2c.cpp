@@ -49,10 +49,10 @@ I2c::I2c() {
   // setLoggingLevel(tagReport(), ESP_LOG_INFO);
   // setLoggingLevel(tagReadSHT31(), ESP_LOG_INFO);
 
-  EngineTask_t core("core");
-  EngineTask_t command("cmd", CONFIG_RUTH_I2C_COMMAND_TASK_PRIORITY, 4096);
-  EngineTask_t discover("dis", CONFIG_RUTH_I2C_DISCOVER_TASK_PRIORITY, 4096);
-  EngineTask_t report("rpt", CONFIG_RUTH_I2C_REPORT_TASK_PRIORITY, 4096);
+  EngineTask_t core("i2c", "core");
+  EngineTask_t command("i2c", "command");
+  EngineTask_t discover("i2c", "discover");
+  EngineTask_t report("i2c", "report");
 
   addTask(engine_name, CORE, core);
   addTask(engine_name, COMMAND, command);
