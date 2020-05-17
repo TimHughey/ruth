@@ -54,15 +54,6 @@ MQTTin::MQTTin(QueueHandle_t q_in, const char *cmd_feed)
 
 MQTTin_t *MQTTin::_instance_() { return __singleton; }
 
-UBaseType_t MQTTin::changePriority(UBaseType_t priority) {
-  vTaskPrioritySet(_task.handle, priority);
-  return _task.priority;
-}
-
-void MQTTin::restorePriority() {
-  vTaskPrioritySet(_task.handle, _task.priority);
-}
-
 void MQTTin::core(void *data) {
   mqttInMsg_t *msg;
   CmdFactory_t factory;
@@ -83,12 +74,11 @@ void MQTTin::core(void *data) {
     q_rc = xQueueReceive(_q_in, &msg, portMAX_DELAY);
 
     if (q_rc == pdTRUE) {
-      // ESP_LOGI(TAG, "msg(%p) topic(%p) data(%p)", msg, msg->topic,
-      // msg->data);
+      auto msg_processed = handleMsg(msg);
 
       // reminder:  compare() == 0 is equals to
       // was this message sent to the legacy command topic?
-      if (msg->topic->compare(_cmd_feed) == 0) {
+      if ((msg_processed == false) && msg->topic->compare(_cmd_feed) == 0) {
         Cmd_t *cmd = factory.fromRaw(doc, msg->data);
         Cmd_t_ptr cmd_ptr(cmd);
 
@@ -98,14 +88,7 @@ void MQTTin::core(void *data) {
         } else if (cmd->recent() && cmd->forThisHost()) {
           cmd->process();
         }
-      }
-      // was this message sent to the profile topic?
-      else if (msg->topic->find("profile") != string_t::npos) {
-        if (Profile::parseRawMsg(msg->data)) {
-          Profile::postParseActions();
-        }
       } else {
-
         ESP_LOGD(TAG, "ignoring topic(%s)", msg->topic->c_str());
       }
 
@@ -118,5 +101,51 @@ void MQTTin::core(void *data) {
       continue;
     }
   } // infinite loop to process inbound MQTT messages
+}
+
+bool MQTTin::handleMsg(mqttInMsg_t *msg) {
+  auto processed = false;
+  string_t *topic = msg->topic;
+
+  // find the positions of the slashes
+  // prod/<host>/<subtopic>
+  auto first_slash = topic->find_first_of('/');
+
+  // bad topic format
+  if (first_slash == string_t::npos)
+    return processed;
+
+  auto second_slash = topic->find_first_of('/', first_slash + 1);
+
+  // bad topic format
+  if (second_slash == string_t::npos)
+    return processed;
+
+  auto more_slashes =
+      (topic->find_first_of('/', second_slash + 1) == string_t::npos) ? false
+                                                                      : true;
+
+  if (more_slashes)
+    return processed;
+
+  auto host_spos = first_slash + 1;
+  auto host_epos = second_slash - 1;
+  auto host_len = host_epos - host_spos;
+  auto subtopic_spos = second_slash + 1;
+
+  string_t host(*topic, host_spos, host_len);
+  string_t subtopic(*topic, subtopic_spos);
+
+  ESP_LOGV(TAG, "host=\"%s\" subtopic=\"%s\"", host.c_str(), subtopic.c_str());
+
+  if (subtopic.compare("profile") == 0) {
+    if (Profile::parseRawMsg(msg->data)) {
+      Profile::postParseActions();
+    }
+
+    processed = true;
+  }
+
+  return processed;
 }
 } // namespace ruth

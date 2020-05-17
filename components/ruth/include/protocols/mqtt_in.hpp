@@ -44,6 +44,8 @@ typedef struct {
   rawMsg_t *data = nullptr;
 } mqttInMsg_t;
 
+typedef mqttInMsg_t *mqttInMsg_ptr_t;
+
 typedef class MQTTin MQTTin_t;
 class MQTTin {
 private:
@@ -67,11 +69,11 @@ private:
     task->core(task->_task_data);
   }
 
+  bool handleMsg(mqttInMsg_t *msg);
+
 public:
   MQTTin(QueueHandle_t q, const char *cmd_feed);
 
-  UBaseType_t changePriority(UBaseType_t priority);
-  void restorePriority();
   void core(void *data);
 
   void delay(int ms) { ::vTaskDelay(pdMS_TO_TICKS(ms)); }

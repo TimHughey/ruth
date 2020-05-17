@@ -47,10 +47,10 @@ typedef class MQTT MQTT_t;
 class MQTT {
 public:
   static void start() { _instance_()->_start_(); }
-  static void publish(Reading_t *reading) { _instance_()->_publish_(reading); }
-  static void publish(Reading_t &reading) { _instance_()->_publish_(reading); }
+  static void publish(Reading_t *reading) { _instance_()->_publish(reading); }
+  static void publish(Reading_t &reading) { _instance_()->_publish(reading); }
   static void publish(unique_ptr<Reading_t> reading) {
-    _instance_()->_publish_(move(reading));
+    _instance_()->_publish(move(reading));
   }
 
   void connect(int wait_ms = 0);
@@ -143,13 +143,14 @@ private:
   // NOTES:
   //   1. final feeds are built in the constructor
   //   2. feeds are always prefixed by the environment
-  //   3. the '+extra' is intended to preallocate enough space to prevent
-  //      string_t re-allocs while building the actual feed
+  //   3. should include the actual host ID
+  //   4. end with the corresponding suffix
   const string_t _feed_prefix = CONFIG_RUTH_ENV "/";
-  // DEPRECATION NODE:  _feed_host is replacing _feed_cmd
+
+  // NOTE:  _feed_host is replacing _feed_cmd
   string_t _feed_cmd_suffix = "ruth/f/command";
   string_t _feed_host_suffix = "/#";
-  string_t _feed_rpt_suffix = "/f/report";
+  string_t _feed_rpt_prefix = "r/";
 
   // attempt to 'preallocate' the feed strings
   string_t _feed_cmd = "0123456789abcdef0123456789abcdef0123456789a";
@@ -161,9 +162,9 @@ private:
   void announceStartup();
   void outboundMsg();
 
-  void _publish_(Reading_t *reading);
-  void _publish_(Reading_t &reading);
-  void _publish_(std::unique_ptr<Reading_t> reading);
+  void _publish(Reading_t *reading);
+  void _publish(Reading_t &reading);
+  void _publish(std::unique_ptr<Reading_t> reading);
 
   void publish_msg(string_t *msg);
 

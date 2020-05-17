@@ -41,6 +41,8 @@
 #include "readings/readings.hpp"
 
 using std::unique_ptr;
+using std::vector;
+
 namespace ruth {
 
 static MQTT *__singleton = nullptr;
@@ -57,7 +59,7 @@ MQTT_t *MQTT::_instance_() {
 // SINGLETON! constructor is private
 MQTT::MQTT() {
   // create the report and command feed topics
-  _feed_rpt = _feed_prefix + Net::hostID() + _feed_rpt_suffix;
+  _feed_rpt = _feed_prefix + _feed_rpt_prefix + Net::hostID();
   _feed_cmd = _feed_prefix + _feed_cmd_suffix; // DEPRECATED
   _feed_host = _feed_prefix + Net::hostID() + _feed_host_suffix;
 
@@ -83,7 +85,7 @@ void MQTT::announceStartup() {
   uint32_t batt_mv = Core::batteryMilliVolt();
   startupReading_t startup(batt_mv);
 
-  _publish_(&startup);
+  _publish(&startup);
   StatusLED::off();
 }
 
@@ -136,15 +138,12 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
   mqttInMsg_t *entry = new mqttInMsg_t;
   auto *topic = new string_t(in_topic->p, in_topic->len);
   auto *data =
-      new std::vector<char>(in_payload->p, (in_payload->p + in_payload->len));
+      new vector<char>(in_payload->p, (in_payload->p + in_payload->len));
 
   BaseType_t q_rc;
 
   entry->topic = topic;
   entry->data = data;
-
-  // ESP_LOGI(tagEngine(), "entry(%p) topic(%p) data(%p)", entry, entry->topic,
-  //          entry->data);
 
   // queue send takes a pointer to what should be copied to the queue
   // using the size defined when the queue was created
@@ -172,19 +171,19 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
   }
 }
 
-void MQTT::_publish_(Reading_t *reading) {
+void MQTT::_publish(Reading_t *reading) {
   auto *msg = reading->json();
 
   publish_msg(msg);
 }
 
-void MQTT::_publish_(Reading_t &reading) {
+void MQTT::_publish(Reading_t &reading) {
   auto *msg = reading.json();
 
   publish_msg(msg);
 }
 
-void MQTT::_publish_(Reading_ptr_t reading) {
+void MQTT::_publish(Reading_ptr_t reading) {
   auto *msg = reading->json();
 
   publish_msg(msg);
@@ -241,7 +240,7 @@ void MQTT::publish_msg(string_t *msg) {
     delete entry;
     delete msg;
 
-    std::unique_ptr<char[]> log_msg(new char[128]);
+    unique_ptr<char[]> log_msg(new char[128]);
     auto space_avail = uxQueueSpacesAvailable(_q_out);
 
     sprintf(log_msg.get(), "PUBLISH msg FAILED space_avail(%d)", space_avail);
