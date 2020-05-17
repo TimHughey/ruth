@@ -56,12 +56,12 @@ MQTT_t *MQTT::_instance_() {
 
 // SINGLETON! constructor is private
 MQTT::MQTT() {
-  // create the report and command feed topics using the configuration
-  // strings present in the object
-  _feed_rpt_actual = _feed_prefix + _feed_rpt_config;
-  _feed_cmd_actual = _feed_prefix + _feed_cmd_config;
+  // create the report and command feed topics
+  _feed_rpt = _feed_prefix + Net::hostID() + _feed_rpt_suffix;
+  _feed_cmd = _feed_prefix + _feed_cmd_suffix; // DEPRECATED
+  _feed_host = _feed_prefix + Net::hostID() + _feed_host_suffix;
 
-  // NOTE:  _feed_host_actual is created once the network is available
+  ESP_LOGI(tagEngine(), "reporting to feed[%s]", _feed_rpt.c_str());
 
   // create the endpoint URI
   const auto max_endpoint = 127;
@@ -205,8 +205,8 @@ void MQTT::outboundMsg() {
 
     ESP_LOGV(tagEngine(), "send msg(len=%u), payload(len=%u)", len, msg_len);
 
-    mg_mqtt_publish(_connection, _feed_rpt_actual.c_str(), _msg_id++,
-                    MG_MQTT_QOS(1), msg->data(), msg_len);
+    mg_mqtt_publish(_connection, _feed_rpt.c_str(), _msg_id++, MG_MQTT_QOS(1),
+                    msg->data(), msg_len);
 
     delete msg;
     delete entry;
@@ -262,7 +262,7 @@ void MQTT::core(void *data) {
 
   esp_log_level_set(tagEngine(), ESP_LOG_INFO);
 
-  _mqtt_in = new MQTTin(_q_in, _feed_cmd_actual.c_str());
+  _mqtt_in = new MQTTin(_q_in, _feed_cmd.c_str());
   ESP_LOGD(tagEngine(), "started, created MQTTin task %p", (void *)_mqtt_in);
   _mqtt_in->start();
 
@@ -318,13 +318,10 @@ void MQTT::_subACK_(struct mg_mqtt_message *msg) {
 }
 
 void MQTT::_subscribeFeeds_(struct mg_connection *nc) {
-  // build the host specific feed
-  _feed_host_actual = _feed_prefix + Net::hostID();
-  _feed_host_actual.append("/#");
 
   struct mg_mqtt_topic_expression sub[] = {
-      {.topic = _feed_cmd_actual.c_str(), .qos = 1},
-      {.topic = _feed_host_actual.c_str(), .qos = 1}};
+      {.topic = _feed_cmd.c_str(), .qos = 1},
+      {.topic = _feed_host.c_str(), .qos = 1}};
 
   _subscribe_msg_id = _msg_id++;
   ESP_LOGI(tagEngine(), "subscribe feeds[%s %s] msg_id=%d", sub[0].topic,

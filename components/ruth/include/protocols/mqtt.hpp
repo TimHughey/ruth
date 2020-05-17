@@ -146,11 +146,15 @@ private:
   //   3. the '+extra' is intended to preallocate enough space to prevent
   //      string_t re-allocs while building the actual feed
   const string_t _feed_prefix = CONFIG_RUTH_ENV "/";
-  string_t _feed_rpt_config = "ruth/f/report";
-  string_t _feed_cmd_config = "ruth/f/command";
-  string_t _feed_rpt_actual = CONFIG_RUTH_ENV "/ruth/f/command +extra";
-  string_t _feed_cmd_actual = CONFIG_RUTH_ENV "/ruth/f/report +extra";
-  string_t _feed_host_actual = CONFIG_RUTH_ENV "/ruth.xxxxxxxxxxxx/# +extra";
+  // DEPRECATION NODE:  _feed_host is replacing _feed_cmd
+  string_t _feed_cmd_suffix = "ruth/f/command";
+  string_t _feed_host_suffix = "/#";
+  string_t _feed_rpt_suffix = "/f/report";
+
+  // attempt to 'preallocate' the feed strings
+  string_t _feed_cmd = "0123456789abcdef0123456789abcdef0123456789a";
+  string_t _feed_host = "0123456789abcdef0123456789abcdef0123456789a";
+  string_t _feed_rpt = "0123456789abcdef0123456789abcdef0123456789a";
 
   uint16_t _subscribe_msg_id;
 
