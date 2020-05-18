@@ -419,3 +419,27 @@ Used static IRAM:   94279 bytes (  36793 available, 71.9% used)
     Flash rodata:  164540 bytes
 Total image size:~ 988402 bytes (.bin may be padded larger)
 <<<
+>>>
+cedf67f3 Refactor of Command Processing Checkpoint
+ninja: no work to do.
+[1/1] cd /Users/thughey/devel/ruth/build && /Users/thughey/.espressif/python_env/idf4.1_py3.7_env/bin/python /Users/thughey/devel/ruth/esp-idf-v4.1-beta1/tools/idf_size.py /Users/thughey/devel/ruth/build/ruth.map
+Total sizes:
+ DRAM .data size:   14036 bytes
+ DRAM .bss  size:   25184 bytes
+Used static DRAM:   39220 bytes ( 141516 available, 21.7% used)
+Used static IRAM:   88420 bytes (  42652 available, 67.5% used)
+      Flash code:  699371 bytes
+    Flash rodata:  147424 bytes
+Total image size:~ 949251 bytes (.bin may be padded larger)
+Adding "size"'s dependency "app" to list of commands with default set of options.
+Executing action: app
+Running ninja in directory /Users/thughey/devel/ruth/build
+Executing "ninja app"...
+Executing action: size
+Running ninja in directory /Users/thughey/devel/ruth/build
+Executing "ninja size"...
+
+App build complete. To flash, run this command:
+/Users/thughey/.espressif/python_env/idf4.1_py3.7_env/bin/python esp-idf/components/esptool_py/esptool/esptool.py -p (PORT) -b 460800 --before default_reset --after hard_reset --chip esp32  write_flash 0x10000 build/ruth.bin
+or run 'idf.py -p (PORT) app-flash'
+<<<
