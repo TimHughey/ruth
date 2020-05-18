@@ -93,9 +93,13 @@ void CmdOTA::markPartitionValid() {
       if (mark_valid_rc == ESP_OK) {
         rlog->printf("[%s] partition [%s] marked as valid",
                      esp_err_to_name(mark_valid_rc), run_part->label);
+        rlog->publish();
+        ESP_LOGI(TAG, "%s", rlog->text());
       } else {
         rlog->printf("[%s] failed to mark partition [%s] as valid",
                      esp_err_to_name(mark_valid_rc), run_part->label);
+        rlog->publish();
+        ESP_LOGE(TAG, "%s", rlog->text());
       }
     }
   }
