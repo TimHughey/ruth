@@ -47,16 +47,12 @@ const char *Profile::_assignedName() {
 
 size_t Profile::_capacity() { return _doc.capacity(); }
 
-bool Profile::_parseRawMsg(rawMsg_t *raw) {
-
-  if (raw->empty()) {
-    return false;
-  }
+bool Profile::_parseRawMsg(const char *raw) {
 
   _parse_elapsed.reset();
 
   // as of 2020-05-13 assume all messages are MsgPax encoded
-  _parse_rc = deserializeMsgPack(_doc, (const char *)raw->data());
+  _parse_rc = deserializeMsgPack(_doc, raw);
 
   _parse_elapsed.freeze();
 

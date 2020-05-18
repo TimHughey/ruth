@@ -2,39 +2,14 @@
 
 namespace ruth {
 
-// {"switch":"ds/12328621000000",
-// "states":[{"state":false,"pio":1}],
-// "refid":"0eb82430-0320-11e8-94b6-6cf049e7139f",
-// "mtime":1517029685,"cmd":"set.switch"}
-
 static const char *TAG = "CmdFactory";
 
-CmdFactory::CmdFactory() {}
-
-Cmd_t *CmdFactory::fromRaw(JsonDocument &doc, rawMsg_t *raw) {
+Cmd_t *CmdFactory::fromRaw(JsonDocument &doc, const char *raw) {
   Cmd_t *cmd = nullptr;
   elapsedMicros parse_elapsed;
 
-  // if the payload is empty there's nothing to do, return a nullptr
-  if (raw->empty()) {
-    ESP_LOGW(TAG, "payload is zero length, ignoring");
-    return cmd;
-  }
-
-  DeserializationError err;
-
-  if (raw->at(0) == '{') {
-    // this looks like a JSON payload, let's deseralize it
-    raw->push_back(0x00); // ensure payload is null terminated
-    err = deserializeJson(doc, (const char *)raw->data());
-
-  } else if (raw->at(0) > 0) {
-    // this might be a MsgPack payload, let's deseralize it
-    err = deserializeMsgPack(doc, (const char *)raw->data());
-
-  } else {
-    ESP_LOGW(TAG, "payload is not MsgPack or JSON, ignoring");
-  }
+  // deserialize the msgpack data
+  DeserializationError err = deserializeMsgPack(doc, raw);
 
   // parsing complete, freeze the elapsed timer
   parse_elapsed.freeze();
@@ -42,14 +17,14 @@ Cmd_t *CmdFactory::fromRaw(JsonDocument &doc, rawMsg_t *raw) {
   // did the deserailization succeed?
   // if so, manufacture the derived cmd
   if (err) {
-    ESP_LOGW(TAG, "[%s] JSON parse failure", err.c_str());
+    ESP_LOGW(TAG, "[%s] MSGPACK parse failure", err.c_str());
   } else {
     // deserialization success, manufacture the derived cmd
     cmd = manufacture(doc, parse_elapsed);
   }
 
   return cmd;
-}
+} // namespace ruth
 
 Cmd_t *CmdFactory::manufacture(JsonDocument &doc,
                                elapsedMicros &parse_elapsed) {

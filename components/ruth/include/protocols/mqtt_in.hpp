@@ -35,6 +35,7 @@
 
 #include "cmds/factory.hpp"
 #include "misc/local_types.hpp"
+#include "protocols/payload.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {
@@ -69,7 +70,9 @@ private:
     task->core(task->_task_data);
   }
 
-  bool handleMsg(mqttInMsg_t *msg);
+  bool handleMsg(MsgPayload_t *msg);
+  bool processMsg(const string_t &host, const string_t &subtopic,
+                  MsgPayload_t *raw);
 
 public:
   MQTTin(QueueHandle_t q, const char *cmd_feed);

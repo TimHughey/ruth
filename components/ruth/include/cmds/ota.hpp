@@ -36,14 +36,7 @@ namespace ruth {
 typedef class CmdOTA CmdOTA_t;
 class CmdOTA : public Cmd {
 private:
-  rawMsg_t *_raw = nullptr;
-  string_t _head;
-  string_t _stable;
-  string_t _partition;
-  string_t _fw_url;
-  int _delay_ms = 0;
-  int _start_delay_ms = 0;
-  int _reboot_delay_ms = 0;
+  string_t _uri;
 
   void doUpdate();
 
@@ -56,7 +49,6 @@ public:
   static void markPartitionValid();
 
   bool process();
-  uint32_t reboot_delay_ms() { return _reboot_delay_ms; };
   size_t size() const { return sizeof(CmdOTA_t); };
 
   const unique_ptr<char[]> debug();

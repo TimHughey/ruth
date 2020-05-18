@@ -42,7 +42,7 @@ class Profile {
 public:
   static const char *assignedName() { return _instance_()->_assignedName(); };
   static size_t capacity() { return _instance_()->_capacity(); };
-  static bool parseRawMsg(rawMsg_t *raw) {
+  static bool parseRawMsg(const char *raw) {
     return _instance_()->_parseRawMsg(raw);
   };
   static void postParseActions() { _instance_()->_postParseActions(); };
@@ -90,7 +90,7 @@ private:
 
   const char *_assignedName();
   size_t _capacity();
-  bool _parseRawMsg(rawMsg_t *raw);
+  bool _parseRawMsg(const char *raw);
   void _postParseActions();
   bool _subSystemEnable(const char *subsystem);
   bool _subSystemBoolean(const char *subsystem, const char *key);

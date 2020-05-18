@@ -134,28 +134,25 @@ void MQTT::_handshake_(struct mg_connection *nc) {
 }
 
 void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
-  // allocate a new string here and deallocate it once processed through MQTTin
-  mqttInMsg_t *entry = new mqttInMsg_t;
-  auto *topic = new string_t(in_topic->p, in_topic->len);
-  auto *data =
-      new vector<char>(in_payload->p, (in_payload->p + in_payload->len));
 
-  BaseType_t q_rc;
+  // ensure there is actually a payload to handle
+  if (in_payload->len == 0)
+    return;
 
-  entry->topic = topic;
-  entry->data = data;
+  // memory allocation is done here and then passed to MQTTin for processing
+  MsgPayload_t *payload = new MsgPayload(in_topic, in_payload);
 
   // queue send takes a pointer to what should be copied to the queue
   // using the size defined when the queue was created
-  q_rc = xQueueSendToBack(_q_in, (void *)&entry, _inbound_rb_wait_ticks);
+  BaseType_t q_rc;
+  q_rc = xQueueSendToBack(_q_in, (void *)&payload, _inbound_rb_wait_ticks);
 
   if (q_rc) {
     ESP_LOGV(tagEngine(),
              "INCOMING msg SENT to QUEUE (topic=%s,len=%u,msg_len=%u)",
-             topic->c_str(), sizeof(mqttInMsg_t), in_payload->len);
+             payload->topic().c_str(), sizeof(mqttInMsg_t), in_payload->len);
   } else {
-    delete data;
-    delete topic;
+    delete payload;
 
     char *msg = (char *)calloc(sizeof(char), 128);
     sprintf(msg, "RECEIVE msg FAILED (len=%u)", in_payload->len);

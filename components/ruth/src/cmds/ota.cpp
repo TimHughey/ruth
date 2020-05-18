@@ -24,21 +24,16 @@
 namespace ruth {
 
 static const char *TAG = "CmdOTA";
-static const char *k_reboot_delay_ms = "reboot_delay_ms";
-static const char *k_fw_url = "fw_url";
-
 static bool _ota_in_progress = false;
 
 CmdOTA::CmdOTA(JsonDocument &doc, elapsedMicros &e) : Cmd(doc, e) {
-
-  _fw_url = doc[k_fw_url] | "none";
-  _reboot_delay_ms = doc[k_reboot_delay_ms] | 0;
+  _uri = doc["uri"] | "none.local";
 }
 
 void CmdOTA::doUpdate() {
   const esp_partition_t *run_part = esp_ota_get_running_partition();
   esp_http_client_config_t config = {};
-  config.url = _fw_url.c_str();
+  config.url = _uri.c_str();
   config.cert_pem = Net::ca_start();
   config.event_handler = CmdOTA::httpEventHandler;
   config.timeout_ms = 1000;
@@ -75,7 +70,7 @@ void CmdOTA::doUpdate() {
     ESP_LOGE(TAG, "%s", rlog->text());
   }
 
-  Restart::restart(rlog->text(), __PRETTY_FUNCTION__, reboot_delay_ms());
+  Restart::restart(rlog->text(), __PRETTY_FUNCTION__);
 }
 
 // STATIC
@@ -92,12 +87,15 @@ void CmdOTA::markPartitionValid() {
     if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
       esp_err_t mark_valid_rc = esp_ota_mark_app_valid_cancel_rollback();
 
+      textReading_t *rlog = new textReading_t;
+      textReading_ptr_t rlog_ptr(rlog);
+
       if (mark_valid_rc == ESP_OK) {
-        ESP_LOGI(TAG, "[%s] partition [%s] marked as valid",
-                 esp_err_to_name(mark_valid_rc), run_part->label);
+        rlog->printf("[%s] partition [%s] marked as valid",
+                     esp_err_to_name(mark_valid_rc), run_part->label);
       } else {
-        ESP_LOGW(TAG, "[%s] failed to mark partition [%s] as valid",
-                 esp_err_to_name(mark_valid_rc), run_part->label);
+        rlog->printf("[%s] failed to mark partition [%s] as valid",
+                     esp_err_to_name(mark_valid_rc), run_part->label);
       }
     }
   }
@@ -112,8 +110,6 @@ bool CmdOTA::process() {
     return true;
   }
 
-  // 1. if _raw is nullptr then this is a cmd (not a data block)
-  // 2. check this command is addressed to this host
   switch (type()) {
 
   case CmdType::otaHTTPS:
@@ -122,8 +118,7 @@ bool CmdOTA::process() {
     break;
 
   case CmdType::restart:
-    Restart::restart("restart requested", __PRETTY_FUNCTION__,
-                     reboot_delay_ms());
+    Restart::restart("restart requested", __PRETTY_FUNCTION__);
     break;
 
   default:
@@ -137,9 +132,8 @@ bool CmdOTA::process() {
 const unique_ptr<char[]> CmdOTA::debug() {
   const size_t max_buf = 256;
   unique_ptr<char[]> debug_str(new char[max_buf]);
-  snprintf(debug_str.get(), max_buf,
-           "Cmd(host(%s) fw_url(%s) start_delay_ms(%dms))", host().c_str(),
-           _fw_url.c_str(), _start_delay_ms);
+  snprintf(debug_str.get(), max_buf, "Cmd(host=\"%s\" uri=\"%s\"",
+           host().c_str(), _uri.c_str());
 
   return move(debug_str);
 }

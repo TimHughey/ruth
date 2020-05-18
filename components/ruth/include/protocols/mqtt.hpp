@@ -34,6 +34,7 @@
 
 #include "external/mongoose.h"
 #include "protocols/mqtt_in.hpp"
+#include "protocols/payload.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {

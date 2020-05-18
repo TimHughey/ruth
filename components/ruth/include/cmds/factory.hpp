@@ -38,6 +38,7 @@
 #include "cmds/types.hpp"
 #include "external/ArduinoJson.hpp"
 #include "misc/local_types.hpp"
+#include "protocols/payload.hpp"
 
 namespace ruth {
 
@@ -47,9 +48,9 @@ private:
   Cmd_t *manufacture(JsonDocument &doc, elapsedMicros &parse_elapsed);
 
 public:
-  CmdFactory();
+  CmdFactory(){};
 
-  Cmd_t *fromRaw(JsonDocument &doc, rawMsg_t *raw);
+  Cmd_t *fromRaw(JsonDocument &doc, const char *raw);
 };
 
 } // namespace ruth
