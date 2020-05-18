@@ -70,10 +70,6 @@ private:
     task->core(task->_task_data);
   }
 
-  bool handleMsg(MsgPayload_t *msg);
-  bool processMsg(const string_t &host, const string_t &subtopic,
-                  MsgPayload_t *raw);
-
 public:
   MQTTin(QueueHandle_t q, const char *cmd_feed);
 

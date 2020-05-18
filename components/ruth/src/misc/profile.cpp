@@ -61,11 +61,11 @@ bool Profile::_parseRawMsg(const char *raw) {
 
 void Profile::_postParseActions() {
 
-  ESP_LOGI(TAG, "msgpack deserialization took %lldus",
-           (uint64_t)_parse_elapsed);
-
-  ESP_LOGI(TAG, "using profile=\"%s\" version=\"%s\"", _profileName(),
-           _version());
+  // ESP_LOGI(TAG, "msgpack deserialization took %lldus",
+  //          (uint64_t)_parse_elapsed);
+  //
+  // ESP_LOGI(TAG, "using profile=\"%s\" version=\"%s\"", _profileName(),
+  //          _version());
 
   Net::setName(_assignedName());
 }

@@ -33,6 +33,7 @@
 #include "external/mongoose.h"
 #include "misc/local_types.hpp"
 #include "misc/nvs.hpp"
+#include "misc/profile.hpp"
 #include "misc/restart.hpp"
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
@@ -63,7 +64,7 @@ MQTT::MQTT() {
   _feed_cmd = _feed_prefix + _feed_cmd_suffix; // DEPRECATED
   _feed_host = _feed_prefix + Net::hostID() + _feed_host_suffix;
 
-  ESP_LOGI(tagEngine(), "reporting to feed[%s]", _feed_rpt.c_str());
+  ESP_LOGV(tagEngine(), "reporting to feed=\"%s\"", _feed_rpt.c_str());
 
   // create the endpoint URI
   const auto max_endpoint = 127;
@@ -74,9 +75,9 @@ MQTT::MQTT() {
   _q_out = xQueueCreate(_q_out_len, sizeof(mqttOutMsg_t *));
   _q_in = xQueueCreate(_q_in_len, sizeof(mqttInMsg_t *));
 
-  ESP_LOGI(tagEngine(), "queue IN  len(%d) msg_size(%u) total_size(%u)",
+  ESP_LOGV(tagEngine(), "queue IN  len(%d) msg_size(%u) total_size(%u)",
            _q_in_len, sizeof(mqttInMsg_t), (sizeof(mqttInMsg_t) * _q_in_len));
-  ESP_LOGI(tagEngine(), "queue OUT len(%d) msg_size(%u) total_size(%u)",
+  ESP_LOGV(tagEngine(), "queue OUT len(%d) msg_size(%u) total_size(%u)",
            _q_out_len, sizeof(mqttOutMsg_t),
            (sizeof(mqttOutMsg_t) * _q_out_len));
 }
@@ -120,6 +121,20 @@ void MQTT::connectionClosed() {
   connect();
 }
 
+bool MQTT::handleMsg(MsgPayload_t *msg) {
+  auto processed = false;
+
+  if (msg->matchSubtopic("profile")) {
+    if (Profile::parseRawMsg(msg->payload())) {
+      Profile::postParseActions();
+    }
+
+    processed = true;
+  }
+
+  return processed;
+}
+
 void MQTT::_handshake_(struct mg_connection *nc) {
   struct mg_send_mqtt_handshake_opts opts;
   bzero(&opts, sizeof(opts));
@@ -139,8 +154,16 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
   if (in_payload->len == 0)
     return;
 
-  // memory allocation is done here and then passed to MQTTin for processing
   MsgPayload_t *payload = new MsgPayload(in_topic, in_payload);
+
+  // messages with subtopics can be handled locally
+  // EXAMPLE:  prod/ruth.mac_addr/profile
+  if (handleMsg(payload)) {
+    delete payload;
+    return;
+  }
+
+  // the message did not have a subtopic, send it to MQTTin for handling
 
   // queue send takes a pointer to what should be copied to the queue
   // using the size defined when the queue was created
@@ -148,9 +171,8 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
   q_rc = xQueueSendToBack(_q_in, (void *)&payload, _inbound_rb_wait_ticks);
 
   if (q_rc) {
-    ESP_LOGV(tagEngine(),
-             "INCOMING msg SENT to QUEUE (topic=%s,len=%u,msg_len=%u)",
-             payload->topic().c_str(), sizeof(mqttInMsg_t), in_payload->len);
+    ESP_LOGV(tagEngine(), "INCOMING payload SENT to QUEUE (len=%u,msg_len=%u)",
+             sizeof(mqttInMsg_t), in_payload->len);
   } else {
     delete payload;
 
@@ -283,7 +305,7 @@ void MQTT::core(void *data) {
     // sending a startup announcement with epoch as the timestamp
     if ((startup_announced == false) && (Net::isTimeSet()) &&
         (announce_startup_delay > 300)) {
-      ESP_LOGI(tagEngine(), "announcing startup");
+      ESP_LOGV(tagEngine(), "announcing startup");
       announceStartup();
 
       startup_announced = true;
@@ -303,7 +325,7 @@ void MQTT::core(void *data) {
 void MQTT::_subACK_(struct mg_mqtt_message *msg) {
 
   if (msg->message_id == _subscribe_msg_id) {
-    ESP_LOGI(tagEngine(), "subACK for EXPECTED msg_id=%d", msg->message_id);
+    ESP_LOGV(tagEngine(), "subACK for EXPECTED msg_id=%d", msg->message_id);
     _mqtt_ready = true;
     Net::setTransportReady();
     // NOTE: do not announce startup here.  doing so creates a race condition
@@ -333,7 +355,7 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
   switch (ev) {
   case MG_EV_CONNECT: {
     int *status = (int *)p;
-    ESP_LOGI(MQTT::tagEngine(), "CONNECT msg=%p err_code=%d err_str=%s",
+    ESP_LOGV(MQTT::tagEngine(), "CONNECT msg=%p err_code=%d err_str=%s",
              (void *)msg, *status, strerror(*status));
 
     MQTT::handshake(nc);
@@ -360,11 +382,11 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
     break;
 
   case MG_EV_MQTT_SUBSCRIBE:
-    ESP_LOGI(MQTT::tagEngine(), "subscribe event, payload=%s", msg->payload.p);
+    ESP_LOGV(MQTT::tagEngine(), "subscribe event, payload=%s", msg->payload.p);
     break;
 
   case MG_EV_MQTT_UNSUBACK:
-    ESP_LOGI(MQTT::tagEngine(), "unsub ack");
+    ESP_LOGV(MQTT::tagEngine(), "unsub ack");
     break;
 
   case MG_EV_MQTT_PUBLISH:

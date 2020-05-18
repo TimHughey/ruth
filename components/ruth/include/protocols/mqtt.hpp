@@ -90,6 +90,10 @@ public:
 
 private:
   MQTT(); // singleton, constructor is private
+
+  bool handleMsg(MsgPayload_t *msg);
+
+  // static and functions called by static functions
   static MQTT_t *_instance_();
   void _handshake_(struct mg_connection *nc);
   void _incomingMsg_(struct mg_str *topic, struct mg_str *payload);

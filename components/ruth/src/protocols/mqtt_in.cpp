@@ -73,83 +73,21 @@ void MQTTin::core(void *data) {
     BaseType_t q_rc = xQueueReceive(_q_in, &msg, portMAX_DELAY);
 
     if (q_rc == pdTRUE) {
-      auto msg_processed = handleMsg(msg);
+      // only deprecated messages without a subtopic are queued so
+      // processe the payload via the command factory
+      Cmd_t *cmd = factory.fromRaw(doc, msg->payload());
 
-      // reminder:  compare() == 0 is equals to
-      // was this message sent to the legacy command topic?
-      if ((msg_processed == false) && msg->topic().compare(_cmd_feed) == 0) {
-        Cmd_t *cmd = factory.fromRaw(doc, msg->payload());
+      if (cmd && cmd->recent() && cmd->forThisHost()) {
         Cmd_t_ptr cmd_ptr(cmd);
-
-        if (cmd_ptr == nullptr) {
-          ESP_LOGD(TAG, "could not create cmd from feed %s",
-                   msg->topic().c_str());
-        } else if (cmd->recent() && cmd->forThisHost()) {
-          cmd->process();
-        }
-      } else {
-        ESP_LOGD(TAG, "ignoring topic(%s)", msg->topic().c_str());
+        cmd->process();
       }
 
-      // ok, we're done with the contents of the previously allocated msg
+      // ok, we're done with the message
       delete msg;
     } else {
       ESP_LOGW(TAG, "queue received failed");
       continue;
     }
   } // infinite loop to process inbound MQTT messages
-}
-
-bool MQTTin::handleMsg(MsgPayload_t *msg) {
-  auto topic = msg->topic();
-  auto processed = false;
-
-  // find the positions of the slashes
-  // prod/<host>/<subtopic>
-  auto first_slash = topic.find_first_of('/');
-
-  // bad topic format
-  if (first_slash == string_t::npos)
-    return processed;
-
-  auto second_slash = topic.find_first_of('/', first_slash + 1);
-
-  // bad topic format
-  if (second_slash == string_t::npos)
-    return processed;
-
-  auto more_slashes =
-      (topic.find_first_of('/', second_slash + 1) == string_t::npos) ? false
-                                                                     : true;
-
-  if (more_slashes)
-    return processed;
-
-  auto host_spos = first_slash + 1;
-  auto host_epos = second_slash - 1;
-  auto host_len = host_epos - host_spos;
-  auto subtopic_spos = second_slash + 1;
-
-  string_t host(topic, host_spos, host_len);
-  string_t subtopic(topic, subtopic_spos);
-
-  ESP_LOGV(TAG, "host=\"%s\" subtopic=\"%s\"", host.c_str(), subtopic.c_str());
-
-  return processMsg(host, subtopic, msg);
-}
-
-bool MQTTin::processMsg(const string_t &host, const string_t &subtopic,
-                        MsgPayload_t *msg) {
-  auto processed = false;
-
-  if (subtopic.compare("profile") == 0) {
-    if (Profile::parseRawMsg(msg->payload())) {
-      Profile::postParseActions();
-    }
-
-    processed = true;
-  }
-
-  return processed;
 }
 } // namespace ruth
