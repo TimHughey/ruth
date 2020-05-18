@@ -45,7 +45,7 @@ void CmdOTA::doUpdate() {
     textReading_t *rlog = new textReading_t;
     textReading_ptr_t rlog_ptr(rlog);
 
-    rlog->printf("OTA begin part(run) name(%-8s) addr(0x%x)", run_part->label,
+    rlog->printf("OTA begin label=\"%s\" addr=0x%x", run_part->label,
                  run_part->address);
     rlog->publish();
     ESP_LOGI(TAG, "%s", rlog->text());
@@ -60,7 +60,7 @@ void CmdOTA::doUpdate() {
   elapsedMicros ota_elapsed;
   esp_err_t esp_rc = esp_https_ota(&config);
 
-  rlog->printf("[%s] OTA elapsed(%0.2fs)", esp_err_to_name(esp_rc),
+  rlog->printf("[%s] OTA elapsed=%0.2fs", esp_err_to_name(esp_rc),
                ota_elapsed.asSeconds());
 
   if (esp_rc == ESP_OK) {
@@ -91,12 +91,12 @@ void CmdOTA::markPartitionValid() {
       textReading_ptr_t rlog_ptr(rlog);
 
       if (mark_valid_rc == ESP_OK) {
-        rlog->printf("[%s] partition [%s] marked as valid",
+        rlog->printf("[%s] partition=\"%s\" marked as valid",
                      esp_err_to_name(mark_valid_rc), run_part->label);
         rlog->publish();
         ESP_LOGI(TAG, "%s", rlog->text());
       } else {
-        rlog->printf("[%s] failed to mark partition [%s] as valid",
+        rlog->printf("[%s] failed to mark partition=\"%s\" as valid",
                      esp_err_to_name(mark_valid_rc), run_part->label);
         rlog->publish();
         ESP_LOGE(TAG, "%s", rlog->text());
