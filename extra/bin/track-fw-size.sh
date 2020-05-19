@@ -16,7 +16,7 @@ idf.py size 1>/dev/null 2>/dev/null || exit 1
 # the second make records the clean output
 echo ">>>" >> ${tracker}
 git log -1 1>>${tracker}
-idf.py size 1>>${tracker}
+idf.py size | grep -e Total -e DRAM -e Used -e Flash 1>>${tracker}
 echo "<<<" >> ${tracker}
 
 popd
