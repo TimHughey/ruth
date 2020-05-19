@@ -36,7 +36,7 @@
 #include "cmds/pwm.hpp"
 #include "cmds/switch.hpp"
 #include "cmds/types.hpp"
-#include "external/ArduinoJson.hpp"
+#include "external/ArduinoJson.h"
 #include "misc/local_types.hpp"
 #include "protocols/payload.hpp"
 

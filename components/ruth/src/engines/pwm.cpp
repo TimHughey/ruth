@@ -28,11 +28,19 @@ static PulseWidth_t *__singleton__ = nullptr;
 static const string_t engine_name = "PWM";
 
 // document example:
-// {"ack":true,"cmd":"pwm","device":"pwm/lab-ledge:pin1","duty":100,"mtime":1589852135,"refid":"5fb00fa5-76d4-4168-a7b7-8d216d59ddc0","seq":{"s0":{"duty":100,"ms":100},"s1":{"duty":100,"ms":100},"s2":{"duty":100,"ms":100},"s3":{"duty":100,"ms":100},"s4":{"duty":100,"ms":100},"s5":{"duty":100,"ms":100},"s6":{"duty":100,"ms":100},"s7":{"duty":100,"ms":100},"s8":{"duty":100,"ms":100},"s9":{"duty":100,"ms":100},"s10":{"duty":100,"ms":100},"s11":{"duty":100,"ms":100}}}
+// {"ack":true,"cmd":"pwm","device":"pwm/lab-ledge:pin1","duty":100,
+//  "mtime":1589852135,"refid":"5fb00fa5-76d4-4168-a7b7-8d216d59ddc0",
+//  "seq":{"s0":{"duty":100,"ms":100},"s1":{"duty":100,"ms":100},
+//  "s2":{"duty":100,"ms":100},"s3":{"duty":100,"ms":100},
+//  "s4":{"duty":100,"ms":100},"s5":{"duty":100,"ms":100},
+//  "s6":{"duty":100,"ms":100},"s7":{"duty":100,"ms":100},
+//  "s8":{"duty":100,"ms":100},"s9":{"duty":100,"ms":100},
+//  "s10":{"duty":100,"ms":100},"s11":{"duty":100,"ms":100},"repeat":true}}
+
 // space for up to 13 sequences
 
 const size_t _capacity =
-    12 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + JSON_OBJECT_SIZE(12) + 260;
+    12 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + JSON_OBJECT_SIZE(13) + 270;
 
 PulseWidth::PulseWidth() {
   pwmDev::allOff(); // ensure all pins are off at initialization
@@ -64,8 +72,6 @@ void PulseWidth::command(void *data) {
   logSubTaskStart(data);
 
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdPWM_t *));
-  cmdQueue_t cmd_q = {"PulseWidth", "pwm", _cmd_q};
-  CmdQueues::registerQ(cmd_q);
 
   while (true) {
     BaseType_t queue_rc = pdFALSE;
