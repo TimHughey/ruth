@@ -52,8 +52,6 @@ class PulseWidth : public Engine<pwmDev_t> {
 private:
   PulseWidth();
 
-  bool commandAck(JsonDocument &doc);
-
 public:
   // returns true if the instance (singleton) has been created
   static bool engineEnabled();
@@ -88,45 +86,16 @@ private:
 
   pwmLastWakeTime_t _last_wake;
 
-  elapsedMicros _cmd_elapsed;
-  elapsedMicros _latency_us;
-
 private:
   static PulseWidth_t *_instance_();
+
+  bool commandExecute(JsonDocument &doc);
+
   // generic read device that will call the specific methods
   bool readDevice(pwmDev_t *dev);
 
   bool configureTimer();
   bool detectDevice(pwmDev_t *dev);
-
-  bool commandExecute(JsonDocument &doc);
-
-  bool _queuePayload(MsgPayload_t *payload) {
-    auto rc = false;
-    auto q_rc = pdTRUE;
-
-    if (uxQueueSpacesAvailable(_cmd_q) == 0) {
-      MsgPayload_t *old = nullptr;
-
-      q_rc = xQueueReceive(_cmd_q, &old, pdMS_TO_TICKS(10));
-
-      if ((q_rc == pdTRUE) && (old != nullptr)) {
-        delete old;
-      }
-    }
-
-    if (q_rc == pdTRUE) {
-      q_rc = xQueueSendToBack(_cmd_q, (void *)&payload, pdMS_TO_TICKS(10));
-
-      if (q_rc == pdTRUE) {
-        rc = true;
-      } else {
-        // payload was not queued, delete it
-        delete payload;
-      }
-    }
-    return rc;
-  }
 
   void printUnhandledDev(pwmDev_t *dev);
 

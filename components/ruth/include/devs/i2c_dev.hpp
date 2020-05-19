@@ -26,9 +26,9 @@
 
 #include "devs/base.hpp"
 
-using std::unique_ptr;
-
 namespace ruth {
+
+using std::unique_ptr;
 
 typedef class i2cDev i2cDev_t;
 typedef class std::vector<uint8_t> RawData_t;
@@ -39,7 +39,6 @@ public:
   static const char *i2cDevDesc(uint8_t addr);
 
 private:
-  string_t _external_name; // name used to report externally
   static const uint32_t _i2c_max_addr_len = 1;
   static const uint32_t _i2c_max_id_len = 30;
   static const uint32_t _i2c_addr_byte = 0;
@@ -59,8 +58,6 @@ public:
   uint8_t readAddr();
   void storeRawData(RawData_t &data);
   uint8_t writeAddr();
-
-  const char *externalName();
 
   // info / debug functions
   const unique_ptr<char[]> debug();

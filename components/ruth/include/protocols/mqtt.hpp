@@ -33,7 +33,6 @@
 #include <sdkconfig.h>
 
 #include "external/mongoose.h"
-#include "protocols/mqtt_in.hpp"
 #include "protocols/payload.hpp"
 #include "readings/readings.hpp"
 
@@ -133,11 +132,7 @@ private:
   TickType_t _outbound_msg_ticks = pdMS_TO_TICKS(30);
 
   const size_t _q_out_len = (sizeof(mqttOutMsg_t) * 128);
-  const size_t _q_in_len = ((sizeof(mqttInMsg_t) * 128) / 2);
   QueueHandle_t _q_out = nullptr;
-  QueueHandle_t _q_in = nullptr;
-
-  MQTTin_t *_mqtt_in = nullptr;
 
   // const char *_dns_server = CONFIG_RUTH_DNS_SERVER;
   const string_t _host = CONFIG_RUTH_MQTT_HOST;

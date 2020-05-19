@@ -22,6 +22,7 @@
 #define ruth_engine_h
 
 #include <algorithm>
+#include <bitset>
 #include <cstdlib>
 #include <unordered_map>
 
@@ -29,8 +30,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "cmds/queues.hpp"
-#include "cmds/switch.hpp"
 #include "devs/base.hpp"
 #include "engines/types.hpp"
 #include "misc/elapsedMillis.hpp"
@@ -44,9 +43,13 @@
 
 namespace ruth {
 
+using std::bitset;
 using std::unordered_map;
 
+typedef bitset<8> cmd_bitset_t;
+
 template <class DEV> class Engine {
+
 private:
   TaskMap_t _task_map;
 
@@ -360,6 +363,8 @@ protected:
   virtual void discover(void *data) { doNothing(); };
   virtual void report(void *data) { doNothing(); };
 
+  virtual bool readDevice(DEV *dev) = 0;
+
   void logSubTaskStart(void *task_info) {
     logSubTaskStart((EngineTask_ptr_t)task_info);
   }
@@ -369,16 +374,6 @@ protected:
              "subtask(%p) running, priority(%d) stack(%d)", task_info->_handle,
              task_info->_priority, task_info->_stackSize);
   }
-
-  DEV *getDeviceByCmd(Cmd_t &cmd) {
-    DEV *dev = findDevice(cmd.internalDevID());
-    return dev;
-  };
-
-  DEV *getDeviceByCmd(Cmd_t *cmd) {
-    DEV *dev = findDevice(cmd->internalDevID());
-    return dev;
-  };
 
   // event group bits
   EventBits_t engineBit() { return _event_bits.engine_running; }
@@ -460,7 +455,6 @@ protected:
     return false;
   }
 
-  bool publish(Cmd_t &cmd) { return publish(cmd.internalDevID()); };
   bool publish(const string_t &dev_id) {
     DEV *search = findDevice(dev_id);
 
@@ -497,14 +491,9 @@ protected:
 
   virtual bool resetBus(bool *additional_status = nullptr) { return true; }
 
-  void setCmdAck(Cmd_t &cmd) {
-    DEV *dev = findDevice(cmd.internalDevID());
-
-    if (dev != nullptr) {
-      dev->setReadingCmdAck(cmd.latency_us(), cmd.refID());
-    } else {
-      ESP_LOGW(tagEngine(), "device %s not found while setting cmd ack",
-               cmd.internalDevID().c_str());
+  void setCmdAck(DEV *dev, const char *refid, elapsedMicros latency_us) {
+    if (dev) {
+      dev->setReadingCmdAck(latency_us, refid);
     }
   }
 
@@ -576,6 +565,53 @@ protected:
 protected:
   const int _max_queue_depth = 30;
   QueueHandle_t _cmd_q = nullptr;
+  elapsedMicros _cmd_elapsed;
+  elapsedMicros _latency_us;
+
+  bool commandAck(JsonDocument &doc) {
+    bool rc = false;
+    DEV *dev = findDevice(doc["device"]);
+
+    if (dev != nullptr) {
+      rc = readDevice(dev);
+
+      if (rc && doc["ack"].as<bool>()) {
+        dev->setReadingCmdAck(_cmd_elapsed, doc["refid"]);
+        publish(dev);
+      }
+    }
+
+    return rc;
+  }
+
+  virtual bool commandExecute(JsonDocument &doc) { return false; }
+
+  bool _queuePayload(MsgPayload_t *payload) {
+    auto rc = false;
+    auto q_rc = pdTRUE;
+
+    if (uxQueueSpacesAvailable(_cmd_q) == 0) {
+      MsgPayload_t *old = nullptr;
+
+      q_rc = xQueueReceive(_cmd_q, &old, pdMS_TO_TICKS(10));
+
+      if ((q_rc == pdTRUE) && (old != nullptr)) {
+        delete old;
+      }
+    }
+
+    if (q_rc == pdTRUE) {
+      q_rc = xQueueSendToBack(_cmd_q, (void *)&payload, pdMS_TO_TICKS(10));
+
+      if (q_rc == pdTRUE) {
+        rc = true;
+      } else {
+        // payload was not queued, delete it
+        delete payload;
+      }
+    }
+    return rc;
+  }
 
 public:
   const char *tagCommand() { return tagGeneric("command"); }

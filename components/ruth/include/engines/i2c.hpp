@@ -60,12 +60,20 @@ class I2c : public Engine<i2cDev_t> {
 private:
   I2c();
 
-  bool commandAck(cmdSwitch_t &cmd);
-
 public:
+  // returns true if the instance (singleton) has been created
+  static bool engineEnabled();
   static void startIfEnabled() {
     if (Profile::i2cEnable()) {
       _instance_()->start();
+    }
+  }
+
+  static bool queuePayload(MsgPayload_t *payload) {
+    if (engineEnabled()) {
+      return _instance_()->_queuePayload(payload);
+    } else {
+      return false;
     }
   }
 
@@ -111,6 +119,7 @@ private:
       {DeviceAddress(0x27)}, {DeviceAddress(0x36)}, {DeviceAddress(0x00)}};
 
   static I2c_t *_instance_();
+  bool commandExecute(JsonDocument &doc);
 
   DeviceAddress_t *search_addrs() { return _search_addrs; };
   inline uint32_t search_addrs_count() {
@@ -122,7 +131,7 @@ private:
 
   // specific methods to read devices
   bool readMCP23008(i2cDev_t *dev);
-  bool setMCP23008(cmdSwitch_t &cmd, i2cDev_t *dev);
+  bool setMCP23008(JsonDocument &doc, i2cDev_t *dev);
   bool readSeesawSoil(i2cDev_t *dev);
   bool readSHT31(i2cDev_t *dev);
 

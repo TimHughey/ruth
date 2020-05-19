@@ -70,6 +70,9 @@ I2c::I2c() {
   gpio_config(&rst_pin_cfg);
 }
 
+// STATIC!
+bool I2c::engineEnabled() { return (__singleton__) ? true : false; }
+
 //
 // Tasks
 //
@@ -77,107 +80,93 @@ I2c::I2c() {
 void I2c::command(void *data) {
   logSubTaskStart(data);
 
-  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdSwitch_t *));
-  cmdQueue_t cmd_q = {"I2c", "i2c", _cmd_q};
-  CmdQueues::registerQ(cmd_q);
+  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   while (true) {
     BaseType_t queue_rc = pdFALSE;
-    cmdSwitch_t *cmd = nullptr;
-
-    queue_rc = xQueueReceive(_cmd_q, &cmd, portMAX_DELAY);
-    // wrap in a unique_ptr so it is freed when out of scope
-    std::unique_ptr<cmdSwitch> cmd_ptr(cmd);
+    MsgPayload_t *payload = nullptr;
     elapsedMicros process_cmd;
+
+    _cmd_elapsed.reset();
+
+    queue_rc = xQueueReceive(_cmd_q, &payload, portMAX_DELAY);
+    // wrap in a unique_ptr so it is freed when out of scope
+    unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     if (queue_rc == pdFALSE) {
       ESP_LOGW(tagCommand(), "[rc=%d] queue receive failed", queue_rc);
       continue;
     }
 
-    ESP_LOGD(tagCommand(), "processing %s", cmd->debug().get());
+    elapsedMicros parse_elapsed;
+    // deserialize the msgpack data
+    DynamicJsonDocument doc(1024);
+    DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
-    // is the command for this host?
-    if (cmd->matchExternalDevID() == false) {
+    // we're done with the original payload at this point
+    payload_ptr.reset();
+
+    // parsing complete, freeze the elapsed timer
+    parse_elapsed.freeze();
+
+    // did the deserailization succeed?
+    if (err) {
+      ESP_LOGW(tagCommand(), "[%s] MSGPACK parse failure", err.c_str());
       continue;
     }
 
-    i2cDev_t *dev = findDevice(cmd->internalDevID());
-
-    if ((dev != nullptr) && dev->isValid()) {
-      bool set_rc = false;
-
-      trackSwitchCmd(true);
-
-      needBus();
-      ESP_LOGV(tagCommand(), "attempting to aquire bux mutex...");
-      elapsedMicros bus_wait;
-      takeBus();
-
-      if (bus_wait < 500) {
-        ESP_LOGV(tagCommand(), "acquired bus mutex (%lluus)",
-                 (uint64_t)bus_wait);
-      } else {
-        ESP_LOGW(tagCommand(), "acquire bus mutex took %0.2fms",
-                 (float)(bus_wait / 1000.0));
-      }
-
-      // the device write time is the total duration of all processing
-      // of the write -- not just the duration on the bus
-      dev->writeStart();
-
-      ESP_LOGD(tagCommand(), "received cmd for %s", dev->id().c_str());
-      set_rc = setMCP23008(*cmd, dev);
-
-      dev->writeStop();
-
-      if (set_rc) {
-        commandAck(*cmd);
-      }
-
-      trackSwitchCmd(false);
-
-      clearNeedBus();
-      giveBus();
-
-      ESP_LOGV(tagCommand(), "released bus mutex");
-    } else {
-      ESP_LOGW(tagCommand(), "device %s not available",
-               (const char *)cmd->internalDevID().c_str());
-    }
-
-    if (process_cmd > 100000) { // 100ms
-      ESP_LOGW(tagCommand(), "took %0.3fms for %s",
-               (float)(process_cmd / 1000.0), cmd->debug().get());
-    }
+    commandExecute(doc);
   }
 }
 
-bool I2c::commandAck(cmdSwitch_t &cmd) {
-  bool rc = true;
-  elapsedMicros elapsed;
-  i2cDev_t *dev = findDevice(cmd.internalDevID());
+bool I2c::commandExecute(JsonDocument &doc) {
+  i2cDev_t *dev = findDevice(doc["device"]);
 
-  if (dev != nullptr) {
-    rc = readDevice(dev);
+  if (dev == nullptr) {
+    return false;
+  }
 
-    if (rc && cmd.ack()) {
-      setCmdAck(cmd);
-      publish(cmd);
+  // _latency_us.reset();
+
+  if (dev->isValid()) {
+    bool set_rc = false;
+
+    trackSwitchCmd(true);
+
+    needBus();
+    ESP_LOGV(tagCommand(), "attempting to aquire bux mutex...");
+    elapsedMicros bus_wait;
+    takeBus();
+
+    if (bus_wait < 500) {
+      ESP_LOGV(tagCommand(), "acquired bus mutex (%lluus)", (uint64_t)bus_wait);
+    } else {
+      ESP_LOGW(tagCommand(), "acquire bus mutex took %0.2fms",
+               (float)(bus_wait / 1000.0));
     }
-  } else {
-    ESP_LOGW(tagCommand(), "unable to find device for cmd ack %s",
-             cmd.debug().get());
+
+    // the device write time is the total duration of all processing
+    // of the write -- not just the duration on the bus
+    dev->writeStart();
+
+    ESP_LOGD(tagCommand(), "received cmd for %s", dev->id().c_str());
+    set_rc = setMCP23008(doc, dev);
+
+    dev->writeStop();
+
+    if (set_rc) {
+      commandAck(doc);
+    }
+
+    trackSwitchCmd(false);
+
+    clearNeedBus();
+    giveBus();
+
+    ESP_LOGV(tagCommand(), "released bus mutex");
+    return true;
   }
-
-  ESP_LOGD(tagCommand(), "completed cmd: %s", cmd.debug().get());
-
-  if (elapsed > 100000) { // 100ms
-    float elapsed_ms = (float)(elapsed / 1000.0);
-    ESP_LOGW(tagCommand(), "ACK took %0.3fms", elapsed_ms);
-  }
-
-  return rc;
+  return false;
 }
 
 void I2c::core(void *task_data) {
@@ -622,8 +611,8 @@ bool I2c::readMCP23008(i2cDev_t *dev) {
 
     dev->justSeen();
 
-    positionsReading_t *reading = new positionsReading(
-        dev->externalName(), time(nullptr), positions, (uint8_t)8);
+    positionsReading_t *reading =
+        new positionsReading(dev->id(), time(nullptr), positions, (uint8_t)8);
 
     reading->setLogReading();
     dev->setReading(reading);
@@ -707,8 +696,8 @@ bool I2c::readSeesawSoil(i2cDev_t *dev) {
   if (esp_rc == ESP_OK) {
     dev->justSeen();
 
-    soilReading_t *reading = new soilReading(
-        dev->externalName(), dev->readTimestamp(), tempC, soil_moisture);
+    soilReading_t *reading =
+        new soilReading(dev->id(), dev->readTimestamp(), tempC, soil_moisture);
 
     dev->setReading(reading);
     rc = true;
@@ -749,8 +738,8 @@ bool I2c::readSHT31(i2cDev_t *dev) {
       float tc = (float)((stc * 175) / 0xffff) - 45;
       float rh = (float)((srh * 100) / 0xffff);
 
-      humidityReading_t *reading = new humidityReading(
-          dev->externalName(), dev->readTimestamp(), tc, rh);
+      humidityReading_t *reading =
+          new humidityReading(dev->id(), dev->readTimestamp(), tc, rh);
 
       dev->setReading(reading);
 
@@ -876,7 +865,7 @@ bool I2c::selectBus(uint32_t bus) {
   return rc;
 }
 
-bool I2c::setMCP23008(cmdSwitch_t &cmd, i2cDev_t *dev) {
+bool I2c::setMCP23008(JsonDocument &doc, i2cDev_t *dev) {
   bool rc = false;
   auto esp_rc = ESP_OK;
 
@@ -908,8 +897,8 @@ bool I2c::setMCP23008(cmdSwitch_t &cmd, i2cDev_t *dev) {
                          nullptr, 0, esp_rc);
   }
 
-  auto mask = cmd.mask().to_ulong();
-  auto changes = cmd.state().to_ulong();
+  uint32_t mask = doc["mask"];
+  uint32_t changes = doc["state"];
   auto asis_state = reading->state();
   auto new_state = 0x00;
 

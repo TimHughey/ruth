@@ -74,31 +74,13 @@ i2cDev::i2cDev(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
 
   setDescription(i2cDevDesc(firstAddressByte()));
 
-  snprintf(id.get(), max_id_len, "i2c/self.%02x.%s", this->bus(),
-           description().c_str());
+  snprintf(id.get(), max_id_len, "i2c/%s.%02x.%s", Net::getName().c_str(),
+           this->bus(), description().c_str());
 
   setID(id.get());
 
   _raw_data.reserve(24);
 };
-
-// externalName implementation for i2cDev
-// externalName includes the host name (instead of self)
-const char *i2cDev::externalName() {
-
-  // if _external_name hasn't been set then build it here
-  if (_external_name.length() == 0) {
-    const auto name_max = 64;
-    unique_ptr<char[]> name(new char[name_max + 1]);
-
-    snprintf(name.get(), name_max, "i2c/%s.%02x.%s", Net::getName().c_str(),
-             this->bus(), description().c_str());
-
-    _external_name = name.get();
-  }
-
-  return _external_name.c_str();
-}
 
 uint8_t i2cDev::devAddr() { return firstAddressByte(); };
 bool i2cDev::useMultiplexer() { return _use_multiplexer; };
@@ -121,7 +103,7 @@ const unique_ptr<char[]> i2cDev::debug() {
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
   snprintf(debug_str.get(), max_len, "i2cDev(%s bus=%d use_mplex=%s)",
-           externalName(), _bus, (_use_multiplexer) ? "true" : "false");
+           id().c_str(), _bus, (_use_multiplexer) ? "true" : "false");
 
   return move(debug_str);
 }

@@ -515,3 +515,27 @@ App build complete. To flash, run this command:
 /Users/thughey/.espressif/python_env/idf4.1_py3.7_env/bin/python esp-idf/components/esptool_py/esptool/esptool.py -p (PORT) -b 460800 --before default_reset --after hard_reset --chip esp32  write_flash 0x10000 build/ruth.bin
 or run 'idf.py -p (PORT) app-flash'
 <<<
+>>>
+e3609ce1 Removed Legacy CmdOTA Code
+ninja: no work to do.
+[1/1] cd /Users/thughey/devel/ruth/build && /Users/thughey/.espressif/python_env/idf4.1_py3.7_env/bin/python /Users/thughey/devel/ruth/esp-idf-v4.1-beta1/tools/idf_size.py /Users/thughey/devel/ruth/build/ruth.map
+Total sizes:
+ DRAM .data size:   14028 bytes
+ DRAM .bss  size:   25192 bytes
+Used static DRAM:   39220 bytes ( 141516 available, 21.7% used)
+Used static IRAM:   88788 bytes (  42284 available, 67.7% used)
+      Flash code:  697455 bytes
+    Flash rodata:  146680 bytes
+Total image size:~ 946951 bytes (.bin may be padded larger)
+Adding "size"'s dependency "app" to list of commands with default set of options.
+Executing action: app
+Running ninja in directory /Users/thughey/devel/ruth/build
+Executing "ninja app"...
+Executing action: size
+Running ninja in directory /Users/thughey/devel/ruth/build
+Executing "ninja size"...
+
+App build complete. To flash, run this command:
+/Users/thughey/.espressif/python_env/idf4.1_py3.7_env/bin/python esp-idf/components/esptool_py/esptool/esptool.py -p (PORT) -b 460800 --before default_reset --after hard_reset --chip esp32  write_flash 0x10000 build/ruth.bin
+or run 'idf.py -p (PORT) app-flash'
+<<<

@@ -21,12 +21,6 @@ set(
     "src/devs/pwm")
 
 set(
-  RUTH_CMDS
-    "src/cmds/base"     "src/cmds/factory"
-     "src/cmds/queues"
-    "src/cmds/switch"   "src/cmds/types")
-
-set(
   RUTH_ENGINES
     "src/engines/i2c"   "src/engines/ds"
     "src/engines/pwm")
@@ -41,7 +35,7 @@ set(
 
 set(
   RUTH_PROTOCOLS
-    "src/protocols/mqtt"  "src/protocols/mqtt_in")
+    "src/protocols/mqtt")
 
 set(
   RUTH_EXTERNAL_LIBS
@@ -56,7 +50,7 @@ set(
 # component for idf to build
 idf_component_register(
   SRCS
-    ${RUTH_CORE} ${RUTH_MISC} ${RUTH_NET} ${RUTH_DEVS} ${RUTH_CMDS}
+    ${RUTH_CORE} ${RUTH_MISC} ${RUTH_NET} ${RUTH_DEVS}
     ${RUTH_ENGINES} ${RUTH_READINGS} ${RUTH_PROTOCOLS} ${RUTH_EXTERNAL_LIBS} ${RUTH_DRIVERS}
   INCLUDE_DIRS
     "include" "include/external"

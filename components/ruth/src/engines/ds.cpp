@@ -38,6 +38,8 @@ namespace ruth {
 DallasSemi_t *__singleton__ = nullptr;
 static const string_t engine_name = "DallasSemi";
 
+const size_t _capacity = 1024;
+
 DallasSemi::DallasSemi() {
   setTags(localTags());
   // setLoggingLevel(ESP_LOG_DEBUG);
@@ -61,6 +63,9 @@ DallasSemi::DallasSemi() {
   addTask(engine_name, DISCOVER, discover);
   addTask(engine_name, REPORT, report);
 }
+
+// STATIC!
+bool DallasSemi::engineEnabled() { return (__singleton__) ? true : false; }
 
 bool DallasSemi::checkDevicesPowered() {
   bool rc = false;
@@ -91,137 +96,98 @@ bool DallasSemi::checkDevicesPowered() {
 void DallasSemi::command(void *data) {
   logSubTaskStart(data);
 
-  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdSwitch_t *));
-  cmdQueue_t cmd_q = {"DallasSemi", "ds", _cmd_q};
-  CmdQueues::registerQ(cmd_q);
+  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   // no setup required before jumping into task loop
 
-  for (;;) {
+  while (true) {
     BaseType_t queue_rc = pdFALSE;
-    cmdSwitch_t *cmd = nullptr;
+    MsgPayload_t *payload = nullptr;
+    elapsedMicros process_cmd;
+
+    _cmd_elapsed.reset();
 
     clearNeedBus();
-    queue_rc = xQueueReceive(_cmd_q, &cmd, portMAX_DELAY);
-    elapsedMicros process_cmd;
+    queue_rc = xQueueReceive(_cmd_q, &payload, portMAX_DELAY);
+    // wrap in a unique_ptr so it is freed when out of scope
+    unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     if (queue_rc == pdFALSE) {
       ESP_LOGW(tagCommand(), "[rc=%d] queue receive failed", queue_rc);
       continue;
     }
 
-    ESP_LOGD(tagCommand(), "processing %s", cmd->debug().get());
+    elapsedMicros parse_elapsed;
+    // deserialize the msgpack data
+    DynamicJsonDocument doc(1024);
+    DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
-    dsDev_t *dev = findDevice(cmd->internalDevID());
+    // we're done with the original payload at this point
+    payload_ptr.reset();
 
-    if ((dev != nullptr) && dev->isValid()) {
-      bool set_rc = false;
+    // parsing complete, freeze the elapsed timer
+    parse_elapsed.freeze();
 
-      trackSwitchCmd(true);
-
-      needBus();
-      ESP_LOGV(tagCommand(), "attempting to aquire bux mutex...");
-      elapsedMicros bus_wait;
-      takeBus();
-
-      if (bus_wait < 500) {
-        ESP_LOGV(tagCommand(), "acquired bus mutex (%lluus)",
-                 (uint64_t)bus_wait);
-      } else {
-        ESP_LOGW(tagCommand(), "acquire bus mutex took %0.2fms",
-                 (float)(bus_wait / 1000.0));
-      }
-
-      // the device write time is the total duration of all processing
-      // of the write -- not just the duration on the bus
-      dev->writeStart();
-
-      if (dev->isDS2406()) {
-        set_rc = setDS2406(*cmd, dev);
-      } else if (dev->isDS2408()) {
-        set_rc = setDS2408(*cmd, dev);
-      } else if (dev->isDS2413()) {
-        set_rc = setDS2413(*cmd, dev);
-      }
-
-      dev->writeStop();
-
-      // bool ack_success = false;
-      if (set_rc) {
-        // ack_success = commandAck(*cmd);
-        commandAck(*cmd);
-      }
-
-      trackSwitchCmd(false);
-
-      // we create a textReading then wrap in textReading_ptr_t (aka unique_ptr)
-      // to delete when it falls out of scope
-      // bool remote_log = false;
-
-      // textReading_t *rlog(new textReading_t);
-      // textReading_ptr_t rlog_ptr(rlog);
-
-      // if (set_rc && ack_success) {
-      //   if (remote_log) {
-      //     rlog->printf("cmd and ack complete for %s",
-      //                  (const char *)cmd->internalDevID().c_str());
-      //   }
-      //   ESP_LOGV(tagCommand(), "%s", rlog->text());
-      //
-      // } else {
-      //
-      //   rlog->printf("%s ack failed set_rc(%s) ack(%s)",
-      //                (const char *)cmd->internalDevID().c_str(),
-      //                (set_rc) ? "true" : "false",
-      //                (ack_success) ? "true" : "false");
-      //   ESP_LOGW(tagCommand(), "%s", rlog->text());
-      // }
-      //
-      // rlog->publish();
-
-      giveBus();
-
-      ESP_LOGV(tagCommand(), "released bus mutex");
-    } else {
-      ESP_LOGV(tagCommand(), "device %s not available",
-               (const char *)cmd->internalDevID().c_str());
+    // did the deserailization succeed?
+    if (err) {
+      ESP_LOGW(tagCommand(), "[%s] MSGPACK parse failure", err.c_str());
+      continue;
     }
 
-    if (process_cmd > 100000) { // 100ms
-      ESP_LOGW(tagCommand(), "took %0.3fms for %s",
-               (float)(process_cmd / 1000.0), cmd->debug().get());
-    }
-
-    delete cmd;
+    commandExecute(doc);
   }
 }
 
-bool DallasSemi::commandAck(cmdSwitch_t &cmd) {
-  bool rc = true;
-  int64_t start = esp_timer_get_time();
-  dsDev_t *dev = findDevice(cmd.internalDevID());
+bool DallasSemi::commandExecute(JsonDocument &doc) {
+  dsDev_t *dev = findDevice(doc["device"]);
 
-  if (dev != nullptr) {
-    rc = readDevice(dev);
+  if (dev == nullptr) {
+    return false;
+  }
 
-    if (rc && cmd.ack()) {
-      setCmdAck(cmd);
-      publish(cmd);
+  if (dev->isValid()) {
+    bool set_rc = false;
+
+    trackSwitchCmd(true);
+
+    needBus();
+    ESP_LOGV(tagCommand(), "attempting to aquire bux mutex...");
+    elapsedMicros bus_wait;
+    takeBus();
+
+    if (bus_wait < 500) {
+      ESP_LOGV(tagCommand(), "acquired bus mutex (%lluus)", (uint64_t)bus_wait);
+    } else {
+      ESP_LOGW(tagCommand(), "acquire bus mutex took %0.2fms",
+               (float)(bus_wait / 1000.0));
     }
-  } else {
-    ESP_LOGW(tagCommand(), "unable to find device for cmd ack %s",
-             cmd.debug().get());
+
+    // the device write time is the total duration of all processing
+    // of the write -- not just the duration on the bus
+    dev->writeStart();
+
+    if (dev->isDS2406()) {
+      set_rc = setDS2406(doc, dev);
+    } else if (dev->isDS2408()) {
+      set_rc = setDS2408(doc, dev);
+    } else if (dev->isDS2413()) {
+      set_rc = setDS2413(doc, dev);
+    }
+
+    dev->writeStop();
+
+    if (set_rc) {
+      commandAck(doc);
+    }
+
+    trackSwitchCmd(false);
+
+    giveBus();
+
+    ESP_LOGV(tagCommand(), "released bus mutex");
+    return true;
   }
-
-  ESP_LOGD(tagCommand(), "completed cmd: %s", cmd.debug().get());
-
-  int64_t elapsed_us = esp_timer_get_time() - start;
-  if (elapsed_us > 100000) { // 100ms
-    float elapsed_ms = (float)(elapsed_us / 1000.0);
-    ESP_LOGW(tagCommand(), "ACK took %0.3fms", elapsed_ms);
-  }
-
-  return rc;
+  return false;
 }
 
 // SubTasks receive their task config via the void *data
@@ -896,13 +862,13 @@ void DallasSemi::core(void *data) {
   }
 }
 
-bool DallasSemi::setDS2406(cmdSwitch_t &cmd, dsDev_t *dev) {
+bool DallasSemi::setDS2406(JsonDocument &doc, dsDev_t *dev) {
   owb_status owb_s;
   bool rc = false;
 
   positionsReading_t *reading = (positionsReading_t *)dev->reading();
-  uint32_t mask = cmd.mask().to_ulong();
-  uint32_t tobe_state = cmd.state().to_ulong();
+  uint32_t mask = doc["mask"];
+  uint32_t tobe_state = doc["state"];
   uint32_t asis_state = reading->state();
 
   bool pio_a = (mask & 0x01) ? (tobe_state & 0x01) : (asis_state & 0x01);
@@ -963,7 +929,7 @@ bool DallasSemi::setDS2406(cmdSwitch_t &cmd, dsDev_t *dev) {
   return rc;
 }
 
-bool DallasSemi::setDS2408(cmdSwitch_t &cmd, dsDev_t *dev) {
+bool DallasSemi::setDS2408(JsonDocument &doc, dsDev_t *dev) {
   owb_status owb_s;
   bool rc = false;
 
@@ -984,8 +950,8 @@ bool DallasSemi::setDS2408(cmdSwitch_t &cmd, dsDev_t *dev) {
 
   positionsReading_t *reading = (positionsReading_t *)dev->reading();
 
-  uint32_t mask = cmd.mask().to_ulong();
-  uint32_t changes = cmd.state().to_ulong();
+  uint32_t mask = doc["mask"];
+  uint32_t changes = doc["state"];
   uint32_t asis_state = reading->state();
   uint32_t new_state = 0x00;
 
@@ -1070,7 +1036,7 @@ bool DallasSemi::setDS2408(cmdSwitch_t &cmd, dsDev_t *dev) {
   return rc;
 }
 
-bool DallasSemi::setDS2413(cmdSwitch_t &cmd, dsDev_t *dev) {
+bool DallasSemi::setDS2413(JsonDocument &doc, dsDev_t *dev) {
   owb_status owb_s;
   bool rc = false;
 
@@ -1085,8 +1051,8 @@ bool DallasSemi::setDS2413(cmdSwitch_t &cmd, dsDev_t *dev) {
 
   positionsReading_t *reading = (positionsReading_t *)dev->reading();
 
-  uint32_t mask = cmd.mask().to_ulong();
-  uint32_t changes = cmd.state().to_ulong();
+  uint32_t mask = doc["mask"];
+  uint32_t changes = doc["state"];
   uint32_t asis_state = reading->state();
   uint32_t new_state = 0x00;
 

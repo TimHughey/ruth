@@ -34,7 +34,6 @@
 
 #include "devs/ds_dev.hpp"
 #include "drivers/owb.h"
-// #include "drivers/owb_gpio.h"
 #include "drivers/owb_rmt.h"
 #include "engines/engine.hpp"
 
@@ -47,9 +46,18 @@ private:
   DallasSemi();
 
 public:
+  static bool engineEnabled();
   static void startIfEnabled() {
     if (Profile::dalsemiEnable()) {
       _instance_()->start();
+    }
+  }
+
+  static bool queuePayload(MsgPayload_t *payload) {
+    if (engineEnabled()) {
+      return _instance_()->_queuePayload(payload);
+    } else {
+      return false;
     }
   }
 
@@ -94,7 +102,7 @@ private:
   static DallasSemi_t *_instance_();
 
   bool checkDevicesPowered();
-  bool commandAck(cmdSwitch_t &cmd);
+  bool commandExecute(JsonDocument &doc);
 
   bool devicesPowered() { return _devices_powered; }
 
@@ -106,9 +114,9 @@ private:
   bool readDS2406(dsDev_t *dev, positionsReading_t **reading);
   bool readDS2413(dsDev_t *dev, positionsReading_t **reading);
 
-  bool setDS2406(cmdSwitch_t &cmd, dsDev_t *dev);
-  bool setDS2408(cmdSwitch_t &cmd, dsDev_t *dev);
-  bool setDS2413(cmdSwitch_t &cmd, dsDev_t *dev);
+  bool setDS2406(JsonDocument &doc, dsDev_t *dev);
+  bool setDS2408(JsonDocument &doc, dsDev_t *dev);
+  bool setDS2413(JsonDocument &doc, dsDev_t *dev);
 
   // FIXME:  hard code there are always temperature devices
   bool tempDevicesPresent() { return _temp_devices_present; }

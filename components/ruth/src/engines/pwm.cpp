@@ -110,22 +110,6 @@ void PulseWidth::command(void *data) {
   }
 }
 
-bool PulseWidth::commandAck(JsonDocument &doc) {
-  bool rc = false;
-  pwmDev_t *dev = findDevice(doc["device"]);
-
-  if (dev != nullptr) {
-    rc = readDevice(dev);
-
-    if (rc && doc["ack"].as<bool>()) {
-      dev->setReadingCmdAck(_cmd_elapsed, doc["refid"]);
-      publish(dev);
-    }
-  }
-
-  return rc;
-}
-
 bool PulseWidth::commandExecute(JsonDocument &doc) {
 
   pwmDev_t *dev = findDevice(doc["device"]);

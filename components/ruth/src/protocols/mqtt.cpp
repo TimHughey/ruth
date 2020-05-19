@@ -31,6 +31,8 @@
 
 #include "core/core.hpp"
 #include "core/ota.hpp"
+#include "engines/ds.hpp"
+#include "engines/i2c.hpp"
 #include "engines/pwm.hpp"
 #include "external/mongoose.h"
 #include "misc/local_types.hpp"
@@ -40,23 +42,22 @@
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
 #include "protocols/mqtt.hpp"
-#include "protocols/mqtt_in.hpp"
 #include "readings/readings.hpp"
+
+namespace ruth {
 
 using std::unique_ptr;
 using std::vector;
 
-namespace ruth {
-
-static MQTT *__singleton = nullptr;
+static MQTT *__singleton__ = nullptr;
 
 // SINGLETON!  use _instance_() for object access
 MQTT_t *MQTT::_instance_() {
-  if (__singleton == nullptr) {
-    __singleton = new MQTT();
+  if (__singleton__ == nullptr) {
+    __singleton__ = new MQTT();
   }
 
-  return __singleton;
+  return __singleton__;
 }
 
 // SINGLETON! constructor is private
@@ -75,11 +76,8 @@ MQTT::MQTT() {
   _endpoint = endpoint.get();
 
   _q_out = xQueueCreate(_q_out_len, sizeof(mqttOutMsg_t *));
-  _q_in = xQueueCreate(_q_in_len, sizeof(mqttInMsg_t *));
 
-  ESP_LOGV(tagEngine(), "queue IN  len(%d) msg_size(%u) total_size(%u)",
-           _q_in_len, sizeof(mqttInMsg_t), (sizeof(mqttInMsg_t) * _q_in_len));
-  ESP_LOGV(tagEngine(), "queue OUT len(%d) msg_size(%u) total_size(%u)",
+  ESP_LOGI(tagEngine(), "OUT queue len(%d) msg_size(%u) total_size(%u)",
            _q_out_len, sizeof(mqttOutMsg_t),
            (sizeof(mqttOutMsg_t) * _q_out_len));
 }
@@ -136,6 +134,26 @@ bool MQTT::handlePayload(MsgPayload_t *payload) {
     processed = true;
   }
 
+  if (payload->matchSubtopic("i2c")) {
+    auto rc = I2c::queuePayload(payload);
+
+    if (rc == false) {
+      ESP_LOGW(tagEngine(), "PulseWidth::queueCommand() FAILED");
+    }
+
+    processed = true;
+  }
+
+  if (payload->matchSubtopic("ds")) {
+    auto rc = DallasSemi::queuePayload(payload);
+
+    if (rc == false) {
+      ESP_LOGW(tagEngine(), "PulseWidth::queueCommand() FAILED");
+    }
+
+    processed = true;
+  }
+
   if (payload->matchSubtopic("profile")) {
     unique_ptr<MsgPayload_t> payload_ptr(payload);
     if (Profile::parseRawMsg(payload->payload())) {
@@ -182,40 +200,47 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
 
   MsgPayload_t *payload = new MsgPayload(in_topic, in_payload);
 
-  // messages with subtopics can be handled locally
-  // EXAMPLE:  prod/ruth.mac_addr/profile
-  if (handlePayload(payload)) {
-    // NOTE:  the payload is freed in handleMsg() or the object that
-    //        processes it (e.g. payload is queued for another task)
-    return;
-  }
+  // messages with subtopics are handled locally
+  //  1. placed on a queue for another task
+  //  2. if minimal processing required then do it in this task
 
-  // the message did not have a subtopic, send it to MQTTin for handling
+  // EXAMPLES:
+  //   prod/ruth.mac_addr/profile
+  //   prod/ruth.max_addr/ota
+  //   prod/ruth.max_addr/restart
+  //   prod/ruth.max_addr/ds
+  //   prod/ruth.max_addr/pwm
+  //   prod/ruth.max_addr/i2c
 
-  // queue send takes a pointer to what should be copied to the queue
-  // using the size defined when the queue was created
-  BaseType_t q_rc;
-  q_rc = xQueueSendToBack(_q_in, (void *)&payload, _inbound_rb_wait_ticks);
-
-  if (q_rc) {
-    ESP_LOGV(tagEngine(), "INCOMING payload SENT to QUEUE (len=%u,msg_len=%u)",
-             sizeof(MsgPayload_t), in_payload->len);
-  } else {
-    delete payload;
-
-    char *msg = (char *)calloc(sizeof(char), 128);
-    sprintf(msg, "RECEIVE msg FAILED (len=%u)", in_payload->len);
-    ESP_LOGW(tagEngine(), "%s", msg);
-
-    // we only commit the failure to NVS and directly call esp_restart()
-    // since MQTT is broken
-    NVS::commitMsg(tagEngine(), msg);
-    free(msg);
-
-    // pass a nullptr for the message so Restart doesn't attempt to publish
-    Restart::restart(nullptr, __PRETTY_FUNCTION__);
-  }
+  // NOTE:  the downstream object and/or task must free payload when finished
+  handlePayload(payload);
 }
+
+// the message did not have a subtopic, send it to MQTTin for handling
+
+// queue send takes a pointer to what should be copied to the queue
+// using the size defined when the queue was created
+// BaseType_t q_rc;
+// q_rc = xQueueSendToBack(_q_in, (void *)&payload, _inbound_rb_wait_ticks);
+//
+// if (q_rc) {
+//   ESP_LOGV(tagEngine(), "INCOMING payload SENT to QUEUE
+//   (len=%u,msg_len=%u)",
+//            sizeof(MsgPayload_t), in_payload->len);
+// } else {
+//   delete payload;
+//
+//   char *msg = (char *)calloc(sizeof(char), 128);
+//   sprintf(msg, "RECEIVE msg FAILED (len=%u)", in_payload->len);
+//   ESP_LOGW(tagEngine(), "%s", msg);
+//
+//   // we only commit the failure to NVS and directly call esp_restart()
+//   // since MQTT is broken
+//   NVS::commitMsg(tagEngine(), msg);
+//   free(msg);
+//
+//   // pass a nullptr for the message so Restart doesn't attempt to publish
+//   Restart::restart(nullptr, __PRETTY_FUNCTION__);
 
 void MQTT::_publish(Reading_t *reading) {
   auto *msg = reading->json();
@@ -306,10 +331,6 @@ void MQTT::core(void *data) {
   struct mg_mgr_init_opts opts = {};
 
   esp_log_level_set(tagEngine(), ESP_LOG_INFO);
-
-  _mqtt_in = new MQTTin(_q_in, _feed_cmd.c_str());
-  ESP_LOGD(tagEngine(), "started, created MQTTin task %p", (void *)_mqtt_in);
-  _mqtt_in->start();
 
   // wait for network to be ready to ensure dns resolver is available
   ESP_LOGI(tagEngine(), "waiting for network...");

@@ -20,7 +20,6 @@
 
 #include <cstdlib>
 #include <cstring>
-// #include <sstream>
 #include <string>
 
 #include <esp_log.h>
@@ -55,7 +54,7 @@ dsDev::dsDev(DeviceAddress_t &addr, bool power) : Device(addr) {
           addr[1], addr[2], addr[3],  // byte 1-3: serial number
           addr[4], addr[5], addr[6]); // byte 4-6: serial number
 
-  const std::string dev_id = buff;
+  const string_t dev_id = buff;
   setID(dev_id);
 };
 
@@ -114,38 +113,38 @@ uint8_t *dsDev::parseId(char *name) {
   return addr;
 }
 
-const std::string &dsDev::familyDescription() {
+const string_t &dsDev::familyDescription() {
   return familyDescription(family());
 }
 
-const std::string &dsDev::familyDescription(uint8_t family) {
-  static std::string desc;
+const string_t &dsDev::familyDescription(uint8_t family) {
+  static string_t desc;
 
   switch (family) {
   case 0x10:
   case 0x22:
   case 0x28:
-    desc = std::string("ds1820");
+    desc = string_t("ds1820");
     break;
 
   case 0x29:
-    desc = std::string("ds2408");
+    desc = string_t("ds2408");
     break;
 
   case 0x12:
-    desc = std::string("ds2406");
+    desc = string_t("ds2406");
     break;
 
   case 0x3a:
-    desc = std::string("ds2413");
+    desc = string_t("ds2413");
     break;
 
   case 0x26:
-    desc = std::string("ds2438");
+    desc = string_t("ds2438");
     break;
 
   default:
-    desc = std::string("dsUNDEF");
+    desc = string_t("dsUNDEF");
     break;
   }
 

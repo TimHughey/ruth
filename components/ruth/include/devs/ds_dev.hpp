@@ -45,8 +45,8 @@ private:
 
   bool _power = false; // is the device powered?
 
-  const std::string &familyDescription(uint8_t family);
-  const std::string &familyDescription();
+  const string_t &familyDescription(uint8_t family);
+  const string_t &familyDescription();
 
 public:
   dsDev();

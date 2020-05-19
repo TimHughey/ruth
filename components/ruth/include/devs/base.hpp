@@ -74,7 +74,6 @@ public:
   void setDescription(const std::string &desc) { _desc = desc; };
   void setDescription(const char *desc) { _desc = desc; };
   const string_t &description() const { return _desc; };
-  virtual const char *externalName() const { return _id.c_str(); };
 
   void setReading(Reading_t *reading);
   void setReadingCmdAck(uint32_t latency_us, RefID_t &refid);
