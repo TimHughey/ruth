@@ -36,7 +36,6 @@ Cmd_t *CmdFactory::manufacture(JsonDocument &doc,
 
   switch (cmd_type) {
   case CmdType::unknown:
-    ESP_LOGW(TAG, "unknown command [%s]", cmd_str.c_str());
     cmd = new Cmd(doc, parse_elapsed);
     break;
 

@@ -1,7 +1,7 @@
 
 set(
   RUTH_CORE
-    "src/core/core"
+    "src/core/core"  "src/core/ota"
   )
 
 set(

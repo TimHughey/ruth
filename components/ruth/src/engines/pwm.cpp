@@ -101,7 +101,6 @@ void PulseWidth::command(void *data) {
     parse_elapsed.freeze();
 
     // did the deserailization succeed?
-    // if so, manufacture the derived cmd
     if (err) {
       ESP_LOGW(tagCommand(), "[%s] MSGPACK parse failure", err.c_str());
       continue;

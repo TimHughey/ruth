@@ -32,8 +32,10 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "core/ota.hpp"
 #include "misc/elapsedMillis.hpp"
 #include "misc/local_types.hpp"
+#include "misc/restart.hpp"
 
 namespace ruth {
 using std::unique_ptr;
@@ -42,32 +44,65 @@ typedef class Core Core_t;
 
 class Core {
 public:
-  static void start() { _instance_()->_start_(); };
-  static void loop() { _instance_()->_loop_(); };
+  static void start(TaskHandle_t app_task) { _instance_()->_start(app_task); };
+  static void loop() { _instance_()->_loop(); };
 
-  static uint32_t batteryMilliVolt() { return _instance_()->_battMV_(); };
+  static uint32_t batteryMilliVolt() { return _instance_()->_battMV(); };
   static uint32_t vref() { return 1100; };
 
   static unique_ptr<char[]> dateTimeString(time_t t = 0);
+  static void otaRequest(OTA_t *ota) { _instance_()->_otaRequest(ota); };
+  static void restartRequest() { _instance_()->_restartRequest(); };
 
-public:
 private:
   // constructor is private, this is a singleton
   Core();
   // private methods for singleton
   static Core_t *_instance_();
-  void _loop_();
-  void _start_();
-  uint32_t _battMV_();
+  void _loop();
+  void _start(xTaskHandle app_task);
+  uint32_t _battMV();
+  void _otaRequest(OTA_t *ota) {
+    // store the pointer to the ota request
+    ota_request_ = ota;
+
+    // notify app_main task to process it via Core::_loop()
+    xTaskNotify(app_task_, 0x0, eIncrement);
+  };
+
+  void _restartRequest() {
+    // flag a restart was requested
+    restart_request_ = true;
+
+    // notify app_main task to process it via Core::_loop()
+    xTaskNotify(app_task_, 0x0, eIncrement);
+  };
 
   // private functions for class
   void bootComplete();
   void consoleTimestamp();
   void markOtaValid();
+
+  // handle any Core requests
+  void handleRequests() {
+
+    // if, somehow, an OTA update an a researt were both requested
+    // favor the OTA request
+    if (ota_request_) {
+      ota_request_ = nullptr;
+      ota_request_->start();
+    }
+
+    if (restart_request_) {
+      Restart::restart("restart requested", __PRETTY_FUNCTION__);
+    }
+  }
+
   void startEngines();
   void trackHeap();
 
 private:
+  TaskHandle_t app_task_;
   UBaseType_t priority_ = 1;
   elapsedMillis core_elapsed_;
   bool boot_complete_ = false;
@@ -91,7 +126,9 @@ private:
   // task tracking
   UBaseType_t num_tasks_;
 
-  // marking OTA valid
+  // OTA and Restart
+  OTA_t *ota_request_ = nullptr;
+  bool restart_request_ = false;
   bool ota_marked_valid_ = false;
   float ota_valid_secs_ = 60.0;
 

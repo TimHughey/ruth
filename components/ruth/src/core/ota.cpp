@@ -18,43 +18,74 @@
     https://www.wisslanding.com
 */
 
-#include "cmds/ota.hpp"
+#include "core/ota.hpp"
+#include "external/ArduinoJson.h"
 #include "misc/restart.hpp"
 
 namespace ruth {
 
-static const char *TAG = "CmdOTA";
-static bool _ota_in_progress = false;
+static const char *TAG = "OTATask";
 
-CmdOTA::CmdOTA(JsonDocument &doc, elapsedMicros &e) : Cmd(doc, e) {
-  _uri = doc["uri"] | "none.local";
+static OTA_t *__singleton__ = nullptr;
+
+OTA_t *OTA::_instance_(MsgPayload_t *payload) {
+  if (payload) {
+    __singleton__ = new OTA(payload);
+  }
+
+  return __singleton__;
 }
 
-void CmdOTA::doUpdate() {
+// document examples:
+// OTA:
+//  {"cmd":"ota","mtime":1589852135,
+//   "uri":"https://www.wisslanding.com/helen/firmware/latest.bin"}
+//
+// RESTART:
+//  {"cmd":"restart","mtime":1589852135}
+//
+static const size_t _capacity = JSON_OBJECT_SIZE(3) + 336;
+
+OTA::OTA(MsgPayload_t *payload) {
+  MsgPayload_t_ptr payload_ptr(payload);
+  DynamicJsonDocument doc(_capacity);
+
+  elapsedMicros parse_elapsed;
+  // deserialize the msgpack data
+  DeserializationError err = deserializeMsgPack(doc, payload->payload());
+
+  // we're done with the original payload at this point
+  payload_ptr.reset();
+
+  // parsing complete, freeze the elapsed timer
+  parse_elapsed.freeze();
+
+  // did the deserailization succeed?
+  if (err) {
+    ESP_LOGW(TAG, "[%s] MSGPACK parse failure", err.c_str());
+    return;
+  }
+
+  _uri = doc["uri"] | "";
+}
+
+void OTA::process() {
   const esp_partition_t *run_part = esp_ota_get_running_partition();
   esp_http_client_config_t config = {};
   config.url = _uri.c_str();
   config.cert_pem = Net::ca_start();
-  config.event_handler = CmdOTA::httpEventHandler;
+  config.event_handler = OTA::httpEventHandler;
   config.timeout_ms = 1000;
-
-  if (_ota_in_progress) {
-    ESP_LOGW(TAG, "ota in-progress, ignoring spurious begin");
-    return;
-  } else {
-    textReading_t *rlog = new textReading_t;
-    textReading_ptr_t rlog_ptr(rlog);
-
-    rlog->printf("OTA begin label=\"%s\" addr=0x%x", run_part->label,
-                 run_part->address);
-    rlog->publish();
-    ESP_LOGI(TAG, "%s", rlog->text());
-  }
-
-  _ota_in_progress = true;
 
   textReading_t *rlog = new textReading_t;
   textReading_ptr_t rlog_ptr(rlog);
+
+  rlog->printf("OTA begin label=\"%s\" addr=0x%x", run_part->label,
+               run_part->address);
+  rlog->publish();
+  ESP_LOGI(TAG, "%s", rlog->text());
+
+  rlog->reuse();
 
   // track the time it takes to perform ota
   elapsedMicros ota_elapsed;
@@ -74,7 +105,7 @@ void CmdOTA::doUpdate() {
 }
 
 // STATIC
-void CmdOTA::markPartitionValid() {
+void OTA::markPartitionValid() {
   static bool ota_marked_valid = false; // only do this once
 
   if (ota_marked_valid == true) {
@@ -107,37 +138,10 @@ void CmdOTA::markPartitionValid() {
   ota_marked_valid = true;
 }
 
-bool CmdOTA::process() {
-
-  // if (forThisHost() == false) {
-  //   ESP_LOGD(TAG, "OTA command not for us, ignoring.");
-  //   return true;
-  // }
-  //
-  // switch (type()) {
-  //
-  // case CmdType::otaHTTPS:
-  //   ESP_LOGI(TAG, "OTA via HTTPS requested");
-  //   doUpdate();
-  //   break;
-  //
-  // case CmdType::restart:
-  //   Restart::restart("restart requested", __PRETTY_FUNCTION__);
-  //   break;
-  //
-  // default:
-  //   ESP_LOGW(TAG, "unknown ota command, ignoring");
-  //   break;
-  // };
-
-  return true;
-}
-
-const unique_ptr<char[]> CmdOTA::debug() {
+const unique_ptr<char[]> OTA::debug() {
   const size_t max_buf = 256;
   unique_ptr<char[]> debug_str(new char[max_buf]);
-  snprintf(debug_str.get(), max_buf, "Cmd(host=\"%s\" uri=\"%s\"",
-           host().c_str(), _uri.c_str());
+  snprintf(debug_str.get(), max_buf, "OTA(uri=\"%s\")", _uri.c_str());
 
   return move(debug_str);
 }
@@ -145,7 +149,7 @@ const unique_ptr<char[]> CmdOTA::debug() {
 //
 // STATIC!
 //
-esp_err_t CmdOTA::httpEventHandler(esp_http_client_event_t *evt) {
+esp_err_t OTA::httpEventHandler(esp_http_client_event_t *evt) {
   switch (evt->event_id) {
   case HTTP_EVENT_ERROR:
     // ESP_LOGD(TAG, "HTTP_EVENT_ERROR");

@@ -57,7 +57,8 @@ void app_main() {
   tzset();
 
   // this is where our implementation begins by starting the Core
-  Core::start();
+  TaskHandle_t app_task = xTaskGetCurrentTaskHandle();
+  Core::start(app_task);
 
   for (;;) {
     Core::loop();

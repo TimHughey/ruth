@@ -53,7 +53,7 @@ Core::Core() {
   adc1_config_channel_atten((adc1_channel_t)battery_adc_, ADC_ATTEN_DB_11);
 }
 
-void Core::_loop_() {
+void Core::_loop() {
   //
   // NOTE:
   //  unless doing actual work on the first call or subsequent calls
@@ -85,15 +85,33 @@ void Core::_loop_() {
   bootComplete();
   consoleTimestamp();
   markOtaValid();
+  handleRequests();
 
   // TODO
   // implement watchTaskStacks()
 
-  // sleep for one (1) second
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  // sleep for one (1) second or until notified
+  ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
 }
 
-uint32_t Core::_battMV_() {
+void Core::_start(xTaskHandle app_task) {
+  app_task_ = app_task;
+
+  // initialize the StatusLED singleton
+  StatusLED::init();
+
+  // get NVS started, it is needed by Net
+  NVS::init();
+  StatusLED::brighter();
+
+  // get the Network up and running as soon as possible
+  Net::start();
+
+  MQTT::start();
+  StatusLED::brighter();
+}
+
+uint32_t Core::_battMV() {
   uint32_t batt_raw = 0;
   uint32_t batt_mv = 0;
 
@@ -110,21 +128,6 @@ uint32_t Core::_battMV_() {
   batt_mv = esp_adc_cal_raw_to_voltage(batt_raw, adc_chars_) * 2;
 
   return batt_mv;
-}
-
-void Core::_start_() {
-  // initialize the StatusLED singleton
-  StatusLED::init();
-
-  // get NVS started, it is needed by Net
-  NVS::init();
-  StatusLED::brighter();
-
-  // get the Network up and running as soon as possible
-  Net::start();
-
-  MQTT::start();
-  StatusLED::brighter();
 }
 
 void Core::bootComplete() {

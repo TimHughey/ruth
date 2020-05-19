@@ -30,6 +30,7 @@
 #include <freertos/task.h>
 
 #include "core/core.hpp"
+#include "core/ota.hpp"
 #include "engines/pwm.hpp"
 #include "external/mongoose.h"
 #include "misc/local_types.hpp"
@@ -125,6 +126,16 @@ void MQTT::connectionClosed() {
 bool MQTT::handlePayload(MsgPayload_t *payload) {
   auto processed = false;
 
+  if (payload->matchSubtopic("pwm")) {
+    auto rc = PulseWidth::queuePayload(payload);
+
+    if (rc == false) {
+      ESP_LOGW(tagEngine(), "PulseWidth::queueCommand() FAILED");
+    }
+
+    processed = true;
+  }
+
   if (payload->matchSubtopic("profile")) {
     unique_ptr<MsgPayload_t> payload_ptr(payload);
     if (Profile::parseRawMsg(payload->payload())) {
@@ -134,12 +145,15 @@ bool MQTT::handlePayload(MsgPayload_t *payload) {
     processed = true;
   }
 
-  if (payload->matchSubtopic("pwm")) {
-    auto rc = PulseWidth::queuePayload(payload);
+  if (payload->matchSubtopic("ota")) {
+    OTA *ota = OTA::payload(payload);
+    Core::otaRequest(ota);
 
-    if (rc == false) {
-      ESP_LOGW(tagEngine(), "PulseWidth::queueCommand() FAILED");
-    }
+    processed = true;
+  }
+
+  if (payload->matchSubtopic("restart")) {
+    Core::restartRequest();
 
     processed = true;
   }
