@@ -33,13 +33,14 @@
 #include <time.h>
 
 #include "devs/addr.hpp"
+#include "external/ArduinoJson.h"
 #include "misc/elapsedMillis.hpp"
 #include "misc/local_types.hpp"
 #include "readings/readings.hpp"
 
-using std::unique_ptr;
-
 namespace ruth {
+
+using std::unique_ptr;
 
 typedef class Device Device_t;
 class Device {
@@ -78,6 +79,11 @@ public:
   void setReading(Reading_t *reading);
   void setReadingCmdAck(uint32_t latency_us, RefID_t &refid);
   void setReadingCmdAck(uint32_t latency_us, const char *refid);
+
+  // command mask and state
+  void calcCommandState(JsonDocument &doc);
+  uint32_t cmdState() { return _cmd_state; }
+  uint32_t cmdMask() { return _cmd_mask; }
   Reading_t *reading();
 
   // metrics functions
@@ -116,6 +122,9 @@ private:
   string_t _id;          // unique identifier of this device
   DeviceAddress_t _addr; // address of this device
   string_t _desc;
+
+  uint32_t _cmd_mask = 0;
+  uint32_t _cmd_state = 0;
 
   typedef std::pair<std::string, uint32_t> statEntry_t;
   typedef std::map<std::string, uint32_t> statsMap_t;

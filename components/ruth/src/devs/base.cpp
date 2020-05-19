@@ -37,10 +37,10 @@
 #include "misc/local_types.hpp"
 #include "readings/readings.hpp"
 
+namespace ruth {
+
 using std::move;
 using std::unique_ptr;
-
-namespace ruth {
 
 // construct a new Device with only an address
 Device::Device(DeviceAddress_t &addr) { _addr = addr; }
@@ -61,6 +61,32 @@ bool Device::operator==(Device_t *rhs) const { return (_id == rhs->_id); }
 void Device::justSeen() { _last_seen = time(nullptr); }
 void Device::setID(const std::string &new_id) { _id = new_id; }
 void Device::setID(char *new_id) { _id = new_id; }
+
+// command state and mask calculation
+void Device::calcCommandState(JsonDocument &doc) {
+  const JsonArray &states = doc["states"].as<JsonArray>();
+  uint32_t _cmd_mask = 0x00;
+  uint32_t _cmd_state = 0x00;
+
+  // iterate through the array of new states
+  for (auto element : states) {
+    // get a reference to the object from the array
+    const JsonObject &requested_state = element.as<JsonObject>();
+
+    const uint32_t bit = requested_state["pio"].as<uint32_t>();
+    const bool state = requested_state["state"].as<bool>();
+
+    // set the mask with each bit that should be adjusted
+    _cmd_mask |= (0x01 << bit);
+
+    // set the tobe state with the values those bits should be
+    // if the new_state is true (on) then set the bit,
+    // otherwise leave it unset
+    if (state) {
+      _cmd_state |= (0x01 << bit);
+    }
+  }
+}
 
 // updaters
 void Device::setReading(Reading_t *reading) {

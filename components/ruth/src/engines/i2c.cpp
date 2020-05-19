@@ -897,15 +897,14 @@ bool I2c::setMCP23008(JsonDocument &doc, i2cDev_t *dev) {
                          nullptr, 0, esp_rc);
   }
 
-  uint32_t mask = doc["mask"];
-  uint32_t changes = doc["state"];
+  dev->calcCommandState(doc);
   auto asis_state = reading->state();
   auto new_state = 0x00;
 
   // XOR the new state against the as_is state using the mask
   // it is critical that we use the recently read state to avoid
   // overwriting the device state that MCP is not aware of
-  new_state = asis_state ^ ((asis_state ^ changes) & mask);
+  new_state = asis_state ^ ((asis_state ^ dev->cmdState()) & dev->cmdMask());
 
   // to set the GPIO we will write to two registers:
   // a. IODIR (0x00) - setting all GPIOs to output (0b00000000)

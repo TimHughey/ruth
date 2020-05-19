@@ -867,12 +867,14 @@ bool DallasSemi::setDS2406(JsonDocument &doc, dsDev_t *dev) {
   bool rc = false;
 
   positionsReading_t *reading = (positionsReading_t *)dev->reading();
-  uint32_t mask = doc["mask"];
-  uint32_t tobe_state = doc["state"];
+
+  dev->calcCommandState(doc);
   uint32_t asis_state = reading->state();
 
-  bool pio_a = (mask & 0x01) ? (tobe_state & 0x01) : (asis_state & 0x01);
-  bool pio_b = (mask & 0x02) ? (tobe_state & 0x02) : (asis_state & 0x02);
+  bool pio_a =
+      (dev->cmdMask() & 0x01) ? (dev->cmdState() & 0x01) : (asis_state & 0x01);
+  bool pio_b =
+      (dev->cmdMask() & 0x02) ? (dev->cmdState() & 0x02) : (asis_state & 0x02);
 
   uint32_t new_state = (!pio_a << 5) | (!pio_b << 6) | 0xf;
 
@@ -950,14 +952,13 @@ bool DallasSemi::setDS2408(JsonDocument &doc, dsDev_t *dev) {
 
   positionsReading_t *reading = (positionsReading_t *)dev->reading();
 
-  uint32_t mask = doc["mask"];
-  uint32_t changes = doc["state"];
+  dev->calcCommandState(doc);
   uint32_t asis_state = reading->state();
   uint32_t new_state = 0x00;
 
   // use XOR tricks to apply the state changes to the as_is state using the
   // mask computed
-  new_state = asis_state ^ ((asis_state ^ changes) & mask);
+  new_state = asis_state ^ ((asis_state ^ dev->cmdState()) & dev->cmdMask());
 
   // report_state = new_state;
   new_state = (~new_state) & 0xFF; // constrain to 8-bits
@@ -1051,14 +1052,13 @@ bool DallasSemi::setDS2413(JsonDocument &doc, dsDev_t *dev) {
 
   positionsReading_t *reading = (positionsReading_t *)dev->reading();
 
-  uint32_t mask = doc["mask"];
-  uint32_t changes = doc["state"];
+  dev->calcCommandState(doc);
   uint32_t asis_state = reading->state();
   uint32_t new_state = 0x00;
 
   // use XOR tricks to apply the state changes to the as_is state using the
   // mask computed
-  new_state = asis_state ^ ((asis_state ^ changes) & mask);
+  new_state = asis_state ^ ((asis_state ^ dev->cmdState()) & dev->cmdMask());
 
   // report_state = new_state;
   new_state = (~new_state) & 0xFF; // constrain to 8-bits
