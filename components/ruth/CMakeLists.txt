@@ -23,7 +23,7 @@ set(
 set(
   RUTH_CMDS
     "src/cmds/base"     "src/cmds/factory"
-    "src/cmds/ota"     "src/cmds/queues"
+     "src/cmds/queues"
     "src/cmds/switch"   "src/cmds/types")
 
 set(

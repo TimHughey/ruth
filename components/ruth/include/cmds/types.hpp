@@ -30,13 +30,7 @@
 
 namespace ruth {
 
-typedef enum class CmdType {
-  unknown,
-  none,
-  setswitch,
-  restart,
-  otaHTTPS
-} CmdType_t;
+typedef enum class CmdType { unknown, none, setswitch } CmdType_t;
 
 typedef class CmdTypeMap CmdTypeMap_t;
 class CmdTypeMap {

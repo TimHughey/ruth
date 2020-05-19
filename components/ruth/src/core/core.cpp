@@ -19,7 +19,6 @@
 */
 
 #include "core/core.hpp"
-#include "cmds/ota.hpp"
 #include "devs/base.hpp"
 #include "devs/pwm_dev.hpp"
 #include "engines/ds.hpp"
@@ -217,7 +216,7 @@ void Core::markOtaValid() {
     // safety net 3:
     //    only after the core has been up for more than the configured
     //    seconds mark the OTA partition as valid
-    CmdOTA::markPartitionValid();
+    OTA::markPartitionValid();
 
     ota_marked_valid_ = true;
   }

@@ -46,11 +46,6 @@ Cmd_t *CmdFactory::manufacture(JsonDocument &doc,
   case CmdType::setswitch:
     cmd = new cmdSwitch(doc, parse_elapsed);
     break;
-
-  case CmdType::otaHTTPS:
-  case CmdType::restart:
-    cmd = new CmdOTA(doc, parse_elapsed);
-    break;
   }
 
   return cmd;
