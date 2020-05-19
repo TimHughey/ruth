@@ -23,8 +23,7 @@ set(
 set(
   RUTH_CMDS
     "src/cmds/base"     "src/cmds/factory"
-    "src/cmds/network"  "src/cmds/ota"
-    "src/cmds/pwm"      "src/cmds/queues"
+    "src/cmds/ota"     "src/cmds/queues"
     "src/cmds/switch"   "src/cmds/types")
 
 set(

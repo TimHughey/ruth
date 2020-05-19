@@ -71,7 +71,7 @@ bool PulseWidth::engineEnabled() { return (__singleton__) ? true : false; }
 void PulseWidth::command(void *data) {
   logSubTaskStart(data);
 
-  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(cmdPWM_t *));
+  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   while (true) {
     BaseType_t queue_rc = pdFALSE;

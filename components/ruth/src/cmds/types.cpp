@@ -8,14 +8,9 @@ static const char *TAG = "CmdTypeMap";
 static const std::map<string_t, CmdType> _cmd_map = {
     {string_t("unknown"), CmdType::unknown},
     {string_t("none"), CmdType::none},
-    {string_t("time.sync"), CmdType::timesync},
     {string_t("set.switch"), CmdType::setswitch},
-    {string_t("set.name"), CmdType::setname},
-    {string_t("heartbeat"), CmdType::heartbeat},
     {string_t("restart"), CmdType::restart},
-    {string_t("engines.suspend"), CmdType::enginesSuspend},
-    {string_t("ota.https"), CmdType::otaHTTPS},
-    {string_t("pwm"), CmdType::pwm}};
+    {string_t("ota.https"), CmdType::otaHTTPS}};
 
 static CmdTypeMap_t *__singleton;
 

@@ -31,9 +31,7 @@
 #include <time.h>
 
 #include "cmds/base.hpp"
-#include "cmds/network.hpp"
 #include "cmds/ota.hpp"
-#include "cmds/pwm.hpp"
 #include "cmds/switch.hpp"
 #include "cmds/types.hpp"
 #include "external/ArduinoJson.h"

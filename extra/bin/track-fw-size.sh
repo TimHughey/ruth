@@ -1,4 +1,4 @@
-#!/bin/env zsh
+#!/usr/bin/env zsh
 
 base=${HOME}/devel/ruth
 extra=${base}/extra

@@ -41,8 +41,6 @@ Cmd_t *CmdFactory::manufacture(JsonDocument &doc,
     break;
 
   case CmdType::none:
-  case CmdType::heartbeat:
-  case CmdType::timesync:
     cmd = new Cmd(doc, parse_elapsed);
     break;
 
@@ -50,20 +48,9 @@ Cmd_t *CmdFactory::manufacture(JsonDocument &doc,
     cmd = new cmdSwitch(doc, parse_elapsed);
     break;
 
-  case CmdType::setname:
-    // cmd = new CmdNetwork(doc, parse_elapsed);
-    break;
-
   case CmdType::otaHTTPS:
   case CmdType::restart:
     cmd = new CmdOTA(doc, parse_elapsed);
-    break;
-
-  case CmdType::enginesSuspend:
-    break;
-
-  case CmdType::pwm:
-    cmd = new cmdPWM(doc, parse_elapsed);
     break;
   }
 
