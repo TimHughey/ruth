@@ -25,7 +25,6 @@ namespace ruth {
 
 using ArduinoJson::DynamicJsonDocument;
 
-static const char *TAG = "Profile";
 static Profile_t *__singleton__ = nullptr;
 
 // inclusive of largest profile document
@@ -61,10 +60,10 @@ bool Profile::_parseRawMsg(const char *raw) {
 
 void Profile::_postParseActions() {
 
-  // ESP_LOGI(TAG, "msgpack deserialization took %lldus",
+  // ESP_LOGI("Profile", "msgpack deserialization took %lldus",
   //          (uint64_t)_parse_elapsed);
   //
-  // ESP_LOGI(TAG, "using profile=\"%s\" version=\"%s\"", _profileName(),
+  // ESP_LOGI("Profile", "using profile=\"%s\" version=\"%s\"", _profileName(),
   //          _version());
 
   Net::setName(_assignedName());

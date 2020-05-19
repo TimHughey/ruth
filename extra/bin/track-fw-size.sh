@@ -7,11 +7,11 @@ tracker=${extra}/firmware-size/tracker.txt
 
 pushd $base
 
-source $base/esp-idf/export.sh
+source $base/esp-idf/export.sh 1>/dev/null 2>/dev/null
 
 # the first make ensures everything is compiled
 # idf.py size 1>/dev/null || exit 1
-idf.py size || exit 1 
+idf.py size 1>/dev/null 2>/dev/null || exit 1
 
 # the second make records the clean output
 echo ">>>" >> ${tracker}
