@@ -91,7 +91,7 @@ public:
 private:
   MQTT(); // singleton, constructor is private
 
-  bool handleMsg(MsgPayload_t *msg);
+  bool handlePayload(MsgPayload_t *payload);
 
   // static and functions called by static functions
   static MQTT_t *_instance_();

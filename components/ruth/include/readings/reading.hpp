@@ -33,7 +33,7 @@
 #include "misc/local_types.hpp"
 
 // Possible future improvement
-// typedef std::unique_ptr<std::string> myString;
+// typedef std::unique_ptr<string_t> myString;
 
 namespace ruth {
 typedef enum {
@@ -57,7 +57,7 @@ typedef std::unique_ptr<Reading_t> Reading_ptr_t;
 class Reading {
 private:
   // reading metadata (id, measured time and type)
-  std::string _id;
+  string_t _id;
   time_t _mtime = time(nullptr); // time the reading was measureed
 
   // tracking info
@@ -84,14 +84,26 @@ protected:
 public:
   // default constructor, Reading type undefined
   Reading(){};
-  Reading(const std::string &id, time_t mtime = time(nullptr));
+  Reading(const string_t &id, time_t mtime = time(nullptr));
   Reading(time_t mtime);
   virtual ~Reading();
 
-  std::string *json(char *buffer = nullptr, size_t len = 0);
+  string_t *json(char *buffer = nullptr, size_t len = 0);
   virtual void publish();
   virtual void refresh() { time(&_mtime); }
-  void setCmdAck(uint32_t latency_us, RefID_t &refid);
+  void setCmdAck(uint32_t latency_us, RefID_t &refid) {
+    _cmd_ack = true;
+    _latency_us = latency_us;
+
+    _refid = refid;
+  }
+
+  void setCmdAck(uint32_t latency_us, const char *refid) {
+    _cmd_ack = true;
+    _latency_us = latency_us;
+
+    _refid = refid;
+  }
 
   void setCRCMismatches(int crc_mismatches) {
     _crc_mismatches = crc_mismatches;

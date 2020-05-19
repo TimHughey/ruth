@@ -38,9 +38,12 @@
 #include "net/network.hpp"
 
 namespace ruth {
+using std::unique_ptr;
 using std::vector;
 
 typedef class MsgPayload MsgPayload_t;
+
+typedef unique_ptr<MsgPayload_t> MsgPayload_t_ptr;
 
 class MsgPayload {
 public:

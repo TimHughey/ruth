@@ -104,13 +104,6 @@ std::string *Reading::json(char *buffer, size_t len) {
 
 void Reading::publish() { MQTT::publish(this); }
 
-void Reading::setCmdAck(uint32_t latency_us, RefID_t &refid) {
-  _cmd_ack = true;
-  _latency_us = latency_us;
-
-  _refid = refid;
-}
-
 static const char *__type_string[] = {
     "base", "stat", "ph",     "stats", "remote_runtime", "relhum",
     "soil", "boot", "switch", "temp",  "text",           "pwm"};

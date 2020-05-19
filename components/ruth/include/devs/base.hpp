@@ -78,6 +78,7 @@ public:
 
   void setReading(Reading_t *reading);
   void setReadingCmdAck(uint32_t latency_us, RefID_t &refid);
+  void setReadingCmdAck(uint32_t latency_us, const char *refid);
   Reading_t *reading();
 
   // metrics functions
@@ -113,9 +114,9 @@ public:
   // virtual void debug(char *buff, size_t len);
 
 private:
-  std::string _id;    // unique identifier of this device
+  string_t _id;          // unique identifier of this device
   DeviceAddress_t _addr; // address of this device
-  std::string _desc;
+  string_t _desc;
 
   typedef std::pair<std::string, uint32_t> statEntry_t;
   typedef std::map<std::string, uint32_t> statsMap_t;

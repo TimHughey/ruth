@@ -27,6 +27,8 @@
 #include <driver/gpio.h>
 #include <driver/ledc.h>
 
+#include "external/ArduinoJson.hpp"
+
 #include "cmds/pwm.hpp"
 #include "devs/base.hpp"
 
@@ -47,7 +49,6 @@ public:
   static void allOff();
 
 private:
-  string_t external_name_; // name used to report externally
   static const uint32_t pwm_max_addr_len_ = 1;
   static const uint32_t pwm_max_id_len_ = 40;
   static const uint32_t duty_max_ = 0x1fff;
@@ -76,7 +77,8 @@ public:
   uint32_t dutyMin() { return duty_min_; };
   gpio_num_t gpioPin() { return gpio_pin_; };
 
-  bool updateDuty(cmdPWM_t *cmd);
+  // bool updateDuty(cmdPWM_t *cmd);
+  bool updateDuty(JsonDocument &doc);
 
   const char *externalName();
   esp_err_t lastRC() { return last_rc_; };

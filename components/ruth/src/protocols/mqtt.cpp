@@ -30,6 +30,7 @@
 #include <freertos/task.h>
 
 #include "core/core.hpp"
+#include "engines/pwm.hpp"
 #include "external/mongoose.h"
 #include "misc/local_types.hpp"
 #include "misc/nvs.hpp"
@@ -121,12 +122,23 @@ void MQTT::connectionClosed() {
   connect();
 }
 
-bool MQTT::handleMsg(MsgPayload_t *msg) {
+bool MQTT::handlePayload(MsgPayload_t *payload) {
   auto processed = false;
 
-  if (msg->matchSubtopic("profile")) {
-    if (Profile::parseRawMsg(msg->payload())) {
+  if (payload->matchSubtopic("profile")) {
+    unique_ptr<MsgPayload_t> payload_ptr(payload);
+    if (Profile::parseRawMsg(payload->payload())) {
       Profile::postParseActions();
+    }
+
+    processed = true;
+  }
+
+  if (payload->matchSubtopic("pwm")) {
+    auto rc = PulseWidth::queuePayload(payload);
+
+    if (rc == false) {
+      ESP_LOGW(tagEngine(), "PulseWidth::queueCommand() FAILED");
     }
 
     processed = true;
@@ -158,8 +170,9 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
 
   // messages with subtopics can be handled locally
   // EXAMPLE:  prod/ruth.mac_addr/profile
-  if (handleMsg(payload)) {
-    delete payload;
+  if (handlePayload(payload)) {
+    // NOTE:  the payload is freed in handleMsg() or the object that
+    //        processes it (e.g. payload is queued for another task)
     return;
   }
 
@@ -172,7 +185,7 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
 
   if (q_rc) {
     ESP_LOGV(tagEngine(), "INCOMING payload SENT to QUEUE (len=%u,msg_len=%u)",
-             sizeof(mqttInMsg_t), in_payload->len);
+             sizeof(MsgPayload_t), in_payload->len);
   } else {
     delete payload;
 

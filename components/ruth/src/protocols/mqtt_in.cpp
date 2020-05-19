@@ -55,7 +55,6 @@ MQTTin::MQTTin(QueueHandle_t q_in, const char *cmd_feed)
 MQTTin_t *MQTTin::_instance_() { return __singleton; }
 
 void MQTTin::core(void *data) {
-  MsgPayload *msg;
   CmdFactory_t factory;
   DynamicJsonDocument doc(_doc_capacity); // allocate the document here
 
@@ -68,22 +67,20 @@ void MQTTin::core(void *data) {
   ESP_LOGD(TAG, "started, entering run loop");
 
   for (;;) {
-    bzero(&msg, sizeof(MsgPayload *)); // just because we like clean memory
+    MsgPayload_t *payload = nullptr;
+    MsgPayload_t_ptr payload_ptr(payload);
 
-    BaseType_t q_rc = xQueueReceive(_q_in, &msg, portMAX_DELAY);
+    BaseType_t q_rc = xQueueReceive(_q_in, &payload, portMAX_DELAY);
 
     if (q_rc == pdTRUE) {
-      // only deprecated messages without a subtopic are queued so
-      // processe the payload via the command factory
-      Cmd_t *cmd = factory.fromRaw(doc, msg->payload());
+      // only deprecated payloads without a subtopic are queued so
+      // send it to the command factory for processing
+      Cmd_t *cmd = factory.fromRaw(doc, payload->payload());
+      Cmd_t_ptr cmd_ptr(cmd);
 
       if (cmd && cmd->recent() && cmd->forThisHost()) {
-        Cmd_t_ptr cmd_ptr(cmd);
         cmd->process();
       }
-
-      // ok, we're done with the message
-      delete msg;
     } else {
       ESP_LOGW(TAG, "queue received failed");
       continue;

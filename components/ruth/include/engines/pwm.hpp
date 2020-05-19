@@ -33,8 +33,11 @@
 
 #include "devs/pwm_dev.hpp"
 #include "engines/engine.hpp"
+#include "protocols/payload.hpp"
 
 namespace ruth {
+
+using std::unordered_map;
 
 typedef struct {
   TickType_t engine;
@@ -49,12 +52,22 @@ class PulseWidth : public Engine<pwmDev_t> {
 private:
   PulseWidth();
 
-  bool commandAck(cmdPWM_t &cmd);
+  bool commandAck(JsonDocument &doc);
 
 public:
+  // returns true if the instance (singleton) has been created
+  static bool engineEnabled();
   static void startIfEnabled() {
     if (Profile::pwmEnable()) {
       _instance_()->start();
+    }
+  }
+
+  static bool queuePayload(MsgPayload_t *payload) {
+    if (engineEnabled()) {
+      return _instance_()->_queuePayload(payload);
+    } else {
+      return false;
     }
   }
 
@@ -75,6 +88,9 @@ private:
 
   pwmLastWakeTime_t _last_wake;
 
+  elapsedMicros _cmd_elapsed;
+  elapsedMicros _latency_us;
+
 private:
   static PulseWidth_t *_instance_();
   // generic read device that will call the specific methods
@@ -83,10 +99,39 @@ private:
   bool configureTimer();
   bool detectDevice(pwmDev_t *dev);
 
+  bool commandExecute(JsonDocument &doc);
+
+  bool _queuePayload(MsgPayload_t *payload) {
+    auto rc = false;
+    auto q_rc = pdTRUE;
+
+    if (uxQueueSpacesAvailable(_cmd_q) == 0) {
+      MsgPayload_t *old = nullptr;
+
+      q_rc = xQueueReceive(_cmd_q, &old, pdMS_TO_TICKS(10));
+
+      if ((q_rc == pdTRUE) && (old != nullptr)) {
+        delete old;
+      }
+    }
+
+    if (q_rc == pdTRUE) {
+      q_rc = xQueueSendToBack(_cmd_q, (void *)&payload, pdMS_TO_TICKS(10));
+
+      if (q_rc == pdTRUE) {
+        rc = true;
+      } else {
+        // payload was not queued, delete it
+        delete payload;
+      }
+    }
+    return rc;
+  }
+
   void printUnhandledDev(pwmDev_t *dev);
 
   EngineTagMap_t &localTags() {
-    static std::unordered_map<string_t, string_t> tag_map = {
+    static unordered_map<string_t, string_t> tag_map = {
         {"engine", "mPWM"},      {"discover", "mPWM_dis"},
         {"convert", "mPWM_cvt"}, {"report", "mPWM_rep"},
         {"command", "mPWM_cmd"}, {"detect", "mPWM_det"}};

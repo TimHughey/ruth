@@ -70,28 +70,15 @@ pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
 
   setDescription(pwmDevDesc(num));
 
-  snprintf(id.get(), pwm_max_id_len_, "pwm/self.%s", pwmDevDesc(num));
+  snprintf(id.get(), pwm_max_id_len_, "pwm/%s.%s", Net::getName().c_str(),
+           pwmDevDesc(num));
 
   setID(id.get());
 };
 
 // externalName implementation for pwmDev
 // externalName includes the host name (instead of self)
-const char *pwmDev::externalName() {
-
-  // if external_name_ hasn't been set then build it here
-  if (external_name_.length() == 0) {
-    const auto name_max = 64;
-    unique_ptr<char[]> name(new char[name_max + 1]);
-
-    snprintf(name.get(), name_max, "pwm/%s.%s", Net::getName().c_str(),
-             pwmDevDesc(addr()));
-
-    external_name_ = name.get();
-  }
-
-  return external_name_.c_str();
-}
+const char *pwmDev::externalName() { return id().c_str(); }
 
 uint8_t pwmDev::devAddr() { return firstAddressByte(); };
 
@@ -100,7 +87,7 @@ void pwmDev::configureChannel() {
   last_rc_ = ledc_channel_config(&ledc_channel_);
 }
 
-bool pwmDev::updateDuty(cmdPWM_t *cmd) {
+bool pwmDev::updateDuty(JsonDocument &doc) {
   auto esp_rc = ESP_OK;
 
   const ledc_mode_t mode = ledc_channel_.speed_mode;
@@ -108,27 +95,11 @@ bool pwmDev::updateDuty(cmdPWM_t *cmd) {
 
   writeStart();
 
-  if (cmd->is_fade()) {
-    ledc_duty_direction_t fade_direction = (cmd->direction() == 0)
-                                               ? LEDC_DUTY_DIR_DECREASE
-                                               : LEDC_DUTY_DIR_INCREASE;
-
-    // sets the fade options, must call ledc_update_duty to begin fade
-    esp_rc = ledc_set_fade(mode, channel, cmd->duty(), fade_direction,
-                           cmd->step_num(), cmd->duty_cycle_num(),
-                           cmd->duty_scale());
-
-    if (esp_rc == ESP_OK) {
-      esp_rc = ledc_update_duty(mode, channel);
-    }
-
-  } else {
-    ledc_set_duty_and_update(mode, channel, cmd->duty(), 0);
-  }
+  ledc_set_duty_and_update(mode, channel, doc["duty"], 0);
 
   writeStop();
 
-  duty_ = cmd->duty();
+  duty_ = doc["duty"];
 
   return (esp_rc == ESP_OK) ? true : false;
 }
