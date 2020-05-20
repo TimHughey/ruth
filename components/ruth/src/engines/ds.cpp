@@ -35,9 +35,11 @@
 namespace ruth {
 
 DallasSemi_t *__singleton__ = nullptr;
-static const string_t engine_name = "DallasSemi";
+static const string_t engine_name = "DalSemi";
 
-const size_t _capacity = 1024;
+// command document capacity for expected metadata and up to eight pio states
+const size_t _capacity =
+    JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
 
 DallasSemi::DallasSemi() {
   EngineTask_t core("ds", "core");

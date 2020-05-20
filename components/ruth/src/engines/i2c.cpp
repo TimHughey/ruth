@@ -37,6 +37,10 @@ namespace ruth {
 static I2c_t *__singleton__ = nullptr;
 static const string_t engine_name = "I2c";
 
+// command document capacity for expected metadata and up to eight pio states
+const size_t _capacity =
+    JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
+
 I2c::I2c() {
   EngineTask_t core("i2c", "core");
   EngineTask_t command("i2c", "command");
@@ -93,7 +97,7 @@ void I2c::command(void *data) {
 
     elapsedMicros parse_elapsed;
     // deserialize the msgpack data
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(_capacity);
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
     // we're done with the original payload at this point
