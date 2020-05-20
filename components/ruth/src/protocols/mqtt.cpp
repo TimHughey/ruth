@@ -213,7 +213,18 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
   //   prod/ruth.max_addr/i2c
 
   // NOTE:  the downstream object and/or task must free payload when finished
-  handlePayload(payload);
+  if (handlePayload(payload)) {
+    return;
+  } else {
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("[MQTT] unable to process subtopic: \"%s\"",
+                 payload->subtopic().c_str());
+    rlog->publish();
+
+    delete payload;
+  }
 }
 
 // the message did not have a subtopic, send it to MQTTin for handling
