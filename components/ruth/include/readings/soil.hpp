@@ -40,8 +40,7 @@ private:
 public:
   // undefined reading
   // celsiusReading(){};
-  soilReading(const std::string &id, time_t mtime, float celsius,
-              int soil_moisture);
+  soilReading(const string_t &id, float celsius, int soil_moisture);
 
 protected:
   virtual void populateJSON(JsonDocument &doc);

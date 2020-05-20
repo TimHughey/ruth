@@ -484,3 +484,14 @@ Used static IRAM:   88408 bytes (  42664 available, 67.4% used)
     Flash rodata:  145928 bytes
 Total image size:~ 940835 bytes (.bin may be padded larger)
 <<<
+>>>
+1a89793a Centralized Handling of Command Payload
+Total sizes:
+ DRAM .data size:   14024 bytes
+ DRAM .bss  size:   25160 bytes
+Used static DRAM:   39184 bytes ( 141552 available, 21.7% used)
+Used static IRAM:   88408 bytes (  42664 available, 67.4% used)
+      Flash code:  693163 bytes
+    Flash rodata:  146216 bytes
+Total image size:~ 941811 bytes (.bin may be padded larger)
+<<<

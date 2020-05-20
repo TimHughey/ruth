@@ -18,7 +18,6 @@
           https://www.wisslanding.com
       */
 
-#include <bitset>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -41,16 +40,6 @@ static const string_t engine_name = "DallasSemi";
 const size_t _capacity = 1024;
 
 DallasSemi::DallasSemi() {
-  setTags(localTags());
-  // setLoggingLevel(ESP_LOG_DEBUG);
-  setLoggingLevel(ESP_LOG_INFO);
-  // setLoggingLevel(ESP_LOG_WARN);
-  // setLoggingLevel(tagConvert(), ESP_LOG_INFO);
-  // setLoggingLevel(tagReport(), ESP_LOG_INFO);
-  // setLoggingLevel(tagDiscover(), ESP_LOG_INFO);
-  // setLoggingLevel(tagCommand(), ESP_LOG_INFO);
-  // setLoggingLevel(tagSetDS2408(), ESP_LOG_INFO);
-
   EngineTask_t core("ds", "core");
   EngineTask_t convert("ds", "convert");
   EngineTask_t command("ds", "command");
@@ -81,11 +70,7 @@ bool DallasSemi::checkDevicesPowered() {
   owb_s = owb_read_byte(_ds, &pwr);
 
   if ((owb_s == OWB_STATUS_OK) && pwr) {
-    ESP_LOGV(tagDiscover(), "all devices are powered");
     rc = true;
-  } else {
-    ESP_LOGW(tagDiscover(),
-             "at least one device is not powered (or err owb_s=%d)", owb_s);
   }
 
   resetBus();
@@ -138,11 +123,11 @@ void DallasSemi::command(void *data) {
       rlog->publish();
       continue;
     }
-    const string_t device = doc["switch"] | "missing";
+    string_t device = doc["device"] | "missing";
     dsDev_t *dev = findDevice(device);
 
     if (dev == nullptr) {
-      rlog->printf("[i2c] could not find device \"%s\"", device.c_str());
+      rlog->printf("[DalSemi] could not find device \"%s\"", device.c_str());
       rlog->publish();
       continue;
     }
@@ -188,19 +173,8 @@ bool DallasSemi::commandExecute(dsDev_t *dev, uint32_t cmd_mask,
   if (dev->isValid()) {
     bool set_rc = false;
 
-    trackSwitchCmd(true);
-
     needBus();
-    ESP_LOGV(tagCommand(), "attempting to aquire bux mutex...");
-    elapsedMicros bus_wait;
     takeBus();
-
-    if (bus_wait < 500) {
-      ESP_LOGV(tagCommand(), "acquired bus mutex (%lluus)", (uint64_t)bus_wait);
-    } else {
-      ESP_LOGW(tagCommand(), "acquire bus mutex took %0.2fms",
-               (float)(bus_wait / 1000.0));
-    }
 
     // the device write time is the total duration of all processing
     // of the write -- not just the duration on the bus
@@ -220,11 +194,8 @@ bool DallasSemi::commandExecute(dsDev_t *dev, uint32_t cmd_mask,
       commandAck(dev, ack, refid);
     }
 
-    trackSwitchCmd(false);
-
     giveBus();
 
-    ESP_LOGV(tagCommand(), "released bus mutex");
     return true;
   }
   return false;
@@ -255,12 +226,7 @@ void DallasSemi::convert(void *data) {
     // start by clearing the bit to signal there isn't a temperature available
     tempUnavailable();
 
-    trackConvert(true);
-
     if (!devicesPowered() && !tempDevicesPresent()) {
-      ESP_LOGW(tagConvert(),
-               "devices not powered or no temperature devices present");
-      trackConvert(false);
       taskDelayUntil(CONVERT, _convert_frequency);
       continue;
     }
@@ -268,7 +234,6 @@ void DallasSemi::convert(void *data) {
     takeBus();
 
     if (resetBus(&present) && (present == false)) {
-      ESP_LOGW(tagConvert(), "no devices present (but there should be)");
       giveBus();
       taskDelayUntil(CONVERT, _convert_frequency);
       continue;
@@ -283,21 +248,10 @@ void DallasSemi::convert(void *data) {
     // the convert.  additionally, we should see zeroes on the bus since
     // devices will hold the bus low during the convert
     if ((owb_s != OWB_STATUS_OK) || (data != 0x00)) {
-      trackConvert(false);
-      if (owb_s != OWB_STATUS_OK) {
-        ESP_LOGW(tagConvert(), "cmd failed owb_s=%d data=0x%x", owb_s, data);
-      }
-
-      if (data == 0xff) {
-        ESP_LOGW(tagConvert(), "appears no temperature devices on bus");
-      }
-
       giveBus();
       taskDelayUntil(CONVERT, _convert_frequency);
       continue;
     }
-
-    ESP_LOGD(tagConvert(), "in-progress");
 
     bool in_progress = true;
     bool temp_available = false;
@@ -306,7 +260,10 @@ void DallasSemi::convert(void *data) {
       owb_s = owb_read_byte(_ds, &data);
 
       if (owb_s != OWB_STATUS_OK) {
-        ESP_LOGW(tagConvert(), "temp convert failed (0x%02x)", owb_s);
+        textReading_t *rlog = new textReading();
+        textReading_ptr_t rlog_ptr(rlog);
+        rlog->printf("[DalSemi] temp convert failed (0x%02x)", owb_s);
+        rlog->publish();
         break;
       }
 
@@ -333,11 +290,14 @@ void DallasSemi::convert(void *data) {
         if (notified) {
           resetBus();          // abort the temperature convert
           in_progress = false; // signal to break from loop
-          ESP_LOGW(tagConvert(), "another task needs the bus, convert aborted");
         }
 
         if ((esp_timer_get_time() - _wait_start) >= _max_temp_convert_us) {
-          ESP_LOGW(tagConvert(), "temp convert timed out");
+          textReading_t *rlog = new textReading();
+          textReading_ptr_t rlog_ptr(rlog);
+          rlog->printf("[DalSemi] temp convert timed out)");
+          rlog->publish();
+
           resetBus();
           in_progress = false; // signal to break from loop
         }
@@ -345,7 +305,6 @@ void DallasSemi::convert(void *data) {
     }
 
     giveBus();
-    trackConvert(false);
 
     // signal to other tasks if temperatures are available
     if (temp_available) {
@@ -375,13 +334,9 @@ void DallasSemi::discover(void *data) {
     // artificially inflating discover elapsed time
     takeBus();
 
-    trackDiscover(true);
-
     bool present = false;
     if (resetBus(&present) && (present == false)) {
-      ESP_LOGV(tagDiscover(), "no devices present");
       giveBus();
-      trackDiscover(false);
       taskDelayUntil(DISCOVER, _discover_frequency);
       continue;
     }
@@ -389,9 +344,7 @@ void DallasSemi::discover(void *data) {
     owb_s = owb_search_first(_ds, &search_state, &found);
 
     if (owb_s != OWB_STATUS_OK) {
-      ESP_LOGW(tagDiscover(), "search first failed owb_s=%d", owb_s);
       giveBus();
-      trackDiscover(false);
       taskDelayUntil(DISCOVER, _discover_frequency);
       continue;
     }
@@ -403,12 +356,8 @@ void DallasSemi::discover(void *data) {
       DeviceAddress_t found_addr(search_state.rom_code.bytes, 8);
       dsDev_t dev(found_addr, true);
 
-      if (justSeenDevice(dev)) {
-        ESP_LOGV(tagDiscover(), "previously seen %s", dev.debug().get());
-      } else {
+      if (justSeenDevice(dev) == nullptr) {
         dsDev_t *new_dev = new dsDev(dev);
-        ESP_LOGD(tagDiscover(), "%s is new (%p)", dev.debug().get(),
-                 (void *)new_dev);
         addDevice(new_dev);
       }
 
@@ -420,8 +369,6 @@ void DallasSemi::discover(void *data) {
 
       // another task needs the bus so break out of the loop
       if (bus_needed) {
-        ESP_LOGW(tagConvert(), "another task needs the bus, discover aborted");
-
         resetBus();       // abort the search
         hold_bus = false; // signal to break from loop
       } else {
@@ -429,7 +376,11 @@ void DallasSemi::discover(void *data) {
         owb_s = owb_search_next(_ds, &search_state, &found);
 
         if (owb_s != OWB_STATUS_OK) {
-          ESP_LOGW(tagDiscover(), "search next failed owb_s=%d", owb_s);
+          textReading_t *rlog = new textReading();
+          textReading_ptr_t rlog_ptr(rlog);
+
+          rlog->printf("DalSemi search next failed owb_s=\"%d\"", owb_s);
+          rlog->publish();
         }
       }
     }
@@ -442,7 +393,6 @@ void DallasSemi::discover(void *data) {
 
     _devices_powered = checkDevicesPowered();
 
-    trackDiscover(false);
     giveBus();
 
     // must set before setting devices_available
@@ -485,51 +435,31 @@ void DallasSemi::report(void *data) {
       // let's wait here for the temperature available bit
       // once we see it then clear it to ensure we don't run again until
       // it's available again
-      ESP_LOGD(tagReport(), "standing by for temperature");
       waitFor(temperatureAvailableBit(), _report_frequency, true);
     }
 
     // last wake is after the event group has been satisified
     saveTaskLastWake(REPORT);
 
-    trackReport(true);
-    ESP_LOGV(tagReport(), "will attempt to report %d device%s",
-             numKnownDevices(), (numKnownDevices() > 1) ? "s" : "");
+    for_each(beginDevices(), endDevices(), [this](dsDev_t *item) {
+      dsDev_t *dev = item;
 
-    for_each(beginDevices(), endDevices(),
-             [this](std::pair<string_t, dsDev_t *> item) {
-               auto dev = item.second;
+      if (dev->available()) {
+        takeBus();
+        auto rc = readDevice(dev);
 
-               if (dev->available()) {
-                 ESP_LOGV(tagReport(), "reading device %s", dev->debug().get());
+        if (rc) {
+          publish(dev);
+          dev->justSeen();
+        }
+        // hold onto the bus mutex to ensure that the device publih
+        // succeds (another task doesn't change the device just read)
+        giveBus();
+      }
+    });
 
-                 takeBus();
-                 auto rc = readDevice(dev);
-
-                 if (rc) {
-                   ESP_LOGV(tagReport(), "publishing reading for %s",
-                            dev->debug().get());
-                   publish(dev);
-                   dev->justSeen();
-                 }
-                 // hold onto the bus mutex to ensure that the device publih
-                 // succeds (another task doesn't change the device just read)
-                 giveBus();
-               } else {
-                 if (dev->missing()) {
-                   ESP_LOGW(tagReport(), "device missing: %s",
-                            dev->debug().get());
-                 }
-               }
-             });
-
-    trackReport(false);
-    reportMetrics();
-
-    // case b:  wait a present duration (no temp devices)
+    // case b:  wait a preset duration (no temp devices)
     if (!_temp_devices_present) {
-      ESP_LOGV(tagReport(), "no temperature devices, sleeping for %u ticks",
-               _report_frequency);
       taskDelayUntil(REPORT, _report_frequency);
     }
   }
@@ -541,7 +471,6 @@ bool DallasSemi::readDevice(dsDev_t *dev) {
   auto rc = false;
 
   if (dev->isNotValid()) {
-    printInvalidDev(dev);
     return false;
   }
 
@@ -550,8 +479,6 @@ bool DallasSemi::readDevice(dsDev_t *dev) {
   // perform this check here so the specialized read methods can assume
   // the bus is operational and eliminate redundant code
   if (resetBus() == false) {
-    ESP_LOGW(tagReadDevice(), "%s bus reset failed before read",
-             dev->debug().get());
     return rc;
   }
 
@@ -590,7 +517,7 @@ bool DallasSemi::readDevice(dsDev_t *dev) {
     break;
 
   default:
-    ESP_LOGW(tagEngine(), "unknown family 0x%02x", dev->family());
+    rc = false;
   }
 
   return rc;
@@ -623,7 +550,12 @@ bool DallasSemi::readDS1820(dsDev_t *dev, celsiusReading_t **reading) {
   resetBus();
 
   if (owb_s != OWB_STATUS_OK) {
-    ESP_LOGW(tagReadDS1820(), "failed to read scratchpad owb_s=%d", owb_s);
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" read failure owb_s=\"%d\"", dev->id().c_str(),
+                 owb_s);
+    rlog->publish();
     return rc;
   }
 
@@ -654,15 +586,19 @@ bool DallasSemi::readDS1820(dsDev_t *dev, celsiusReading_t **reading) {
   uint16_t crc8 = owb_crc8_bytes(0x00, data, sizeof(data));
 
   if (crc8 != 0x00) {
-    ESP_LOGW(tagReadDS1820(), "crc FAILED (0x%02x) for %s", crc8,
-             dev->debug().get());
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" failed crc8=\"0x%02x\"", dev->id().c_str(),
+                 crc8);
+    rlog->publish();
     return rc;
   }
 
   float celsius = (float)raw / 16.0;
 
   rc = true;
-  *reading = new celsiusReading(dev->id(), lastConvertTimestamp(), celsius);
+  *reading = new celsiusReading(dev->id(), celsius);
 
   return rc;
 }
@@ -688,8 +624,13 @@ bool DallasSemi::readDS2406(dsDev_t *dev, positionsReading_t **reading) {
   owb_s = owb_write_bytes(_ds, cmd, sizeof(cmd));
 
   if (owb_s != OWB_STATUS_OK) {
-    dev->readStop();
-    ESP_LOGW(tagReadDS2406(), "failed to send read cmd owb_s=%d", owb_s);
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" cmd failure owb_s=\"%d\"", dev->id().c_str(),
+                 owb_s);
+    rlog->publish();
+
     return rc;
   }
 
@@ -699,7 +640,12 @@ bool DallasSemi::readDS2406(dsDev_t *dev, positionsReading_t **reading) {
   dev->readStop();
 
   if (owb_s != OWB_STATUS_OK) {
-    ESP_LOGW(tagReadDS2406(), "failed to read cmd results owb_s=%d", owb_s);
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" read failure owb_s=\"%d\"", dev->id().c_str(),
+                 owb_s);
+    rlog->publish();
     return rc;
   }
 
@@ -750,7 +696,6 @@ bool DallasSemi::readDS2408(dsDev_t *dev, positionsReading_t **reading) {
 
   if (owb_s != OWB_STATUS_OK) {
     dev->readStop();
-    ESP_LOGW(tagReadDS2408(), "failed to send read cmd owb_s=%d", owb_s);
     return rc;
   }
 
@@ -759,14 +704,13 @@ bool DallasSemi::readDS2408(dsDev_t *dev, positionsReading_t **reading) {
   owb_s = owb_read_bytes(_ds, (dev_cmd + 10), 34);
   dev->readStop();
 
-  ESP_LOGV(tagReadDS2408(), "dev_cmd after read start of buffer dump");
-  ESP_LOG_BUFFER_HEX_LEVEL(tagReadDS2408(), dev_cmd, sizeof(dev_cmd),
-                           ESP_LOG_DEBUG);
-  ESP_LOGV(tagReadDS2408(), "dev_cmd after read end of buffer dump");
-
   if (owb_s != OWB_STATUS_OK) {
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
 
-    ESP_LOGW(tagReadDS2408(), "failed to read cmd results owb_s=%d", owb_s);
+    rlog->printf("device \"%s\" failed to read cmd result owb_s=\"%d\"",
+                 dev->id().c_str(), owb_s);
+    rlog->publish();
     return rc;
   }
 
@@ -778,8 +722,12 @@ bool DallasSemi::readDS2408(dsDev_t *dev, positionsReading_t **reading) {
       check_crc16((dev_cmd + 9), 33, &(dev_cmd[sizeof(dev_cmd) - 2]));
 
   if (!crc16) {
-    ESP_LOGW(tagReadDS2408(), "crc FAILED (0x%02x) for %s", crc16,
-             dev->debug().get());
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" failed crc16=\"0x%02x\"", dev->id().c_str(),
+                 crc16);
+    rlog->publish();
     return rc;
   }
 
@@ -815,7 +763,12 @@ bool DallasSemi::readDS2413(dsDev_t *dev, positionsReading_t **reading) {
 
   if (owb_s != OWB_STATUS_OK) {
     dev->readStop();
-    ESP_LOGW(tagReadDS2413(), "failed to send read cmd owb_s=%d", owb_s);
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" cmd failure owb_s=\"%d\"", dev->id().c_str(),
+                 owb_s);
+    rlog->publish();
     return rc;
   }
 
@@ -825,7 +778,6 @@ bool DallasSemi::readDS2413(dsDev_t *dev, positionsReading_t **reading) {
   dev->readStop();
 
   if (owb_s != OWB_STATUS_OK) {
-    ESP_LOGW(tagReadDS2413(), "failed to read cmd results owb_s=%d", owb_s);
     return rc;
   }
 
@@ -833,8 +785,14 @@ bool DallasSemi::readDS2413(dsDev_t *dev, positionsReading_t **reading) {
 
   // both bytes should be the same
   if (buff[0] != buff[1]) {
-    ESP_LOGW(tagReadDS2413(), "state bytes don't match (0x%02x != 0x%02x ",
-             buff[0], buff[1]);
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" state byte0=\"0x%02x\" and byte1=\"0x%02x\" "
+                 "should match",
+                 dev->id().c_str(), buff[0], buff[1]);
+
+    rlog->publish();
     return rc;
   }
 
@@ -886,9 +844,7 @@ void DallasSemi::core(void *data) {
 
   owb_use_crc(_ds, true);
 
-  ESP_LOGV(tagEngine(), "waiting for normal ops...");
   Net::waitForNormalOps();
-  ESP_LOGV(tagEngine(), "normal ops, proceeding to task loop");
 
   saveTaskLastWake(CORE);
 
@@ -935,7 +891,13 @@ bool DallasSemi::setDS2406(dsDev_t *dev, uint32_t cmd_mask,
   owb_s = owb_write_bytes(_ds, dev_cmd, dev_cmd_size - 2);
 
   if (owb_s != OWB_STATUS_OK) {
-    ESP_LOGW(tagSetDS2406(), "failed to send read cmd owb_s=%d", owb_s);
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" send read cmd failure owb_s=\"%d\"",
+                 dev->id().c_str(), owb_s);
+    rlog->publish();
+
     return rc;
   }
 
@@ -944,26 +906,41 @@ bool DallasSemi::setDS2406(dsDev_t *dev, uint32_t cmd_mask,
   owb_s = owb_read_bytes(_ds, (dev_cmd + crc16_idx), 2);
 
   if (owb_s != OWB_STATUS_OK) {
-    ESP_LOGW(tagSetDS2406(), "failed to read cmd results owb_s=%d", owb_s);
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" failed to read cmd results owb_s=\"%d\"",
+                 dev->id().c_str(), owb_s);
+    rlog->publish();
     return rc;
   }
 
-  bool crc_good = check_crc16((dev_cmd + 9), 4, &dev_cmd[crc16_idx]);
+  bool crc16 = check_crc16((dev_cmd + 9), 4, &dev_cmd[crc16_idx]);
 
-  if (crc_good) {
+  if (crc16) {
     // writing 0xFF persists scratchpad to status
     owb_s = owb_write_byte(_ds, 0xff);
 
     if (owb_s != OWB_STATUS_OK) {
-      ESP_LOGW(tagSetDS2406(), "failed to copy scratchpad to status owb_s=%d",
-               owb_s);
+      textReading_t *rlog = new textReading();
+      textReading_ptr_t rlog_ptr(rlog);
+
+      rlog->printf("device \"%s\" failed to persist scratchpad owb_s=\"%d\"",
+                   dev->id().c_str(), owb_s);
+      rlog->publish();
+
       return rc;
     }
 
     resetBus();
     rc = true;
   } else {
-    ESP_LOGW(tagSetDS2406(), "crc16 failure");
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" failed crc16=\"0x%02x\"", dev->id().c_str(),
+                 crc16);
+    rlog->publish();
   }
 
   return rc;
@@ -982,9 +959,8 @@ bool DallasSemi::setDS2408(dsDev_t *dev, uint32_t cmd_mask,
   // state for the pios not changing
   if (readDevice(dev) == false) {
     rlog->reuse();
-    rlog->printf("%s SET FAILED read before set", dev->debug().get());
+    rlog->printf("device \"%s\" read before set failed", dev->id().c_str());
     rlog->publish();
-    rlog->consoleWarn(tagSetDS2408());
 
     return rc;
   }
@@ -1021,9 +997,9 @@ bool DallasSemi::setDS2408(dsDev_t *dev, uint32_t cmd_mask,
 
   if (owb_s != OWB_STATUS_OK) {
     rlog->reuse();
-    rlog->printf("%s SET FAILED cmd owb_s(%d)", dev->debug().get(), owb_s);
+    rlog->printf("device \"%s\" set cmd failed owb_s=\"%d\"",
+                 dev->debug().get(), owb_s);
     rlog->publish();
-    rlog->consoleWarn(tagSetDS2408());
 
     return rc;
   }
@@ -1034,10 +1010,9 @@ bool DallasSemi::setDS2408(dsDev_t *dev, uint32_t cmd_mask,
 
   if (owb_s != OWB_STATUS_OK) {
     rlog->reuse();
-    rlog->printf("%s SET FAILED check bytes read owb_s(%d)", dev->debug().get(),
-                 owb_s);
+    rlog->printf("device \"%s\" check byte read failed owb_s=\"%d\"",
+                 dev->debug().get(), owb_s);
     rlog->publish();
-    rlog->consoleWarn(tagSetDS2408());
 
     return rc;
   }
@@ -1052,22 +1027,16 @@ bool DallasSemi::setDS2408(dsDev_t *dev, uint32_t cmd_mask,
   uint8_t conf_byte = check[0];
   uint8_t dev_state = check[1];
   if ((conf_byte == 0xaa) || (dev_state == new_state)) {
-    // rlog->printf("%s SET OK conf(%02x) *or* "
-    //              "state req(%02x) == dev(02x)",
-    //              dev->id().c_str(), conf_byte, new_state, dev_state);
-    // rlog->consoleInfo(tagSetDS2408());
-
     rc = true;
   } else if (((conf_byte & 0xa0) == 0xa0) || ((conf_byte & 0x0a) == 0x0a)) {
-    rlog->printf("%s SET OK-PARTIAL conf(%02x) state req(%02x) dev(%02x)",
+    rlog->printf("device \"%s\" SET OK-PARTIAL conf=\"%02x\" state "
+                 "req=\"%02x\" dev=\"%02x\"",
                  dev->id().c_str(), conf_byte, new_state, dev_state);
     rc = true;
-    rlog->consoleWarn(tagSetDS2408());
   } else {
-    rlog->printf("%s SET FAILED conf(%02x) state req(%02x) dev(%02x)",
+    rlog->printf("device \"%s\" SET FAILED conf=\"%02x\" state req=\"%02x\" "
+                 "dev=\"%02x\"",
                  dev->id().c_str(), conf_byte, new_state, dev_state);
-
-    rlog->consoleErr(tagSetDS2408());
   }
 
   rlog->publish();
@@ -1084,8 +1053,12 @@ bool DallasSemi::setDS2413(dsDev_t *dev, uint32_t cmd_mask,
   // important because setting the new state relies, in part, on the existing
   // state for the pios not changing
   if (readDevice(dev) == false) {
-    ESP_LOGW(tagSetDS2413(), "read before set failed for %s",
-             dev->debug().get());
+    textReading *rlog = new textReading_t;
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("device \"%s\" read before set failed", dev->id().c_str());
+    rlog->publish();
+
     return rc;
   }
 
@@ -1118,8 +1091,6 @@ bool DallasSemi::setDS2413(dsDev_t *dev, uint32_t cmd_mask,
   owb_s = owb_write_bytes(_ds, dev_cmd, sizeof(dev_cmd));
 
   if (owb_s != OWB_STATUS_OK) {
-    ESP_LOGW(tagSetDS2413(), "device cmd failed for %s owb_s=%d",
-             dev->debug().get(), owb_s);
     return rc;
   }
 
@@ -1127,8 +1098,6 @@ bool DallasSemi::setDS2413(dsDev_t *dev, uint32_t cmd_mask,
   owb_s = owb_read_bytes(_ds, check, sizeof(check));
 
   if (owb_s != OWB_STATUS_OK) {
-    ESP_LOGW(tagSetDS2413(), "read of check bytes failed for %s owb_s=%d",
-             dev->debug().get(), owb_s);
     return rc;
   }
 
@@ -1142,15 +1111,7 @@ bool DallasSemi::setDS2413(dsDev_t *dev, uint32_t cmd_mask,
   // bit in either (but hopefully not both)
   uint32_t dev_state = check[1];
   if ((check[0] == 0xaa) || (dev_state == (new_state & 0xff))) {
-    cmd_bitset_t b0 = check[0];
-    cmd_bitset_t b1 = check[1];
-    ESP_LOGV(tagSetDS2413(), "CONFIRMED check[0]=0b%s check[1]=0b%s for %s",
-             b0.to_string().c_str(), b1.to_string().c_str(),
-             dev->debug().get());
     rc = true;
-  } else {
-    ESP_LOGW(tagSetDS2413(), "FAILED check[0]=0x%x check[1]=0x%x for %s",
-             check[0], check[1], dev->debug().get());
   }
 
   return rc;
@@ -1185,13 +1146,4 @@ uint16_t DallasSemi::crc16(const uint8_t *input, uint16_t len, uint16_t crc) {
   return crc;
 }
 
-void DallasSemi::printInvalidDev(dsDev_t *dev) {
-  if (dev == nullptr) {
-    ESP_LOGW(tagEngine(), "%s dev == nullptr", __PRETTY_FUNCTION__);
-    return;
-  }
-
-  ESP_LOGW(tagEngine(), "%s dev id=%s", __PRETTY_FUNCTION__,
-           (const char *)dev->id().c_str());
-}
 } // namespace ruth

@@ -27,9 +27,9 @@
 #include "readings/humidity.hpp"
 
 namespace ruth {
-humidityReading::humidityReading(const std::string &id, time_t mtime,
-                                 float celsius, float relhum)
-    : celsiusReading(id, mtime, celsius) {
+humidityReading::humidityReading(const string_t &id, float celsius,
+                                 float relhum)
+    : celsiusReading(id, celsius) {
   // NOTE: subclassing of this class is not supported so _type
   // can be set directly without concern
   _type = ReadingType_t::RELHUM;

@@ -96,51 +96,6 @@ private:
 
   bool configureTimer();
   bool detectDevice(pwmDev_t *dev);
-
-  void printUnhandledDev(pwmDev_t *dev);
-
-  EngineTagMap_t &localTags() {
-    static unordered_map<string_t, string_t> tag_map = {
-        {"engine", "mPWM"},      {"discover", "mPWM_dis"},
-        {"convert", "mPWM_cvt"}, {"report", "mPWM_rep"},
-        {"command", "mPWM_cmd"}, {"detect", "mPWM_det"}};
-
-    ESP_LOGD(tag_map["engine"].c_str(), "tag_map sizeof=%u", sizeof(tag_map));
-    return tag_map;
-  }
-
-  ledc_channel_t mapToChannel(uint8_t num);
-
-  const char *tagDetectDev() {
-    static const char *tag = nullptr;
-    if (tag == nullptr) {
-      tag = _tags["detect"].c_str();
-    }
-    return tag;
-  }
-
-  const char *espError(esp_err_t esp_rc) {
-    static char catch_all[25] = {0x00};
-
-    bzero(catch_all, sizeof(catch_all));
-
-    switch (esp_rc) {
-    case ESP_OK:
-      return (const char *)"ESP_OK";
-      break;
-    case ESP_FAIL:
-      return (const char *)"ESP_FAIL";
-      break;
-    case ESP_ERR_TIMEOUT:
-      return (const char *)"ESP_ERROR_TIMEOUT";
-      break;
-    default:
-      snprintf(catch_all, sizeof(catch_all), "err=0x%04x", esp_rc);
-      break;
-    }
-
-    return catch_all;
-  }
 };
 } // namespace ruth
 

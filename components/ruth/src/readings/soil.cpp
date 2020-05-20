@@ -26,9 +26,8 @@
 #include "readings/soil.hpp"
 
 namespace ruth {
-soilReading::soilReading(const std::string &id, time_t mtime, float celsius,
-                         int soil_moisture)
-    : celsiusReading(id, mtime, celsius) {
+soilReading::soilReading(const string_t &id, float celsius, int soil_moisture)
+    : celsiusReading(id, celsius) {
   // override the reading type from the base class
   _type = ReadingType_t::SOIL;
   _soil_moisture = soil_moisture;

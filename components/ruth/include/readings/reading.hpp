@@ -84,9 +84,15 @@ protected:
 public:
   // default constructor, Reading type undefined
   Reading(){};
-  Reading(const string_t &id, time_t mtime = time(nullptr));
-  Reading(time_t mtime);
-  virtual ~Reading();
+  Reading(time_t mtime) : _mtime(mtime){};
+  Reading(const string_t &id, time_t mtime = time(nullptr))
+      : _id(id), _mtime(mtime){};
+
+  virtual ~Reading() {
+    if (_json != nullptr) {
+      delete _json;
+    }
+  };
 
   string_t *json(char *buffer = nullptr, size_t len = 0);
   virtual void publish();
@@ -115,7 +121,13 @@ public:
   void setWriteErrors(int write_errors) { _write_errors = write_errors; }
   void setWriteUS(int64_t write_us) { _write_us = write_us; }
 
-  static const char *typeString(ReadingType_t index);
+  static const char *typeString(ReadingType_t index) {
+    static const char *type_strings[] = {
+        "base", "stat", "ph",     "stats", "remote_runtime", "relhum",
+        "soil", "boot", "switch", "temp",  "text",           "pwm"};
+
+    return type_strings[index];
+  };
 };
 } // namespace ruth
 

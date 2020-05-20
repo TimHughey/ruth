@@ -36,7 +36,7 @@ private:
   float _celsius = 0.0;
 
 public:
-  celsiusReading(const std::string &id, time_t mtime, float celsius);
+  celsiusReading(const string_t &id, float celsius);
 
 protected:
   virtual void populateJSON(JsonDocument &doc);

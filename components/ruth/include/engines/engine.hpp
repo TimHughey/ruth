@@ -18,13 +18,12 @@
      https://www.wisslanding.com
  */
 
-#ifndef ruth_engine_h
-#define ruth_engine_h
+#ifndef _ruth_engine_h_
+#define _ruth_engine_h_
 
 #include <algorithm>
-#include <bitset>
 #include <cstdlib>
-#include <unordered_map>
+#include <vector>
 
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
@@ -43,17 +42,14 @@
 
 namespace ruth {
 
-using std::bitset;
-using std::unordered_map;
-
-typedef bitset<8> cmd_bitset_t;
+using std::vector;
 
 template <class DEV> class Engine {
 
+  typedef vector<DEV *> DeviceMap_t;
+
 private:
   TaskMap_t _task_map;
-
-  typedef unordered_map<string_t, DEV *> DeviceMap_t;
   DeviceMap_t _devices;
 
   EventGroupHandle_t _evg;
@@ -179,15 +175,10 @@ public:
 
     for_each(_task_map.begin(), _task_map.end(), [this](TaskMapItem_t item) {
       auto subtask = item.second;
-
-      ESP_LOGW(tagEngine(), "suspending subtask %s(%p)", subtask->_name.c_str(),
-               subtask->_handle);
       vTaskSuspend(subtask->_handle);
     });
 
     auto coretask = _task_map[CORE];
-    ESP_LOGW(tagEngine(), "suspending engine %s (%p)", coretask->_name.c_str(),
-             coretask->_handle);
     vTaskSuspend(coretask->_handle);
   };
 
@@ -196,7 +187,7 @@ public:
     auto task = _task_map[CORE];
 
     if (task->_handle != nullptr) {
-      ESP_LOGW(tagEngine(), "task already running %p", (void *)task->_handle);
+      return;
     }
 
     // this (object) is passed as the data to the task creation and is
@@ -204,8 +195,6 @@ public:
     // method
     xTaskCreate(&runCore, task->_name.c_str(), task->_stackSize, this,
                 task->_priority, &task->_handle);
-    ESP_LOGD(task->_name.c_str(), "core(%p) priority(%d) stack(%d)",
-             task->_handle, task->_priority, task->_stackSize);
 
     // now start any sub-tasks added
     for_each(_task_map.begin(), _task_map.end(), [this](TaskMapItem_t item) {
@@ -242,10 +231,6 @@ public:
       if (subtask != nullptr) {
         ::xTaskCreate(run_subtask, subtask->_name.c_str(), subtask->_stackSize,
                       this, subtask->_priority, &subtask->_handle);
-
-        ESP_LOGD(tagEngine(), "subtask %s priority(%d) stack(%d) handle(%p)",
-                 subtask->_name.c_str(), subtask->_priority,
-                 subtask->_stackSize, subtask->_handle);
       }
     });
   }
@@ -255,8 +240,6 @@ public:
     if (task->_handle == nullptr) {
       return;
     }
-
-    ESP_LOGW(tagEngine(), "task stopping, goodbye");
 
     xTaskHandle handle = task->_handle;
     task->_handle = nullptr;
@@ -279,16 +262,19 @@ public:
   DEV *justSeenDevice(DEV &dev) {
     auto *found_dev = findDevice(dev.id());
 
-    if (LOG_LOCAL_LEVEL >= ESP_LOG_DEBUG) {
-      ESP_LOGV(tagEngine(), "just saw: %s", dev.debug().get());
-    }
-
     if (found_dev) {
-      if (found_dev->missing()) {
-        ESP_LOGW(tagEngine(), "device returned %s", found_dev->debug().get());
-      }
+      auto was_missing = found_dev->missing();
 
       found_dev->justSeen();
+
+      if (was_missing) {
+        textReading_t *rlog = new textReading();
+        textReading_ptr_t rlog_ptr(rlog);
+
+        rlog->printf("missing device \"%s\" has returned",
+                     found_dev->id().c_str());
+        rlog->publish();
+      }
     }
 
     return found_dev;
@@ -299,31 +285,34 @@ public:
     DEV *found = nullptr;
 
     if (numKnownDevices() > maxDevices()) {
-      ESP_LOGW(tagEngine(), "attempt to exceed max devices!");
+      textReading_t *rlog = new textReading();
+      textReading_ptr_t rlog_ptr(rlog);
+
+      rlog->printf("adding device \"%s\" would exceed max devices",
+                   dev->id().c_str());
+      rlog->publish();
+
       return rc;
     }
 
     if ((found = findDevice(dev->id())) == nullptr) {
       dev->justSeen();
-      // _devices.push_back(dev);
-      _devices[dev->id()] = dev;
-      ESP_LOGV(tagEngine(), "added %s", dev->debug().get());
+      _devices.push_back(dev);
     }
 
     return (found == nullptr) ? true : false;
   };
 
   DEV *findDevice(const string_t &dev) {
+    using std::find_if;
+
     // my first lambda in C++, wow this languge has really evolved
     // since I used it 15+ years ago
-    // auto found =
-    //     std::find_if(_devices.begin(), _devices.end(),
-    //                  [dev](DEV *search) { return search->id() == dev; });
-
-    auto found = _devices.find(dev);
+    auto found = find_if(_devices.begin(), _devices.end(),
+                         [dev](DEV *search) { return search->id() == dev; });
 
     if (found != _devices.end()) {
-      return found->second;
+      return *found;
     }
 
     return nullptr;
@@ -355,9 +344,6 @@ public:
   };
 
 protected:
-  typedef std::unordered_map<string_t, string_t> EngineTagMap_t;
-  EngineTagMap_t _tags;
-
   virtual void convert(void *data) { doNothing(); };
   virtual void command(void *data) { doNothing(); };
   virtual void discover(void *data) { doNothing(); };
@@ -369,11 +355,7 @@ protected:
     logSubTaskStart((EngineTask_ptr_t)task_info);
   }
 
-  void logSubTaskStart(EngineTask_ptr_t task_info) {
-    ESP_LOGD(task_info->_name.c_str(),
-             "subtask(%p) running, priority(%d) stack(%d)", task_info->_handle,
-             task_info->_priority, task_info->_stackSize);
-  }
+  void logSubTaskStart(EngineTask_ptr_t task_info) {}
 
   // event group bits
   EventBits_t engineBit() { return _event_bits.engine_running; }
@@ -497,68 +479,6 @@ protected:
     }
   }
 
-  void setLoggingLevel(const char *tag, esp_log_level_t level) {
-    esp_log_level_set(tag, level);
-  }
-
-  const char *logLevelAsText(esp_log_level_t level) {
-    const char *text;
-
-    switch (level) {
-    case ESP_LOG_NONE:
-      text = "none";
-      break;
-    case ESP_LOG_DEBUG:
-      text = "debug";
-      break;
-    case ESP_LOG_INFO:
-      text = "info";
-      break;
-    case ESP_LOG_WARN:
-      text = "warning";
-      break;
-    case ESP_LOG_ERROR:
-      text = "error";
-      break;
-    case ESP_LOG_VERBOSE:
-      text = "verbose";
-      break;
-    default:
-      text = "unknown";
-    }
-
-    return text;
-  }
-
-  // definition of an entry in the EngineTagMap:
-  //  key:    identifier (e.g. 'engine', 'discover')
-  //  entry:  text displayed by ESP_LOG* when logging level matches
-  typedef std::pair<string_t, string_t> EngineTagItem_t;
-  void setLoggingLevel(esp_log_level_t level) {
-    for_each(_tags.begin(), _tags.end(), [this, level](EngineTagItem_t item) {
-      string_t &key = item.first;
-      string_t &tag_text = item.second;
-
-      ESP_LOGD(_tags["engine"].c_str(), "key(%s) tag(%s) %s logging",
-               key.c_str(), tag_text.c_str(), logLevelAsText(level));
-      esp_log_level_set(tag_text.c_str(), level);
-    });
-
-    elapsedMicros find;
-    const char *tag = _tags["engine"].c_str();
-
-    auto elapsed = (uint64_t)find;
-    auto load = _tags.load_factor();
-    auto buckets = _tags.bucket_count();
-
-    ESP_LOGV(tag,
-             "_tags us(%llu) sizeof(%zu) size(%u) load(%0.2f) "
-             "buckets(%u)",
-             elapsed, sizeof(_tags), _tags.size(), load, buckets);
-  }
-
-  void setTags(EngineTagMap_t &map) { _tags = map; }
-
   //
   // Command Queue
   //
@@ -615,66 +535,7 @@ protected:
     }
     return rc;
   }
-
-public:
-  const char *tagCommand() { return tagGeneric("command"); }
-
-  const char *tagConvert() { return tagGeneric("convert"); }
-
-  const char *tagDiscover() { return tagGeneric("discover"); }
-
-  const char *tagGeneric(const char *tag) { return _tags[tag].c_str(); }
-
-  const char *tagEngine() { return tagGeneric("engine"); }
-
-  const char *tagPhase() { return tagGeneric("phase"); }
-
-  const char *tagReport() { return tagGeneric("report"); }
-
-  // misc metrics tracking
-protected:
-  void trackPhase(const char *lTAG, EngineMetric_t &phase, bool start) {
-    if (start) {
-      phase.elapsed.reset();
-    } else {
-      ESP_LOGD(lTAG, "phase ended, took %0.1fms",
-               (float)((uint64_t)phase.elapsed / 1000.0));
-      phase.elapsed.freeze();
-      phase.last_time = time(nullptr);
-    }
-  };
-
-  void trackConvert(bool start = false) {
-    trackPhase(tagConvert(), metrics.convert, start);
-  };
-
-  void trackDiscover(bool start = false) {
-    trackPhase(tagDiscover(), metrics.discover, start);
-  };
-
-  void trackReport(bool start = false) {
-    trackPhase(tagReport(), metrics.report, start);
-  };
-
-  void trackSwitchCmd(bool start = false) {
-    trackPhase(tagCommand(), metrics.switch_cmd, start);
-  };
-
-  time_t lastConvertTimestamp() { return metrics.convert.last_time; };
-  time_t lastDiscoverTimestamp() { return metrics.discover.last_time; };
-  time_t lastReportTimestamp() { return metrics.report.last_time; };
-  time_t lastSwitchCmdTimestamp() { return metrics.switch_cmd.last_time; };
-
-  void reportMetrics() {
-    EngineReading reading(tagEngine(), metrics.discover.elapsed,
-                          metrics.convert.elapsed, metrics.report.elapsed,
-                          metrics.switch_cmd.elapsed);
-
-    if (reading.hasNonZeroValues()) {
-      publish(&reading);
-    }
-  }
 };
 } // namespace ruth
 
-#endif // engine_h
+#endif

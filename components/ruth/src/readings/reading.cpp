@@ -31,18 +31,6 @@
 
 namespace ruth {
 
-Reading::Reading(time_t mtime) : _mtime(mtime) {}
-
-Reading::Reading(const std::string &id, time_t mtime)
-    : _id(id), _mtime(mtime) {}
-
-Reading::~Reading() {
-  if (_json != nullptr) {
-    // ESP_LOGD("Reading", "freeing _json (%p)", (void *)_json);
-    delete _json;
-  }
-}
-
 void Reading::commonJSON(JsonDocument &doc) {
   doc["host"] = Net::hostID();
   doc["name"] = Net::getName();
@@ -85,11 +73,11 @@ void Reading::commonJSON(JsonDocument &doc) {
   }
 }
 
-std::string *Reading::json(char *buffer, size_t len) {
+string_t *Reading::json(char *buffer, size_t len) {
   // FUTURE IMPROVEMENT
-  // std::unique_ptr<std::string> json_S(new std::string());
+  // std::unique_ptr<string_t> json_S(new string_t());
   // json_S.get()->reserve(1024);
-  std::string *json_string = new std::string;
+  string_t *json_string = new string_t;
   json_string->reserve(2048);
 
   DynamicJsonDocument doc(2048);
@@ -104,11 +92,4 @@ std::string *Reading::json(char *buffer, size_t len) {
 
 void Reading::publish() { MQTT::publish(this); }
 
-static const char *__type_string[] = {
-    "base", "stat", "ph",     "stats", "remote_runtime", "relhum",
-    "soil", "boot", "switch", "temp",  "text",           "pwm"};
-
-const char *Reading::typeString(ReadingType_t index) {
-  return __type_string[index];
-}
 } // namespace ruth

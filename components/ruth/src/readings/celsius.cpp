@@ -27,9 +27,8 @@
 
 namespace ruth {
 
-celsiusReading::celsiusReading(const std::string &id, time_t mtime,
-                               float celsius)
-    : Reading(id, mtime) {
+celsiusReading::celsiusReading(const string_t &id, float celsius)
+    : Reading(id) {
   _celsius = celsius;
 
   // set the type of reading if it hasn't already been set

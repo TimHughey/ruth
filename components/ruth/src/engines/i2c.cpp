@@ -38,17 +38,6 @@ static I2c_t *__singleton__ = nullptr;
 static const string_t engine_name = "I2c";
 
 I2c::I2c() {
-  setTags(localTags());
-  // setLoggingLevel(ESP_LOG_DEBUG);
-  // setLoggingLevel(ESP_LOG_DEBUG);
-  setLoggingLevel(ESP_LOG_INFO);
-  // setLoggingLevel(ESP_LOG_WARN);
-  // setLoggingLevel(tagEngine(), ESP_LOG_INFO);
-  // setLoggingLevel(tagDetectDev(), ESP_LOG_INFO);
-  // setLoggingLevel(tagDiscover(), ESP_LOG_INFO);
-  // setLoggingLevel(tagReport(), ESP_LOG_INFO);
-  // setLoggingLevel(tagReadSHT31(), ESP_LOG_INFO);
-
   EngineTask_t core("i2c", "core");
   EngineTask_t command("i2c", "command");
   EngineTask_t discover("i2c", "discover");
@@ -97,7 +86,7 @@ void I2c::command(void *data) {
     unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     if (queue_rc == pdFALSE) {
-      rlog->printf("[i2c] [rc=%d] queue receive failed", queue_rc);
+      rlog->printf("[i2c] [rc=%d] cmd queue receive failed", queue_rc);
       rlog->publish();
       continue;
     }
@@ -120,11 +109,11 @@ void I2c::command(void *data) {
       continue;
     }
 
-    const string_t device = doc["switch"] | "missing";
+    string_t device = doc["device"] | "missing";
     i2cDev_t *dev = findDevice(device);
 
     if (dev == nullptr) {
-      rlog->printf("[i2c] could not find device \"%s\"", device.c_str());
+      rlog->printf("[i2c] could not locate device \"%s\"", device.c_str());
       rlog->publish();
       continue;
     }
@@ -169,8 +158,6 @@ bool I2c::commandExecute(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
   if (dev->isValid()) {
     bool set_rc = false;
 
-    trackSwitchCmd(true);
-
     needBus();
     takeBus();
 
@@ -186,8 +173,6 @@ bool I2c::commandExecute(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
       commandAck(dev, ack, refid);
     }
 
-    trackSwitchCmd(false);
-
     clearNeedBus();
     giveBus();
 
@@ -198,7 +183,6 @@ bool I2c::commandExecute(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
 
 void I2c::core(void *task_data) {
   bool driver_ready = false;
-  bool net_name = false;
 
   while (!driver_ready) {
     driver_ready = installDriver();
@@ -207,23 +191,7 @@ void I2c::core(void *task_data) {
 
   pinReset();
 
-  ESP_LOGV(tagEngine(), "waiting for normal ops...");
   Net::waitForNormalOps();
-
-  // wait for up to 30 seconds for name assigned by mcp
-  // if the assigned name is not available then device names will use
-  // the i2.c/ruth.<mac addr>.<bus>.<device> format
-
-  // this is because i2c devices do not have a globally assigned
-  // unique identifier (like Maxim / Dallas Semiconductors devices)
-  ESP_LOGV(tagEngine(), "waiting for network name...");
-  net_name = Net::waitForName();
-
-  if (net_name == false) {
-    ESP_LOGW(tagEngine(), "network name not available, using host name");
-  }
-
-  ESP_LOGV(tagEngine(), "normal ops, proceeding to task loop");
 
   saveTaskLastWake(CORE);
   for (;;) {
@@ -244,12 +212,10 @@ void I2c::discover(void *data) {
   while (waitForEngine()) {
 
     takeBus();
-    trackDiscover(true);
     detectMultiplexer();
 
     if (useMultiplexer()) {
       for (uint32_t bus = 0; (detect_rc && (bus < maxBuses())); bus++) {
-        ESP_LOGV(tagDetectDev(), "scanning bus %#02x", bus);
         detect_rc = detectDevicesOnBus(bus);
       }
     } else { // multiplexer not available, just search bus 0
@@ -261,7 +227,6 @@ void I2c::discover(void *data) {
     // signal to other tasks if there are devices available
     // after delaying a bit (to improve i2c bus stability)
     delay(100);
-    trackDiscover(false);
 
     if (numKnownDevices() > 0) {
       devicesAvailable();
@@ -286,35 +251,28 @@ void I2c::report(void *data) {
 
     Net::waitForNormalOps();
 
-    trackReport(true);
+    for_each(beginDevices(), endDevices(), [this](i2cDev_t *item) {
+      i2cDev_t *dev = item;
 
-    for_each(beginDevices(), endDevices(),
-             [this](std::pair<string_t, i2cDev_t *> item) {
-               auto dev = item.second;
+      if (dev->available()) {
+        takeBus();
 
-               if (dev->available()) {
-                 takeBus();
+        if (readDevice(dev)) {
+          publish(dev);
+        }
 
-                 if (readDevice(dev)) {
-                   publish(dev);
-                   ESP_LOGV(tagReport(), "%s success", dev->debug().get());
-                 } else {
-                   ESP_LOGE(tagReport(), "%s failed", dev->debug().get());
-                   // hardReset();
-                 }
+        giveBus();
 
-                 giveBus();
+      } else {
+        if (dev->missing()) {
+          textReading_t *rlog = new textReading();
+          textReading_ptr_t rlog_ptr(rlog);
 
-               } else {
-                 if (dev->missing()) {
-                   ESP_LOGW(tagReport(), "device missing: %s",
-                            dev->debug().get());
-                 }
-               }
-             });
-
-    trackReport(false);
-    reportMetrics();
+          rlog->printf("device \"%s\" is missing", dev->id().c_str());
+          rlog->publish();
+        }
+      }
+    });
 
     taskDelayUntil(REPORT, _report_frequency);
   }
@@ -326,15 +284,11 @@ esp_err_t I2c::busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
   esp_err_t esp_rc;
 
   if (prev_esp_rc != ESP_OK) {
-    ESP_LOGV(tagEngine(),
-             "aborted bus_read(%s, ...) invoked with prev_esp_rc = %s",
-             dev->debug().get(), esp_err_to_name(prev_esp_rc));
     return prev_esp_rc;
   }
 
   int timeout = 0;
   i2c_get_timeout(I2C_NUM_0, &timeout);
-  ESP_LOGV(tagEngine(), "i2c timeout: %d", timeout);
 
   cmd = i2c_cmd_link_create(); // allocate i2c cmd queue
   i2c_master_start(cmd);       // queue i2c START
@@ -350,14 +304,7 @@ esp_err_t I2c::busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
   esp_rc = i2c_master_cmd_begin(I2C_NUM_0, cmd, _cmd_timeout);
   i2c_cmd_link_delete(cmd);
 
-  if (esp_rc == ESP_OK) {
-    // TODO: set to debug for production release
-    ESP_LOGV(tagEngine(), "ESP_OK: bus_read(%s, %p, %d, %s)",
-             dev->debug().get(), buff, len, esp_err_to_name(prev_esp_rc));
-  } else {
-    ESP_LOGD(tagEngine(), "%s: bus_read(%s, %p, %d, %s)",
-             esp_err_to_name(esp_rc), dev->debug().get(), buff, len,
-             esp_err_to_name(prev_esp_rc));
+  if (esp_rc != ESP_OK) {
     dev->readFailure();
   }
 
@@ -370,9 +317,6 @@ esp_err_t I2c::busWrite(i2cDev_t *dev, uint8_t *bytes, uint32_t len,
   esp_err_t esp_rc;
 
   if (prev_esp_rc != ESP_OK) {
-    ESP_LOGV(tagEngine(),
-             "aborted bus_write(%s, ...) invoked with prev_esp_rc = %s",
-             dev->debug().get(), esp_err_to_name(prev_esp_rc));
     return prev_esp_rc;
   }
 
@@ -390,13 +334,7 @@ esp_err_t I2c::busWrite(i2cDev_t *dev, uint8_t *bytes, uint32_t len,
   esp_rc = i2c_master_cmd_begin(I2C_NUM_0, cmd, _cmd_timeout);
   i2c_cmd_link_delete(cmd);
 
-  if (esp_rc == ESP_OK) {
-    ESP_LOGV(tagEngine(), "ESP_OK: bus_write(%s, %p, %d, %s)",
-             dev->debug().get(), bytes, len, esp_err_to_name(prev_esp_rc));
-  } else {
-    ESP_LOGD(tagEngine(), "%s: bus_write(%s, %p, %d, %s)",
-             esp_err_to_name(esp_rc), dev->debug().get(), bytes, len,
-             esp_err_to_name(prev_esp_rc));
+  if (esp_rc != ESP_OK) {
     dev->writeFailure();
   }
 
@@ -426,8 +364,6 @@ bool I2c::detectDevice(i2cDev_t *dev) {
                               0xa2};
   uint8_t detect_cmd[] = {dev->devAddr()};
 
-  ESP_LOGV(tagDetectDev(), "looking for %s", dev->debug().get());
-
   switch (dev->devAddr()) {
 
   case 0x70: // TCA9548B - TI i2c bus multiplexer
@@ -449,17 +385,13 @@ bool I2c::detectDevice(i2cDev_t *dev) {
 
   if (esp_rc == ESP_OK) {
     rc = true;
-  } else {
-
-    ESP_LOGD(tagEngine(), "%s not found (%s)", dev->debug().get(),
-             espError(esp_rc));
   }
 
   return rc;
 }
 
 bool I2c::detectDevicesOnBus(int bus) {
-  bool rc = true;
+  bool rc = false;
 
   DeviceAddress_t *addrs = search_addrs();
 
@@ -467,26 +399,19 @@ bool I2c::detectDevicesOnBus(int bus) {
     DeviceAddress_t &search_addr = addrs[i];
     i2cDev_t dev(search_addr, useMultiplexer(), bus);
 
-    if (selectBus(bus)) {
-      if (detectDevice(&dev)) {
-
-        if (i2cDev_t *found = (i2cDev_t *)justSeenDevice(dev)) {
-          ESP_LOGV(tagDiscover(), "already know %s", found->debug().get());
-        } else { // device was not known, must add
-          i2cDev_t *new_dev = new i2cDev(dev);
-
-          ESP_LOGD(tagDiscover(), "new (%p) %s", (void *)new_dev,
-                   dev.debug().get());
-          addDevice(new_dev);
-        }
-
-        devicesAvailable();
-      }
-    } else {
-      ESP_LOGW(tagDiscover(),
-               "bus select failed, aborting detectDevicesOnBus()");
-      rc = false;
+    // abort detecting devices if the bus select fails
+    if (selectBus(bus) == false)
       break;
+
+    if (detectDevice(&dev)) {
+      if (justSeenDevice(dev) == nullptr) {
+        // device was not known, must add
+        i2cDev_t *new_dev = new i2cDev(dev);
+        addDevice(new_dev);
+      }
+
+      devicesAvailable();
+      rc = true;
     }
   }
 
@@ -499,7 +424,7 @@ bool I2c::detectMultiplexer(const int max_attempts) {
   _use_multiplexer = Profile::i2cUseMultiplexer();
 
   if (_use_multiplexer && detectDevice(&_multiplexer_dev)) {
-    ESP_LOGD(tagEngine(), "will use TCA9548A i2c multiplexer");
+    _use_multiplexer = true;
   } else {
     _use_multiplexer = false;
   }
@@ -507,24 +432,26 @@ bool I2c::detectMultiplexer(const int max_attempts) {
   return _use_multiplexer;
 }
 
-bool I2c::hardReset() {
-  esp_err_t rc;
+// 2020-05-20: the stabblity of the I2c SDK has improved and this code
+// is unncessary
 
-  ESP_LOGE(tagEngine(), "hard reset of i2c peripheral");
-
-  delay(1000);
-
-  rc = i2c_driver_delete(I2C_NUM_0);
-  ESP_LOGV(tagEngine(), "i2c_driver_delete() == %s", espError(rc));
-
-  periph_module_disable(PERIPH_I2C0_MODULE);
-  periph_module_enable(PERIPH_I2C0_MODULE);
-
-  return installDriver();
-}
-
+// bool I2c::hardReset() {
+//   esp_err_t rc;
+//
+//   delay(1000);
+//
+//   rc = i2c_driver_delete(I2C_NUM_0);
+//
+//   periph_module_disable(PERIPH_I2C0_MODULE);
+//   periph_module_enable(PERIPH_I2C0_MODULE);
+//
+//   return installDriver();
+// }
+//
 bool I2c::installDriver() {
-  esp_err_t esp_err = 0;
+  esp_err_t config_rc = ESP_FAIL;
+  esp_err_t install_rc = ESP_FAIL;
+  auto rc = true;
 
   bzero(&_conf, sizeof(_conf));
 
@@ -535,17 +462,30 @@ bool I2c::installDriver() {
   _conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
   _conf.master.clk_speed = 100000;
 
-  esp_err = i2c_param_config(I2C_NUM_0, &_conf);
-  ESP_LOGV(tagEngine(), "%s i2c_param_config()", esp_err_to_name(esp_err));
+  config_rc = i2c_param_config(I2C_NUM_0, &_conf);
 
-  if (esp_err == ESP_OK) {
-    esp_err = i2c_driver_install(I2C_NUM_0, _conf.mode, 0, 0, 0);
-    ESP_LOGV(tagEngine(), "%s i2c_driver_install()", esp_err_to_name(esp_err));
+  if (config_rc == ESP_OK) {
+    install_rc = i2c_driver_install(I2C_NUM_0, _conf.mode, 0, 0, 0);
   }
 
-  delay(1000);
+  rc = ((config_rc == ESP_OK) && (install_rc == ESP_OK)) ? true : false;
 
-  return (esp_err == ESP_OK) ? true : false;
+  if (rc) {
+    return rc;
+  } else {
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("i2c failure config_rc=\"%s\" install_rc=\"%s\"",
+                 esp_err_to_name(config_rc), esp_err_to_name(install_rc));
+    rlog->publish();
+  }
+
+  // 2020-05-20: the delay below is likely unncessary because of improved
+  //             i2c SDK stability
+  // delay(1000);
+
+  return rc;
 }
 
 I2c_t *I2c::_instance_() {
@@ -559,17 +499,19 @@ I2c_t *I2c::_instance_() {
 uint32_t I2c::maxBuses() { return _max_buses; }
 bool I2c::pinReset() {
 
-  ESP_LOGD(tagEngine(), "pulling reset pin low");
   gpio_set_level(RST_PIN, 0); // pull the pin low to reset i2c devices
   delay(250);                 // give plenty of time for all devices to reset
   gpio_set_level(RST_PIN, 1); // bring all devices online
-  ESP_LOGD(tagEngine(), "pulling reset pin high");
 
   return true;
 }
 
 void I2c::printUnhandledDev(i2cDev_t *dev) {
-  ESP_LOGW(tagEngine(), "unhandled dev %s", dev->debug().get());
+  textReading_t *rlog = new textReading();
+  textReading_ptr_t rlog_ptr(rlog);
+
+  rlog->printf("unhandled device \"%s\"", dev->debug().get());
+  rlog->publish();
 }
 
 bool I2c::useMultiplexer() { return _use_multiplexer; }
@@ -627,7 +569,7 @@ bool I2c::readMCP23008(i2cDev_t *dev) {
   RawData_t all_registers;
   all_registers.resize(12); // 12 bytes (0x00-0x0a)
 
-  esp_rc = requestData(tagReadMCP23008(), dev, request.data(), request.size(),
+  esp_rc = requestData(dev, request.data(), request.size(),
                        all_registers.data(), all_registers.capacity());
 
   if (esp_rc == ESP_OK) {
@@ -645,8 +587,12 @@ bool I2c::readMCP23008(i2cDev_t *dev) {
     dev->setReading(reading);
     rc = true;
   } else {
-    ESP_LOGW(tagReadMCP23008(), "[%s] %s read", esp_err_to_name(esp_rc),
-             dev->id().c_str());
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
+                 dev->id().c_str());
+    rlog->publish();
   }
 
   return rc;
@@ -723,15 +669,18 @@ bool I2c::readSeesawSoil(i2cDev_t *dev) {
   if (esp_rc == ESP_OK) {
     dev->justSeen();
 
-    soilReading_t *reading =
-        new soilReading(dev->id(), dev->readTimestamp(), tempC, soil_moisture);
+    soilReading_t *reading = new soilReading(dev->id(), tempC, soil_moisture);
 
     dev->setReading(reading);
     rc = true;
+  } else {
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
+                 dev->id().c_str());
+    rlog->publish();
   }
-  // ESP_LOGI(tagEngine(), "soil => sw_version=0x%04x tempC=%3.1f
-  // moisture=%d",
-  //          sw_version, tempC, soil_moisture);
 
   return rc;
 }
@@ -751,8 +700,7 @@ bool I2c::readSHT31(i2cDev_t *dev) {
       0x00        // crc8 of relh
   };
 
-  esp_rc = requestData(tagReadSHT31(), dev, request, sizeof(request), buff,
-                       sizeof(buff));
+  esp_rc = requestData(dev, request, sizeof(request), buff, sizeof(buff));
 
   if (esp_rc == ESP_OK) {
     dev->justSeen();
@@ -765,23 +713,36 @@ bool I2c::readSHT31(i2cDev_t *dev) {
       float tc = (float)((stc * 175) / 0xffff) - 45;
       float rh = (float)((srh * 100) / 0xffff);
 
-      humidityReading_t *reading =
-          new humidityReading(dev->id(), dev->readTimestamp(), tc, rh);
+      humidityReading_t *reading = new humidityReading(dev->id(), tc, rh);
 
       dev->setReading(reading);
 
       rc = true;
     } else { // crc did not match
-      ESP_LOGW(tagReadSHT31(), "crc mismatch for %s", dev->debug().get());
+
       dev->crcMismatch();
+
+      auto *rlog = new textReading();
+      textReading_ptr_t rlog_ptr(rlog);
+
+      rlog->printf("device \"%s\" crc check failed", esp_err_to_name(esp_rc),
+                   dev->id().c_str());
+      rlog->publish();
     }
+  } else { // esp_rc != ESP_OK
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
+                 dev->id().c_str());
+    rlog->publish();
   }
 
   return rc;
 }
 
-esp_err_t I2c::requestData(const char *TAG, i2cDev_t *dev, uint8_t *send,
-                           uint8_t send_len, uint8_t *recv, uint8_t recv_len,
+esp_err_t I2c::requestData(i2cDev_t *dev, uint8_t *send, uint8_t send_len,
+                           uint8_t *recv, uint8_t recv_len,
                            esp_err_t prev_esp_rc, int timeout) {
   i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc;
@@ -797,7 +758,6 @@ esp_err_t I2c::requestData(const char *TAG, i2cDev_t *dev, uint8_t *send,
   int _save_timeout = 0;
   if (timeout > 0) {
     i2c_get_timeout(I2C_NUM_0, &_save_timeout);
-    ESP_LOGV(TAG, "saving previous i2c timeout: %d", _save_timeout);
     i2c_set_timeout(I2C_NUM_0, timeout);
   }
 
@@ -829,15 +789,7 @@ esp_err_t I2c::requestData(const char *TAG, i2cDev_t *dev, uint8_t *send,
   esp_rc = i2c_master_cmd_begin(I2C_NUM_0, cmd, _cmd_timeout);
   i2c_cmd_link_delete(cmd);
 
-  if (esp_rc == ESP_OK) {
-    // TODO: set to debug for production release
-    ESP_LOGV(TAG, "ESP_OK: requestData(%s, %p, %d, %p, %d, %s, %d)",
-             dev->debug().get(), send, send_len, recv, recv_len,
-             esp_err_to_name(prev_esp_rc), timeout);
-  } else {
-    ESP_LOGE(TAG, "%s: requestData(%s, %p, %d, %p, %d, %s, %d)",
-             esp_err_to_name(esp_rc), dev->debug().get(), send, send_len, recv,
-             recv_len, esp_err_to_name(prev_esp_rc), timeout);
+  if (esp_rc != ESP_OK) {
     dev->readFailure();
   }
 
@@ -859,9 +811,7 @@ bool I2c::selectBus(uint32_t bus) {
   _bus_selects++;
 
   if (bus >= _max_buses) {
-    ESP_LOGW(tagEngine(), "attempt to select bus %d >= %d, bus not changed",
-             bus, _max_buses);
-    return rc;
+    return false;
   }
 
   if (useMultiplexer() && (bus < _max_buses)) {
@@ -871,21 +821,15 @@ bool I2c::selectBus(uint32_t bus) {
 
     esp_rc = busWrite(&multiplexer, bus_cmd, 1);
 
-    if (esp_rc == ESP_OK) {
-      rc = true;
-    } else {
+    if (esp_rc != ESP_OK) {
       _bus_select_errors++;
-      ESP_LOGW(tagSelectBus(),
-               "unable to select bus %d (selects=%u errors=%u) %s", bus,
-               _bus_selects, _bus_select_errors, espError(esp_rc));
       rc = false;
-    }
 
-    if (_bus_select_errors > 50) {
-      const char *msg = "BUS SELECT ERRORS EXCEEDED";
-      ESP_LOGE(tagEngine(), "bus select errors exceeded, JUMP!");
-      NVS::commitMsg(tagEngine(), msg);
-      Restart::restart(msg, __PRETTY_FUNCTION__, 0);
+      if (_bus_select_errors > 50) {
+        const char *msg = "BUS SELECT ERRORS EXCEEDED";
+        NVS::commitMsg("I2c", msg);
+        Restart::restart(msg, __PRETTY_FUNCTION__, 0);
+      }
     }
   }
 
@@ -907,9 +851,8 @@ bool I2c::setMCP23008(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state) {
   // state for the pios not changing
   if (readDevice(dev) == false) {
     rlog->reuse();
-    rlog->printf("%s SET FAILED read before set", dev->debug().get());
+    rlog->printf("device \"%s\" read before set failed", dev->debug().get());
     rlog->publish();
-    rlog->consoleWarn(tagSetMCP23008());
 
     return rc;
   }
@@ -920,8 +863,8 @@ bool I2c::setMCP23008(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state) {
   // set it to output
   if (dev->rawData().at(0) > 0x00) {
     tx_data.insert(tx_data.end(), {0x00, 0x00});
-    esp_rc = requestData(tagSetMCP23008(), dev, tx_data.data(), tx_data.size(),
-                         nullptr, 0, esp_rc);
+    esp_rc =
+        requestData(dev, tx_data.data(), tx_data.size(), nullptr, 0, esp_rc);
   }
 
   auto asis_state = reading->state();
@@ -938,15 +881,13 @@ bool I2c::setMCP23008(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state) {
   tx_data.clear();
   tx_data.insert(tx_data.end(), {0x0a, (uint8_t)(new_state & 0xff)});
 
-  esp_rc = requestData(tagSetMCP23008(), dev, tx_data.data(), tx_data.size(),
-                       nullptr, 0, esp_rc);
+  esp_rc = requestData(dev, tx_data.data(), tx_data.size(), nullptr, 0, esp_rc);
 
   if (esp_rc != ESP_OK) {
     rlog->reuse();
-    rlog->printf("%s SET FAILED cmd esp_rc(%s)", dev->debug().get(),
-                 esp_err_to_name(esp_rc));
+    rlog->printf("[%s] device \"%s\" set failed", esp_err_to_name(esp_rc),
+                 dev->debug().get());
     rlog->publish();
-    rlog->consoleWarn(tagSetMCP23008());
 
     return rc;
   }

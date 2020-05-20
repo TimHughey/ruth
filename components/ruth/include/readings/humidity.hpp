@@ -39,8 +39,7 @@ private:
 
 public:
   // undefined reading
-  humidityReading(const std::string &id, time_t mtime, float celsius,
-                  float relhum);
+  humidityReading(const string_t &id, float celsius, float relhum);
 
 protected:
   void populateJSON(JsonDocument &doc);

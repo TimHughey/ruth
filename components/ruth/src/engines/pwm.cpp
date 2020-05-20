@@ -45,11 +45,6 @@ const size_t _capacity =
 PulseWidth::PulseWidth() {
   pwmDev::allOff(); // ensure all pins are off at initialization
 
-  setTags(localTags());
-
-  setLoggingLevel(ESP_LOG_INFO);
-  setLoggingLevel(tagDiscover(), ESP_LOG_INFO);
-
   EngineTask_t core("pwm", "core");
   EngineTask_t discover("pwm", "discover");
   EngineTask_t command("pwm", "command");
@@ -85,7 +80,6 @@ void PulseWidth::command(void *data) {
     unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     if (queue_rc == pdFALSE) {
-      ESP_LOGW(tagCommand(), "[rc=%d] queue receive failed", queue_rc);
       continue;
     }
 
@@ -94,15 +88,19 @@ void PulseWidth::command(void *data) {
     DynamicJsonDocument doc(1024);
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
-    // we're done with the original payload at this point
-    // payload_ptr.reset();
+    //
+    // NOTE
+    //
+    // The original payload MUST be kept until we are completely finished
+    // with the JsonDocument
+    //
 
     // parsing complete, freeze the elapsed timer
     parse_elapsed.freeze();
 
     // did the deserailization succeed?
     if (err) {
-      ESP_LOGW(tagCommand(), "[%s] MSGPACK parse failure", err.c_str());
+      ESP_LOGW(engine_name.c_str(), "[%s] MSGPACK parse failure", err.c_str());
       continue;
     }
 
@@ -123,10 +121,6 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
   if (dev->isValid()) {
     bool set_rc = false;
 
-    trackSwitchCmd(true);
-
-    ESP_LOGD(tagCommand(), "processing cmd for: %s", dev->id().c_str());
-
     dev->writeStart();
     set_rc = dev->updateDuty(doc);
     dev->writeStop();
@@ -137,8 +131,6 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
 
       commandAck(dev, ack, refid);
     }
-
-    trackSwitchCmd(false);
 
     return true;
   }
@@ -185,32 +177,22 @@ void PulseWidth::discover(void *data) {
   // }
 
   while (waitForEngine()) {
-    trackDiscover(true);
 
     for (uint8_t i = 1; i <= 4; i++) {
       DeviceAddress_t addr(i);
       pwmDev_t dev(addr);
 
-      if (pwmDev_t *found = (pwmDev_t *)justSeenDevice(dev)) {
-        ESP_LOGV(tagDiscover(), "already know %s", found->debug().get());
-      } else {
+      if (justSeenDevice(dev) == nullptr) {
         pwmDev_t *new_dev = new pwmDev(dev);
-        ESP_LOGD(tagDiscover(), "new (%p) %s", (void *)new_dev,
-                 dev.debug().get());
 
         new_dev->setMissingSeconds(60);
         new_dev->configureChannel();
 
         if (new_dev->lastRC() == ESP_OK) {
-
           addDevice(new_dev);
-        } else {
-          ESP_LOGE(tagDiscover(), "%s", new_dev->debug().get());
         }
       }
     }
-
-    trackDiscover(false);
 
     if (numKnownDevices() > 0) {
       devicesAvailable();
@@ -234,31 +216,16 @@ void PulseWidth::report(void *data) {
 
     Net::waitForNormalOps();
 
-    trackReport(true);
+    for_each(beginDevices(), endDevices(), [this](pwmDev_t *item) {
+      pwmDev_t *dev = item;
 
-    for_each(beginDevices(), endDevices(),
-             [this](std::pair<string_t, pwmDev_t *> item) {
-               auto dev = item.second;
+      if (dev->available()) {
 
-               if (dev->available()) {
-
-                 if (readDevice(dev)) {
-                   publish(dev);
-                   ESP_LOGV(tagReport(), "%s success", dev->debug().get());
-                 } else {
-                   ESP_LOGE(tagReport(), "%s failed", dev->debug().get());
-                 }
-
-               } else {
-                 if (dev->missing()) {
-                   ESP_LOGW(tagReport(), "device missing: %s",
-                            dev->debug().get());
-                 }
-               }
-             });
-
-    trackReport(false);
-    reportMetrics();
+        if (readDevice(dev)) {
+          publish(dev);
+        }
+      }
+    });
 
     taskDelayUntil(REPORT, _report_frequency);
   }
@@ -276,10 +243,10 @@ bool PulseWidth::configureTimer() {
   timer_rc = ledc_timer_config(&ledc_timer);
 
   if (timer_rc == ESP_OK) {
-    ESP_LOGD(tagEngine(), "ledc timer configured");
+    ESP_LOGD(engine_name.c_str(), "ledc timer configured");
     return true;
   } else {
-    ESP_LOGE(tagEngine(), "ledc timer [%s]", esp_err_to_name(timer_rc));
+    ESP_LOGE(engine_name.c_str(), "ledc timer [%s]", esp_err_to_name(timer_rc));
     return false;
   }
 }
@@ -292,10 +259,6 @@ PulseWidth_t *PulseWidth::_instance_() {
   return __singleton__;
 }
 
-void PulseWidth::printUnhandledDev(pwmDev_t *dev) {
-  ESP_LOGW(tagEngine(), "unhandled dev %s", dev->debug().get());
-}
-
 bool PulseWidth::readDevice(pwmDev_t *dev) {
   auto rc = false;
 
@@ -304,7 +267,7 @@ bool PulseWidth::readDevice(pwmDev_t *dev) {
   dev->readStop();
 
   if (duty == LEDC_ERR_DUTY) {
-    ESP_LOGW(tagEngine(), "error reading duty");
+    ESP_LOGW(engine_name.c_str(), "error reading duty");
   } else {
     pwmReading_t *reading =
         new pwmReading(dev->externalName(), time(nullptr), dev->dutyMax(),

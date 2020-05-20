@@ -140,8 +140,8 @@ private:
 
   // request data by sending command bytes and then reading the result
   // NOTE:  send and recv are executed as a single i2c transaction
-  esp_err_t requestData(const char *TAG, i2cDev_t *dev, uint8_t *send,
-                        uint8_t send_len, uint8_t *recv, uint8_t recv_len,
+  esp_err_t requestData(i2cDev_t *dev, uint8_t *send, uint8_t send_len,
+                        uint8_t *recv, uint8_t recv_len,
                         esp_err_t prev_esp_rc = ESP_OK, int timeout = 0);
 
   // utility methods
@@ -161,86 +161,6 @@ private:
   bool useMultiplexer();
   bool selectBus(uint32_t bus);
   void printUnhandledDev(i2cDev_t *dev);
-
-  EngineTagMap_t &localTags() {
-    static std::unordered_map<string_t, string_t> tag_map = {
-        {"engine", "I2c"},
-        {"discover", "I2c discover"},
-        {"convert", "I2c convert"},
-        {"report", "I2c report"},
-        {"command", "I2c command"},
-        {"detect", "I2c detectDev"},
-        {"readMCP23008", "I2c readMCP23008"},
-        {"setMCP23008", "I2c setMCP23008"},
-        {"readSHT31", "I2c readSHT31"},
-        {"selectbus", "I2c selectBus"}};
-
-    ESP_LOGD(tag_map["engine"].c_str(), "tag_map sizeof=%u", sizeof(tag_map));
-    return tag_map;
-  }
-
-  const char *tagSelectBus() {
-    static const char *tag = nullptr;
-    if (tag == nullptr) {
-      tag = _tags["selectbus"].c_str();
-    }
-    return tag;
-  }
-
-  const char *tagDetectDev() {
-    static const char *tag = nullptr;
-    if (tag == nullptr) {
-      tag = _tags["detect"].c_str();
-    }
-    return tag;
-  }
-
-  const char *tagReadMCP23008() {
-    static const char *tag = nullptr;
-    if (tag == nullptr) {
-      tag = _tags["readMCP23008"].c_str();
-    }
-    return tag;
-  }
-
-  const char *tagSetMCP23008() {
-    static const char *tag = nullptr;
-    if (tag == nullptr) {
-      tag = _tags["setMCP23008"].c_str();
-    }
-    return tag;
-  }
-
-  const char *tagReadSHT31() {
-    static const char *tag = nullptr;
-    if (tag == nullptr) {
-      tag = _tags["readSHT31"].c_str();
-    }
-    return tag;
-  }
-
-  const char *espError(esp_err_t esp_rc) {
-    static char catch_all[25] = {0x00};
-
-    bzero(catch_all, sizeof(catch_all));
-
-    switch (esp_rc) {
-    case ESP_OK:
-      return (const char *)"ESP_OK";
-      break;
-    case ESP_FAIL:
-      return (const char *)"ESP_FAIL";
-      break;
-    case ESP_ERR_TIMEOUT:
-      return (const char *)"ESP_ERROR_TIMEOUT";
-      break;
-    default:
-      snprintf(catch_all, sizeof(catch_all), "err=0x%04x", esp_rc);
-      break;
-    }
-
-    return catch_all;
-  }
 };
 } // namespace ruth
 
