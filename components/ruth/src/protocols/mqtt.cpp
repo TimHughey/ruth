@@ -397,13 +397,12 @@ void MQTT::_subACK_(struct mg_mqtt_message *msg) {
 void MQTT::_subscribeFeeds_(struct mg_connection *nc) {
 
   struct mg_mqtt_topic_expression sub[] = {
-      {.topic = _feed_cmd.c_str(), .qos = 1},
       {.topic = _feed_host.c_str(), .qos = 1}};
 
   _subscribe_msg_id = _msg_id++;
-  ESP_LOGI(tagEngine(), "subscribe feeds[%s %s] msg_id=%d", sub[0].topic,
-           sub[1].topic, _subscribe_msg_id);
-  mg_mqtt_subscribe(nc, sub, 2, _subscribe_msg_id);
+  ESP_LOGI(tagEngine(), "subscribe feeds \"%s\" msg_id=%d", sub[0].topic,
+           _subscribe_msg_id);
+  mg_mqtt_subscribe(nc, sub, 1, _subscribe_msg_id);
 }
 
 // STATIC

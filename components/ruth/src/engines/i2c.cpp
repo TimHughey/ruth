@@ -131,7 +131,7 @@ bool I2c::commandExecute(JsonDocument &doc) {
   textReading_t *rlog = new textReading();
   textReading_ptr_t rlog_ptr(rlog);
 
-  const string_t device = doc["device"];
+  const string_t device = doc["switch"] | "missing";
 
   i2cDev_t *dev = findDevice(device);
 
