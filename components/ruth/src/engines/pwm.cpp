@@ -132,8 +132,10 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
     dev->writeStop();
 
     if (set_rc) {
-      // _latency_us.freeze();
-      commandAck(doc, dev);
+      bool ack = doc["ack"];
+      const RefID_t refid = doc["refid"];
+
+      commandAck(dev, ack, refid);
     }
 
     trackSwitchCmd(false);

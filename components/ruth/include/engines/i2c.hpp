@@ -119,7 +119,9 @@ private:
       {DeviceAddress(0x27)}, {DeviceAddress(0x36)}, {DeviceAddress(0x00)}};
 
   static I2c_t *_instance_();
-  bool commandExecute(JsonDocument &doc);
+  bool commandExecute(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
+                      bool ack, const RefID_t &refid,
+                      elapsedMicros &cmd_elapsed);
 
   DeviceAddress_t *search_addrs() { return _search_addrs; };
   inline uint32_t search_addrs_count() {
@@ -131,7 +133,8 @@ private:
 
   // specific methods to read devices
   bool readMCP23008(i2cDev_t *dev);
-  bool setMCP23008(JsonDocument &doc, i2cDev_t *dev);
+  bool setMCP23008(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
+
   bool readSeesawSoil(i2cDev_t *dev);
   bool readSHT31(i2cDev_t *dev);
 

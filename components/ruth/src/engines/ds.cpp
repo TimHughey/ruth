@@ -103,7 +103,10 @@ void DallasSemi::command(void *data) {
   while (true) {
     BaseType_t queue_rc = pdFALSE;
     MsgPayload_t *payload = nullptr;
-    elapsedMicros process_cmd;
+    elapsedMicros cmd_elapsed;
+
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
 
     _cmd_elapsed.reset();
 
@@ -113,7 +116,8 @@ void DallasSemi::command(void *data) {
     unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     if (queue_rc == pdFALSE) {
-      ESP_LOGW(tagCommand(), "[rc=%d] queue receive failed", queue_rc);
+      rlog->printf("[DalSemi] [rc=%d] queue receive failed", queue_rc);
+      rlog->publish();
       continue;
     }
 
@@ -130,16 +134,52 @@ void DallasSemi::command(void *data) {
 
     // did the deserailization succeed?
     if (err) {
-      ESP_LOGW(tagCommand(), "[%s] MSGPACK parse failure", err.c_str());
+      rlog->printf("[%s] MSGPACK parse failure", err.c_str());
+      rlog->publish();
+      continue;
+    }
+    const string_t device = doc["switch"] | "missing";
+    dsDev_t *dev = findDevice(device);
+
+    if (dev == nullptr) {
+      rlog->printf("[i2c] could not find device \"%s\"", device.c_str());
+      rlog->publish();
       continue;
     }
 
-    commandExecute(doc);
+    bool ack = doc["ack"];
+    const RefID_t refid = doc["refid"];
+    uint32_t cmd_mask = 0x00;
+    uint32_t cmd_state = 0x00;
+
+    // iterate through the array of new states
+    JsonArray states = doc["states"].as<JsonArray>();
+    for (JsonObject element : states) {
+      // get a reference to the object from the array
+      // const JsonObject &requested_state = element.as<JsonObject>();
+
+      uint32_t bit = element["pio"];
+      bool state = element["state"];
+
+      // set the mask with each bit that should be adjusted
+      cmd_mask |= (0x01 << bit);
+
+      // set the tobe state with the values those bits should be
+      // if the new_state is true (on) then set the bit,
+      // otherwise leave it unset
+      if (state) {
+        cmd_state |= (0x01 << bit);
+      }
+    }
+
+    commandExecute(dev, cmd_mask, cmd_state, ack, refid, cmd_elapsed);
   }
 }
 
-bool DallasSemi::commandExecute(JsonDocument &doc) {
-  dsDev_t *dev = findDevice(doc["device"]);
+bool DallasSemi::commandExecute(dsDev_t *dev, uint32_t cmd_mask,
+                                uint32_t cmd_state, bool ack,
+                                const RefID_t &refid,
+                                elapsedMicros &cmd_elapsed) {
 
   if (dev == nullptr) {
     return false;
@@ -167,17 +207,17 @@ bool DallasSemi::commandExecute(JsonDocument &doc) {
     dev->writeStart();
 
     if (dev->isDS2406()) {
-      set_rc = setDS2406(doc, dev);
+      set_rc = setDS2406(dev, cmd_mask, cmd_state);
     } else if (dev->isDS2408()) {
-      set_rc = setDS2408(doc, dev);
+      set_rc = setDS2408(dev, cmd_mask, cmd_state);
     } else if (dev->isDS2413()) {
-      set_rc = setDS2413(doc, dev);
+      set_rc = setDS2413(dev, cmd_mask, cmd_state);
     }
 
     dev->writeStop();
 
     if (set_rc) {
-      commandAck(doc, dev);
+      commandAck(dev, ack, refid);
     }
 
     trackSwitchCmd(false);
@@ -862,19 +902,17 @@ void DallasSemi::core(void *data) {
   }
 }
 
-bool DallasSemi::setDS2406(JsonDocument &doc, dsDev_t *dev) {
+bool DallasSemi::setDS2406(dsDev_t *dev, uint32_t cmd_mask,
+                           uint32_t cmd_state) {
   owb_status owb_s;
   bool rc = false;
 
   positionsReading_t *reading = (positionsReading_t *)dev->reading();
 
-  dev->calcCommandState(doc);
   uint32_t asis_state = reading->state();
 
-  bool pio_a =
-      (dev->cmdMask() & 0x01) ? (dev->cmdState() & 0x01) : (asis_state & 0x01);
-  bool pio_b =
-      (dev->cmdMask() & 0x02) ? (dev->cmdState() & 0x02) : (asis_state & 0x02);
+  bool pio_a = (cmd_mask & 0x01) ? (cmd_state & 0x01) : (asis_state & 0x01);
+  bool pio_b = (cmd_mask & 0x02) ? (cmd_state) : (asis_state & 0x02);
 
   uint32_t new_state = (!pio_a << 5) | (!pio_b << 6) | 0xf;
 
@@ -931,7 +969,8 @@ bool DallasSemi::setDS2406(JsonDocument &doc, dsDev_t *dev) {
   return rc;
 }
 
-bool DallasSemi::setDS2408(JsonDocument &doc, dsDev_t *dev) {
+bool DallasSemi::setDS2408(dsDev_t *dev, uint32_t cmd_mask,
+                           uint32_t cmd_state) {
   owb_status owb_s;
   bool rc = false;
 
@@ -952,13 +991,12 @@ bool DallasSemi::setDS2408(JsonDocument &doc, dsDev_t *dev) {
 
   positionsReading_t *reading = (positionsReading_t *)dev->reading();
 
-  dev->calcCommandState(doc);
   uint32_t asis_state = reading->state();
   uint32_t new_state = 0x00;
 
   // use XOR tricks to apply the state changes to the as_is state using the
   // mask computed
-  new_state = asis_state ^ ((asis_state ^ dev->cmdState()) & dev->cmdMask());
+  new_state = asis_state ^ ((asis_state ^ cmd_state) & cmd_mask);
 
   // report_state = new_state;
   new_state = (~new_state) & 0xFF; // constrain to 8-bits
@@ -1037,7 +1075,8 @@ bool DallasSemi::setDS2408(JsonDocument &doc, dsDev_t *dev) {
   return rc;
 }
 
-bool DallasSemi::setDS2413(JsonDocument &doc, dsDev_t *dev) {
+bool DallasSemi::setDS2413(dsDev_t *dev, uint32_t cmd_mask,
+                           uint32_t cmd_state) {
   owb_status owb_s;
   bool rc = false;
 
@@ -1052,13 +1091,12 @@ bool DallasSemi::setDS2413(JsonDocument &doc, dsDev_t *dev) {
 
   positionsReading_t *reading = (positionsReading_t *)dev->reading();
 
-  dev->calcCommandState(doc);
   uint32_t asis_state = reading->state();
   uint32_t new_state = 0x00;
 
   // use XOR tricks to apply the state changes to the as_is state using the
   // mask computed
-  new_state = asis_state ^ ((asis_state ^ dev->cmdState()) & dev->cmdMask());
+  new_state = asis_state ^ ((asis_state ^ cmd_state) & cmd_mask);
 
   // report_state = new_state;
   new_state = (~new_state) & 0xFF; // constrain to 8-bits

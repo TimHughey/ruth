@@ -77,13 +77,9 @@ public:
   const string_t &description() const { return _desc; };
 
   void setReading(Reading_t *reading);
-  void setReadingCmdAck(uint32_t latency_us, RefID_t &refid);
+  void setReadingCmdAck(uint32_t latency_us, const RefID_t &refid);
   void setReadingCmdAck(uint32_t latency_us, const char *refid);
 
-  // command mask and state
-  void calcCommandState(JsonDocument &doc);
-  uint32_t cmdState() { return _cmd_state; }
-  uint32_t cmdMask() { return _cmd_mask; }
   Reading_t *reading();
 
   // metrics functions

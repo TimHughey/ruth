@@ -85,7 +85,7 @@ void I2c::command(void *data) {
   while (true) {
     BaseType_t queue_rc = pdFALSE;
     MsgPayload_t *payload = nullptr;
-    elapsedMicros process_cmd;
+    elapsedMicros cmd_elapsed;
 
     textReading_t *rlog = new textReading();
     textReading_ptr_t rlog_ptr(rlog);
@@ -97,7 +97,8 @@ void I2c::command(void *data) {
     unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     if (queue_rc == pdFALSE) {
-      ESP_LOGW(tagCommand(), "[rc=%d] queue receive failed", queue_rc);
+      rlog->printf("[i2c] [rc=%d] queue receive failed", queue_rc);
+      rlog->publish();
       continue;
     }
 
@@ -119,23 +120,49 @@ void I2c::command(void *data) {
       continue;
     }
 
-    commandExecute(doc);
+    const string_t device = doc["switch"] | "missing";
+    i2cDev_t *dev = findDevice(device);
+
+    if (dev == nullptr) {
+      rlog->printf("[i2c] could not find device \"%s\"", device.c_str());
+      rlog->publish();
+      continue;
+    }
+
+    bool ack = doc["ack"];
+    RefID_t refid = doc["refid"];
+    uint32_t cmd_mask = 0x00;
+    uint32_t cmd_state = 0x00;
+
+    // iterate through the array of new states
+    JsonArray states = doc["states"].as<JsonArray>();
+    for (JsonObject element : states) {
+      // get a reference to the object from the array
+      // const JsonObject &requested_state = element.as<JsonObject>();
+
+      uint32_t bit = element["pio"];
+      bool state = element["state"];
+
+      // set the mask with each bit that should be adjusted
+      cmd_mask |= (0x01 << bit);
+
+      // set the tobe state with the values those bits should be
+      // if the new_state is true (on) then set the bit,
+      // otherwise leave it unset
+      if (state) {
+        cmd_state |= (0x01 << bit);
+      }
+    }
+
+    commandExecute(dev, cmd_mask, cmd_state, ack, refid, cmd_elapsed);
   }
 }
 
-bool I2c::commandExecute(JsonDocument &doc) {
+bool I2c::commandExecute(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
+                         bool ack, const RefID_t &refid,
+                         elapsedMicros &cmd_elapsed) {
   textReading_t *rlog = new textReading();
   textReading_ptr_t rlog_ptr(rlog);
-
-  const string_t device = doc["switch"] | "missing";
-
-  i2cDev_t *dev = findDevice(device);
-
-  if (dev == nullptr) {
-    rlog->printf("[i2c] could not find device \"%s\"", device.c_str());
-    rlog->publish();
-    return false;
-  }
 
   // _latency_us.reset();
 
@@ -151,12 +178,12 @@ bool I2c::commandExecute(JsonDocument &doc) {
     // of the write -- not just the duration on the bus
     dev->writeStart();
 
-    set_rc = setMCP23008(doc, dev);
+    set_rc = setMCP23008(dev, cmd_mask, cmd_state);
 
     dev->writeStop();
 
     if (set_rc) {
-      commandAck(doc, dev);
+      commandAck(dev, ack, refid);
     }
 
     trackSwitchCmd(false);
@@ -865,7 +892,7 @@ bool I2c::selectBus(uint32_t bus) {
   return rc;
 }
 
-bool I2c::setMCP23008(JsonDocument &doc, i2cDev_t *dev) {
+bool I2c::setMCP23008(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state) {
   bool rc = false;
   auto esp_rc = ESP_OK;
 
@@ -897,14 +924,13 @@ bool I2c::setMCP23008(JsonDocument &doc, i2cDev_t *dev) {
                          nullptr, 0, esp_rc);
   }
 
-  dev->calcCommandState(doc);
   auto asis_state = reading->state();
   auto new_state = 0x00;
 
   // XOR the new state against the as_is state using the mask
   // it is critical that we use the recently read state to avoid
   // overwriting the device state that MCP is not aware of
-  new_state = asis_state ^ ((asis_state ^ dev->cmdState()) & dev->cmdMask());
+  new_state = asis_state ^ ((asis_state ^ cmd_state) & cmd_mask);
 
   // to set the GPIO we will write to two registers:
   // a. IODIR (0x00) - setting all GPIOs to output (0b00000000)

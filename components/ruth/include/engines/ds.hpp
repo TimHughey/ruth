@@ -102,7 +102,9 @@ private:
   static DallasSemi_t *_instance_();
 
   bool checkDevicesPowered();
-  bool commandExecute(JsonDocument &doc);
+  bool commandExecute(dsDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
+                      bool ack, const RefID_t &refid,
+                      elapsedMicros &cmd_elapsed);
 
   bool devicesPowered() { return _devices_powered; }
 
@@ -114,9 +116,9 @@ private:
   bool readDS2406(dsDev_t *dev, positionsReading_t **reading);
   bool readDS2413(dsDev_t *dev, positionsReading_t **reading);
 
-  bool setDS2406(JsonDocument &doc, dsDev_t *dev);
-  bool setDS2408(JsonDocument &doc, dsDev_t *dev);
-  bool setDS2413(JsonDocument &doc, dsDev_t *dev);
+  bool setDS2406(dsDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
+  bool setDS2408(dsDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
+  bool setDS2413(dsDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
 
   // FIXME:  hard code there are always temperature devices
   bool tempDevicesPresent() { return _temp_devices_present; }

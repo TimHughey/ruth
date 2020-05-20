@@ -568,16 +568,13 @@ protected:
   elapsedMicros _cmd_elapsed;
   elapsedMicros _latency_us;
 
-  bool commandAck(const JsonDocument &doc, DEV *dev) {
+  bool commandAck(DEV *dev, bool ack, const string_t &refid) {
     bool rc = false;
 
     if (dev != nullptr) {
       rc = readDevice(dev);
 
-      const bool ack = doc["ack"].as<bool>();
-
       if (rc && ack) {
-        const char *refid = doc["refid"] | "no_refid";
         dev->setReadingCmdAck(_cmd_elapsed, refid);
         publish(dev);
       }
@@ -586,7 +583,11 @@ protected:
     return rc;
   }
 
-  virtual bool commandExecute(JsonDocument &doc) { return false; }
+  virtual bool commandExecute(DEV *dev, uint32_t cmd_mask, uint32_t cmd_state,
+                              bool ack, const string_t &refif,
+                              elapsedMicros &cmd_elapsed) {
+    return false;
+  }
 
   bool _queuePayload(MsgPayload_t *payload) {
     auto rc = false;

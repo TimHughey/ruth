@@ -91,7 +91,7 @@ public:
   string_t *json(char *buffer = nullptr, size_t len = 0);
   virtual void publish();
   virtual void refresh() { time(&_mtime); }
-  void setCmdAck(uint32_t latency_us, RefID_t &refid) {
+  void setCmdAck(uint32_t latency_us, const RefID_t &refid) {
     _cmd_ack = true;
     _latency_us = latency_us;
 
