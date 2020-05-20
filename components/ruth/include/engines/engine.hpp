@@ -568,15 +568,17 @@ protected:
   elapsedMicros _cmd_elapsed;
   elapsedMicros _latency_us;
 
-  bool commandAck(JsonDocument &doc) {
+  bool commandAck(const JsonDocument &doc, DEV *dev) {
     bool rc = false;
-    DEV *dev = findDevice(doc["device"]);
 
     if (dev != nullptr) {
       rc = readDevice(dev);
 
-      if (rc && doc["ack"].as<bool>()) {
-        dev->setReadingCmdAck(_cmd_elapsed, doc["refid"]);
+      const bool ack = doc["ack"].as<bool>();
+
+      if (rc && ack) {
+        const char *refid = doc["refid"] | "no_refid";
+        dev->setReadingCmdAck(_cmd_elapsed, refid);
         publish(dev);
       }
     }
@@ -604,12 +606,6 @@ protected:
       q_rc = xQueueSendToBack(_cmd_q, (void *)&payload, pdMS_TO_TICKS(10));
 
       if (q_rc == pdTRUE) {
-
-        textReading_t *rlog = new textReading();
-        textReading_ptr_t rlog_ptr(rlog);
-
-        rlog->printf("queued subtopic: %s", payload->subtopic().c_str());
-        rlog->publish();
         rc = true;
       } else {
         // payload was not queued, delete it

@@ -101,10 +101,6 @@ void I2c::command(void *data) {
       continue;
     }
 
-    rlog->printf("dequeued subtopic: %s", payload->subtopic().c_str());
-    rlog->publish();
-    rlog->reuse();
-
     elapsedMicros parse_elapsed;
     // deserialize the msgpack data
     DynamicJsonDocument doc(1024);
@@ -155,16 +151,12 @@ bool I2c::commandExecute(JsonDocument &doc) {
     // of the write -- not just the duration on the bus
     dev->writeStart();
 
-    rlog->printf("[i2c] processing command for device \"%s\"",
-                 dev->id().c_str());
-    rlog->publish();
-
     set_rc = setMCP23008(doc, dev);
 
     dev->writeStop();
 
     if (set_rc) {
-      commandAck(doc);
+      commandAck(doc, dev);
     }
 
     trackSwitchCmd(false);

@@ -123,7 +123,7 @@ void DallasSemi::command(void *data) {
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
     // we're done with the original payload at this point
-    payload_ptr.reset();
+    // payload_ptr.reset();
 
     // parsing complete, freeze the elapsed timer
     parse_elapsed.freeze();
@@ -177,7 +177,7 @@ bool DallasSemi::commandExecute(JsonDocument &doc) {
     dev->writeStop();
 
     if (set_rc) {
-      commandAck(doc);
+      commandAck(doc, dev);
     }
 
     trackSwitchCmd(false);

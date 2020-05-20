@@ -95,7 +95,7 @@ void PulseWidth::command(void *data) {
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
     // we're done with the original payload at this point
-    payload_ptr.reset();
+    // payload_ptr.reset();
 
     // parsing complete, freeze the elapsed timer
     parse_elapsed.freeze();
@@ -133,7 +133,7 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
 
     if (set_rc) {
       // _latency_us.freeze();
-      commandAck(doc);
+      commandAck(doc, dev);
     }
 
     trackSwitchCmd(false);
