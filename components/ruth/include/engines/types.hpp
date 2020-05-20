@@ -22,8 +22,7 @@
 #define engines_types_h
 
 #include <algorithm>
-#include <map>
-#include <unordered_map>
+#include <vector>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
@@ -35,41 +34,41 @@
 
 namespace ruth {
 
+using std::vector;
+
 typedef void(TaskFunc_t)(void *);
 
-typedef enum { CORE, CONVERT, DISCOVER, REPORT, COMMAND } TaskTypes_t;
-
-// specialize hash for TaskTypes_t as required by C++11 (unnecessary in C++14)
-struct TaskTypesHash {
-  std::size_t operator()(TaskTypes_t e) const {
-    return static_cast<std::size_t>(e);
-  }
-};
+typedef enum {
+  TASK_CORE,
+  TASK_CONVERT,
+  TASK_DISCOVER,
+  TASK_REPORT,
+  TASK_COMMAND
+} TaskTypes_t;
 
 typedef class EngineTask EngineTask_t;
 typedef EngineTask_t *EngineTask_ptr_t;
 
-typedef std::unordered_map<TaskTypes_t, EngineTask_t *, TaskTypesHash>
-    TaskMap_t;
+typedef vector<EngineTask_t *> TaskMap_t;
+
 typedef TaskMap_t *TaskMap_ptr_t;
-typedef std::pair<TaskTypes_t, EngineTask_t *> TaskMapItem_t;
 
 class EngineTask {
 public:
-  // [deprecated] create a new EngineTask with compile time settings
-  EngineTask(char const *name, UBaseType_t priority = 1,
-             UBaseType_t stacksize = 2048, void *data = nullptr)
-      : _name(name), _priority(priority), _stackSize(stacksize), _data(data){};
-
   // create a new EngineTask with settings from Profile
-  EngineTask(char const *subsystem, char const *task, void *data = nullptr)
-      : _data(data) {
-    string_t _name = subsystem;
+  EngineTask(TaskTypes_t task_type, char const *subsystem, char const *task,
+             void *data = nullptr)
+      : _task_type(task_type), _name(subsystem), _data(data) {
     _priority = Profile::subSystemTaskPriority(subsystem, task);
     _stackSize = Profile::subSystemTaskStack(subsystem, task);
   };
 
+  void *data() { return _data; }
+  TaskHandle_t handle() { return _handle; }
+  TaskTypes_t type() { return _task_type; }
+
 public:
+  TaskTypes_t _task_type;
   string_t _name = "unamed";
   TaskHandle_t _handle = nullptr;
   TickType_t _lastWake = 0;
@@ -77,22 +76,6 @@ public:
   UBaseType_t _stackSize = 0;
   void *_data = nullptr;
 };
-
-typedef struct EngineMetric {
-  elapsedMicros elapsed;
-  time_t last_time = 0;
-} EngineMetric_t;
-
-typedef struct EngineMetrics {
-  EngineMetric_t discover;
-  EngineMetric_t convert;
-  EngineMetric_t report;
-  EngineMetric_t switch_cmd;
-  EngineMetric_t switch_cmdack;
-} EngineMetrics_t;
-
-typedef std::pair<string_t, EngineMetric_t *> metricEntry_t;
-typedef std::map<string_t, EngineMetric_t *> metricMap_t;
 
 typedef struct {
   EventBits_t need_bus;

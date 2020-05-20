@@ -45,15 +45,15 @@ const size_t _capacity =
 PulseWidth::PulseWidth() {
   pwmDev::allOff(); // ensure all pins are off at initialization
 
-  EngineTask_t core("pwm", "core");
-  EngineTask_t discover("pwm", "discover");
-  EngineTask_t command("pwm", "command");
-  EngineTask_t report("pwm", "report");
+  EngineTask_t core(TASK_CORE, "pwm", "core");
+  EngineTask_t discover(TASK_DISCOVER, "pwm", "discover");
+  EngineTask_t command(TASK_COMMAND, "pwm", "command");
+  EngineTask_t report(TASK_REPORT, "pwm", "report");
 
-  addTask(engine_name, CORE, core);
-  addTask(engine_name, DISCOVER, discover);
-  addTask(engine_name, COMMAND, command);
-  addTask(engine_name, REPORT, report);
+  addTask(engine_name, core);
+  addTask(engine_name, discover);
+  addTask(engine_name, command);
+  addTask(engine_name, report);
 }
 
 // STATIC!
@@ -153,14 +153,14 @@ void PulseWidth::core(void *task_data) {
   // signal to other tasks the dsEngine task is in it's run loop
   // this ensures other tasks wait until core setup is complete
 
-  saveTaskLastWake(CORE);
+  saveTaskLastWake(TASK_CORE);
 
   // task run loop
   for (;;) {
     engineRunning();
 
     // do high-level engine actions here (e.g. general housekeeping)
-    taskDelayUntil(CORE, _loop_frequency);
+    taskDelayUntil(TASK_CORE, _loop_frequency);
   }
 }
 
@@ -169,7 +169,7 @@ void PulseWidth::discover(void *data) {
   static elapsedMillis last_elapsed;
 
   logSubTaskStart(data);
-  saveTaskLastWake(DISCOVER);
+  saveTaskLastWake(TASK_DISCOVER);
 
   // if ((first_discover == false) &&
   //     (last_elapsed.asSeconds() < _discover_frequency)) {
@@ -198,19 +198,19 @@ void PulseWidth::discover(void *data) {
       devicesAvailable();
     }
 
-    saveTaskLastWake(DISCOVER);
-    taskDelayUntil(DISCOVER, _discover_frequency);
+    saveTaskLastWake(TASK_DISCOVER);
+    taskDelayUntil(TASK_DISCOVER, _discover_frequency);
   }
 }
 
 void PulseWidth::report(void *data) {
 
   logSubTaskStart(data);
-  saveTaskLastWake(REPORT);
+  saveTaskLastWake(TASK_REPORT);
 
   while (waitFor(devicesAvailableBit())) {
     if (numKnownDevices() == 0) {
-      taskDelayUntil(REPORT, _report_frequency);
+      taskDelayUntil(TASK_REPORT, _report_frequency);
       continue;
     }
 
@@ -227,7 +227,7 @@ void PulseWidth::report(void *data) {
       }
     });
 
-    taskDelayUntil(REPORT, _report_frequency);
+    taskDelayUntil(TASK_REPORT, _report_frequency);
   }
 }
 

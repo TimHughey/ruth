@@ -42,15 +42,14 @@ const size_t _capacity =
     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
 
 I2c::I2c() {
-  EngineTask_t core("i2c", "core");
-  EngineTask_t command("i2c", "command");
-  EngineTask_t discover("i2c", "discover");
-  EngineTask_t report("i2c", "report");
+  EngineTask_t core(TASK_CORE, "i2c", "core");
+  EngineTask_t command(TASK_COMMAND, "i2c", "command");
+  EngineTask_t discover(TASK_DISCOVER, "i2c", "discover");
+  EngineTask_t report(TASK_REPORT, "i2c", "report");
 
-  addTask(engine_name, CORE, core);
-  addTask(engine_name, COMMAND, command);
-  addTask(engine_name, DISCOVER, discover);
-  addTask(engine_name, REPORT, report);
+  addTask(engine_name, core);
+  addTask(engine_name, discover);
+  addTask(engine_name, report);
 
   gpio_config_t rst_pin_cfg;
 
@@ -197,20 +196,20 @@ void I2c::core(void *task_data) {
 
   Net::waitForNormalOps();
 
-  saveTaskLastWake(CORE);
+  saveTaskLastWake(TASK_CORE);
   for (;;) {
     // signal to other tasks the dsEngine task is in it's run loop
     // this ensures all other set-up activities are complete before
     engineRunning();
 
     // do high-level engine actions here (e.g. general housekeeping)
-    taskDelayUntil(CORE, _loop_frequency);
+    taskDelayUntil(TASK_CORE, _loop_frequency);
   }
 }
 
 void I2c::discover(void *data) {
   logSubTaskStart(data);
-  saveTaskLastWake(DISCOVER);
+  saveTaskLastWake(TASK_DISCOVER);
   bool detect_rc = true;
 
   while (waitForEngine()) {
@@ -237,19 +236,19 @@ void I2c::discover(void *data) {
     }
 
     // we want to discover
-    saveTaskLastWake(DISCOVER);
-    taskDelayUntil(DISCOVER, _discover_frequency);
+    saveTaskLastWake(TASK_DISCOVER);
+    taskDelayUntil(TASK_DISCOVER, _discover_frequency);
   }
 }
 
 void I2c::report(void *data) {
 
   logSubTaskStart(data);
-  saveTaskLastWake(REPORT);
+  saveTaskLastWake(TASK_REPORT);
 
   while (waitFor(devicesAvailableBit())) {
     if (numKnownDevices() == 0) {
-      taskDelayUntil(REPORT, _report_frequency);
+      taskDelayUntil(TASK_REPORT, _report_frequency);
       continue;
     }
 
@@ -278,7 +277,7 @@ void I2c::report(void *data) {
       }
     });
 
-    taskDelayUntil(REPORT, _report_frequency);
+    taskDelayUntil(TASK_REPORT, _report_frequency);
   }
 }
 

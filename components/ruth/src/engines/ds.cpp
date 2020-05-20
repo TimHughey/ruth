@@ -42,17 +42,17 @@ const size_t _capacity =
     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
 
 DallasSemi::DallasSemi() {
-  EngineTask_t core("ds", "core");
-  EngineTask_t convert("ds", "convert");
-  EngineTask_t command("ds", "command");
-  EngineTask_t discover("ds", "discover");
-  EngineTask_t report("ds", "report");
+  EngineTask_t core(TASK_CORE, "ds", "core");
+  EngineTask_t convert(TASK_CONVERT, "ds", "convert");
+  EngineTask_t command(TASK_COMMAND, "ds", "command");
+  EngineTask_t discover(TASK_DISCOVER, "ds", "discover");
+  EngineTask_t report(TASK_REPORT, "ds", "report");
 
-  addTask(engine_name, CORE, core);
-  addTask(engine_name, CONVERT, convert);
-  addTask(engine_name, COMMAND, command);
-  addTask(engine_name, DISCOVER, discover);
-  addTask(engine_name, REPORT, report);
+  addTask(engine_name, core);
+  addTask(engine_name, convert);
+  addTask(engine_name, command);
+  addTask(engine_name, discover);
+  addTask(engine_name, report);
 }
 
 // STATIC!
@@ -222,14 +222,14 @@ void DallasSemi::convert(void *data) {
 
     // now that the wait has been satisified record the last wake time
     // this is important to avoid performing the convert too frequently
-    saveTaskLastWake(CONVERT);
+    saveTaskLastWake(TASK_CONVERT);
 
     // use event bits to signal when there are temperatures available
     // start by clearing the bit to signal there isn't a temperature available
     tempUnavailable();
 
     if (!devicesPowered() && !tempDevicesPresent()) {
-      taskDelayUntil(CONVERT, _convert_frequency);
+      taskDelayUntil(TASK_CONVERT, _convert_frequency);
       continue;
     }
 
@@ -237,7 +237,7 @@ void DallasSemi::convert(void *data) {
 
     if (resetBus(&present) && (present == false)) {
       giveBus();
-      taskDelayUntil(CONVERT, _convert_frequency);
+      taskDelayUntil(TASK_CONVERT, _convert_frequency);
       continue;
     }
 
@@ -251,7 +251,7 @@ void DallasSemi::convert(void *data) {
     // devices will hold the bus low during the convert
     if ((owb_s != OWB_STATUS_OK) || (data != 0x00)) {
       giveBus();
-      taskDelayUntil(CONVERT, _convert_frequency);
+      taskDelayUntil(TASK_CONVERT, _convert_frequency);
       continue;
     }
 
@@ -313,13 +313,13 @@ void DallasSemi::convert(void *data) {
       tempAvailable();
     }
 
-    taskDelayUntil(CONVERT, _convert_frequency);
+    taskDelayUntil(TASK_CONVERT, _convert_frequency);
   }
 }
 
 void DallasSemi::discover(void *data) {
   logSubTaskStart(data);
-  saveTaskLastWake(DISCOVER);
+  saveTaskLastWake(TASK_DISCOVER);
 
   while (waitForEngine()) {
     owb_status owb_s;
@@ -339,7 +339,7 @@ void DallasSemi::discover(void *data) {
     bool present = false;
     if (resetBus(&present) && (present == false)) {
       giveBus();
-      taskDelayUntil(DISCOVER, _discover_frequency);
+      taskDelayUntil(TASK_DISCOVER, _discover_frequency);
       continue;
     }
 
@@ -347,7 +347,7 @@ void DallasSemi::discover(void *data) {
 
     if (owb_s != OWB_STATUS_OK) {
       giveBus();
-      taskDelayUntil(DISCOVER, _discover_frequency);
+      taskDelayUntil(TASK_DISCOVER, _discover_frequency);
       continue;
     }
 
@@ -405,8 +405,8 @@ void DallasSemi::discover(void *data) {
     devicesAvailable(device_found);
 
     // to avoid including the execution time of the discover phase
-    saveTaskLastWake(DISCOVER);
-    taskDelayUntil(DISCOVER, _discover_frequency);
+    saveTaskLastWake(TASK_DISCOVER);
+    taskDelayUntil(TASK_DISCOVER, _discover_frequency);
   }
 }
 
@@ -441,7 +441,7 @@ void DallasSemi::report(void *data) {
     }
 
     // last wake is after the event group has been satisified
-    saveTaskLastWake(REPORT);
+    saveTaskLastWake(TASK_REPORT);
 
     for_each(beginDevices(), endDevices(), [this](dsDev_t *item) {
       dsDev_t *dev = item;
@@ -462,7 +462,7 @@ void DallasSemi::report(void *data) {
 
     // case b:  wait a preset duration (no temp devices)
     if (!_temp_devices_present) {
-      taskDelayUntil(REPORT, _report_frequency);
+      taskDelayUntil(TASK_REPORT, _report_frequency);
     }
   }
 }
@@ -848,7 +848,7 @@ void DallasSemi::core(void *data) {
 
   Net::waitForNormalOps();
 
-  saveTaskLastWake(CORE);
+  saveTaskLastWake(TASK_CORE);
 
   for (;;) {
     // signal to other tasks the dsEngine task is in it's run loop
@@ -856,7 +856,7 @@ void DallasSemi::core(void *data) {
     engineRunning();
 
     // do high-level engine actions here (e.g. general housekeeping)
-    taskDelayUntil(CORE, _loop_frequency);
+    taskDelayUntil(TASK_CORE, _loop_frequency);
   }
 }
 

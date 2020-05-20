@@ -37,8 +37,6 @@
 
 namespace ruth {
 
-using std::unordered_map;
-
 typedef struct {
   TickType_t engine;
   TickType_t convert;

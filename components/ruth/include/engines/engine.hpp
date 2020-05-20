@@ -55,8 +55,6 @@ private:
   EventGroupHandle_t _evg;
   SemaphoreHandle_t _bus_mutex = nullptr;
 
-  EngineMetrics_t metrics;
-
   engineEventBits_t _event_bits = {.need_bus = BIT0,
                                    .engine_running = BIT1,
                                    .devices_available = BIT2,
@@ -68,47 +66,69 @@ private:
   //
   // to satisify C++ requiremeents we must wrap the object member function
   // in a static function
-  static void runCore(void *task_instance) {
-    Engine *task = (Engine *)task_instance;
-    auto task_map = task->taskMap();
-    auto *data = task_map[CORE]->_data;
+  static void runCore(void *instance) {
+    Engine *task_instance = (Engine *)instance;
+    auto *task = task_instance->lookupTaskData(TASK_CORE);
 
-    task->core(data);
+    if (task_instance && task) {
+      task_instance->core(task->data());
+    }
   }
 
   //
   // Engine Sub Tasks
   //
-  static void runConvert(void *task_instance) {
-    Engine *task = (Engine *)task_instance;
-    auto task_map = task->taskMap();
-    auto *data = task_map[CONVERT];
+  static void runConvert(void *instance) {
+    Engine *task_instance = (Engine *)instance;
+    auto *task = task_instance->lookupTaskData(TASK_CONVERT);
 
-    task->convert(data);
+    if (task_instance && task) {
+      task_instance->convert(task->data());
+    }
   }
 
-  static void runDiscover(void *task_instance) {
-    Engine *task = (Engine *)task_instance;
-    auto task_map = task->taskMap();
-    auto *data = task_map[DISCOVER];
+  static void runDiscover(void *instance) {
+    Engine *task_instance = (Engine *)instance;
+    auto *task = task_instance->lookupTaskData(TASK_DISCOVER);
 
-    task->discover(data);
+    if (task_instance && task) {
+      task_instance->discover(task->data());
+    }
   }
 
-  static void runReport(void *task_instance) {
-    Engine *task = (Engine *)task_instance;
-    auto task_map = task->taskMap();
-    auto *data = task_map[REPORT];
+  static void runReport(void *instance) {
+    Engine *task_instance = (Engine *)instance;
+    auto *task = task_instance->lookupTaskData(TASK_REPORT);
 
-    task->report(data);
+    if (task_instance && task) {
+      task_instance->report(task->data());
+    }
   }
 
-  static void runCommand(void *task_instance) {
-    Engine *task = (Engine *)task_instance;
-    auto task_map = task->taskMap();
-    auto *data = task_map[COMMAND];
+  static void runCommand(void *instance) {
+    Engine *task_instance = (Engine *)instance;
+    auto *task = task_instance->lookupTaskData(TASK_COMMAND);
 
-    task->command(data);
+    if (task_instance && task) {
+      task_instance->command(task->data());
+    }
+  }
+
+  EngineTask_t *lookupTaskData(TaskTypes_t task_type) {
+    using std::find_if;
+
+    // my first lambda in C++, wow this languge has really evolved
+    // since I used it 15+ years ago
+    auto task = find_if(_task_map.begin(), _task_map.end(),
+                        [task_type](EngineTask_t *search) {
+                          return search->type() == task_type;
+                        });
+
+    if (task != _task_map.end()) {
+      return *task;
+    }
+
+    return nullptr;
   }
 
   //
@@ -124,18 +144,12 @@ public:
   Engine() {
     _evg = xEventGroupCreate();
     _bus_mutex = xSemaphoreCreateMutex();
-
-    metrics.report.elapsed.freeze(0);
-    metrics.discover.elapsed.freeze(0);
-    metrics.convert.elapsed.freeze(0);
-    metrics.switch_cmd.elapsed.freeze(0);
   };
 
   virtual ~Engine(){};
 
   // task methods
-  void addTask(const string_t &engine_name, TaskTypes_t task_type,
-               EngineTask_t &task) {
+  void addTask(const string_t &engine_name, EngineTask_t &task) {
 
     EngineTask_ptr_t new_task = new EngineTask(task);
     // when the task name is 'core' then set it to the engine name
@@ -146,47 +160,41 @@ public:
       new_task->_name.insert(0, engine_name);
     }
 
-    _task_map[task_type] = new_task;
+    _task_map.push_back(new_task);
   }
 
   void saveTaskLastWake(TaskTypes_t tt) {
-    auto task = _task_map[tt];
+    auto task = lookupTaskData(tt);
     task->_lastWake = xTaskGetTickCount();
   }
 
   void taskDelayUntil(TaskTypes_t tt, TickType_t ticks) {
-    auto task = _task_map[tt];
+    auto task = lookupTaskData(tt);
 
     ::vTaskDelayUntil(&(task->_lastWake), ticks);
   }
 
-  const TaskMap_t &taskMap() { return _task_map; }
-
   xTaskHandle taskHandle() {
-    auto task = _task_map[CORE];
 
-    return task->_handle;
+    auto *task = lookupTaskData(TASK_CORE);
+
+    if (task) {
+      return task->handle();
+    }
+
+    return nullptr;
   }
 
   void delay(int ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
 
   virtual void core(void *data) = 0; // pure virtual, subclass must implement
-  virtual void suspend() {
-
-    for_each(_task_map.begin(), _task_map.end(), [this](TaskMapItem_t item) {
-      auto subtask = item.second;
-      vTaskSuspend(subtask->_handle);
-    });
-
-    auto coretask = _task_map[CORE];
-    vTaskSuspend(coretask->_handle);
-  };
 
   void start(void *task_data = nullptr) {
     // we make an assumption that the 'core' task was added
-    auto task = _task_map[CORE];
+    auto task = lookupTaskData(TASK_CORE);
 
-    if (task->_handle != nullptr) {
+    if (task && task->handle()) {
+      // already running
       return;
     }
 
@@ -197,56 +205,43 @@ public:
                 task->_priority, &task->_handle);
 
     // now start any sub-tasks added
-    for_each(_task_map.begin(), _task_map.end(), [this](TaskMapItem_t item) {
-      auto sub_type = item.first;
-      auto subtask = item.second;
-      TaskFunc_t *run_subtask;
+    for_each(_task_map.begin(), _task_map.end(), [this](EngineTask_t *task) {
+      auto task_type = task->type();
+      TaskFunc_t *run_task;
 
-      switch (sub_type) {
-      case CORE:
+      switch (task_type) {
+      case TASK_CORE:
         // core is already started, skip it
-        subtask = nullptr;
+        task = nullptr;
 
         break;
-      case CONVERT:
-        run_subtask = &runConvert;
+      case TASK_CONVERT:
+        run_task = &runConvert;
 
         break;
-      case DISCOVER:
-        run_subtask = &runDiscover;
+      case TASK_DISCOVER:
+        run_task = &runDiscover;
 
         break;
-      case COMMAND:
-        run_subtask = &runCommand;
+      case TASK_COMMAND:
+        run_task = &runCommand;
 
         break;
-      case REPORT:
-        run_subtask = &runReport;
+      case TASK_REPORT:
+        run_task = &runReport;
 
         break;
       default:
-        subtask = nullptr;
+        task = nullptr;
       }
 
-      if (subtask != nullptr) {
-        ::xTaskCreate(run_subtask, subtask->_name.c_str(), subtask->_stackSize,
-                      this, subtask->_priority, &subtask->_handle);
+      if (task) {
+        ::xTaskCreate(run_task, task->_name.c_str(), task->_stackSize, this,
+                      task->_priority, &task->_handle);
       }
     });
   }
 
-  void stop() {
-    auto task = _task_map[CORE];
-    if (task->_handle == nullptr) {
-      return;
-    }
-
-    xTaskHandle handle = task->_handle;
-    task->_handle = nullptr;
-    ::vTaskDelete(handle);
-  }
-
-  // FIXME: move to external config
   static uint32_t maxDevices() { return 100; };
 
   bool any_of_devices(bool (*func)(const DEV &)) {
