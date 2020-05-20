@@ -122,7 +122,7 @@ void MQTT::connectionClosed() {
 }
 
 bool MQTT::handlePayload(MsgPayload_t *payload) {
-  auto processed = false;
+  auto processed = true;
 
   if (payload->matchSubtopic("pwm")) {
     auto rc = PulseWidth::queuePayload(payload);
@@ -131,49 +131,34 @@ bool MQTT::handlePayload(MsgPayload_t *payload) {
       ESP_LOGW(tagEngine(), "PulseWidth::queueCommand() FAILED");
     }
 
-    processed = true;
-  }
-
-  if (payload->matchSubtopic("i2c")) {
+  } else if (payload->matchSubtopic("i2c")) {
     auto rc = I2c::queuePayload(payload);
 
     if (rc == false) {
       ESP_LOGW(tagEngine(), "I2c::queueCommand() FAILED");
     }
 
-    processed = true;
-  }
-
-  if (payload->matchSubtopic("ds")) {
+  } else if (payload->matchSubtopic("ds")) {
     auto rc = DallasSemi::queuePayload(payload);
 
     if (rc == false) {
       ESP_LOGW(tagEngine(), "DallasSemi::queueCommand() FAILED");
     }
 
-    processed = true;
-  }
-
-  if (payload->matchSubtopic("profile")) {
+  } else if (payload->matchSubtopic("profile")) {
     unique_ptr<MsgPayload_t> payload_ptr(payload);
     if (Profile::parseRawMsg(payload->payload())) {
       Profile::postParseActions();
     }
 
-    processed = true;
-  }
-
-  if (payload->matchSubtopic("ota")) {
+  } else if (payload->matchSubtopic("ota")) {
     OTA *ota = OTA::payload(payload);
     Core::otaRequest(ota);
 
-    processed = true;
-  }
-
-  if (payload->matchSubtopic("restart")) {
+  } else if (payload->matchSubtopic("restart")) {
     Core::restartRequest();
-
-    processed = true;
+  } else {
+    processed = false;
   }
 
   return processed;

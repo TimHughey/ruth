@@ -111,7 +111,7 @@ void I2c::command(void *data) {
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
     // we're done with the original payload at this point
-    payload_ptr.reset();
+    // payload_ptr.reset();
 
     // parsing complete, freeze the elapsed timer
     parse_elapsed.freeze();
