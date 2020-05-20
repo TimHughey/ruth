@@ -212,8 +212,15 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
   //   prod/ruth.max_addr/pwm
   //   prod/ruth.max_addr/i2c
 
+  if (payload->hasSubtopic() == false) {
+    delete payload;
+    return;
+  }
+
   // NOTE:  the downstream object and/or task must free payload when finished
-  if (handlePayload(payload)) {
+  auto processed = handlePayload(payload);
+
+  if (processed) {
     return;
   } else {
     textReading_t *rlog = new textReading();
