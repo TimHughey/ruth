@@ -138,7 +138,7 @@ bool MQTT::handlePayload(MsgPayload_t *payload) {
     auto rc = I2c::queuePayload(payload);
 
     if (rc == false) {
-      ESP_LOGW(tagEngine(), "PulseWidth::queueCommand() FAILED");
+      ESP_LOGW(tagEngine(), "I2c::queueCommand() FAILED");
     }
 
     processed = true;
@@ -148,7 +148,7 @@ bool MQTT::handlePayload(MsgPayload_t *payload) {
     auto rc = DallasSemi::queuePayload(payload);
 
     if (rc == false) {
-      ESP_LOGW(tagEngine(), "PulseWidth::queueCommand() FAILED");
+      ESP_LOGW(tagEngine(), "DallasSemi::queueCommand() FAILED");
     }
 
     processed = true;

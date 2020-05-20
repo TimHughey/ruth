@@ -87,6 +87,9 @@ void I2c::command(void *data) {
     MsgPayload_t *payload = nullptr;
     elapsedMicros process_cmd;
 
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
     _cmd_elapsed.reset();
 
     queue_rc = xQueueReceive(_cmd_q, &payload, portMAX_DELAY);
@@ -97,6 +100,10 @@ void I2c::command(void *data) {
       ESP_LOGW(tagCommand(), "[rc=%d] queue receive failed", queue_rc);
       continue;
     }
+
+    rlog->printf("dequeued subtopic: %s", payload->subtopic().c_str());
+    rlog->publish();
+    rlog->reuse();
 
     elapsedMicros parse_elapsed;
     // deserialize the msgpack data
@@ -111,7 +118,8 @@ void I2c::command(void *data) {
 
     // did the deserailization succeed?
     if (err) {
-      ESP_LOGW(tagCommand(), "[%s] MSGPACK parse failure", err.c_str());
+      rlog->printf("[%s] MSGPACK parse failure", err.c_str());
+      rlog->publish();
       continue;
     }
 
@@ -120,9 +128,16 @@ void I2c::command(void *data) {
 }
 
 bool I2c::commandExecute(JsonDocument &doc) {
-  i2cDev_t *dev = findDevice(doc["device"]);
+  textReading_t *rlog = new textReading();
+  textReading_ptr_t rlog_ptr(rlog);
+
+  const string_t device = doc["device"];
+
+  i2cDev_t *dev = findDevice(device);
 
   if (dev == nullptr) {
+    rlog->printf("[i2c] could not find device \"%s\"", device.c_str());
+    rlog->publish();
     return false;
   }
 
@@ -134,22 +149,16 @@ bool I2c::commandExecute(JsonDocument &doc) {
     trackSwitchCmd(true);
 
     needBus();
-    ESP_LOGV(tagCommand(), "attempting to aquire bux mutex...");
-    elapsedMicros bus_wait;
     takeBus();
-
-    if (bus_wait < 500) {
-      ESP_LOGV(tagCommand(), "acquired bus mutex (%lluus)", (uint64_t)bus_wait);
-    } else {
-      ESP_LOGW(tagCommand(), "acquire bus mutex took %0.2fms",
-               (float)(bus_wait / 1000.0));
-    }
 
     // the device write time is the total duration of all processing
     // of the write -- not just the duration on the bus
     dev->writeStart();
 
-    ESP_LOGD(tagCommand(), "received cmd for %s", dev->id().c_str());
+    rlog->printf("[i2c] processing command for device \"%s\"",
+                 dev->id().c_str());
+    rlog->publish();
+
     set_rc = setMCP23008(doc, dev);
 
     dev->writeStop();
@@ -163,7 +172,6 @@ bool I2c::commandExecute(JsonDocument &doc) {
     clearNeedBus();
     giveBus();
 
-    ESP_LOGV(tagCommand(), "released bus mutex");
     return true;
   }
   return false;

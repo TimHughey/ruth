@@ -604,6 +604,12 @@ protected:
       q_rc = xQueueSendToBack(_cmd_q, (void *)&payload, pdMS_TO_TICKS(10));
 
       if (q_rc == pdTRUE) {
+
+        textReading_t *rlog = new textReading();
+        textReading_ptr_t rlog_ptr(rlog);
+
+        rlog->printf("queued subtopic: %s", payload->subtopic().c_str());
+        rlog->publish();
         rc = true;
       } else {
         // payload was not queued, delete it
