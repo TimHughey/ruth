@@ -506,3 +506,14 @@ Used static IRAM:   88408 bytes (  42664 available, 67.4% used)
     Flash rodata:  144432 bytes
 Total image size:~ 931103 bytes (.bin may be padded larger)
 <<<
+>>>
+8de79566 Completed Refactor of Command Processing and Engine Template
+Total sizes:
+ DRAM .data size:   14072 bytes
+ DRAM .bss  size:   24968 bytes
+Used static DRAM:   39040 bytes ( 141696 available, 21.6% used)
+Used static IRAM:   88408 bytes (  42664 available, 67.4% used)
+      Flash code:  681615 bytes
+    Flash rodata:  143360 bytes
+Total image size:~ 927455 bytes (.bin may be padded larger)
+<<<
