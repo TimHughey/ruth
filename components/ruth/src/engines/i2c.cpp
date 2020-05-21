@@ -48,6 +48,7 @@ I2c::I2c() {
   EngineTask_t report(TASK_REPORT, "i2c", "report");
 
   addTask(engine_name, core);
+  addTask(engine_name, command);
   addTask(engine_name, discover);
   addTask(engine_name, report);
 
