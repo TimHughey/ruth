@@ -225,9 +225,6 @@ void Net::init() {
   // the rc represents the error of the specific API.
   checkError(__PRETTY_FUNCTION__, rc);
 
-  ESP_LOGI(tagEngine(), "certificate authority pem available [%d bytes]",
-           _ca_end_ - _ca_start_);
-
   init_rc_ = rc;
 }
 
@@ -370,6 +367,9 @@ bool Net::_start_() {
 
   esp_wifi_start();
   StatusLED::brighter();
+
+  ESP_LOGI(tagEngine(), "certificate authority pem available [%d bytes]",
+           _ca_end_ - _ca_start_);
 
   ESP_LOGI(tagEngine(), "standing by for IP address...");
   if (waitForIP()) {

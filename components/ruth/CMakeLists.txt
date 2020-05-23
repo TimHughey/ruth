@@ -7,12 +7,11 @@ set(
 set(
   RUTH_MISC
     "src/misc/restart"      "src/misc/nvs"
-    "src/misc/status_led"
-    "src/misc/profile")
+    "src/misc/status_led")
 
 set(
   RUTH_NET
-    "src/net/net")
+    "src/net/net" "src/net/profile/profile")
 
 set(
   RUTH_DEVS
@@ -23,7 +22,7 @@ set(
 set(
   RUTH_ENGINES
     "src/engines/i2c"   "src/engines/ds"
-    "src/engines/pwm")
+    "src/engines/pwm"   "src/engines/task")
 
 set(
   RUTH_READINGS

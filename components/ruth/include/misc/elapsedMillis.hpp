@@ -115,6 +115,12 @@ public:
     r.ms -= val;
     return r;
   }
+
+  bool operator<(uint32_t rhs) {
+    elapsedMillis r(*this);
+
+    return ((millis() - r.ms) < rhs) ? true : false;
+  }
 };
 
 class elapsedMicros {

@@ -64,14 +64,15 @@ public:
   // returns true if the instance (singleton) has been created
   static bool engineEnabled();
   static void startIfEnabled() {
-    if (Profile::i2cEnable()) {
+    if (Profile::engineEnabled(ENGINE_I2C)) {
       _instance_()->start();
     }
   }
 
-  static bool queuePayload(MsgPayload_t *payload) {
+  static bool queuePayload(MsgPayload_t_ptr payload_ptr) {
     if (engineEnabled()) {
-      return _instance_()->_queuePayload(payload);
+      // move the payload_ptr to the next function
+      return _instance_()->_queuePayload(move(payload_ptr));
     } else {
       return false;
     }
@@ -90,13 +91,13 @@ public:
 private:
   i2c_config_t _conf;
   const TickType_t _loop_frequency =
-      Profile::subSystemTaskInterval("i2c", "core");
+      Profile::engineTaskIntervalTicks(ENGINE_I2C, TASK_CORE);
 
   const TickType_t _discover_frequency =
-      Profile::subSystemTaskInterval("i2c", "discover");
+      Profile::engineTaskIntervalTicks(ENGINE_I2C, TASK_DISCOVER);
 
   const TickType_t _report_frequency =
-      Profile::subSystemTaskInterval("i2c", "report");
+      Profile::engineTaskIntervalTicks(ENGINE_I2C, TASK_REPORT);
 
   static const uint32_t _max_buses = 8;
   bool _use_multiplexer = false;

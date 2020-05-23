@@ -90,7 +90,7 @@ public:
 private:
   MQTT(); // singleton, constructor is private
 
-  bool handlePayload(MsgPayload_t *payload);
+  bool handlePayload(MsgPayload_t_ptr payload);
 
   // static and functions called by static functions
   static MQTT_t *_instance_();
@@ -119,7 +119,7 @@ private:
                   .data = nullptr,
                   .lastWake = 0,
                   .priority = 14,
-                  .stackSize = (4 * 1024)};
+                  .stackSize = (5 * 1024)};
 
   struct mg_mgr _mgr = {};
   struct mg_connection *_connection = nullptr;

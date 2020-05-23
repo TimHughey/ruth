@@ -42,18 +42,12 @@ static const string_t engine_name = "PWM";
 const size_t _capacity =
     12 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + JSON_OBJECT_SIZE(13) + 270;
 
-PulseWidth::PulseWidth() {
+PulseWidth::PulseWidth() : Engine(ENGINE_PWM) {
   pwmDev::allOff(); // ensure all pins are off at initialization
 
-  EngineTask_t core(TASK_CORE, "pwm", "core");
-  EngineTask_t discover(TASK_DISCOVER, "pwm", "discover");
-  EngineTask_t command(TASK_COMMAND, "pwm", "command");
-  EngineTask_t report(TASK_REPORT, "pwm", "report");
-
-  addTask(engine_name, core);
-  addTask(engine_name, discover);
-  addTask(engine_name, command);
-  addTask(engine_name, report);
+  addTask(TASK_CORE);
+  addTask(TASK_REPORT);
+  addTask(TASK_COMMAND);
 }
 
 // STATIC!
@@ -64,8 +58,6 @@ bool PulseWidth::engineEnabled() { return (__singleton__) ? true : false; }
 //
 
 void PulseWidth::command(void *data) {
-  logSubTaskStart(data);
-
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   while (true) {
@@ -155,57 +147,39 @@ void PulseWidth::core(void *task_data) {
 
   saveTaskLastWake(TASK_CORE);
 
+  // discovering the pwm devices is ultimately creating and adding them
+  // to the known device list since they are onboard hardware.
+  for (uint8_t i = 1; i <= 4; i++) {
+    DeviceAddress_t addr(i);
+    pwmDev_t dev(addr);
+
+    unique_ptr<pwmDev> new_dev_ptr(new pwmDev(dev));
+
+    new_dev_ptr.get()->setMissingSeconds(60);
+    new_dev_ptr.get()->configureChannel();
+
+    if (new_dev_ptr.get()->lastRC() == ESP_OK) {
+      // release the pointer as we pass it to the known device list
+      addDevice(new_dev_ptr.get());
+      new_dev_ptr.release();
+    }
+  }
+
+  engineRunning();
+
+  if (numKnownDevices() > 0) {
+    devicesAvailable();
+  }
+
   // task run loop
   for (;;) {
-    engineRunning();
 
     // do high-level engine actions here (e.g. general housekeeping)
     taskDelayUntil(TASK_CORE, _loop_frequency);
   }
 }
 
-void PulseWidth::discover(void *data) {
-  // static bool first_discover = true;
-  static elapsedMillis last_elapsed;
-
-  logSubTaskStart(data);
-  saveTaskLastWake(TASK_DISCOVER);
-
-  // if ((first_discover == false) &&
-  //     (last_elapsed.asSeconds() < _discover_frequency)) {
-  //   return;
-  // }
-
-  while (waitForEngine()) {
-
-    for (uint8_t i = 1; i <= 4; i++) {
-      DeviceAddress_t addr(i);
-      pwmDev_t dev(addr);
-
-      if (justSeenDevice(dev) == nullptr) {
-        pwmDev_t *new_dev = new pwmDev(dev);
-
-        new_dev->setMissingSeconds(60);
-        new_dev->configureChannel();
-
-        if (new_dev->lastRC() == ESP_OK) {
-          addDevice(new_dev);
-        }
-      }
-    }
-
-    if (numKnownDevices() > 0) {
-      devicesAvailable();
-    }
-
-    saveTaskLastWake(TASK_DISCOVER);
-    taskDelayUntil(TASK_DISCOVER, _discover_frequency);
-  }
-}
-
 void PulseWidth::report(void *data) {
-
-  logSubTaskStart(data);
   saveTaskLastWake(TASK_REPORT);
 
   while (waitFor(devicesAvailableBit())) {

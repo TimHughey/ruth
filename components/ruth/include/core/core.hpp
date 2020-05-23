@@ -120,7 +120,7 @@ private:
 
   // console timestamp reporting
   bool timestamp_first_report_ = true;
-  float timestamp_freq_secs_ = 0.0;
+  uint32_t timestamp_freq_ms_ = 60 * 1000;
   elapsedMillis timestamp_elapsed_;
 
   // task tracking

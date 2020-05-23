@@ -20,9 +20,10 @@
 
 #include <cstdlib>
 
-#include <driver/periph_ctrl.h>
+// #include <driver/periph_ctrl.h>
 #include <esp_log.h>
-#include <esp_spi_flash.h>
+// #include <esp_spi_flash.h>
+#include <esp_task_wdt.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -59,6 +60,8 @@ void app_main() {
   // this is where our implementation begins by starting the Core
   TaskHandle_t app_task = xTaskGetCurrentTaskHandle();
   Core::start(app_task);
+
+  esp_task_wdt_reset();
 
   for (;;) {
     Core::loop();

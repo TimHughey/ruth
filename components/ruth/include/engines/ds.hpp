@@ -48,14 +48,15 @@ private:
 public:
   static bool engineEnabled();
   static void startIfEnabled() {
-    if (Profile::dalsemiEnable()) {
+    if (Profile::engineEnabled(ENGINE_DALSEMI)) {
       _instance_()->start();
     }
   }
 
-  static bool queuePayload(MsgPayload_t *payload) {
+  static bool queuePayload(MsgPayload_t_ptr payload_ptr) {
     if (engineEnabled()) {
-      return _instance_()->_queuePayload(payload);
+      // move the payload_ptr to the next function
+      return _instance_()->_queuePayload(move(payload_ptr));
     } else {
       return false;
     }
@@ -84,16 +85,16 @@ private:
 
   // delay times
   const TickType_t _loop_frequency =
-      Profile::subSystemTaskInterval("ds", "core");
+      Profile::engineTaskIntervalTicks(ENGINE_DALSEMI, TASK_CORE);
 
   const TickType_t _convert_frequency =
-      Profile::subSystemTaskInterval("ds", "convert");
+      Profile::engineTaskIntervalTicks(ENGINE_DALSEMI, TASK_CONVERT);
 
   const TickType_t _discover_frequency =
-      Profile::subSystemTaskInterval("ds", "discover");
+      Profile::engineTaskIntervalTicks(ENGINE_DALSEMI, TASK_DISCOVER);
 
   const TickType_t _report_frequency =
-      Profile::subSystemTaskInterval("ds", "report");
+      Profile::engineTaskIntervalTicks(ENGINE_DALSEMI, TASK_REPORT);
 
   const TickType_t _temp_convert_wait = pdMS_TO_TICKS(50);
 

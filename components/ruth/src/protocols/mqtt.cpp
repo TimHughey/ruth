@@ -37,15 +37,16 @@
 #include "external/mongoose.h"
 #include "misc/local_types.hpp"
 #include "misc/nvs.hpp"
-#include "misc/profile.hpp"
 #include "misc/restart.hpp"
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
+#include "net/profile/profile.hpp"
 #include "protocols/mqtt.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {
 
+using std::move;
 using std::unique_ptr;
 using std::vector;
 
@@ -121,47 +122,57 @@ void MQTT::connectionClosed() {
   connect();
 }
 
-bool MQTT::handlePayload(MsgPayload_t *payload) {
-  auto processed = true;
+bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
+  auto payload_rc = false;
+  auto payload = payload_ptr.get();
+
+  if (payload_ptr.get()->hasSubtopic() == false) {
+    return payload_rc;
+  }
 
   if (payload->matchSubtopic("pwm")) {
-    auto rc = PulseWidth::queuePayload(payload);
-
-    if (rc == false) {
-      ESP_LOGW(tagEngine(), "PulseWidth::queueCommand() FAILED");
-    }
+    // move along the payload_ptr
+    payload_rc = PulseWidth::queuePayload(move(payload_ptr));
 
   } else if (payload->matchSubtopic("i2c")) {
-    auto rc = I2c::queuePayload(payload);
-
-    if (rc == false) {
-      ESP_LOGW(tagEngine(), "I2c::queueCommand() FAILED");
-    }
+    payload_rc = I2c::queuePayload(move(payload_ptr));
 
   } else if (payload->matchSubtopic("ds")) {
-    auto rc = DallasSemi::queuePayload(payload);
-
-    if (rc == false) {
-      ESP_LOGW(tagEngine(), "DallasSemi::queueCommand() FAILED");
-    }
+    payload_rc = DallasSemi::queuePayload(move(payload_ptr));
 
   } else if (payload->matchSubtopic("profile")) {
-    unique_ptr<MsgPayload_t> payload_ptr(payload);
-    if (Profile::parseRawMsg(payload->payload())) {
+    Profile::fromRaw(payload);
+    payload_rc = Profile::valid();
+
+    if (payload_rc) {
       Profile::postParseActions();
     }
-
   } else if (payload->matchSubtopic("ota")) {
-    OTA *ota = OTA::payload(payload);
+    // from MQTT's perspective the payload was successful
+    payload_rc = true;
+
+    OTA *ota = OTA::payload(move(payload_ptr));
     Core::otaRequest(ota);
 
   } else if (payload->matchSubtopic("restart")) {
+
+    // from MQTT's perspective the payload was successful
+    payload_rc = true;
     Core::restartRequest();
-  } else {
-    processed = false;
   }
 
-  return processed;
+  if (payload_rc == false) {
+    textReading_t *rlog = new textReading();
+    textReading_ptr_t rlog_ptr(rlog);
+
+    rlog->printf("[MQTT] payload processing failure for subtopic \"%s\"",
+                 payload->subtopic().c_str());
+    rlog->publish();
+
+    delete payload;
+  }
+
+  return payload_rc;
 }
 
 void MQTT::_handshake_(struct mg_connection *nc) {
@@ -183,7 +194,10 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
   if (in_payload->len == 0)
     return;
 
-  MsgPayload_t *payload = new MsgPayload(in_topic, in_payload);
+  // we wrap the newly allocated MsgPayload in a unique_ptr then move
+  // it downstream to the various classes that process it.  the only potential
+  // memory leak is when the payload is queued to an Engine.
+  MsgPayload_t_ptr payload_ptr(new MsgPayload(in_topic, in_payload));
 
   // messages with subtopics are handled locally
   //  1. placed on a queue for another task
@@ -197,53 +211,10 @@ void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
   //   prod/ruth.max_addr/pwm
   //   prod/ruth.max_addr/i2c
 
-  if (payload->hasSubtopic() == false) {
-    delete payload;
-    return;
-  }
-
-  // NOTE:  the downstream object and/or task must free payload when finished
-  auto processed = handlePayload(payload);
-
-  if (processed) {
-    return;
-  } else {
-    textReading_t *rlog = new textReading();
-    textReading_ptr_t rlog_ptr(rlog);
-
-    rlog->printf("[MQTT] unable to process subtopic: \"%s\"",
-                 payload->subtopic().c_str());
-    rlog->publish();
-
-    delete payload;
-  }
+  // NOTE:  if a downstream object queues the actual payload then it must
+  //        free the memory when finished
+  handlePayload(move(payload_ptr));
 }
-
-// the message did not have a subtopic, send it to MQTTin for handling
-
-// queue send takes a pointer to what should be copied to the queue
-// using the size defined when the queue was created
-// BaseType_t q_rc;
-// q_rc = xQueueSendToBack(_q_in, (void *)&payload, _inbound_rb_wait_ticks);
-//
-// if (q_rc) {
-//   ESP_LOGV(tagEngine(), "INCOMING payload SENT to QUEUE
-//   (len=%u,msg_len=%u)",
-//            sizeof(MsgPayload_t), in_payload->len);
-// } else {
-//   delete payload;
-//
-//   char *msg = (char *)calloc(sizeof(char), 128);
-//   sprintf(msg, "RECEIVE msg FAILED (len=%u)", in_payload->len);
-//   ESP_LOGW(tagEngine(), "%s", msg);
-//
-//   // we only commit the failure to NVS and directly call esp_restart()
-//   // since MQTT is broken
-//   NVS::commitMsg(tagEngine(), msg);
-//   free(msg);
-//
-//   // pass a nullptr for the message so Restart doesn't attempt to publish
-//   Restart::restart(nullptr, __PRETTY_FUNCTION__);
 
 void MQTT::_publish(Reading_t *reading) {
   auto *msg = reading->json();

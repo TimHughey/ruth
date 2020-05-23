@@ -37,12 +37,7 @@
 
 namespace ruth {
 
-typedef struct {
-  TickType_t engine;
-  TickType_t convert;
-  TickType_t discover;
-  TickType_t report;
-} pwmLastWakeTime_t;
+using std::move;
 
 typedef class PulseWidth PulseWidth_t;
 class PulseWidth : public Engine<pwmDev_t> {
@@ -54,14 +49,15 @@ public:
   // returns true if the instance (singleton) has been created
   static bool engineEnabled();
   static void startIfEnabled() {
-    if (Profile::pwmEnable()) {
+    if (Profile::engineEnabled(ENGINE_PWM)) {
       _instance_()->start();
     }
   }
 
-  static bool queuePayload(MsgPayload_t *payload) {
+  static bool queuePayload(MsgPayload_t_ptr payload_ptr) {
     if (engineEnabled()) {
-      return _instance_()->_queuePayload(payload);
+      // move the payload_ptr to the next function
+      return _instance_()->_queuePayload(move(payload_ptr));
     } else {
       return false;
     }
@@ -72,17 +68,16 @@ public:
   //
   void command(void *data);
   void core(void *data);
-  void discover(void *data);
   void report(void *data);
 
   void stop();
 
 private:
-  const TickType_t _loop_frequency = pdMS_TO_TICKS(10000);
-  const TickType_t _discover_frequency = pdMS_TO_TICKS(59000);
-  const TickType_t _report_frequency = pdMS_TO_TICKS(10000);
+  const TickType_t _loop_frequency =
+      Profile::engineTaskIntervalTicks(ENGINE_PWM, TASK_CORE);
 
-  pwmLastWakeTime_t _last_wake;
+  const TickType_t _report_frequency =
+      Profile::engineTaskIntervalTicks(ENGINE_PWM, TASK_REPORT);
 
 private:
   static PulseWidth_t *_instance_();

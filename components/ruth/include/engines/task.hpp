@@ -18,33 +18,24 @@
      https://www.wisslanding.com
  */
 
-#ifndef engines_types_h
-#define engines_types_h
+#ifndef engine_task_hpp
+#define engine_task_hpp
 
 #include <algorithm>
 #include <vector>
 
 #include <freertos/FreeRTOS.h>
-#include <freertos/event_groups.h>
 #include <freertos/task.h>
 
 #include "misc/elapsedMillis.hpp"
 #include "misc/local_types.hpp"
-#include "misc/profile.hpp"
+#include "net/profile/profile.hpp"
 
 namespace ruth {
 
 using std::vector;
 
 typedef void(TaskFunc_t)(void *);
-
-typedef enum {
-  TASK_CORE,
-  TASK_CONVERT,
-  TASK_DISCOVER,
-  TASK_REPORT,
-  TASK_COMMAND
-} TaskTypes_t;
 
 typedef class EngineTask EngineTask_t;
 typedef EngineTask_t *EngineTask_ptr_t;
@@ -56,33 +47,46 @@ typedef TaskMap_t *TaskMap_ptr_t;
 class EngineTask {
 public:
   // create a new EngineTask with settings from Profile
-  EngineTask(TaskTypes_t task_type, char const *subsystem, char const *task,
-             void *data = nullptr)
-      : _task_type(task_type), _name(subsystem), _data(data) {
-    _priority = Profile::subSystemTaskPriority(subsystem, task);
-    _stackSize = Profile::subSystemTaskStack(subsystem, task);
-  };
+  EngineTask(EngineTypes_t engine_type, EngineTaskTypes_t task_type,
+             TaskFunc_t *task_func, void *data = nullptr)
+      : _engine_type(engine_type), _task_type(task_type) {
+
+    _task_func = task_func;
+    _data = data;
+
+    _priority = Profile::engineTaskPriority(engine_type, task_type);
+    _stack_size = Profile::engineTaskStack(engine_type, task_type);
+
+    assembleName();
+  }
 
   void *data() { return _data; }
-  TaskHandle_t handle() { return _handle; }
-  TaskTypes_t type() { return _task_type; }
+  TaskHandle_t &handle() { return _handle; }
+  bool handleNull() { return (_handle == nullptr) ? true : false; }
+  TaskHandle_t *handle_ptr() { return &_handle; }
+  TickType_t &lastWake() { return _last_wake; }
+  TickType_t *lastWake_ptr() { return &_last_wake; }
+  const char *name_cstr() const { return _name.c_str(); }
+  const string_t &name() const { return _name; }
+  UBaseType_t stackSize() const { return _stack_size; }
+  TaskFunc_t const *taskFunc() const { return _task_func; }
+  UBaseType_t priority() const { return _priority; }
+  EngineTaskTypes_t type() { return _task_type; }
 
-public:
-  TaskTypes_t _task_type;
-  string_t _name = "unamed";
+private:
+  void assembleName();
+
+private:
+  EngineTypes_t _engine_type;
+  EngineTaskTypes_t _task_type;
   TaskHandle_t _handle = nullptr;
-  TickType_t _lastWake = 0;
+  TaskFunc_t *_task_func = nullptr;
+  TickType_t _last_wake = 0;
+  UBaseType_t _stack_size = 0;
   UBaseType_t _priority = 0;
-  UBaseType_t _stackSize = 0;
-  void *_data = nullptr;
+  string_t _name = "unamed";
+  void *_data;
 };
 
-typedef struct {
-  EventBits_t need_bus;
-  EventBits_t engine_running;
-  EventBits_t devices_available;
-  EventBits_t temp_available;
-  EventBits_t temp_sensors_available;
-} engineEventBits_t;
 } // namespace ruth
 #endif // engines_types_h

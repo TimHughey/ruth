@@ -40,14 +40,16 @@ class OTA {
 public:
   // start a new task to pocess the OTA update
   static void start() { _instance_()->_start_(); }
-  static OTA_t *payload(MsgPayload_t *payload) { return _instance_(payload); };
+  static OTA_t *payload(MsgPayload_t_ptr payload_ptr) {
+    return _instance_(move(payload_ptr));
+  };
 
   static void markPartitionValid();
 
   const unique_ptr<char[]> debug();
 
 private:
-  OTA(MsgPayload_t *doc);
+  OTA(MsgPayload_t_ptr payload_ptr_t);
 
   // executed within a new task
   void process();
@@ -57,7 +59,7 @@ private:
   //
   // when _instance_() called without a payload only the existing SINGLETON
   // instance is returned
-  static OTA_t *_instance_(MsgPayload_t *payload = nullptr);
+  static OTA_t *_instance_(MsgPayload_t_ptr payload_ptr = nullptr);
 
   void _start_(void *task_data = nullptr) {
     if (_ota_in_progress) {

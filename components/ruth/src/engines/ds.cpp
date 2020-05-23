@@ -41,18 +41,12 @@ static const string_t engine_name = "DalSemi";
 const size_t _capacity =
     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
 
-DallasSemi::DallasSemi() {
-  EngineTask_t core(TASK_CORE, "ds", "core");
-  EngineTask_t convert(TASK_CONVERT, "ds", "convert");
-  EngineTask_t command(TASK_COMMAND, "ds", "command");
-  EngineTask_t discover(TASK_DISCOVER, "ds", "discover");
-  EngineTask_t report(TASK_REPORT, "ds", "report");
-
-  addTask(engine_name, core);
-  addTask(engine_name, convert);
-  addTask(engine_name, command);
-  addTask(engine_name, discover);
-  addTask(engine_name, report);
+DallasSemi::DallasSemi() : Engine(ENGINE_DALSEMI) {
+  addTask(TASK_CORE);
+  addTask(TASK_DISCOVER);
+  addTask(TASK_CONVERT);
+  addTask(TASK_REPORT);
+  addTask(TASK_COMMAND);
 }
 
 // STATIC!
@@ -81,8 +75,6 @@ bool DallasSemi::checkDevicesPowered() {
 }
 
 void DallasSemi::command(void *data) {
-  logSubTaskStart(data);
-
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   // no setup required before jumping into task loop
@@ -207,8 +199,6 @@ bool DallasSemi::commandExecute(dsDev_t *dev, uint32_t cmd_mask,
 void DallasSemi::convert(void *data) {
   uint8_t temp_convert_cmd[] = {0xcc, 0x44};
 
-  logSubTaskStart(data);
-
   // ensure the temp available bit is cleared at task startup
   tempUnavailable();
 
@@ -318,7 +308,6 @@ void DallasSemi::convert(void *data) {
 }
 
 void DallasSemi::discover(void *data) {
-  logSubTaskStart(data);
   saveTaskLastWake(TASK_DISCOVER);
 
   while (waitForEngine()) {
@@ -419,7 +408,6 @@ DallasSemi_t *DallasSemi::_instance_() {
 }
 
 void DallasSemi::report(void *data) {
-  logSubTaskStart(data);
   Net::waitForNormalOps();
 
   // let's wait here for the signal devices are available

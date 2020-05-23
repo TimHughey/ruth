@@ -90,7 +90,7 @@ void Core::_loop() {
   // implement watchTaskStacks()
 
   // sleep for one (1) second or until notified
-  ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
+  ulTaskNotifyTake(pdTRUE, Profile::coreLoopTicks());
 }
 
 void Core::_start(xTaskHandle app_task) {
@@ -161,14 +161,17 @@ void Core::bootComplete() {
 void Core::consoleTimestamp() {
   if (timestamp_first_report_ == true) {
     // leave first report set to true, it will be set to false later
-    timestamp_first_report_ = true;
-  } else if (timestamp_elapsed_.asSeconds() < timestamp_freq_secs_) {
-    return;
+    timestamp_first_report_ = false;
+  } else {
+
+    if (timestamp_elapsed_ < Profile::timestampMS()) {
+      return;
+    }
   }
 
   // grab the timestamp frequency seconds from the Profile and cache locally
-  if (timestamp_freq_secs_ == 0.0) {
-    timestamp_freq_secs_ = Profile::timestampFrequencySecs();
+  if (timestamp_freq_ms_ == 0.0) {
+    timestamp_freq_ms_ = Profile::timestampMS();
   }
 
   int delta;
@@ -199,10 +202,10 @@ void Core::consoleTimestamp() {
            (maxHeap_ / 1024), delta_str, (max_alloc / 1024),
            (float)(batt_mv_ / 1024.0));
 
-  if (timestamp_first_report_ && (timestamp_freq_secs_ > 300.0)) {
+  if (timestamp_first_report_ && (timestamp_freq_ms_ > (5 * 60 * 1300.0))) {
     timestamp_first_report_ = false;
     ESP_LOGI(name, "--> next timestamp report in %0.2f minutes",
-             (float)(timestamp_freq_secs_ / 60.0));
+             (float)(timestamp_freq_ms_ / (60.0 * 1000.0)));
   }
 
   timestamp_elapsed_.reset();

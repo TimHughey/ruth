@@ -35,32 +35,25 @@
 namespace ruth {
 
 static I2c_t *__singleton__ = nullptr;
-static const string_t engine_name = "I2c";
+static const string_t __profile_id__ = "i2c";
 
 // command document capacity for expected metadata and up to eight pio states
 const size_t _capacity =
     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
 
-I2c::I2c() {
-  EngineTask_t core(TASK_CORE, "i2c", "core");
-  EngineTask_t command(TASK_COMMAND, "i2c", "command");
-  EngineTask_t discover(TASK_DISCOVER, "i2c", "discover");
-  EngineTask_t report(TASK_REPORT, "i2c", "report");
+I2c::I2c() : Engine(ENGINE_I2C) {
+  addTask(TASK_CORE);
+  addTask(TASK_DISCOVER);
+  addTask(TASK_REPORT);
+  addTask(TASK_COMMAND);
+}
 
-  addTask(engine_name, core);
-  addTask(engine_name, command);
-  addTask(engine_name, discover);
-  addTask(engine_name, report);
+I2c_t *I2c::_instance_() {
+  if (__singleton__ == nullptr) {
+    __singleton__ = new I2c();
+  }
 
-  gpio_config_t rst_pin_cfg;
-
-  rst_pin_cfg.pin_bit_mask = RST_PIN_SEL;
-  rst_pin_cfg.mode = GPIO_MODE_OUTPUT;
-  rst_pin_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
-  rst_pin_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
-  rst_pin_cfg.intr_type = GPIO_INTR_DISABLE;
-
-  gpio_config(&rst_pin_cfg);
+  return __singleton__;
 }
 
 // STATIC!
@@ -71,8 +64,6 @@ bool I2c::engineEnabled() { return (__singleton__) ? true : false; }
 //
 
 void I2c::command(void *data) {
-  logSubTaskStart(data);
-
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   while (true) {
@@ -186,6 +177,17 @@ bool I2c::commandExecute(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
 }
 
 void I2c::core(void *task_data) {
+
+  gpio_config_t rst_pin_cfg;
+
+  rst_pin_cfg.pin_bit_mask = RST_PIN_SEL;
+  rst_pin_cfg.mode = GPIO_MODE_OUTPUT;
+  rst_pin_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
+  rst_pin_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  rst_pin_cfg.intr_type = GPIO_INTR_DISABLE;
+
+  gpio_config(&rst_pin_cfg);
+
   bool driver_ready = false;
 
   while (!driver_ready) {
@@ -209,7 +211,6 @@ void I2c::core(void *task_data) {
 }
 
 void I2c::discover(void *data) {
-  logSubTaskStart(data);
   saveTaskLastWake(TASK_DISCOVER);
   bool detect_rc = true;
 
@@ -243,8 +244,6 @@ void I2c::discover(void *data) {
 }
 
 void I2c::report(void *data) {
-
-  logSubTaskStart(data);
   saveTaskLastWake(TASK_REPORT);
 
   while (waitFor(devicesAvailableBit())) {
@@ -425,7 +424,7 @@ bool I2c::detectDevicesOnBus(int bus) {
 bool I2c::detectMultiplexer(const int max_attempts) {
   // _use_multiplexer initially set based on profile
   // however is updated based on actual multiplexer detection
-  _use_multiplexer = Profile::i2cUseMultiplexer();
+  _use_multiplexer = Profile::i2cMultiplexer();
 
   if (_use_multiplexer && detectDevice(&_multiplexer_dev)) {
     _use_multiplexer = true;
@@ -492,14 +491,6 @@ bool I2c::installDriver() {
   return rc;
 }
 
-I2c_t *I2c::_instance_() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new I2c();
-  }
-
-  return __singleton__;
-}
-
 uint32_t I2c::maxBuses() { return _max_buses; }
 bool I2c::pinReset() {
 
@@ -550,6 +541,10 @@ bool I2c::readDevice(i2cDev_t *dev) {
       rc = true;
       break;
     }
+  }
+
+  if (rc) {
+    justSeenDevice(dev);
   }
 
   return rc;

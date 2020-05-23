@@ -28,9 +28,9 @@ static const char *TAG = "OTATask";
 
 static OTA_t *__singleton__ = nullptr;
 
-OTA_t *OTA::_instance_(MsgPayload_t *payload) {
-  if (payload) {
-    __singleton__ = new OTA(payload);
+OTA_t *OTA::_instance_(MsgPayload_t_ptr payload_ptr) {
+  if (payload_ptr.get()) {
+    __singleton__ = new OTA(move(payload_ptr));
   }
 
   return __singleton__;
@@ -46,13 +46,13 @@ OTA_t *OTA::_instance_(MsgPayload_t *payload) {
 //
 static const size_t _capacity = JSON_OBJECT_SIZE(3) + 336;
 
-OTA::OTA(MsgPayload_t *payload) {
-  MsgPayload_t_ptr payload_ptr(payload);
+OTA::OTA(MsgPayload_t_ptr payload_ptr) {
   DynamicJsonDocument doc(_capacity);
 
   elapsedMicros parse_elapsed;
   // deserialize the msgpack data
-  DeserializationError err = deserializeMsgPack(doc, payload->payload());
+  DeserializationError err =
+      deserializeMsgPack(doc, payload_ptr.get()->payload());
 
   // we're done with the original payload at this point
   payload_ptr.reset();
