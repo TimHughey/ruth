@@ -28,7 +28,7 @@ if [[ ! $? ]]; then
 fi
 
 # clean up after ourselves
-rm -f /tmp/idf-export.log &> /dev/nullPATH}/export.sh &> /dev/null
+rm -f /tmp/idf-export.log &> /dev/null
 
 if [[ sdkconfig.defaults -nt sdkconfig ]]; then
   echo "sdkconfig.defaults are new, removing sdkconfig and cleaning"
@@ -59,11 +59,11 @@ pushd build
 
 for suffix in "${fw_suffixes[@]}"; do
 
-  if [[ -f ruth.${suffix} ]]; then
+  if [[ ! -f ruth.${suffix} ]]; then
     echo "can't find ruth.${suffix}, aborting"
 
     popd -q +2
-    exit %?
+    exit $?
   fi
 
 
