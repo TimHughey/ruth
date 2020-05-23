@@ -28,7 +28,7 @@
 
 #include "devs/base.hpp"
 #include "devs/pwm/pwm.hpp"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "net/network.hpp"
 
 using std::unique_ptr;
@@ -81,6 +81,15 @@ uint8_t pwmDev::devAddr() { return firstAddressByte(); };
 void pwmDev::configureChannel() {
   gpio_set_level(gpio_pin_, 0);
   last_rc_ = ledc_channel_config(&ledc_channel_);
+}
+
+bool pwmDev::run() {
+  if (running_ == false) {
+    return false;
+  }
+
+  // device ran, return true
+  return true;
 }
 
 bool pwmDev::updateDuty(JsonDocument &doc) {

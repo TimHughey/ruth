@@ -33,7 +33,7 @@
 #include "engines/event_bits.hpp"
 #include "engines/task.hpp"
 #include "misc/elapsedMillis.hpp"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "misc/nvs.hpp"
 #include "misc/restart.hpp"
 #include "net/network.hpp"
@@ -47,7 +47,13 @@ using std::vector;
 
 template <class DEV> class Engine {
 
+protected:
+  // Device Map
   typedef vector<DEV *> DeviceMap_t;
+
+  // subclasses are permitted to use a read only reference to the
+  // the device map managed by Engine
+  const DeviceMap_t &deviceMap() const { return _devices; }
 
 public:
   Engine(EngineTypes_t engine_type) : _engine_type(engine_type) {
@@ -58,12 +64,6 @@ public:
   virtual ~Engine(){};
 
   static uint32_t maxDevices() { return 100; };
-
-  bool any_of_devices(bool (*func)(const DEV &)) {
-    using std::any_of;
-
-    return any_of(_devices.cbegin(), _devices.cend(), func);
-  }
 
   // justSeenDevice():
   //    looks in known devices for the device.  if found, calls justSeen() on

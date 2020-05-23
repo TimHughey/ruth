@@ -29,7 +29,7 @@
 
 #include "devs/base.hpp"
 #include "devs/i2c_dev.hpp"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "net/network.hpp"
 
 using std::unique_ptr;

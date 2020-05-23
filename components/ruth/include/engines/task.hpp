@@ -27,15 +27,13 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+#include "local/types.hpp"
 #include "misc/elapsedMillis.hpp"
-#include "misc/local_types.hpp"
 #include "net/profile/profile.hpp"
 
 namespace ruth {
 
 using std::vector;
-
-typedef void(TaskFunc_t)(void *);
 
 typedef class EngineTask EngineTask_t;
 typedef EngineTask_t *EngineTask_ptr_t;

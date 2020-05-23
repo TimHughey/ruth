@@ -34,7 +34,7 @@
 
 #include "external/mongoose.h"
 #include "misc/elapsedMillis.hpp"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "net/network.hpp"
 
 namespace ruth {

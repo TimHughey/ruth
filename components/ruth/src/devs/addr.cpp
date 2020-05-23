@@ -26,7 +26,7 @@
 #include <time.h>
 
 #include "devs/addr.hpp"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 
 namespace ruth {
 

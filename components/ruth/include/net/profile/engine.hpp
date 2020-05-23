@@ -28,7 +28,7 @@
 #include <esp_log.h>
 
 #include "external/ArduinoJson.h"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "net/profile/types.hpp"
 
 namespace ruth {

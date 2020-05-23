@@ -174,8 +174,21 @@ void PulseWidth::core(void *task_data) {
   // task run loop
   for (;;) {
 
-    // do high-level engine actions here (e.g. general housekeeping)
-    taskDelayUntil(TASK_CORE, _loop_frequency);
+    // run any device that wants to
+    if (anyDeviceNeedsRun()) {
+      if (runDevices()) {
+        // at least one device ran so wait a minimal time until next loop
+        taskDelayUntil(TASK_CORE, pdMS_TO_TICKS(3));
+        continue;
+      };
+
+      // otherwise... just fall through
+    }
+
+    // here will wait to be notified OR the Profile defined loop frequency
+    // this allows another task (e.g. command) to signal there's work to do
+    ulTaskNotifyTake(pdTRUE, _loop_frequency);
+    // taskDelayUntil(TASK_CORE, _loop_frequency);
   }
 }
 

@@ -31,7 +31,7 @@
 #include "devs/base.hpp"
 #include "devs/ds_dev.hpp"
 #include "drivers/owb.h"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 
 namespace ruth {
 

@@ -28,7 +28,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "readings/reading.hpp"
 
 namespace ruth {

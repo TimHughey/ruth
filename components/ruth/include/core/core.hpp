@@ -34,7 +34,7 @@
 
 #include "core/ota.hpp"
 #include "misc/elapsedMillis.hpp"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "misc/restart.hpp"
 
 namespace ruth {

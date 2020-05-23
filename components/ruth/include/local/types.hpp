@@ -1,5 +1,5 @@
 /*
-    local_types.hpp - Ruth Local Types
+    local/types.hpp - Ruth Local Types
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_type_hpp
-#define ruth_type_hpp
+#ifndef ruth_local_types_hpp
+#define ruth_local_types_hpp
 
 #include <memory>
 #include <string>
@@ -36,6 +36,9 @@ namespace ruth {
 using string_t = std::string;
 
 typedef std::unique_ptr<char[]> msg_buff_t;
+
+// type passed to xTaskCreate as the function to run as a task
+typedef void(TaskFunc_t)(void *);
 
 typedef struct {
   TaskHandle_t handle;

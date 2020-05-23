@@ -35,7 +35,7 @@
 #include "engines/i2c.hpp"
 #include "engines/pwm.hpp"
 #include "external/mongoose.h"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "misc/nvs.hpp"
 #include "misc/restart.hpp"
 #include "misc/status_led.hpp"

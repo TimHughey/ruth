@@ -56,6 +56,9 @@ private:
   uint32_t duty_ = 0; // default to zero (off)
   esp_err_t last_rc_ = ESP_OK;
 
+  // flag that signals the device is running a sequence
+  bool running_ = false;
+
   ledc_channel_config_t ledc_channel_ = {.gpio_num = 0, // set by constructor
                                          .speed_mode = LEDC_HIGH_SPEED_MODE,
                                          // channel default value is changed
@@ -76,6 +79,12 @@ public:
   uint32_t dutyMax() { return duty_max_; };
   uint32_t dutyMin() { return duty_min_; };
   gpio_num_t gpioPin() { return gpio_pin_; };
+
+  // sequence support
+  void sequenceStart() { running_ = true; }
+  void sequenceEnd() { running_ = false; }
+  bool needsRun() { return running_; }
+  bool run();
 
   bool updateDuty(JsonDocument &doc);
 

@@ -35,7 +35,7 @@
 #include "devs/addr.hpp"
 #include "external/ArduinoJson.h"
 #include "misc/elapsedMillis.hpp"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {

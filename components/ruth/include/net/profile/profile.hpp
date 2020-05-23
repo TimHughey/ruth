@@ -29,7 +29,7 @@
 #include <time.h>
 
 #include "misc/elapsedMillis.hpp"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 #include "net/profile/engine.hpp"
 #include "net/profile/types.hpp"
 #include "protocols/payload.hpp"

@@ -30,7 +30,7 @@
 #include <time.h>
 
 #include "misc/elapsedMillis.hpp"
-#include "misc/local_types.hpp"
+#include "local/types.hpp"
 
 // Possible future improvement
 // typedef std::unique_ptr<string_t> myString;
