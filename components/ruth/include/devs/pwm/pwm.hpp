@@ -1,5 +1,5 @@
 /*
-    pwm_dev.hpp - Ruth PWM Device
+    pwm.hpp - Ruth PWM Device
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -78,7 +78,6 @@ public:
   // bool updateDuty(cmdPWM_t *cmd);
   bool updateDuty(JsonDocument &doc);
 
-  const char *externalName();
   esp_err_t lastRC() { return last_rc_; };
 
   // info / debug functions

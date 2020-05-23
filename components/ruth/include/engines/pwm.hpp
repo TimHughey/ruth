@@ -31,7 +31,7 @@
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
 
-#include "devs/pwm_dev.hpp"
+#include "devs/pwm/pwm.hpp"
 #include "engines/engine.hpp"
 #include "protocols/payload.hpp"
 

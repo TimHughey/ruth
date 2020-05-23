@@ -27,7 +27,7 @@
 #include <time.h>
 
 #include "devs/base.hpp"
-#include "devs/pwm_dev.hpp"
+#include "devs/pwm/pwm.hpp"
 #include "misc/local_types.hpp"
 #include "net/network.hpp"
 
@@ -75,10 +75,6 @@ pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
 
   setID(id.get());
 };
-
-// externalName implementation for pwmDev
-// externalName includes the host name (instead of self)
-const char *pwmDev::externalName() { return id().c_str(); }
 
 uint8_t pwmDev::devAddr() { return firstAddressByte(); };
 
@@ -170,7 +166,7 @@ const unique_ptr<char[]> pwmDev::debug() {
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
   snprintf(debug_str.get(), max_len,
-           "pwmDev(%s duty=%d channel=%d pin=%d last_rc=%s)", externalName(),
+           "pwmDev(%s duty=%d channel=%d pin=%d last_rc=%s)", id().c_str(),
            duty_, ledc_channel_.channel, gpio_pin_, esp_err_to_name(last_rc_));
 
   return move(debug_str);
