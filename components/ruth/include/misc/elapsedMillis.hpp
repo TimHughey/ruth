@@ -46,9 +46,13 @@ public:
     ms = orig.ms;
     _freeze = orig._freeze;
   }
-  float asSeconds() {
-    return (_freeze) ? (float)(ms / 1000.0)
-                     : ((float)((millis() - ms) / 1000.0));
+  float asSeconds(uint64_t from = UINT64_MAX) {
+    if (from == UINT64_MAX) {
+      auto elapsed = (_freeze) ? ms : (millis() - ms);
+      return (float)elapsed / 1000.0;
+    } else {
+      return ((float)millis() / 1000.0);
+    }
   }
   void freeze(uint32_t val = UINT32_MAX) {
     _freeze = true;

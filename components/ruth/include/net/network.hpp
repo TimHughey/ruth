@@ -29,6 +29,7 @@ public:
   static void deinit();
   static EventGroupHandle_t eventGroup();
   static const string_t &getName();
+  static const char *hostname() { return getName().c_str(); }
   static const string_t &hostID();
   static const char *dnsIP() { return _instance_()->dns_str_; };
 

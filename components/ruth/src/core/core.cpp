@@ -151,8 +151,10 @@ void Core::bootComplete() {
 
   UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
 
-  ESP_LOGI(TAG, "boot complete elapsed=%0.2fs stack_hw=%d num_task=%d",
-           core_elapsed_.asSeconds(), stack_high_water, num_tasks_);
+  auto stack_remaining = stack_size_ - stack_high_water;
+  auto stack_used = ((float)stack_remaining / (float)stack_high_water) * 100.0;
+  ESP_LOGI(TAG, "BOOT COMPLETE in %0.2fs tasks=%d stack[used=%0.1f%% slack=%u]",
+           core_elapsed_.asSeconds(0), num_tasks_, stack_used, stack_remaining);
 
   boot_complete_ = true;
 }
@@ -173,37 +175,18 @@ void Core::consoleTimestamp() {
     timestamp_freq_ms_ = Profile::timestampMS();
   }
 
-  int delta;
-  size_t curr_heap, max_alloc = 0;
+  UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
 
-  curr_heap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-  delta = availHeap_ - curr_heap;
-  availHeap_ = curr_heap;
+  auto stack_remaining = stack_size_ - stack_high_water;
+  auto stack_used = ((float)stack_remaining / (float)stack_high_water) * 100.0;
 
-  minHeap_ = min(curr_heap, minHeap_);
-  maxHeap_ = max(curr_heap, maxHeap_);
+  ESP_LOGI(TAG, ">> %s << %s stack[used=%0.1f%% slack=%u]",
+           dateTimeString().get(), Net::hostname(), stack_used,
+           stack_remaining);
 
-  max_alloc = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
-
-  timestamp_elapsed_.reset();
-
-  const char *name = Net::getName().c_str();
-  char delta_str[13] = {};
-
-  if (delta < 0) {
-    snprintf(delta_str, sizeof(delta_str), "(%05d)", delta * -1);
-  } else {
-    snprintf(delta_str, sizeof(delta_str), "%05d", delta);
-  }
-
-  ESP_LOGI(name, "%s hc=%uk hf=%uk hl=%uk d=%s ma=%uk batt=%0.2fv",
-           dateTimeString().get(), (curr_heap / 1024), (firstHeap_ / 1024),
-           (maxHeap_ / 1024), delta_str, (max_alloc / 1024),
-           (float)(batt_mv_ / 1024.0));
-
-  if (timestamp_first_report_ && (timestamp_freq_ms_ > (5 * 60 * 1300.0))) {
+  if (timestamp_first_report_ && (timestamp_freq_ms_ >= (5 * 60 * 1000.0))) {
     timestamp_first_report_ = false;
-    ESP_LOGI(name, "--> next timestamp report in %0.2f minutes",
+    ESP_LOGI(Net::hostname(), "--> next timestamp report in %0.2f minutes",
              (float)(timestamp_freq_ms_ / (60.0 * 1000.0)));
   }
 
@@ -249,7 +232,7 @@ void Core::trackHeap() {
     heap_track_elapsed_.reset();
   }
 
-  batt_mv_ = batteryMilliVolt();
+  auto batt_mv = batteryMilliVolt();
 
   uint32_t max_alloc = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
 
@@ -259,7 +242,7 @@ void Core::trackHeap() {
   }
 
   if (Net::waitForReady(0) == true) {
-    remoteReading_ptr_t remote(new remoteReading(batt_mv_));
+    remoteReading_ptr_t remote(new remoteReading(batt_mv));
     remote->publish();
   }
 

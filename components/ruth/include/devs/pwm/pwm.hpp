@@ -56,9 +56,11 @@ private:
   uint32_t duty_ = 0; // default to zero (off)
   esp_err_t last_rc_ = ESP_OK;
 
-  ledc_channel_config_t ledc_channel_ = {.gpio_num = GPIO_NUM_32,
+  ledc_channel_config_t ledc_channel_ = {.gpio_num = 0, // set by constructor
                                          .speed_mode = LEDC_HIGH_SPEED_MODE,
-                                         .channel = LEDC_CHANNEL_2,
+                                         // channel default value is changed
+                                         // by constructor
+                                         .channel = LEDC_CHANNEL_1,
                                          .intr_type = LEDC_INTR_DISABLE,
                                          .timer_sel = LEDC_TIMER_1,
                                          .duty = duty_,
@@ -75,7 +77,6 @@ public:
   uint32_t dutyMin() { return duty_min_; };
   gpio_num_t gpioPin() { return gpio_pin_; };
 
-  // bool updateDuty(cmdPWM_t *cmd);
   bool updateDuty(JsonDocument &doc);
 
   esp_err_t lastRC() { return last_rc_; };

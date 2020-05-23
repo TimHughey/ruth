@@ -53,6 +53,11 @@ Profile::Profile(MsgPayload_t *payload) {
     return;
   }
 
+  auto used = root.memoryUsage();
+  auto used_percent = ((float)used / (float)_doc_capacity) * 100.0;
+  ESP_LOGI("Profile", "JsonDocument memory usage %0.1f%% (%u/%u)", used_percent,
+           used, _doc_capacity);
+
   _valid = true;
 
   const JsonObject meta = root["meta"];

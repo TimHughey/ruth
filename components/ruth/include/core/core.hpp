@@ -108,15 +108,14 @@ private:
   bool boot_complete_ = false;
   bool engines_started_ = false;
 
+  size_t stack_size_ = CONFIG_ESP_MAIN_TASK_STACK_SIZE;
+
   // heap monitoring
   bool heap_track_first_ = true;
   float heap_track_secs_ = 3.0;
   elapsedMillis heap_track_elapsed_;
   size_t firstHeap_ = 0;
   size_t availHeap_ = 0;
-  size_t minHeap_ = UINT32_MAX;
-  size_t maxHeap_ = 0;
-  uint32_t batt_mv_ = 0;
 
   // console timestamp reporting
   bool timestamp_first_report_ = true;
