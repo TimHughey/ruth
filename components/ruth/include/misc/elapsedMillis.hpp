@@ -47,13 +47,15 @@ public:
     _freeze = orig._freeze;
   }
   float asSeconds(uint64_t from = UINT64_MAX) {
-    if (from == UINT64_MAX) {
-      auto elapsed = (_freeze) ? ms : (millis() - ms);
-      return (float)elapsed / 1000.0;
-    } else {
+
+    // provide the elapsed millis since system boot
+    if (from == 0) {
       return ((float)millis() / 1000.0);
     }
+
+    return (_freeze) ? ms : (millis() - ms);
   }
+
   void freeze(uint32_t val = UINT32_MAX) {
     _freeze = true;
     ms = (val == UINT32_MAX) ? (millis() - ms) : val;
