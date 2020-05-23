@@ -157,6 +157,7 @@ void Core::bootComplete() {
            core_elapsed_.asSeconds(0), num_tasks_, stack_used, stack_remaining);
 
   boot_complete_ = true;
+  ota_valid_elapsed_.reset();
 }
 
 void Core::consoleTimestamp() {
@@ -197,7 +198,7 @@ void Core::markOtaValid() {
   if (ota_marked_valid_)
     return;
 
-  if (core_elapsed_.asSeconds() > ota_valid_secs_) {
+  if (ota_valid_elapsed_ > ota_valid_ms_) {
     // safety net 3:
     //    only after the core has been up for more than the configured
     //    seconds mark the OTA partition as valid

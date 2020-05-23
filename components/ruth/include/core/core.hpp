@@ -33,8 +33,8 @@
 #include <time.h>
 
 #include "core/ota.hpp"
-#include "misc/elapsedMillis.hpp"
 #include "local/types.hpp"
+#include "misc/elapsedMillis.hpp"
 #include "misc/restart.hpp"
 
 namespace ruth {
@@ -129,7 +129,8 @@ private:
   OTA_t *ota_request_ = nullptr;
   bool restart_request_ = false;
   bool ota_marked_valid_ = false;
-  float ota_valid_secs_ = 60.0;
+  elapsedMillis ota_valid_elapsed_;
+  float ota_valid_ms_ = 60 * 1000;
 
   // battery voltage
   esp_adc_cal_characteristics_t *adc_chars_ = nullptr;
