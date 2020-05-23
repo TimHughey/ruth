@@ -104,7 +104,7 @@ for suffix in "${fw_suffixes[@]}"; do
       exit $?
     fi
 
-    ln -s ./ruth.${suffix} ${vsn}-ruth.${suffix}
+    ln -s ./${vsn}-ruth.${suffix} latest.${suffix} 
 
 		ls -l latest.${suffix}
 		popd -q
