@@ -86,13 +86,16 @@ for suffix in "${fw_suffixes[@]}"; do
     fi
 
   else
-    pushd -q $htdocs
-    cp ruth.${suffix} ${vsn}-ruth.${suffix}
+    cp ruth.${suffix} ${htdocs}/${vsn}-ruth.${suffix}
 
     if [[ ! $? ]]; then
       popd -q +2
       exit $?
     fi
+
+    # cd into htdocs for the remainder
+    popd -q
+    pushd -q ${htdocs}
 
     # point the well known name latest-ruth.* to the new file
     rm -f latest.${suffix}
