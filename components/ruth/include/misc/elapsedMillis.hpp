@@ -53,7 +53,7 @@ public:
       return ((float)millis() / 1000.0);
     }
 
-    return (_freeze) ? ms : (millis() - ms);
+    return ((_freeze) ? (float)ms : (float)(millis() - ms) / 1000.0);
   }
 
   void freeze(uint32_t val = UINT32_MAX) {
