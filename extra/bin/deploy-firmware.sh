@@ -94,7 +94,6 @@ for suffix in "${fw_suffixes[@]}"; do
     fi
 
     # cd into htdocs for the remainder
-    popd -q
     pushd -q ${htdocs}
 
     # point the well known name latest-ruth.* to the new file
