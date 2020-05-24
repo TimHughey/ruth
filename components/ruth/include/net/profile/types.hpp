@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_profile_types_hpp
-#define ruth_profile_types_hpp
+#ifndef _ruth_profile_types_hpp
+#define _ruth_profile_types_hpp
 
 namespace ruth {
 

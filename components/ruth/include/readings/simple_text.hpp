@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef text_reading_hpp
-#define text_reading_hpp
+#ifndef _ruth_text_reading_hpp
+#define _ruth_text_reading_hpp
 
 #include <string>
 

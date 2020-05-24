@@ -1,5 +1,5 @@
 /*
-     Device.cpp - Ruth Common Device for Engines
+     base.cpp - Ruth Base Device for Engines
      Copyright (C) 2017  Tim Hughey
 
      This program is free software: you can redistribute it and/or modify
@@ -18,17 +18,10 @@
      https://www.wisslanding.com
  */
 
-#include <algorithm>
 #include <cstdlib>
-#include <cstring>
-#include <ios>
 #include <memory>
 #include <string>
-#include <tuple>
 
-#include <esp_log.h>
-#include <esp_timer.h>
-#include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -134,46 +127,15 @@ void Device::writeFailure() { _write_errors++; }
 
 // this is a fairly expensive method, avoid production use
 const unique_ptr<char[]> Device::debug() {
-  auto const max_len = 319;
-
+  auto const max_len = 256;
   // allocate from the heap to minimize task stack impact
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
-  unique_ptr<statsMap_t> map_ptr(new statsMap_t);
 
   // get pointers to increase code readability
   char *str = debug_str.get();
-  statsMap_t *map = map_ptr.get();
 
-  // null terminate the char array for use as string buffer
-  str[0] = 0x00;
-  auto curr_len = strlen(str);
-
-  snprintf(str, max_len, "Device(%s id(%s) desc(%s)", _addr.debug().get(),
-           id().c_str(), description().c_str());
-
-  map->insert({"crc_fail", _crc_mismatches});
-  map->insert({"err_read", _read_errors});
-  map->insert({"err_write", _write_errors});
-  map->insert({"us_read", readUS()});
-  map->insert({"us_write", writeUS()});
-
-  // append stats that are non-zero
-  for_each(map->begin(), map->end(), [this, str](statEntry_t item) {
-    string_t &metric = item.first;
-    uint32_t val = item.second;
-
-    if (val > 0) {
-      auto curr_len = strlen(str);
-      char *s = str + curr_len;
-      auto max = max_len - curr_len;
-
-      snprintf(s, max, " %s(%u)", metric.c_str(), val);
-    }
-  });
-
-  // append the closing parenenthesis ')' for readability
-  curr_len = strlen(str);
-  snprintf(str + curr_len, (max_len - curr_len), ")");
+  snprintf(str, max_len, "Device \"%s\" id=\"%s\" desc=\"%s\"",
+           _addr.debug().get(), id().c_str(), description().c_str());
 
   return move(debug_str);
 }

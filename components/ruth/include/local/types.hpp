@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_local_types_hpp
-#define ruth_local_types_hpp
+#ifndef _ruth_local_types_hpp
+#define _ruth_local_types_hpp
 
 #include <memory>
 #include <string>

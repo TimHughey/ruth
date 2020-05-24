@@ -18,12 +18,11 @@
     https://www.wisslanding.com
 */
 
-#ifndef humidity_reading_h
-#define humidity_reading_h
+#ifndef _ruth_humidity_reading_hpp
+#define _ruth_humidity_reading_hpp
 
 #include <string>
 
-#include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
 

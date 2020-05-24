@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_mqtt_h
-#define ruth_mqtt_h
+#ifndef _ruth_mqtt_hpp
+#define _ruth_mqtt_hpp
 
 #include <cstdlib>
 #include <memory>

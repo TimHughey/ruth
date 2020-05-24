@@ -27,7 +27,7 @@
 
 namespace ruth {
 
-pwmReading::pwmReading(const std::string &id, time_t mtime, uint32_t duty_max,
+pwmReading::pwmReading(const string_t &id, time_t mtime, uint32_t duty_max,
                        uint32_t duty_min, uint32_t duty)
     : Reading(id, mtime) {
   duty_max_ = duty_max;

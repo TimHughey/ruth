@@ -18,10 +18,9 @@
     https://www.wisslanding.com
 */
 
-#ifndef celsius_h
-#define celsius_h
+#ifndef _ruth_celsius_reading_hpp
+#define _ruth_celsius_reading_hpp
 
-#include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
 

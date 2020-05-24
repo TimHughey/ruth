@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_core_ota_h
-#define ruth_core_ota_h
+#ifndef _ruth_core_ota_hpp
+#define _ruth_core_ota_hpp
 
 #include <esp_http_client.h>
 #include <esp_https_ota.h>

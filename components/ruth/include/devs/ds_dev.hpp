@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ds_dev_h
-#define ds_dev_h
+#ifndef _ruth_ds_dev_hpp
+#define _ruth_ds_dev_hpp
 
 #include <memory>
 #include <string>

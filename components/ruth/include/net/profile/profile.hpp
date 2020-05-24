@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_profile_hpp
-#define ruth_profile_hpp
+#ifndef _ruth_profile_hpp
+#define _ruth_profile_hpp
 
 #include <algorithm>
 #include <cstdlib>
@@ -28,8 +28,8 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "misc/elapsedMillis.hpp"
 #include "local/types.hpp"
+#include "misc/elapsedMillis.hpp"
 #include "net/profile/engine.hpp"
 #include "net/profile/types.hpp"
 #include "protocols/payload.hpp"
@@ -82,7 +82,7 @@ public:
     return _instance_()->_profile_name.c_str();
   };
 
-  static uint32_t timestampMS() { return _instance_()->_core_timestamp_ms; }
+  static uint64_t timestampMS() { return _instance_()->_core_timestamp_ms; }
 
   static bool valid() { return (_instance_()) ? _instance_()->_valid : false; }
 

@@ -18,8 +18,8 @@
      https://www.wisslanding.com
  */
 
-#ifndef engine_task_hpp
-#define engine_task_hpp
+#ifndef _ruth_ngine_task_hpp
+#define _ruth_engine_task_hpp
 
 #include <algorithm>
 #include <vector>

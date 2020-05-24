@@ -18,10 +18,9 @@
     https://www.wisslanding.com
 */
 
-#ifndef pwm_reading_hpp
-#define pwm_reading_hpp
+#ifndef _ruth_pwm_reading_hpp
+#define _ruth_pwm_reading_hpp
 
-#include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -38,7 +37,7 @@ private:
   uint32_t duty_ = 0;
 
 public:
-  pwmReading(const std::string &id, time_t mtime, uint32_t duty_max,
+  pwmReading(const string_t &id, time_t mtime, uint32_t duty_max,
              uint32_t duty_min, uint32_t duty);
 
 protected:

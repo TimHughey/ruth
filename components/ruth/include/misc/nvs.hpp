@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_nvs_hpp
-#define ruth_nvs_hpp
+#ifndef _ruth_nvs_hpp
+#define _ruth_nvs_hpp
 
 #include <string>
 

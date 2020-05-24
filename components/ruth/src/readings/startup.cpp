@@ -21,9 +21,10 @@
 #include <cstdlib>
 #include <ctime>
 
-#include <esp_log.h>
 #include <esp_ota_ops.h>
 
+#include "net/network.hpp"
+#include "readings/simple_text.hpp"
 #include "readings/startup.hpp"
 
 namespace ruth {
@@ -34,7 +35,7 @@ startupReading::startupReading(uint32_t batt_mv) : remoteReading(batt_mv) {
 
   reset_reason_ = decodeResetReason(esp_reset_reason());
 
-  ESP_LOGI("RuthStartup", "reason [%s]", reset_reason_.c_str());
+  textReading::rlog("startup reason=\"%s\"", reset_reason_.c_str());
 };
 
 void startupReading::populateJSON(JsonDocument &doc) {
@@ -58,9 +59,8 @@ void startupReading::populateJSON(JsonDocument &doc) {
   doc["sha"] = sha256;
 };
 
-const std::string &
-startupReading::decodeResetReason(esp_reset_reason_t reason) {
-  static std::string _reason;
+const string_t &startupReading::decodeResetReason(esp_reset_reason_t reason) {
+  static string_t _reason;
 
   switch (reason) {
   case ESP_RST_UNKNOWN:
@@ -107,7 +107,7 @@ startupReading::decodeResetReason(esp_reset_reason_t reason) {
     break;
 
   default:
-    _reason = "undefined";
+    _reason = "unknown";
   }
 
   return _reason;

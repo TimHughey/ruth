@@ -25,12 +25,11 @@
 #include <string>
 
 #include <external/ArduinoJson.h>
-#include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
 
-#include "misc/elapsedMillis.hpp"
 #include "local/types.hpp"
+#include "misc/elapsedMillis.hpp"
 
 // Possible future improvement
 // typedef std::unique_ptr<string_t> myString;
@@ -67,8 +66,8 @@ private:
 
   bool _log_reading = false;
 
-  int64_t _read_us = 0;
-  int64_t _write_us = 0;
+  uint64_t _read_us = 0;
+  uint64_t _write_us = 0;
   int _crc_mismatches = 0;
   int _read_errors = 0;
   int _write_errors = 0;
@@ -117,9 +116,9 @@ public:
 
   void setLogReading() { _log_reading = true; }
   void setReadErrors(int read_errors) { _read_errors = read_errors; }
-  void setReadUS(int64_t read_us) { _read_us = read_us; }
+  void setReadUS(uint64_t read_us) { _read_us = read_us; }
   void setWriteErrors(int write_errors) { _write_errors = write_errors; }
-  void setWriteUS(int64_t write_us) { _write_us = write_us; }
+  void setWriteUS(uint64_t write_us) { _write_us = write_us; }
 
   static const char *typeString(ReadingType_t index) {
     static const char *type_strings[] = {

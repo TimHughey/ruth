@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef status_led_hpp
-#define status_led_hpp
+#ifndef _ruth_status_led_hpp
+#define _ruth_status_led_hpp
 
 #include <sys/time.h>
 #include <time.h>

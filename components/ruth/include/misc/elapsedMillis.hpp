@@ -21,201 +21,197 @@
  * THE SOFTWARE.
  */
 
-#ifndef elapsedMillis_h
-#define elapsedMillis_h
-#ifdef __cplusplus
+#ifndef _ruth_elapsed_millis_hpp
+#define _ruth_elapsed_millis_hpp
 
 #include <cstdint>
 
-#include <esp_log.h>
 #include <esp_timer.h>
 
 namespace ruth {
 
 class elapsedMillis {
 private:
-  uint64_t ms;
-  bool _freeze = false;
+  uint64_t _ms;
+  bool _frozen = false;
 
   inline uint64_t millis() const { return (esp_timer_get_time() / 1000); };
+  inline uint64_t val() const { return (_frozen) ? (_ms) : (millis() - _ms); }
 
 public:
-  elapsedMillis(void) { ms = millis(); }
-  // elapsedMillis(uint64_t val) { ms = millis() - val; }
-  elapsedMillis(const elapsedMillis &orig) {
-    ms = orig.ms;
-    _freeze = orig._freeze;
-  }
-  float asSeconds(uint64_t from = UINT64_MAX) {
-
-    // provide the elapsed millis since system boot
-    if (from == 0) {
-      return ((float)millis() / 1000.0);
-    }
-
-    return ((_freeze) ? (float)ms : (float)(millis() - ms) / 1000.0);
-  }
+  elapsedMillis(void) { _ms = millis(); }
+  elapsedMillis(const elapsedMillis &orig)
+      : _ms(orig._ms), _frozen(orig._frozen) {}
 
   void freeze(uint32_t val = UINT32_MAX) {
-    _freeze = true;
-    ms = (val == UINT32_MAX) ? (millis() - ms) : val;
+    _frozen = true;
+    _ms = (val == UINT32_MAX) ? (millis() - _ms) : val;
   }
+
   void reset() {
-    _freeze = false;
-    ms = millis();
+    _frozen = false;
+    _ms = millis();
   }
-  operator uint64_t() const { return (_freeze) ? (ms) : (millis() - ms); }
+  operator uint64_t() const { return val(); }
+  operator uint32_t() const { return val(); }
+  operator float() const { return toSeconds(val()); }
   elapsedMillis &operator=(const elapsedMillis &rhs) {
-    ms = rhs.ms;
+    _ms = rhs._ms;
     return *this;
   }
+
   elapsedMillis &operator=(uint64_t val) {
-    ms = millis() - val;
+    _ms = millis() - val;
     return *this;
   }
   elapsedMillis &operator-=(uint64_t val) {
-    ms += val;
+    _ms += val;
     return *this;
   }
   elapsedMillis &operator+=(uint64_t val) {
-    ms -= val;
+    _ms -= val;
     return *this;
   }
   elapsedMillis operator-(int val) const {
     elapsedMillis r(*this);
-    r.ms += val;
+    r._ms += val;
     return r;
   }
   elapsedMillis operator-(unsigned int val) const {
     elapsedMillis r(*this);
-    r.ms += val;
+    r._ms += val;
     return r;
   }
   elapsedMillis operator-(long val) const {
     elapsedMillis r(*this);
-    r.ms += val;
+    r._ms += val;
     return r;
   }
   elapsedMillis operator-(uint64_t val) const {
     elapsedMillis r(*this);
-    r.ms += val;
+    r._ms += val;
     return r;
   }
   elapsedMillis operator+(int val) const {
     elapsedMillis r(*this);
-    r.ms -= val;
+    r._ms -= val;
     return r;
   }
   elapsedMillis operator+(unsigned int val) const {
     elapsedMillis r(*this);
-    r.ms -= val;
+    r._ms -= val;
     return r;
   }
   elapsedMillis operator+(long val) const {
     elapsedMillis r(*this);
-    r.ms -= val;
+    r._ms -= val;
     return r;
   }
   elapsedMillis operator+(uint64_t val) const {
     elapsedMillis r(*this);
-    r.ms -= val;
+    r._ms -= val;
     return r;
   }
 
-  bool operator<(uint32_t rhs) {
-    elapsedMillis r(*this);
-
-    return ((millis() - r.ms) < rhs) ? true : false;
+  bool operator<(const elapsedMillis &rhs) const {
+    elapsedMillis lhs(*this);
+    return lhs.val() < rhs.val();
   }
+
+  bool operator<(uint64_t rhs) const {
+    elapsedMillis lhs(*this);
+
+    return (lhs.val() < rhs) ? true : false;
+  }
+
+  static float toSeconds(uint64_t val) { return (float)val / 1000.0; }
 };
 
 class elapsedMicros {
 private:
-  uint64_t us;
-  bool _freeze = false;
+  uint64_t _us;
+  bool _frozen = false;
 
   inline uint64_t micros() const { return (esp_timer_get_time()); };
+  inline uint64_t val() const { return (_frozen) ? (_us) : (micros() - _us); }
 
 public:
-  elapsedMicros(void) { us = micros(); }
-  // elapsedMicros(uint64_t val) { us = micros() - val; }
-  elapsedMicros(const elapsedMicros &orig) {
-    _freeze = orig._freeze;
-    us = orig.us;
-  }
-  float asSeconds() {
-    return (_freeze) ? (float)(us / 1000000.0)
-                     : ((float)((micros() - us) / 1000000.0));
-  }
-  void freeze(uint32_t val = UINT32_MAX) {
-    _freeze = true;
-    us = (val == UINT32_MAX) ? (micros() - us) : val;
+  elapsedMicros(void) : _us(micros()) {}
+  elapsedMicros(const elapsedMicros &orig)
+      : _us(orig._us), _frozen(orig._frozen) {}
+
+  void freeze() {
+    _frozen = true;
+    _us = val();
   }
   void reset() {
-    _freeze = false;
-    us = micros();
+    _frozen = false;
+    _us = micros();
   }
-  operator uint64_t() const { return (_freeze) ? (us) : (micros() - us); }
+  operator float() const { return toSeconds(val()); }
+  operator uint64_t() const { return (_frozen) ? (_us) : (micros() - _us); }
+  operator uint32_t() const { return (_frozen) ? (_us) : (micros() - _us); }
   elapsedMicros &operator=(const elapsedMicros &rhs) {
-    us = rhs.us;
-    _freeze = rhs._freeze;
+    _us = rhs._us;
+    _frozen = rhs._frozen;
     return *this;
   }
   elapsedMicros &operator=(uint64_t val) {
-    us = micros() - val;
+    _us = micros() - val;
     return *this;
   }
   elapsedMicros &operator-=(uint64_t val) {
-    us += val;
+    _us += val;
     return *this;
   }
   elapsedMicros &operator+=(uint64_t val) {
-    us -= val;
+    _us -= val;
     return *this;
   }
   elapsedMicros operator-(int val) const {
     elapsedMicros r(*this);
-    r.us += val;
+    r._us += val;
     return r;
   }
   elapsedMicros operator-(unsigned int val) const {
     elapsedMicros r(*this);
-    r.us += val;
+    r._us += val;
     return r;
   }
   elapsedMicros operator-(long val) const {
     elapsedMicros r(*this);
-    r.us += val;
+    r._us += val;
     return r;
   }
   elapsedMicros operator-(uint64_t val) const {
     elapsedMicros r(*this);
-    r.us += val;
+    r._us += val;
     return r;
   }
   elapsedMicros operator+(int val) const {
     elapsedMicros r(*this);
-    r.us -= val;
+    r._us -= val;
     return r;
   }
   elapsedMicros operator+(unsigned int val) const {
     elapsedMicros r(*this);
-    r.us -= val;
+    r._us -= val;
     return r;
   }
   elapsedMicros operator+(long val) const {
     elapsedMicros r(*this);
-    r.us -= val;
+    r._us -= val;
     return r;
   }
   elapsedMicros operator+(uint64_t val) const {
     elapsedMicros r(*this);
-    r.us -= val;
+    r._us -= val;
     return r;
   }
+
+  static float toSeconds(uint64_t val) { return (float)val / 1000000.0; }
 };
 
 } // namespace ruth
 
-#endif // __cplusplus
 #endif // elapsedMillis_h

@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef dev_addr_hpp
-#define dev_addr_hpp
+#ifndef _ruth_dev_addr_hpp
+#define _ruth_dev_addr_hpp
 
 #include <memory>
 #include <string>

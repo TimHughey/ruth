@@ -241,54 +241,34 @@ void Net::init() {
 void Net::ensureTimeIsSet() {
   // wait for time to be set
   struct timeval curr_time = {};
-  int retry = 0;
-  const int total_wait_ms = 30000;
-  const int check_wait_ms = 100;
-  const int retry_count = total_wait_ms / check_wait_ms;
+  const uint32_t total_wait_ms = 30000;
+  const uint32_t check_wait_ms = 10;
+  elapsedMillis sntp_elapsed;
 
-  ESP_LOGI(tagEngine(), "waiting up to %dms (checking every %dms) for SNTP...",
+  ESP_LOGI(tagEngine(), "waiting up to %ums (checking every %ums) for SNTP...",
            total_wait_ms, check_wait_ms);
 
   // continue to query the system time until seconds since epoch are
   // greater than a known recent time
-  while ((curr_time.tv_sec < 1554830134) && (++retry < retry_count)) {
-    if ((retry > (retry_count - 5)) || ((retry % 50) == 0)) {
-      ESP_LOGW(tagEngine(), "waiting for SNTP... (%d/%d)", retry, retry_count);
-    }
+  while ((curr_time.tv_sec < 1554830134) &&
+         ((uint32_t)sntp_elapsed < total_wait_ms)) {
     StatusLED::brighter();
     vTaskDelay(pdMS_TO_TICKS(check_wait_ms));
     StatusLED::dimmer();
     gettimeofday(&curr_time, nullptr);
   }
 
+  sntp_elapsed.freeze();
+
   StatusLED::brighter();
 
-  if (retry == retry_count) {
+  if ((uint32_t)sntp_elapsed > total_wait_ms) {
     ESP_LOGE(tagEngine(), "timeout waiting for SNTP");
     checkError(__PRETTY_FUNCTION__, 0x1100FE);
   } else {
-    const auto buf_len = 48;
-    unique_ptr<char[]> buf(new char[buf_len]);
-    auto str = buf.get();
-
-    unique_ptr<struct tm> time_buf(new struct tm);
-    auto timeinfo = time_buf.get();
-    time_t now = time(nullptr);
-
-    localtime_r(&now, timeinfo);
-    strftime(str, buf_len, "%c %Z", timeinfo);
-
     xEventGroupSetBits(evg_, timeSetBit());
-    ESP_LOGI(tagEngine(), "SNTP complete: %s", str);
+    ESP_LOGI(tagEngine(), "SNTP complete in %ums", (uint32_t)sntp_elapsed);
   }
-}
-
-const string_t &Net::getName() {
-  if (_instance_()->name_.length() == 0) {
-    return macAddress();
-  }
-
-  return _instance_()->name_;
 }
 
 const string_t &Net::hostID() {
@@ -374,6 +354,9 @@ bool Net::_start_() {
 
   // wifi is initialized so signal to processes waiting they can continue
   xEventGroupSetBits(evg_, initializedBit());
+
+  // finish constructing our initial hostname
+  name_.append(macAddress());
 
   esp_wifi_start();
   StatusLED::brighter();

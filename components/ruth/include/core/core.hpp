@@ -112,14 +112,14 @@ private:
 
   // heap monitoring
   bool heap_track_first_ = true;
-  float heap_track_secs_ = 3.0;
+  uint64_t heap_track_ms_ = 3 * 1000;
   elapsedMillis heap_track_elapsed_;
   size_t firstHeap_ = 0;
   size_t availHeap_ = 0;
 
   // console timestamp reporting
   bool timestamp_first_report_ = true;
-  uint32_t timestamp_freq_ms_ = 60 * 1000;
+  uint64_t timestamp_freq_ms_ = 60 * 1000;
   elapsedMillis timestamp_elapsed_;
 
   // task tracking

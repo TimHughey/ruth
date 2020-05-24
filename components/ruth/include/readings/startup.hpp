@@ -25,7 +25,6 @@
 
 #include <esp_ota_ops.h>
 #include <esp_system.h>
-#include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -37,11 +36,11 @@ typedef class startupReading startupReading_t;
 class startupReading : public remoteReading {
 private:
   const esp_app_desc_t *app_desc_;
-  std::string reset_reason_;
+  string_t reset_reason_;
 
 public:
   startupReading(uint32_t batt_mv);
-  static const std::string &decodeResetReason(esp_reset_reason_t reason);
+  static const string_t &decodeResetReason(esp_reset_reason_t reason);
 
 protected:
   virtual void populateJSON(JsonDocument &doc);

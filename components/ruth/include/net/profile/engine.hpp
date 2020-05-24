@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_engine_profile_hpp
-#define ruth_engine_profile_hpp
+#ifndef _ruth_engine_profile_hpp
+#define _ruth_engine_profile_hpp
 
 #include <algorithm>
 #include <cstdlib>

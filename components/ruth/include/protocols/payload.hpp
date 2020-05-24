@@ -1,5 +1,5 @@
 /*
-    types.hpp - Ruth MQTT Types
+    mqtt/payload.hpp - Ruth MQTT Payload
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_mqtt_types_hpp
-#define ruth_mqtt_types_hpp
+#ifndef _ruth_mqtt_payload_hpp
+#define _ruth_mqtt_payload_hpp
 
 #include <cstdlib>
 #include <memory>
@@ -33,8 +33,8 @@
 #include <sdkconfig.h>
 
 #include "external/mongoose.h"
-#include "misc/elapsedMillis.hpp"
 #include "local/types.hpp"
+#include "misc/elapsedMillis.hpp"
 #include "net/network.hpp"
 
 namespace ruth {

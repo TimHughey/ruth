@@ -18,24 +18,21 @@
     https://www.wisslanding.com
 */
 
-#ifndef Device_h
-#define Device_h
+#ifndef _ruth_device_hpp
+#define _ruth_device_hpp
 
 #include <cstdlib>
-#include <ios>
-#include <map>
 #include <memory>
 #include <string>
-#include <tuple>
 
-#include <freertos/FreeRTOS.h>
+// #include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
 
 #include "devs/addr.hpp"
 #include "external/ArduinoJson.h"
-#include "misc/elapsedMillis.hpp"
 #include "local/types.hpp"
+#include "misc/elapsedMillis.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {
@@ -67,12 +64,12 @@ public:
   DeviceAddress_t &addr();
   uint8_t *addrBytes();
 
-  void setID(const std::string &new_id);
+  void setID(const string_t &new_id);
   void setID(char *new_id);
   const string_t &id() const { return _id; };
 
   // description of device
-  void setDescription(const std::string &desc) { _desc = desc; };
+  void setDescription(const string_t &desc) { _desc = desc; };
   void setDescription(const char *desc) { _desc = desc; };
   const string_t &description() const { return _desc; };
 
@@ -111,7 +108,7 @@ public:
   // int writeErrorCount();
 
   virtual const unique_ptr<char[]> debug();
-  // virtual const std::string to_string(Device_t const &);
+  // virtual const string_t to_string(Device_t const &);
   // virtual void debug(char *buff, size_t len);
 
 private:
@@ -121,9 +118,6 @@ private:
 
   uint32_t _cmd_mask = 0;
   uint32_t _cmd_state = 0;
-
-  typedef std::pair<std::string, uint32_t> statEntry_t;
-  typedef std::map<std::string, uint32_t> statsMap_t;
 
 protected:
   static const uint32_t _addr_len = DeviceAddress::max_addr_len;

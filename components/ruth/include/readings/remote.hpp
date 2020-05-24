@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef remote_reading_hpp
-#define remote_reading_hpp
+#ifndef _ruth_remote_reading_hpp
+#define _ruth_remote_reading_hpp
 
 #include <string>
 

@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_ds_engine_hpp
-#define ruth_ds_engine_hpp
+#ifndef _ruth_ds_engine_hpp
+#define _ruth_ds_engine_hpp
 
 #include <cstdlib>
 #include <map>

@@ -256,8 +256,6 @@ void MQTT::outboundMsg() {
   q_rc = xQueueReceive(_q_out, &entry, _outbound_msg_ticks);
 
   while ((q_rc == pdTRUE) && Net::waitForReady(0)) {
-    elapsedMicros publish_elapse;
-
     const auto *msg = entry->data;
     size_t msg_len = entry->len;
 
@@ -266,13 +264,6 @@ void MQTT::outboundMsg() {
 
     delete msg;
     delete entry;
-
-    int64_t publish_us = publish_elapse;
-    if (publish_us > 3000) {
-      ESP_LOGD(TAG, "publish msg took %0.2fms", ((float)publish_us / 1000.0));
-    } else {
-      ESP_LOGV(TAG, "publish msg took %lluus", publish_us);
-    }
 
     q_rc = xQueueReceive(_q_out, &entry, pdMS_TO_TICKS(20));
   }
@@ -327,21 +318,10 @@ void MQTT::core(void *data) {
 
   connect();
 
-  bool startup_announced = false;
-  elapsedMillis announce_startup_delay;
-
-  // the task forever loop
-  while (_run_core) {
-    // send the startup announcement once the time is available.
-    // this solves a race condition when mqtt connection and subscription
-    // to the command feed completes before the time is set and avoids
-    // sending a startup announcement with epoch as the timestamp
-    if ((startup_announced == false) && (Net::isTimeSet()) &&
-        (announce_startup_delay > 300)) {
-      ESP_LOGV(TAG, "announcing startup");
+  // core forever loop
+  for (auto announce = true; _run_core; announce = false) {
+    if (announce) {
       announceStartup();
-
-      startup_announced = true;
     }
 
     // to alternate between prioritizing send and recv:

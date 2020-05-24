@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_pwm_engine_hpp
-#define ruth_pwm_engine_hpp
+#ifndef _ruth_pwm_engine_hpp
+#define _ruth_pwm_engine_hpp
 
 #include <cstdlib>
 #include <string>

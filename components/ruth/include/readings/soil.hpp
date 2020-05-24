@@ -18,12 +18,11 @@
     https://www.wisslanding.com
 */
 
-#ifndef soil_seesaw_h
-#define soil_seesaw_h
+#ifndef _ruth_soil_seesaw_hpp
+#define _ruth_soil_seesaw_hpp
 
 #include <string>
 
-#include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
 

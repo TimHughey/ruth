@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_restart_hpp
-#define ruth_restart_hpp
+#ifndef _ruth_restart_hpp
+#define _ruth_restart_hpp
 
 #include <sys/time.h>
 #include <time.h>

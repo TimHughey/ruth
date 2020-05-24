@@ -154,7 +154,7 @@ void Core::bootComplete() {
   auto stack_remaining = stack_size_ - stack_high_water;
   auto stack_used = ((float)stack_remaining / (float)stack_high_water) * 100.0;
   ESP_LOGI(TAG, "BOOT COMPLETE in %0.2fs tasks=%d stack[used=%0.1f%% slack=%u]",
-           core_elapsed_.asSeconds(0), num_tasks_, stack_used, stack_remaining);
+           (float)core_elapsed_, num_tasks_, stack_used, stack_remaining);
 
   boot_complete_ = true;
   ota_valid_elapsed_.reset();
@@ -225,7 +225,7 @@ void Core::startEngines() {
 void Core::trackHeap() {
   if (heap_track_first_) {
     heap_track_first_ = false;
-  } else if (heap_track_elapsed_.asSeconds() < heap_track_secs_) {
+  } else if (heap_track_elapsed_ < heap_track_ms_) {
     return;
   } else {
     heap_track_elapsed_.reset();

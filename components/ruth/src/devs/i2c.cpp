@@ -74,8 +74,8 @@ i2cDev::i2cDev(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
 
   setDescription(i2cDevDesc(firstAddressByte()));
 
-  snprintf(id.get(), max_id_len, "i2c/%s.%02x.%s", Net::getName().c_str(),
-           this->bus(), description().c_str());
+  snprintf(id.get(), max_id_len, "i2c/%s.%02x.%s", Net::hostname(), this->bus(),
+           description().c_str());
 
   setID(id.get());
 

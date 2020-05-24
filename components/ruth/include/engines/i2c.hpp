@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_i2c_hpp
-#define ruth_i2c_hpp
+#ifndef _ruth_i2c_engine_hpp
+#define _ruth_i2c_engine_hpp
 
 #include <cstdlib>
 #include <string>

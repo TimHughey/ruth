@@ -26,7 +26,7 @@
 #include "readings/positions.hpp"
 
 namespace ruth {
-positionsReading::positionsReading(const std::string &id, time_t mtime,
+positionsReading::positionsReading(const string_t &id, time_t mtime,
                                    uint32_t states, uint32_t pios)
     : Reading(id, mtime) {
 

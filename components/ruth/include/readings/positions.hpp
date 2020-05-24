@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef positions_reading_h
-#define positions_reading_h
+#ifndef _ruth_positions_reading_hpp
+#define _ruth_positions_reading_hpp
 
 #include <string>
 
@@ -41,7 +41,7 @@ private:
 
 public:
   // undefined reading
-  positionsReading(const std::string &id, time_t mtime, uint32_t states,
+  positionsReading(const string_t &id, time_t mtime, uint32_t states,
                    uint32_t pios);
   uint32_t state() { return _states; }
 

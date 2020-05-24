@@ -33,7 +33,7 @@ namespace ruth {
 
 void Reading::commonJSON(JsonDocument &doc) {
   doc["host"] = Net::hostID();
-  doc["name"] = Net::getName();
+  doc["name"] = Net::hostname();
   doc["mtime"] = _mtime;
   doc["type"] = typeString(_type);
 

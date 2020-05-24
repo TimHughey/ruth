@@ -70,22 +70,22 @@ OTA::OTA(MsgPayload_t_ptr payload_ptr) {
 }
 
 void OTA::process() {
-  const esp_partition_t *run_part = esp_ota_get_running_partition();
+  const esp_partition_t *ota_part = esp_ota_get_next_update_partition(nullptr);
   esp_http_client_config_t config = {};
   config.url = _uri.c_str();
   config.cert_pem = Net::ca_start();
   config.event_handler = OTA::httpEventHandler;
   config.timeout_ms = 1000;
 
-  textReading::rlog("OTA begin label=\"%s\" addr=0x%x", run_part->label,
-                    run_part->address);
+  textReading::rlog("OTA begin partition=\"%s\" addr=0x%x", ota_part->label,
+                    ota_part->address);
 
   // track the time it takes to perform ota
   elapsedMicros ota_elapsed;
   esp_err_t esp_rc = esp_https_ota(&config);
 
-  textReading::rlog("[%s] OTA elapsed=%0.2fs", esp_err_to_name(esp_rc),
-                    ota_elapsed.asSeconds());
+  textReading::rlog("[%s] OTA completed in %0.2fs", esp_err_to_name(esp_rc),
+                    (float)ota_elapsed);
 
   Restart::restart("OTA complete", __PRETTY_FUNCTION__);
 }

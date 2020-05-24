@@ -1,5 +1,5 @@
-#ifndef ruth_net_hpp
-#define ruth_net_hpp
+#ifndef _ruth_network_hpp
+#define _ruth_network_hpp
 
 #include <cstdlib>
 
@@ -28,13 +28,14 @@ public:
 
   static void stop();
   static EventGroupHandle_t eventGroup();
-  static const string_t &getName();
-  static const char *hostname() { return getName().c_str(); }
-  static const string_t &hostID();
-  static const char *dnsIP() { return _instance_()->dns_str_; };
 
-  static const string_t &macAddress();
+  // hostname and mac address
+  static const char *hostname() { return _instance_()->name_.c_str(); }
+  static const string_t &hostID();
   static void setName(const char *name);
+  static const string_t &macAddress();
+
+  static const char *dnsIP() { return _instance_()->dns_str_; };
 
   static const char *ca_start() { return (const char *)_ca_start_; };
   static const uint8_t *ca_end() { return _ca_end_; };
@@ -100,7 +101,7 @@ private:
   esp_netif_dns_info_t primary_dns_;
   char dns_str_[16] = {};
 
-  string_t name_;
+  string_t name_ = "ruth-";
   bool reconnect_ = true;
 
   static const uint8_t _ca_start_[] asm("_binary_ca_pem_start");

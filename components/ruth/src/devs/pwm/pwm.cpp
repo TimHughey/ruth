@@ -70,7 +70,7 @@ pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
 
   setDescription(pwmDevDesc(num));
 
-  snprintf(id.get(), pwm_max_id_len_, "pwm/%s.%s", Net::getName().c_str(),
+  snprintf(id.get(), pwm_max_id_len_, "pwm/%s.%s", Net::hostname(),
            pwmDevDesc(num));
 
   setID(id.get());

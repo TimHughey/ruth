@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef i2c_dev_h
-#define i2c_dev_h
+#ifndef _ruth_i2c_dev_hpp
+#define _ruth_i2c_dev_hpp
 
 #include <memory>
 #include <string>

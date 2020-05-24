@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef pwm_dev_hpp
-#define pwm_dev_hpp
+#ifndef _ruth_pwm_dev_hpp
+#define _ruth_pwm_dev_hpp
 
 #include <memory>
 #include <string>

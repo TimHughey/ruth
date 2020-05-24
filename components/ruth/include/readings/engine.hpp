@@ -18,12 +18,11 @@
     https://www.wisslanding.com
 */
 
-#ifndef engine_metrics_hpp
-#define engine_metrics_hpp
+#ifndef _ruth_engine_metrics_reading_hpp
+#define _ruth_engine_metrics_reading_hpp
 
 #include <string>
 
-#include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -34,14 +33,14 @@ typedef class EngineReading EngineReading_t;
 
 class EngineReading : public Reading {
 private:
-  std::string engine_;
-  uint32_t discover_us_;
-  uint32_t convert_us_;
-  uint32_t report_us_;
-  uint32_t switch_cmd_us_;
+  string_t engine_;
+  uint64_t discover_us_;
+  uint64_t convert_us_;
+  uint64_t report_us_;
+  uint64_t switch_cmd_us_;
 
 public:
-  EngineReading(const std::string &engine, uint64_t discover_us,
+  EngineReading(const string_t &engine, uint64_t discover_us,
                 uint64_t convert_us, uint64_t report_us,
                 uint64_t switch_cmd_us_);
   bool hasNonZeroValues();
