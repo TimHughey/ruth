@@ -517,3 +517,25 @@ Used static IRAM:   88408 bytes (  42664 available, 67.4% used)
     Flash rodata:  143360 bytes
 Total image size:~ 927455 bytes (.bin may be padded larger)
 <<<
+>>>
+f20c36c3 Fix for OTA Issue
+Total sizes:
+ DRAM .data size:   14352 bytes
+ DRAM .bss  size:   24568 bytes
+Used static DRAM:   38920 bytes ( 141816 available, 21.5% used)
+Used static IRAM:  104329 bytes (  26743 available, 79.6% used)
+      Flash code:  753427 bytes
+    Flash rodata:  136768 bytes
+Total image size:~1008876 bytes (.bin may be padded larger)
+<<<
+>>>
+f20c36c3 Fix for OTA Issue
+Total sizes:
+ DRAM .data size:   14112 bytes
+ DRAM .bss  size:   24568 bytes
+Used static DRAM:   38680 bytes ( 142056 available, 21.4% used)
+Used static IRAM:  103473 bytes (  27599 available, 78.9% used)
+      Flash code:  753427 bytes
+    Flash rodata:  136768 bytes
+Total image size:~1007780 bytes (.bin may be padded larger)
+<<<
