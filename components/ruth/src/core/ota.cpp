@@ -108,7 +108,7 @@ void OTA::process() {
 void OTA::markPartitionValid() {
   static bool ota_marked_valid = false; // only do this once
 
-  if (ota_marked_valid == true) {
+  if (OTA::inProgress() || (ota_marked_valid == true)) {
     return;
   }
 

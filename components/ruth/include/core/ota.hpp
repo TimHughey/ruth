@@ -27,8 +27,8 @@
 #include <esp_partition.h>
 #include <esp_spi_flash.h>
 
-#include "misc/elapsedMillis.hpp"
 #include "local/types.hpp"
+#include "misc/elapsedMillis.hpp"
 #include "protocols/payload.hpp"
 
 namespace ruth {
@@ -39,6 +39,7 @@ typedef class OTA OTA_t;
 class OTA {
 public:
   // start a new task to pocess the OTA update
+  static bool inProgress() { return _instance_()->_ota_in_progress; }
   static void start() { _instance_()->_start_(); }
   static OTA_t *payload(MsgPayload_t_ptr payload_ptr) {
     return _instance_(move(payload_ptr));

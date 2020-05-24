@@ -195,19 +195,16 @@ void Core::consoleTimestamp() {
 }
 
 void Core::markOtaValid() {
-  if (ota_marked_valid_)
+  if ((ota_marked_valid_) || (ota_valid_ms_ > (uint64_t)ota_valid_elapsed_))
     return;
 
   ESP_LOGI("TAG", "attemping to mark OTA valid");
+  // safety net 3:
+  //    only after the core has been up for more than the configured
+  //    seconds mark the OTA partition as valid
+  OTA::markPartitionValid();
 
-  if ((uint64_t)ota_valid_elapsed_ > ota_valid_ms_) {
-    // safety net 3:
-    //    only after the core has been up for more than the configured
-    //    seconds mark the OTA partition as valid
-    OTA::markPartitionValid();
-
-    ota_marked_valid_ = true;
-  }
+  ota_marked_valid_ = true;
 }
 
 void Core::startEngines() {
