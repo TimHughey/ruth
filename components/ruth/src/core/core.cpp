@@ -198,7 +198,6 @@ void Core::markOtaValid() {
   if ((ota_marked_valid_) || (ota_valid_ms_ > (uint64_t)ota_valid_elapsed_))
     return;
 
-  ESP_LOGI("TAG", "attemping to mark OTA valid");
   // safety net 3:
   //    only after the core has been up for more than the configured
   //    seconds mark the OTA partition as valid
