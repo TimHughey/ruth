@@ -29,6 +29,7 @@
 
 namespace ruth {
 static Restart_t *__singleton__ = nullptr;
+static const char *NONE = "NONE";
 
 Restart::Restart() {}
 
@@ -50,28 +51,18 @@ Restart::~Restart() {
 
 void Restart::_now_() { _instance_()->restart(nullptr, nullptr, 0); }
 
-void Restart::_restart_(const char *text, const char *func,
-                        uint32_t reboot_delay_ms) {
+void Restart::restart(const char *text, const char *func,
+                      uint32_t reboot_delay_ms) {
 
-  ESP_LOGW("Restart", "%s requested restart [%s]",
-           (func == nullptr) ? "<UNKNOWN FUNCTION>" : func,
-           (text == nullptr) ? "UNSPECIFIED REASON" : text);
+  textReading::rlog("[%s] restart, reason=\"%s\" func=\"%s\"", Net::hostname(),
+                    (text == nullptr) ? NONE : text,
+                    (func == nullptr) ? NONE : func);
 
-  if (text) {
-    textReading_t *rlog = new textReading(text);
-    textReading_ptr_t rlog_ptr(rlog);
+  // gracefully shutdown MQTT
+  MQTT::shutdown();
+  Net::stop();
 
-    MQTT::publish(rlog);
-
-    // pause to ensure reading has been published
-    // FUTURE:  query MQTT to ensure all messages have been sent
-    //          rather than wait a hardcoded duration
-    vTaskDelay(pdMS_TO_TICKS(1500));
-  }
-
-  Net::deinit();
-
-  ESP_LOGW("Restart", "spooling ftl for jump in %dms...", reboot_delay_ms);
+  ESP_LOGW("Restart", "spooling ftl, jump in %dms...", reboot_delay_ms);
   vTaskDelay(pdMS_TO_TICKS(reboot_delay_ms));
   ESP_LOGW("Restart", "JUMP!");
 

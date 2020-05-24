@@ -59,6 +59,11 @@ public:
     _remaining_bytes = _max_len;
     _append_text = _actual;
   }
+
+  // create and publish a log message
+  static void rlog(const char *format, ...);
+  static void rlog(struct tm *timeinfo, const char *format, ...);
+
   char *text() { return _actual; };
   void use(size_t bytes) {
     _append_text += bytes;

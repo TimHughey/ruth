@@ -94,4 +94,52 @@ void textReading::publish() {
   }
 }
 
+void textReading::rlog(const char *format, ...) {
+  va_list arglist;
+  textReading_ptr_t log_ptr(new textReading_t);
+  textReading_t *log = log_ptr.get();
+
+  // protect against memory allocation failures
+  if (log) {
+    size_t bytes;
+
+    va_start(arglist, format);
+    bytes =
+        vsnprintf(log->_append_text, log->availableBytes(), format, arglist);
+    va_end(arglist);
+
+    log->use(bytes);
+    log->publish();
+  }
+}
+
+void textReading::rlog(struct tm *timeinfo, const char *format, ...) {
+  va_list arglist;
+  size_t bytes;
+
+  textReading_ptr_t log_ptr(new textReading_t);
+  textReading_t *log = log_ptr.get();
+
+  if (log) {
+    // print the formatted string to the buffer and use the bytes
+    va_start(arglist, format);
+    bytes = vsnprintf(log->_actual, log->availableBytes(), format, arglist);
+    va_end(arglist);
+
+    log->use(bytes);
+
+    // alloc memory for the time string then append it to the buffer
+    const size_t time_str_max_len = 40;
+    std::unique_ptr<char[]> time_str(new char[time_str_max_len + 1]);
+
+    strftime(time_str.get(), time_str_max_len, "%F %T", timeinfo);
+
+    bytes = snprintf(log->append(), log->availableBytes(), " time(%s)",
+                     time_str.get());
+
+    log->use(bytes);
+    log->publish();
+  }
+}
+
 } // namespace ruth

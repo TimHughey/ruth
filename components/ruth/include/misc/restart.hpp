@@ -31,15 +31,8 @@
 namespace ruth {
 
 typedef class Restart Restart_t;
-#define DEFAULT_WAIT_MS 0
 
 class Restart {
-private:
-  static Restart_t *_instance_();
-  void _now_();
-
-  void _restart_(const char *text = nullptr, const char *func = nullptr,
-                 uint32_t reboot_delay_ms = DEFAULT_WAIT_MS);
 
 public:
   Restart();
@@ -48,9 +41,11 @@ public:
 
   static void now() { _instance_()->_now_(); };
   static void restart(const char *text = nullptr, const char *func = nullptr,
-                      uint32_t reboot_delay_ms = DEFAULT_WAIT_MS) {
-    _instance_()->_restart_(text, func, reboot_delay_ms);
-  }
+                      uint32_t reboot_delay_ms = 0);
+
+private:
+  static Restart_t *_instance_();
+  void _now_();
 };
 
 } // namespace ruth

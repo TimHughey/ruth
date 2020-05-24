@@ -46,75 +46,68 @@ typedef struct {
 typedef class MQTT MQTT_t;
 class MQTT {
 public:
-  static void start() { _instance_()->_start_(); }
-  static void publish(Reading_t *reading) { _instance_()->_publish(reading); }
-  static void publish(Reading_t &reading) { _instance_()->_publish(reading); }
-  static void publish(unique_ptr<Reading_t> reading) {
-    _instance_()->_publish(move(reading));
-  }
+  // allocate the singleton and start MQTT task
+  static void start();
 
-  void connect(int wait_ms = 0);
-  void connectionClosed();
+  ~MQTT();
 
-  static void handshake(struct mg_connection *nc) {
-    _instance_()->_handshake_(nc);
-  }
-  static void subscribeFeeds(struct mg_connection *nc) {
-    _instance_()->_subscribeFeeds_(nc);
-  }
+  // publish messages to the reporting feed
+  // these functions can be called safety even if MQTT is not started
+  // or has been shutdown
+  static void publish(Reading_t *reading);
+  static void publish(Reading_t &reading);
+  static void publish(unique_ptr<Reading_t> reading);
 
-  static void subACK(struct mg_mqtt_message *msg) {
-    _instance_()->_subACK_(msg);
-  }
-  static void incomingMsg(struct mg_str *topic, struct mg_str *payload) {
-    _instance_()->_incomingMsg_(topic, payload);
-  };
-  bool isReady() { return _mqtt_ready; };
+  // close MQTT connections and delete the task
+  static void shutdown();
 
-  void core(void *data);
-
-  void stop() {
-    if (_task.handle == nullptr) {
-      return;
-    }
-
-    xTaskHandle temp = _task.handle;
-    _task.handle = nullptr;
-    ::vTaskDelete(temp);
-  }
-
-  static const char *tagEngine() { return "MQTT"; };
-  static const char *tagOutbound() { return "MQTT outboundMsg"; };
-  TaskHandle_t taskHandle() { return _task.handle; };
+  static TaskHandle_t taskHandle();
 
 private:
   MQTT(); // singleton, constructor is private
 
-  bool handlePayload(MsgPayload_t_ptr payload);
-
-  // static and functions called by static functions
-  static MQTT_t *_instance_();
+  // member functions via static singleton to handle events
+  // and expose public API (e.g. publish)
   void _handshake_(struct mg_connection *nc);
   void _incomingMsg_(struct mg_str *topic, struct mg_str *payload);
+  void _publish(Reading_t *reading);
+  void _publish(Reading_t &reading);
+  void _publish(Reading_ptr_t reading);
   void _subscribeFeeds_(struct mg_connection *nc);
   void _subACK_(struct mg_mqtt_message *msg);
 
-  void _start_(void *task_data = nullptr) {
-    if (_task.handle != nullptr) {
-      ESP_LOGW(tagEngine(), "there may already be a task running %p",
-               (void *)_task.handle);
-    }
-
-    // this (object) is passed as the data to the task creation and is
-    // used by the static runEngine method to call the run method
-    ::xTaskCreate(&runEngine, tagEngine(), _task.stackSize, this,
-                  _task.priority, &_task.handle);
-  }
-
   static void _ev_handler(struct mg_connection *nc, int ev, void *p);
 
-  string_t _client_id = "ruth.xxxxxxxxxxxx +extra";
+private:
+  // private member variables
+
+  // private strings defining essential connection info
+  // const char *_dns_server = CONFIG_RUTH_DNS_SERVER;
+  const string_t _host = CONFIG_RUTH_MQTT_HOST;
+  const int _port = CONFIG_RUTH_MQTT_PORT;
+  const char *_user = CONFIG_RUTH_MQTT_USER;
+  const char *_passwd = CONFIG_RUTH_MQTT_PASSWD;
+
+  string_t _client_id;
   string_t _endpoint = "example.wisslanding.com +extra";
+
+  // NOTES:
+  //   1. final feeds are built in the constructor
+  //   2. feeds are always prefixed by the environment
+  //   3. should include the actual host ID
+  //   4. end with the corresponding suffix
+  const string_t _feed_prefix = CONFIG_RUTH_ENV "/";
+
+  // NOTE:  _feed_host is replacing _feed_cmd
+  string_t _feed_host_suffix = "/#";
+  string_t _feed_rpt_prefix = "r/";
+
+  // attempt to 'preallocate' the feed strings
+  string_t _feed_host = "0123456789abcdef0123456789abcdef0123456789a";
+  string_t _feed_rpt = "0123456789abcdef0123456789abcdef0123456789a";
+
+  bool _run_core = true;
+  bool _shutdown = false;
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .lastWake = 0,
@@ -128,51 +121,32 @@ private:
 
   // mg_mgr uses LWIP and the timeout is specified in ms
   int _inbound_msg_ms = 1;
+
+  // prioritize inbound messages
   TickType_t _inbound_rb_wait_ticks = pdMS_TO_TICKS(1000);
   TickType_t _outbound_msg_ticks = pdMS_TO_TICKS(30);
 
   const size_t _q_out_len = (sizeof(mqttOutMsg_t) * 128);
   QueueHandle_t _q_out = nullptr;
 
-  // const char *_dns_server = CONFIG_RUTH_DNS_SERVER;
-  const string_t _host = CONFIG_RUTH_MQTT_HOST;
-  const int _port = CONFIG_RUTH_MQTT_PORT;
-  const char *_user = CONFIG_RUTH_MQTT_USER;
-  const char *_passwd = CONFIG_RUTH_MQTT_PASSWD;
-
-  // NOTES:
-  //   1. final feeds are built in the constructor
-  //   2. feeds are always prefixed by the environment
-  //   3. should include the actual host ID
-  //   4. end with the corresponding suffix
-  const string_t _feed_prefix = CONFIG_RUTH_ENV "/";
-
-  // NOTE:  _feed_host is replacing _feed_cmd
-  string_t _feed_cmd_suffix = "ruth/f/command";
-  string_t _feed_host_suffix = "/#";
-  string_t _feed_rpt_prefix = "r/";
-
-  // attempt to 'preallocate' the feed strings
-  string_t _feed_cmd = "0123456789abcdef0123456789abcdef0123456789a";
-  string_t _feed_host = "0123456789abcdef0123456789abcdef0123456789a";
-  string_t _feed_rpt = "0123456789abcdef0123456789abcdef0123456789a";
-
   uint16_t _subscribe_msg_id;
 
+private:
+  // instance member functions
   void announceStartup();
+  void connect();
+
+  // actual function that becomes the task main loop
+  void core(void *data);
+  bool handlePayload(MsgPayload_t_ptr payload);
   void outboundMsg();
 
-  void _publish(Reading_t *reading);
-  void _publish(Reading_t &reading);
-  void _publish(std::unique_ptr<Reading_t> reading);
-
   void publish_msg(string_t *msg);
+  void connectionClosed();
 
   // Task implementation
-  static void runEngine(void *task_instance) {
-    MQTT_t *task = (MQTT_t *)task_instance;
-    task->core(task->_task.data);
-  }
+  static void _start_(void *task_data = nullptr);
+  static void coreTask(void *task_instance);
 };
 } // namespace ruth
 

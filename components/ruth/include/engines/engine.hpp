@@ -32,8 +32,8 @@
 #include "devs/base.hpp"
 #include "engines/event_bits.hpp"
 #include "engines/task.hpp"
-#include "misc/elapsedMillis.hpp"
 #include "local/types.hpp"
+#include "misc/elapsedMillis.hpp"
 #include "misc/nvs.hpp"
 #include "misc/restart.hpp"
 #include "net/network.hpp"
@@ -92,11 +92,8 @@ public:
     dev->justSeen();
 
     if (was_missing) {
-      textReading_t *rlog = new textReading();
-      textReading_ptr_t rlog_ptr(rlog);
-
-      rlog->printf("missing device \"%s\" has returned", dev->id().c_str());
-      rlog->publish();
+      textReading::rlog("missing device \"%s\" has returned",
+                        dev->id().c_str());
     }
 
     return dev;
@@ -107,12 +104,9 @@ public:
     DEV *found = nullptr;
 
     if (numKnownDevices() > maxDevices()) {
-      textReading_t *rlog = new textReading();
-      textReading_ptr_t rlog_ptr(rlog);
 
-      rlog->printf("adding device \"%s\" would exceed max devices",
-                   dev->id().c_str());
-      rlog->publish();
+      textReading::rlog("adding device \"%s\" would exceed max devices",
+                        dev->id().c_str());
 
       return rc;
     }

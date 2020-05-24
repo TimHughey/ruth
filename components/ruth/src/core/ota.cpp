@@ -77,31 +77,17 @@ void OTA::process() {
   config.event_handler = OTA::httpEventHandler;
   config.timeout_ms = 1000;
 
-  textReading_t *rlog = new textReading_t;
-  textReading_ptr_t rlog_ptr(rlog);
-
-  rlog->printf("OTA begin label=\"%s\" addr=0x%x", run_part->label,
-               run_part->address);
-  rlog->publish();
-  ESP_LOGI(TAG, "%s", rlog->text());
-
-  rlog->reuse();
+  textReading::rlog("OTA begin label=\"%s\" addr=0x%x", run_part->label,
+                    run_part->address);
 
   // track the time it takes to perform ota
   elapsedMicros ota_elapsed;
   esp_err_t esp_rc = esp_https_ota(&config);
 
-  rlog->printf("[%s] OTA elapsed=%0.2fs", esp_err_to_name(esp_rc),
-               ota_elapsed.asSeconds());
+  textReading::rlog("[%s] OTA elapsed=%0.2fs", esp_err_to_name(esp_rc),
+                    ota_elapsed.asSeconds());
 
-  if (esp_rc == ESP_OK) {
-    ESP_LOGI(TAG, "%s", rlog->text());
-
-  } else {
-    ESP_LOGE(TAG, "%s", rlog->text());
-  }
-
-  Restart::restart(rlog->text(), __PRETTY_FUNCTION__);
+  Restart::restart("OTA complete", __PRETTY_FUNCTION__);
 }
 
 // STATIC
@@ -118,19 +104,12 @@ void OTA::markPartitionValid() {
     if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
       esp_err_t mark_valid_rc = esp_ota_mark_app_valid_cancel_rollback();
 
-      textReading_t *rlog = new textReading_t;
-      textReading_ptr_t rlog_ptr(rlog);
-
       if (mark_valid_rc == ESP_OK) {
-        rlog->printf("[%s] partition=\"%s\" marked as valid",
-                     esp_err_to_name(mark_valid_rc), run_part->label);
-        rlog->publish();
-        ESP_LOGI(TAG, "%s", rlog->text());
+        textReading::rlog("[%s] partition=\"%s\" marked as valid",
+                          esp_err_to_name(mark_valid_rc), run_part->label);
       } else {
-        rlog->printf("[%s] failed to mark partition=\"%s\" as valid",
-                     esp_err_to_name(mark_valid_rc), run_part->label);
-        rlog->publish();
-        ESP_LOGE(TAG, "%s", rlog->text());
+        textReading::rlog("[%s] failed to mark partition=\"%s\" as valid",
+                          esp_err_to_name(mark_valid_rc), run_part->label);
       }
     }
   }

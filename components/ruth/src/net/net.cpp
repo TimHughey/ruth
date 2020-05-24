@@ -107,7 +107,13 @@ void Net::disconnected(void *event_data) {
 
   xEventGroupClearBits(evg_, connectedBit());
 
-  ESP_LOGW(tagEngine(), "wifi DISCONNECT reason(%d)", data->reason);
+  const char *reason_str = disconnectReason((wifi_err_reason_t)data->reason);
+
+  if (reason_str) {
+    ESP_LOGI(tagEngine(), "wifi disconnected %s", reason_str);
+  } else {
+    ESP_LOGI(tagEngine(), "wifi disconnected reason=%d", data->reason);
+  }
 
   if (reconnect_) {
     ESP_LOGI(tagEngine(), "wifi ATTEMPTING connect");
@@ -148,7 +154,7 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
 
   switch (id) {
   case WIFI_EVENT_STA_START:
-    esp_netif_set_hostname(_instance_()->netif_, "ruth");
+    esp_netif_set_hostname(_instance_()->netif_, Net::hostID().c_str());
     esp_wifi_connect();
     break;
 
@@ -160,6 +166,10 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
     net->disconnected(data);
     break;
 
+  case WIFI_EVENT_STA_STOP:
+    ESP_LOGI(tagEngine(), "wifi stopped");
+    break;
+
   default:
     ESP_LOGW(tagEngine(), "%s unhandled event id(0x%02x)", __PRETTY_FUNCTION__,
              id);
@@ -167,20 +177,20 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
   }
 }
 
-void Net::deinit() {
+void Net::stop() {
   _instance_()->reconnect_ = false;
+  esp_err_t rc;
 
-  auto rc = esp_wifi_disconnect();
-  ESP_LOGI(tagEngine(), "[%s] esp_wifi_disconnect()", esp_err_to_name(rc));
-  vTaskDelay(pdMS_TO_TICKS(500));
+  rc = esp_wifi_disconnect();
+  // ESP_LOGI(tagEngine(), "[%s] esp_wifi_disconnect()", esp_err_to_name(rc));
+  // vTaskDelay(pdMS_TO_TICKS(500));
 
   rc = esp_wifi_stop();
   ESP_LOGI(tagEngine(), "[%s] esp_wifi_stop()", esp_err_to_name(rc));
-  vTaskDelay(pdMS_TO_TICKS(500));
 
-  rc = esp_wifi_deinit();
-  ESP_LOGI(tagEngine(), "[%s] esp_wifi_deinit()", esp_err_to_name(rc));
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  // rc = esp_wifi_deinit();
+  // ESP_LOGI(tagEngine(), "[%s] esp_wifi_deinit()", esp_err_to_name(rc));
+  // vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
 EventGroupHandle_t Net::eventGroup() { return _instance_()->evg_; }
@@ -522,6 +532,31 @@ void Net::setTransportReady(bool val) {
     xEventGroupSetBits(_instance_()->eventGroup(), transportBit());
   } else {
     xEventGroupClearBits(_instance_()->eventGroup(), transportBit());
+  }
+}
+
+const char *Net::disconnectReason(wifi_err_reason_t reason) {
+
+  switch (reason) {
+  case 1:
+    return (const char *)"unspecified";
+  case 2:
+    return (const char *)"auth expire";
+  case 3:
+    return (const char *)"auth leave";
+  case 4:
+    return (const char *)"auth expire";
+  case 5:
+    return (const char *)"assoc too many";
+  case 6:
+    return (const char *)"not authed";
+  case 7:
+    return (const char *)"not associated";
+  case 8:
+    return (const char *)"assoc leave";
+
+  default:
+    return nullptr;
   }
 }
 } // namespace ruth

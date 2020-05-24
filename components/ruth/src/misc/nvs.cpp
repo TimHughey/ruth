@@ -190,15 +190,11 @@ bool NVS::notOpen() {
 }
 
 void NVS::publishMsg(const char *key, NVSMessage_t *blob) {
-  textReading_t *rlog = new textReading();
-  std::unique_ptr<textReading_t> rlog_ptr(rlog);
   std::unique_ptr<struct tm> timeinfo(new struct tm);
 
   localtime_r(&(blob->time), timeinfo.get());
 
-  rlog->printf(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
-
-  MQTT::publish(rlog);
+  textReading::rlog(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
 }
 
 void NVS::zeroBuffers() {

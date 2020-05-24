@@ -50,25 +50,19 @@ using std::move;
 using std::unique_ptr;
 using std::vector;
 
+static const char *TAG = "MQTT";
+// __singleton__ is used by private MQTT static functions
 static MQTT *__singleton__ = nullptr;
-
-// SINGLETON!  use _instance_() for object access
-MQTT_t *MQTT::_instance_() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new MQTT();
-  }
-
-  return __singleton__;
-}
+// _instance_ is used for public API
+static MQTT *_instance_ = nullptr;
 
 // SINGLETON! constructor is private
 MQTT::MQTT() {
   // create the report and command feed topics
   _feed_rpt = _feed_prefix + _feed_rpt_prefix + Net::hostID();
-  _feed_cmd = _feed_prefix + _feed_cmd_suffix; // DEPRECATED
   _feed_host = _feed_prefix + Net::hostID() + _feed_host_suffix;
 
-  ESP_LOGV(tagEngine(), "reporting to feed=\"%s\"", _feed_rpt.c_str());
+  ESP_LOGV(TAG, "reporting to feed=\"%s\"", _feed_rpt.c_str());
 
   // create the endpoint URI
   const auto max_endpoint = 127;
@@ -78,9 +72,35 @@ MQTT::MQTT() {
 
   _q_out = xQueueCreate(_q_out_len, sizeof(mqttOutMsg_t *));
 
-  ESP_LOGI(tagEngine(), "OUT queue len(%d) msg_size(%u) total_size(%u)",
-           _q_out_len, sizeof(mqttOutMsg_t),
-           (sizeof(mqttOutMsg_t) * _q_out_len));
+  ESP_LOGI(TAG, "OUT queue len(%d) msg_size(%u) total_size(%u)", _q_out_len,
+           sizeof(mqttOutMsg_t), (sizeof(mqttOutMsg_t) * _q_out_len));
+}
+
+MQTT::~MQTT() {
+  // direct allocations outside of member variables are:
+  //  a. the outbound msg queue
+  //  b. mg_mgr
+  //
+  // the mg_mgr is freed by shutdown()
+
+  // so, the only thing to free are the items in the queue (if any) and the
+  // queue itself.
+
+  // pop each message from the queue with zero wait ticks until
+  // xQueueReceive() returns something other than pdTRUE
+
+  // mg_mgr_free() is called before the destructor ensuring that this loop
+  // is only freeing any messages (most likely zero) that hadn't been published
+  mqttOutMsg_t *msg;
+  while (xQueueReceive(_q_out, &msg, 0) == pdTRUE) {
+    // the msg is a simple struct so free the enclosed data
+
+    // TODO: refactor mqttOutMsg_t so this isn't necessary
+    delete msg->data;
+    delete msg;
+  }
+
+  vQueueDelete(_q_out);
 }
 
 void MQTT::announceStartup() {
@@ -91,34 +111,33 @@ void MQTT::announceStartup() {
   StatusLED::off();
 }
 
-void MQTT::connect(int wait_ms) {
-  // establish a unique client id
-  _client_id = "ruth-" + Net::macAddress();
+void MQTT::connect() {
 
-  if (wait_ms > 0) {
-    TickType_t last_wake = xTaskGetTickCount();
-    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(wait_ms));
+  // if a shutdown is underway then do not attempt to connect
+  if (_shutdown) {
+    return;
+  }
+
+  // build the client id once
+  if (_client_id.empty()) {
+    _client_id = "ruth-" + Net::macAddress();
   }
 
   Net::waitForReady();
 
   StatusLED::brighter();
   _connection = mg_connect(&_mgr, _endpoint.c_str(), _ev_handler);
-
-  if (_connection) {
-    ESP_LOGD(tagEngine(), "created pending mongoose connection(%p) for %s",
-             _connection, _endpoint.c_str());
-  }
 }
 
 void MQTT::connectionClosed() {
   StatusLED::dim();
-  ESP_LOGW(tagEngine(), "connection closed");
+
   _mqtt_ready = false;
   _connection = nullptr;
 
   Net::clearTransportReady();
 
+  // always attempt to reconnect
   connect();
 }
 
@@ -162,12 +181,8 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   }
 
   if (payload_rc == false) {
-    textReading_t *rlog = new textReading();
-    textReading_ptr_t rlog_ptr(rlog);
-
-    rlog->printf("[MQTT] payload processing failure for subtopic \"%s\"",
-                 payload->subtopic().c_str());
-    rlog->publish();
+    textReading::rlog("[MQTT] payload processing failure for subtopic \"%s\"",
+                      payload->subtopic().c_str());
 
     delete payload;
   }
@@ -235,7 +250,6 @@ void MQTT::_publish(Reading_ptr_t reading) {
 }
 
 void MQTT::outboundMsg() {
-  size_t len = 0;
   mqttOutMsg_t *entry;
   auto q_rc = pdFALSE;
 
@@ -247,8 +261,6 @@ void MQTT::outboundMsg() {
     const auto *msg = entry->data;
     size_t msg_len = entry->len;
 
-    ESP_LOGV(tagEngine(), "send msg(len=%u), payload(len=%u)", len, msg_len);
-
     mg_mqtt_publish(_connection, _feed_rpt.c_str(), _msg_id++, MG_MQTT_QOS(1),
                     msg->data(), msg_len);
 
@@ -257,10 +269,9 @@ void MQTT::outboundMsg() {
 
     int64_t publish_us = publish_elapse;
     if (publish_us > 3000) {
-      ESP_LOGD(tagOutbound(), "publish msg took %0.2fms",
-               ((float)publish_us / 1000.0));
+      ESP_LOGD(TAG, "publish msg took %0.2fms", ((float)publish_us / 1000.0));
     } else {
-      ESP_LOGV(tagOutbound(), "publish msg took %lluus", publish_us);
+      ESP_LOGV(TAG, "publish msg took %lluus", publish_us);
     }
 
     q_rc = xQueueReceive(_q_out, &entry, pdMS_TO_TICKS(20));
@@ -290,11 +301,11 @@ void MQTT::publish_msg(string_t *msg) {
 
     sprintf(log_msg.get(), "PUBLISH msg FAILED space_avail(%d)", space_avail);
 
-    ESP_LOGW(tagEngine(), "%s", log_msg.get());
+    ESP_LOGW(TAG, "%s", log_msg.get());
 
     // we only commit the failure to NVS and directly call esp_restart()
     // since MQTT is broken
-    NVS::commitMsg(tagEngine(), log_msg.get());
+    NVS::commitMsg(TAG, log_msg.get());
 
     // pass a nullptr for the message so Restart doesn't attempt to publish
     Restart::restart(nullptr, __PRETTY_FUNCTION__);
@@ -304,10 +315,9 @@ void MQTT::publish_msg(string_t *msg) {
 void MQTT::core(void *data) {
   struct mg_mgr_init_opts opts = {};
 
-  esp_log_level_set(tagEngine(), ESP_LOG_INFO);
+  esp_log_level_set(TAG, ESP_LOG_INFO);
 
   // wait for network to be ready to ensure dns resolver is available
-  ESP_LOGI(tagEngine(), "waiting for network...");
   Net::waitForReady();
 
   // mongoose uses it's own dns resolver so set the namserver from dhcp
@@ -320,14 +330,15 @@ void MQTT::core(void *data) {
   bool startup_announced = false;
   elapsedMillis announce_startup_delay;
 
-  for (;;) {
+  // the task forever loop
+  while (_run_core) {
     // send the startup announcement once the time is available.
     // this solves a race condition when mqtt connection and subscription
     // to the command feed completes before the time is set and avoids
     // sending a startup announcement with epoch as the timestamp
     if ((startup_announced == false) && (Net::isTimeSet()) &&
         (announce_startup_delay > 300)) {
-      ESP_LOGV(tagEngine(), "announcing startup");
+      ESP_LOGV(TAG, "announcing startup");
       announceStartup();
 
       startup_announced = true;
@@ -338,22 +349,34 @@ void MQTT::core(void *data) {
     //  2. wait in outboundMsg (send)
     mg_mgr_poll(&_mgr, _inbound_msg_ms);
 
-    if (isReady() && _connection) {
+    if (_mqtt_ready && _connection) {
       outboundMsg();
     }
   }
+
+  // if the core task loop ever exits then a shutdown is underway.
+
+  // a. set _shutdown=true to prevent autoconnect
+  // b. free the mg_mgr
+  // c. signel mqtt is no longer ready
+  _shutdown = true;
+  mg_mgr_free(&_mgr);
+  _mqtt_ready = false;
+
+  // wait here forever, vTaskDelete will remove us from the scheduler
+  vTaskDelay(UINT32_MAX);
 }
 
 void MQTT::_subACK_(struct mg_mqtt_message *msg) {
 
   if (msg->message_id == _subscribe_msg_id) {
-    ESP_LOGV(tagEngine(), "subACK for EXPECTED msg_id=%d", msg->message_id);
+    ESP_LOGV(TAG, "subACK for EXPECTED msg_id=%d", msg->message_id);
     _mqtt_ready = true;
     Net::setTransportReady();
     // NOTE: do not announce startup here.  doing so creates a race condition
     // that results in occasionally using epoch as the startup time
   } else {
-    ESP_LOGW(tagEngine(), "subACK for UNKNOWN msg_id=%d", msg->message_id);
+    ESP_LOGW(TAG, "subACK for UNKNOWN msg_id=%d", msg->message_id);
   }
 }
 
@@ -363,7 +386,7 @@ void MQTT::_subscribeFeeds_(struct mg_connection *nc) {
       {.topic = _feed_host.c_str(), .qos = 1}};
 
   _subscribe_msg_id = _msg_id++;
-  ESP_LOGI(tagEngine(), "subscribe feeds \"%s\" msg_id=%d", sub[0].topic,
+  ESP_LOGI(TAG, "subscribe feeds \"%s\" msg_id=%d", sub[0].topic,
            _subscribe_msg_id);
   mg_mqtt_subscribe(nc, sub, 1, _subscribe_msg_id);
 }
@@ -376,58 +399,56 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
   switch (ev) {
   case MG_EV_CONNECT: {
     int *status = (int *)p;
-    ESP_LOGV(MQTT::tagEngine(), "CONNECT msg=%p err_code=%d err_str=%s",
-             (void *)msg, *status, strerror(*status));
+    ESP_LOGV(TAG, "CONNECT msg=%p err_code=%d err_str=%s", (void *)msg, *status,
+             strerror(*status));
 
-    MQTT::handshake(nc);
+    __singleton__->_handshake_(nc);
     StatusLED::off();
     break;
   }
 
   case MG_EV_MQTT_CONNACK:
     if (msg->connack_ret_code != MG_EV_MQTT_CONNACK_ACCEPTED) {
-      ESP_LOGW(MQTT::tagEngine(), "mqtt connection error: %d",
-               msg->connack_ret_code);
+      ESP_LOGW(TAG, "mqtt connection error: %d", msg->connack_ret_code);
       return;
     }
 
-    ESP_LOGV(MQTT::tagEngine(), "MG_EV_MQTT_CONNACK rc=%d",
-             msg->connack_ret_code);
-    MQTT::subscribeFeeds(nc);
+    ESP_LOGV(TAG, "MG_EV_MQTT_CONNACK rc=%d", msg->connack_ret_code);
+    __singleton__->_subscribeFeeds_(nc);
 
     break;
 
   case MG_EV_MQTT_SUBACK:
-    MQTT::subACK(msg);
+    __singleton__->_subACK_(msg);
 
     break;
 
   case MG_EV_MQTT_SUBSCRIBE:
-    ESP_LOGV(MQTT::tagEngine(), "subscribe event, payload=%s", msg->payload.p);
+    ESP_LOGV(TAG, "subscribe event, payload=%s", msg->payload.p);
     break;
 
   case MG_EV_MQTT_UNSUBACK:
-    ESP_LOGV(MQTT::tagEngine(), "unsub ack");
+    ESP_LOGV(TAG, "unsub ack");
     break;
 
   case MG_EV_MQTT_PUBLISH:
     // topic.assign(msg->topic.p, msg->topic.len);
-    // ESP_LOGI(MQTT::tagEngine(), "%s qos(%d)", topic.c_str(), msg->qos);
+    // ESP_LOGI(TAG, "%s qos(%d)", topic.c_str(), msg->qos);
     if (msg->qos == 1) {
 
-      mg_mqtt_puback(MQTT::_instance_()->_connection, msg->message_id);
+      mg_mqtt_puback(__singleton__->_connection, msg->message_id);
     }
 
-    MQTT::incomingMsg(&(msg->topic), &(msg->payload));
+    __singleton__->_incomingMsg_(&(msg->topic), &(msg->payload));
     break;
 
   case MG_EV_MQTT_PINGRESP:
-    ESP_LOGV(MQTT::tagEngine(), "ping response");
+    ESP_LOGV(TAG, "ping response");
     break;
 
   case MG_EV_CLOSE:
     StatusLED::dim();
-    MQTT::_instance_()->connectionClosed();
+    __singleton__->connectionClosed();
     break;
 
   case MG_EV_POLL:
@@ -438,8 +459,115 @@ void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
     break;
 
   default:
-    ESP_LOGW(MQTT::tagEngine(), "unhandled event 0x%04x", ev);
+    ESP_LOGW(TAG, "unhandled event 0x%04x", ev);
     break;
   }
 }
+
+void MQTT::coreTask(void *task_instance) {
+  MQTT_t *mqtt = __singleton__;
+  Task_t *task = &(__singleton__->_task);
+
+  mqtt->core(task->data);
+
+  // if the core task ever returns then wait forever
+  vTaskDelay(UINT32_MAX);
+}
+
+//
+// STATIC
+//
+// NOTE:  MQTT::shutdown() is executed within the CALLING task
+//        care must be taken to avoid race conditions
+//
+void MQTT::shutdown() {
+  // make a copy of the instance pointer to delete
+  MQTT_t *mqtt = __singleton__;
+
+  // grab the task handle for the vTaskDelete after initial shutdown steps
+  TaskHandle_t handle = mqtt->_task.handle;
+
+  // set __singleton__ to nullptr so any calls from other tasks will
+  // quietly return
+  _instance_ = nullptr;
+
+  // flag that a shutdown is underway so the actual MQTT task will exit it's
+  // core "forever" loop
+  mqtt->_run_core = false;
+
+  // poll the MQTT task until it indicates that it is no longer ready
+  // and can be safely removed from the scheduler and deleted
+  while (mqtt->_mqtt_ready) {
+    // delay the CALLING task
+    // the MQTT shutdown activities should be "quick"
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  // ok, the MQTT task has cleanly closed it's connections
+
+  // vTaskDelete removes the task from the scheduler.
+  // so we must call mg_mgr_free() before
+
+  // a. signal FreeRTOS to remove the task from the scheduler
+  // b. the IDLE task will ultimately free the FreeRTOS memory for the task.
+  // the memory allocated by the MQTT instance must be freed in it's destructor.
+  vTaskDelete(handle);
+
+  // now that FreeRTOS will no longer schedule the MQTT task set singleton to
+  // nullptr and delete the MQTT object
+
+  __singleton__ = nullptr;
+  delete mqtt;
+}
+
+void MQTT::start() {
+  MQTT_t *mqtt = nullptr;
+  Task_t *task = nullptr;
+
+  if (__singleton__ == nullptr) {
+    __singleton__ = new MQTT();
+    _instance_ = __singleton__;
+    mqtt = __singleton__;
+    task = &(mqtt->_task);
+  }
+
+  if (mqtt->_task.handle != nullptr) {
+    ESP_LOGW(TAG, "task exists [%p]", (void *)mqtt->_task.handle);
+    return;
+  }
+
+  // this (object) is passed as the data to the task creation and is
+  // used by the static runEngine method to call the run method
+  ::xTaskCreate(&coreTask, TAG, task->stackSize, __singleton__, task->priority,
+                &(task->handle));
+}
+
+//
+// Static Class Wrappers for calling public API
+//
+// the wrapper prevents calls to the instance before it is created
+
+void MQTT::publish(Reading_t *reading) {
+  // safety first
+  if (_instance_) {
+    _instance_->_publish(reading);
+  };
+}
+
+void MQTT::publish(Reading_t &reading) {
+  if (_instance_) {
+    _instance_->_publish(reading);
+  }
+}
+
+void MQTT::publish(unique_ptr<Reading_t> reading) {
+  if (_instance_) {
+    _instance_->_publish(move(reading));
+  };
+}
+
+TaskHandle_t MQTT::taskHandle() {
+  return (__singleton__) ? __singleton__->_task.handle : nullptr;
+}
+
 } // namespace ruth

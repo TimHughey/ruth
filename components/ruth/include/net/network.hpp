@@ -26,7 +26,7 @@ public:
   void ensureTimeIsSet();
   static bool start() { return _instance_()->_start_(); };
 
-  static void deinit();
+  static void stop();
   static EventGroupHandle_t eventGroup();
   static const string_t &getName();
   static const char *hostname() { return getName().c_str(); }
@@ -65,6 +65,8 @@ public:
   static EventBits_t timeSetBit() { return BIT5; };
   static EventBits_t initializedBit() { return BIT6; };
   static EventBits_t transportBit() { return BIT7; };
+
+  static const char *disconnectReason(wifi_err_reason_t reason);
 
   static const char *tagEngine() { return (const char *)"Net"; };
 
