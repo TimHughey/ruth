@@ -39,7 +39,9 @@ typedef class OTA OTA_t;
 class OTA {
 public:
   // start a new task to pocess the OTA update
-  static bool inProgress() { return _instance_()->_ota_in_progress; }
+  static bool inProgress() {
+    return (_instance_() ? _instance_()->_ota_in_progress : false);
+  }
   static void start() { _instance_()->_start_(); }
   static OTA_t *payload(MsgPayload_t_ptr payload_ptr) {
     return _instance_(move(payload_ptr));
