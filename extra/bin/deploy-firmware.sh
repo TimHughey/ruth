@@ -34,7 +34,7 @@ if [[ sdkconfig.defaults -nt sdkconfig ]]; then
   echo "sdkconfig.defaults are new, removing sdkconfig and cleaning"
   rm -f sdkconfig
 
-  idf.py clean &>1 /dev/null
+  idf.py clean &> /dev/null
 
   if [[ ! $? ]]; then
     popd -q
@@ -77,7 +77,7 @@ for suffix in "${fw_suffixes[@]}"; do
 
     ssh jophiel "pushd -q $htdocs ; \
                  rm -f latest.${suffix} ; \
-                 ln -s ./ruth.${suffix} ; \
+                 ln -s ./ruth.${suffix} latest.${suffix}; \
                  ls -l latest.${suffix}"
 
     if [[ ! $? ]]; then
@@ -104,7 +104,7 @@ for suffix in "${fw_suffixes[@]}"; do
       exit $?
     fi
 
-    ln -s ./${vsn}-ruth.${suffix} latest.${suffix} 
+    ln -s ./${vsn}-ruth.${suffix} latest.${suffix}
 
 		ls -l latest.${suffix}
 		popd -q
