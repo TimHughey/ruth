@@ -34,7 +34,7 @@ set(
 
 set(
   RUTH_PROTOCOLS
-    "src/protocols/mqtt")
+    "src/protocols/mqtt"        "src/protocols/payload")
 
 set(
   RUTH_EXTERNAL_LIBS

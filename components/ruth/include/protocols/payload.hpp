@@ -24,17 +24,9 @@
 #include <cstdlib>
 #include <memory>
 #include <string>
-
-#include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/event_groups.h>
-#include <freertos/queue.h>
-#include <freertos/task.h>
-#include <sdkconfig.h>
+#include <vector>
 
 #include "external/mongoose.h"
-#include "local/types.hpp"
-#include "misc/elapsed.hpp"
 #include "net/network.hpp"
 
 namespace ruth {
@@ -47,80 +39,63 @@ typedef unique_ptr<MsgPayload_t> MsgPayload_t_ptr;
 
 class MsgPayload {
 public:
-  MsgPayload(struct mg_str *in_topic, struct mg_str *in_payload) {
-    parseTopic(in_topic);
+  //
+  // NOTE:
+  //  although many of the implementations for the class functions
+  //  are trivial they have been placed in a separate .cpp file to
+  //  minimize aggressive inlining and code bloat
+  //
 
-    _data.reserve(in_payload->len + 2);
-    _data.assign(in_payload->p, (in_payload->p + in_payload->len));
-    _data.push_back(0x00); // ensure null termination
-  };
+  MsgPayload(struct mg_str *in_topic, struct mg_str *in_payload);
 
-  const vector<char> &data() const { return _data; }
-  bool emptyPayload() const { return _data.empty(); }
-  bool forThisHost() const {
-    return (_host.compare(Net::hostID()) == 0 ? true : false);
-  }
+  // check validity and access the topic that failed validation
+  bool valid() const;
+  bool invalid() const;
+  const char *errorTopic() const;
 
-  const string_t &host() const { return _host; }
-  bool hasSubtopic() const { return _has_subtopic; }
-  void logElapsed() {
-    _elapsed.freeze();
-    ESP_LOGI("Payload", "elapsed=%0.3fms", (float)_elapsed / 1000.0);
-  }
-  bool matchSubtopic(const char *subtopic) const {
-    return (_subtopic.compare(subtopic) == 0 ? true : false);
-  }
-  const char *payload() const { return _data.data(); }
-  const string_t &subtopic() const { return _subtopic; }
+  // payload data functionality
+  const vector<char> &data() const;
+  const char *payload() const;
+  bool emptyPayload() const;
+
+  // topic host functionality
+  bool forThisHost() const;
+  const string_t &host() const;
+
+  // subtopic functionality
+  bool hasSubtopic() const;
+  bool matchSubtopic(const char *match) const;
+
+  const string_t &subtopic() const;
+  const char *subtopic_cstr() const;
+
+  // topic mtime functionality
+  bool current() const;
+  time_t mtime() const;
 
 private:
-  bool _has_subtopic = false;
+  typedef enum {
+    PART_ENV = 0,
+    PART_HOST,
+    PART_SUBTOPIC,
+    PART_MTIME,
+    PART_END_OF_LIST
+  } TopicParts_t;
+
+  bool _has_part[PART_END_OF_LIST] = {};
+  time_t _mtime = 0;
+
   vector<char> _data;
 
-  string_t _host;
-  string_t _subtopic;
+  static const size_t _max_parts = 6;
+  vector<string_t> _topic_parts;
 
-  elapsedMicros _elapsed;
+  string_t _err_topic;
 
-  void parseTopic(struct mg_str *in_topic) {
-    string_t topic(in_topic->p, in_topic->len);
-
-    // find the positions of the slashes
-    // prod/<host>/<subtopic>
-    auto slash1 = topic.find_first_of('/');
-
-    // bad topic format
-    if (slash1 == string_t::npos)
-      return;
-
-    auto slash2 = topic.find_first_of('/', slash1 + 1);
-
-    // bad topic format
-    if (slash2 == string_t::npos)
-      return;
-
-    auto more_slashes =
-        (topic.find_first_of('/', slash2 + 1) == string_t::npos) ? false : true;
-
-    if (more_slashes)
-      return;
-
-    // ok, the topic format meets expectations
-
-    auto host_spos = slash1 + 1;
-    auto host_epos = slash2 - 1;
-    auto host_len = host_epos - host_spos;
-    auto subtopic_spos = slash2 + 1;
-
-    _host.assign(topic, host_spos, host_len);
-    _subtopic.assign(topic, subtopic_spos);
-
-    // success, mark this payload valid
-    _has_subtopic = true;
-
-    ESP_LOGV("Payload", "host=\"%s\" subtopic=\"%s\"", _host.c_str(),
-             _subtopic.c_str());
-  }
+  // parse out subtopics using slashes in topic
+  void parseTopic(struct mg_str *in_topic);
+  // validate and determine if the expected subtopics are present
+  void validateSubtopics();
 };
 } // namespace ruth
 #endif

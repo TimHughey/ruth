@@ -50,6 +50,8 @@ using std::move;
 using std::unique_ptr;
 using std::vector;
 
+using TR = ruth::textReading_t;
+
 static const char *TAG = "MQTT";
 // __singleton__ is used by private MQTT static functions
 static MQTT *__singleton__ = nullptr;
@@ -145,7 +147,8 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   auto payload_rc = false;
   auto payload = payload_ptr.get();
 
-  if (payload_ptr.get()->hasSubtopic() == false) {
+  if (payload->invalid()) {
+    TR::rlog("[MQTT] invalid topic=\"%s\"", payload->errorTopic());
     return payload_rc;
   }
 
@@ -181,10 +184,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   }
 
   if (payload_rc == false) {
-    textReading::rlog("[MQTT] payload processing failure for subtopic \"%s\"",
-                      payload->subtopic().c_str());
-
-    delete payload;
+    TR::rlog("[MQTT] subtopic=\"%s\" failed", payload->subtopic_cstr());
   }
 
   return payload_rc;
