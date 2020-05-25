@@ -29,12 +29,14 @@ using std::unique_ptr;
 
 namespace ruth {
 
+using std::vector;
+
 typedef class DeviceAddress DeviceAddress_t;
 
 class DeviceAddress {
 private:
   static const uint32_t _max_len = 10;
-  std::vector<uint8_t> _addr;
+  vector<uint8_t> _addr;
 
 public:
   static const int max_addr_len = _max_len;

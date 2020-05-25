@@ -35,7 +35,6 @@
 namespace ruth {
 
 static I2c_t *__singleton__ = nullptr;
-static const string_t __profile_id__ = "i2c";
 
 // command document capacity for expected metadata and up to eight pio states
 const size_t _capacity =

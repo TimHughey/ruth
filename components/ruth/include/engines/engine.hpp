@@ -72,7 +72,9 @@ public:
   DEV *justSeenDevice(DEV &dev) {
     auto *found_dev = findDevice(dev.id());
 
-    justSeenDevice(found_dev);
+    if (found_dev) {
+      found_dev->justSeen();
+    }
 
     return found_dev;
   };
@@ -87,14 +89,7 @@ public:
       return dev;
     }
 
-    auto was_missing = dev->missing();
-
     dev->justSeen();
-
-    if (was_missing) {
-      textReading::rlog("missing device \"%s\" has returned",
-                        dev->id().c_str());
-    }
 
     return dev;
   };

@@ -51,7 +51,15 @@ Device::~Device() {
 
 bool Device::operator==(Device_t *rhs) const { return (_id == rhs->_id); }
 
-void Device::justSeen() { _last_seen = time(nullptr); }
+void Device::justSeen() {
+  auto was_missing = missing();
+
+  _last_seen = time(nullptr);
+
+  if (was_missing) {
+    textReading::rlog("missing device \"%s\" has returned", _id.c_str());
+  }
+}
 void Device::setID(const string_t &new_id) { _id = new_id; }
 void Device::setID(char *new_id) { _id = new_id; }
 
