@@ -63,7 +63,6 @@ void PulseWidth::command(void *data) {
   while (true) {
     BaseType_t queue_rc = pdFALSE;
     MsgPayload_t *payload = nullptr;
-    elapsedMicros process_cmd;
 
     _cmd_elapsed.reset();
 
@@ -75,7 +74,6 @@ void PulseWidth::command(void *data) {
       continue;
     }
 
-    elapsedMicros parse_elapsed;
     // deserialize the msgpack data
     DynamicJsonDocument doc(1024);
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
@@ -86,9 +84,6 @@ void PulseWidth::command(void *data) {
     // The original payload MUST be kept until we are completely finished
     // with the JsonDocument
     //
-
-    // parsing complete, freeze the elapsed timer
-    parse_elapsed.freeze();
 
     // did the deserailization succeed?
     if (err) {

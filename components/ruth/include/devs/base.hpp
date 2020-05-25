@@ -32,7 +32,7 @@
 #include "devs/addr.hpp"
 #include "external/ArduinoJson.h"
 #include "local/types.hpp"
-#include "misc/elapsedMillis.hpp"
+#include "misc/elapsed.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {

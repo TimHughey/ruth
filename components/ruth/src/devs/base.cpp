@@ -103,9 +103,9 @@ uint64_t Device::readStop() {
   _read_us.freeze();
   _read_timestamp = time(nullptr);
 
-  return _read_us;
+  return (uint64_t)_read_us;
 }
-uint64_t Device::readUS() { return _read_us; }
+uint64_t Device::readUS() { return (uint64_t)_read_us; }
 time_t Device::readTimestamp() { return _read_timestamp; }
 time_t Device::timeCreated() { return _created_mtime; }
 time_t Device::secondsSinceLastSeen() { return (time(nullptr) - _last_seen); }
@@ -117,9 +117,9 @@ void Device::writeStart() { _write_us.reset(); }
 uint64_t Device::writeStop() {
   _write_us.freeze();
 
-  return _write_us;
+  return (uint64_t)_write_us;
 }
-uint64_t Device::writeUS() { return _write_us; }
+uint64_t Device::writeUS() { return (uint64_t)_write_us; }
 
 void Device::crcMismatch() { _crc_mismatches++; }
 void Device::readFailure() { _read_errors++; }

@@ -28,7 +28,7 @@
 #include <esp_spi_flash.h>
 
 #include "local/types.hpp"
-#include "misc/elapsedMillis.hpp"
+#include "misc/elapsed.hpp"
 #include "protocols/payload.hpp"
 
 namespace ruth {

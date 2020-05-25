@@ -28,7 +28,7 @@
 #include <freertos/task.h>
 
 #include "local/types.hpp"
-#include "misc/elapsedMillis.hpp"
+#include "misc/elapsed.hpp"
 #include "net/profile/profile.hpp"
 
 namespace ruth {

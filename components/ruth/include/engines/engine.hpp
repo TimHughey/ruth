@@ -33,7 +33,7 @@
 #include "engines/event_bits.hpp"
 #include "engines/task.hpp"
 #include "local/types.hpp"
-#include "misc/elapsedMillis.hpp"
+#include "misc/elapsed.hpp"
 #include "misc/nvs.hpp"
 #include "misc/restart.hpp"
 #include "net/network.hpp"
@@ -318,7 +318,7 @@ protected:
 
   void setCmdAck(DEV *dev, const char *refid, elapsedMicros latency_us) {
     if (dev) {
-      dev->setReadingCmdAck(latency_us, refid);
+      dev->setReadingCmdAck((uint32_t)latency_us, refid);
     }
   }
 
