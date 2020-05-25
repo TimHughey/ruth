@@ -259,14 +259,14 @@ Core_t *Core::_instance_() {
 
 // NOTE:  Use .get() to access the underlying char array
 unique_ptr<char[]> Core::dateTimeString(time_t t) {
-
   const auto buf_size = 28;
   unique_ptr<char[]> buf(new char[buf_size + 1]);
 
-  time_t now = time(nullptr);
+  time_t mtime = (t == 0) ? time(nullptr) : t;
+
   struct tm timeinfo = {};
 
-  localtime_r(&now, &timeinfo);
+  localtime_r(&mtime, &timeinfo);
   strftime(buf.get(), buf_size, "%c", &timeinfo);
   // strftime(buf.get(), buf_size, "%b-%d %R", &timeinfo);
 
