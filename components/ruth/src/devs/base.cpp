@@ -41,10 +41,6 @@ Device::Device(DeviceAddress_t &addr) { _addr = addr; }
 Device::Device(const string_t &id, DeviceAddress_t &addr) {
   _id = id; // copy id and addr objects
   _addr = addr;
-
-  // this is the actual device that will be placed in the known device list
-  // so mark it as just seen
-  justSeen();
 }
 
 // base class will handle deleteing the reading, if needed
@@ -120,10 +116,20 @@ uint64_t Device::readStop() {
 uint64_t Device::readUS() { return (uint64_t)_read_us; }
 time_t Device::readTimestamp() { return _read_timestamp; }
 time_t Device::timeCreated() { return _created_mtime; }
-time_t Device::secondsSinceLastSeen() { return (time(nullptr) - _last_seen); }
 
-bool Device::available() { return (secondsSinceLastSeen() <= _missing_secs); }
-bool Device::missing() { return (!available()); }
+bool Device::available() const {
+  // last_seen defaults to 0 when constructed (e.g. discovered) so avoid
+  // indicating it was missing
+  if (_last_seen > 0) {
+    auto seen_seconds = time(nullptr) - _last_seen;
+
+    return (seen_seconds <= _missing_secs);
+  }
+
+  return true;
+}
+
+bool Device::missing() const { return (!available()); }
 
 void Device::writeStart() { _write_us.reset(); }
 uint64_t Device::writeStop() {

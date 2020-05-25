@@ -88,13 +88,12 @@ public:
   uint64_t writeUS();
   time_t readTimestamp();
   time_t timeCreated();
-  time_t secondsSinceLastSeen();
 
   void setMissingSeconds(uint32_t missing_secs) {
     _missing_secs = missing_secs;
   };
-  bool available();
-  bool missing();
+  bool available() const;
+  bool missing() const;
 
   void crcMismatch();
   void readFailure();
