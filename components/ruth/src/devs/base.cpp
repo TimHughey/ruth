@@ -65,9 +65,9 @@ void Device::setReading(Reading_t *reading) {
   if (reading) {
     reading->setCRCMismatches(_crc_mismatches);
     reading->setReadErrors(_read_errors);
-    reading->setReadUS(_read_us);
+    reading->setReadUS((uint64_t)_read_us);
     reading->setWriteErrors(_write_errors);
-    reading->setWriteUS(_write_us);
+    reading->setWriteUS((uint64_t)_write_us);
 
     // when there is an actual reading mark the device as just seen
     justSeen();
