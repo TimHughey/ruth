@@ -539,3 +539,14 @@ Used static IRAM:  103473 bytes (  27599 available, 78.9% used)
     Flash rodata:  136768 bytes
 Total image size:~1007780 bytes (.bin may be padded larger)
 <<<
+>>>
+a4a5d88a MsgPayload now supports "mtime" as part of MQTT topic
+Total sizes:
+ DRAM .data size:   14112 bytes
+ DRAM .bss  size:   24544 bytes
+Used static DRAM:   38656 bytes ( 142080 available, 21.4% used)
+Used static IRAM:   89916 bytes (  41156 available, 68.6% used)
+      Flash code:  672459 bytes
+    Flash rodata:  136532 bytes
+Total image size:~ 913019 bytes (.bin may be padded larger)
+<<<

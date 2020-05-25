@@ -36,11 +36,15 @@ using std::move;
 using std::unique_ptr;
 
 // construct a new Device with only an address
-Device::Device(DeviceAddress_t &addr) { _addr = addr; }
+Device::Device(DeviceAddress_t &addr) {
+  _addr = addr;
+  justSeen();
+}
 
 Device::Device(const string_t &id, DeviceAddress_t &addr) {
   _id = id; // copy id and addr objects
   _addr = addr;
+  justSeen();
 }
 
 // base class will handle deleteing the reading, if needed
