@@ -268,7 +268,6 @@ unique_ptr<char[]> Core::dateTimeString(time_t t) {
 
   localtime_r(&mtime, &timeinfo);
   strftime(buf.get(), buf_size, "%c", &timeinfo);
-  // strftime(buf.get(), buf_size, "%b-%d %R", &timeinfo);
 
   return move(buf);
 }
