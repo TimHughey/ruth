@@ -290,10 +290,11 @@ protected:
   elapsedMicros _cmd_elapsed;
   elapsedMicros _latency_us;
 
-  bool commandAck(DEV *dev, bool ack, const string_t &refid) {
+  bool commandAck(DEV *dev, bool ack, const string_t &refid,
+                  bool set_rc = true) {
     bool rc = false;
 
-    if (dev != nullptr) {
+    if (dev && set_rc) {
       rc = readDevice(dev);
 
       if (rc && ack) {

@@ -1,0 +1,84 @@
+{
+  "assigned_name": "lab-ledge",
+  "core": {
+    "loop_ms": 1000,
+    "timestamp_ms": 360000
+  },
+  "ds": {
+    "command": {
+      "pri": 14,
+      "stack": 3072
+    },
+    "convert": {
+      "interval_ms": 7,
+      "pri": 13,
+      "stack": 2048
+    },
+    "core": {
+      "interval_ms": 30,
+      "pri": 1,
+      "stack": 1536
+    },
+    "discover": {
+      "interval_ms": 30,
+      "pri": 12,
+      "stack": 4096
+    },
+    "enable": false,
+    "report": {
+      "interval_ms": 7,
+      "pri": 13,
+      "stack": 3072
+    }
+  },
+  "host": "ruth.3c71bf14fdf0",
+  "i2c": {
+    "command": {
+      "pri": 14,
+      "stack": 3072
+    },
+    "core": {
+      "interval_ms": 7,
+      "pri": 1,
+      "stack": 1536
+    },
+    "discover": {
+      "interval_ms": 60,
+      "pri": 12,
+      "stack": 4096
+    },
+    "enable": true,
+    "report": {
+      "interval_ms": 7,
+      "pri": 13,
+      "stack": 3072
+    }
+  },
+  "meta": {
+    "profile": "default",
+    "version": "48f0e953-daf5-41ec-a7c1-f9c0c7630909"
+  },
+  "misc": {
+    "i2c_mplex": false,
+    "watch_stacks": false
+  },
+  "mtime": 1590157777,
+  "payload": "profile",
+  "pwm": {
+    "command": {
+      "pri": 14,
+      "stack": 2048
+    },
+    "core": {
+      "interval_ms": 10,
+      "pri": 1,
+      "stack": 1536
+    },
+    "enable": true,
+    "report": {
+      "interval_ms": 10,
+      "pri": 12,
+      "stack": 2048
+    }
+  }
+}

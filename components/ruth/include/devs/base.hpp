@@ -53,14 +53,19 @@ public:
   bool operator==(Device_t *rhs) const;
 
   static uint32_t idMaxLen();
-  bool isValid();
-  bool isNotValid();
+
+  bool valid() const;
+  bool notValid() const;
+
+  // deprecated
+  bool isValid() const;
+  bool isNotValid() const;
 
   // updaters
   void justSeen();
 
-  uint8_t firstAddressByte();
-  uint8_t lastAddressByte();
+  uint8_t firstAddressByte() const;
+  uint8_t lastAddressByte() const;
   DeviceAddress_t &addr();
   uint8_t *addrBytes();
 

@@ -92,21 +92,25 @@ bool pwmDev::run() {
   return true;
 }
 
-bool pwmDev::updateDuty(JsonDocument &doc) {
+bool pwmDev::updateDuty(uint32_t new_duty) {
   auto esp_rc = ESP_OK;
 
   const ledc_mode_t mode = ledc_channel_.speed_mode;
   const ledc_channel_t channel = ledc_channel_.channel;
 
+  if (new_duty > duty_max_)
+    return false;
+
   writeStart();
-
-  ledc_set_duty_and_update(mode, channel, doc["duty"], 0);
-
+  esp_rc = ledc_set_duty_and_update(mode, channel, new_duty, 0);
   writeStop();
 
-  duty_ = doc["duty"];
+  if (esp_rc == ESP_OK) {
+    duty_ = new_duty;
+    return true;
+  }
 
-  return (esp_rc == ESP_OK) ? true : false;
+  return false;
 }
 
 // STATIC

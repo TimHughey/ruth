@@ -96,14 +96,21 @@ void Device::setReadingCmdAck(uint32_t latency_us, const char *refid) {
   }
 }
 
-uint8_t Device::firstAddressByte() { return _addr.firstAddressByte(); };
-uint8_t Device::lastAddressByte() { return _addr.lastAddressByte(); };
+uint8_t Device::firstAddressByte() const { return _addr.firstAddressByte(); };
+uint8_t Device::lastAddressByte() const { return _addr.lastAddressByte(); };
 DeviceAddress_t &Device::addr() { return _addr; }
 uint8_t *Device::addrBytes() { return (uint8_t *)_addr; }
 Reading_t *Device::reading() { return _reading; }
 uint32_t Device::idMaxLen() { return _id_len; };
-bool Device::isValid() { return firstAddressByte() != 0x00 ? true : false; };
-bool Device::isNotValid() { return !isValid(); }
+
+bool Device::valid() const {
+  return (firstAddressByte() != 0x00 ? true : false);
+}
+
+bool Device::notValid() const { return !isValid(); }
+
+bool Device::isValid() const { return valid(); }
+bool Device::isNotValid() const { return !valid(); }
 
 // metrics functions
 void Device::readStart() { _read_us.reset(); }

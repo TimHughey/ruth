@@ -1,0 +1,18 @@
+{
+  "payload": "switch state",
+  "mtime": 1351824120,
+  "host": "ruth.123456789012",
+  "device": "i2c/long-long-long-name.00.mcp23008",
+  "refid":"1048c7ab-5f20-438b-8b29-acce517811c2",
+  "ack": true,
+  "states": [
+      {"pio": 0, "state": true},
+      {"pio": 1, "state": true},
+      {"pio": 2, "state": true},
+      {"pio": 3, "state": true},
+      {"pio": 4, "state": true},
+      {"pio": 5, "state": true},
+      {"pio": 6, "state": true},
+      {"pio": 7, "state": true},
+]
+}

@@ -62,6 +62,7 @@ private:
   // tracking info
   RefID_t _refid;
   bool _cmd_ack = false;
+  string_t _cmd_err;
   uint32_t _latency_us = 0;
 
   bool _log_reading = false;

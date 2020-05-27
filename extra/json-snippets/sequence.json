@@ -1,0 +1,48 @@
+
+{"ack":true,"device":"pwm/lab-ledge.pin:1","host":"ruth.3c71bf14fdf0","refid":"3b952cbb-324c-4e98-8fd5-3f484f41c975","seq":{"name":"flash","repeat":true,"run":true,"steps":[{"duty":8191,"ms":750},{"duty":0,"ms":1500},{"duty":4096,"ms":750},{"duty":0,"ms":1500},{"duty":2048,"ms":750},{"duty":0,"ms":1500},{"duty":1024,"ms":750},{"duty":0,"ms":1500}]}}
+
+{
+  "ack": true,
+  "device": "pwm/lab-ledge.pin:1",
+  "host": "ruth.3c71bf14fdf0",
+  "refid": "48c46466-8de7-457c-b3df-c5c5b4b06f45",
+  "seq": {
+    "name": "flash",
+    "repeat": true,
+    "run": true,
+    "steps": [
+      {
+        "duty": 8191,
+        "ms": 750
+      },
+      {
+        "duty": 0,
+        "ms": 1500
+      },
+      {
+        "duty": 4096,
+        "ms": 750
+      },
+      {
+        "duty": 0,
+        "ms": 1500
+      },
+      {
+        "duty": 2048,
+        "ms": 750
+      },
+      {
+        "duty": 0,
+        "ms": 1500
+      },
+      {
+        "duty": 1024,
+        "ms": 750
+      },
+      {
+        "duty": 0,
+        "ms": 1500
+      }
+    ]
+  }
+}

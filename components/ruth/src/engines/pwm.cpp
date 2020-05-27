@@ -28,19 +28,18 @@ static PulseWidth_t *__singleton__ = nullptr;
 static const string_t engine_name = "PWM";
 
 // document example:
-// {"ack":true,"cmd":"pwm","device":"pwm/lab-ledge:pin1","duty":100,
-//  "mtime":1589852135,"refid":"5fb00fa5-76d4-4168-a7b7-8d216d59ddc0",
-//  "seq":{"s0":{"duty":100,"ms":100},"s1":{"duty":100,"ms":100},
-//  "s2":{"duty":100,"ms":100},"s3":{"duty":100,"ms":100},
-//  "s4":{"duty":100,"ms":100},"s5":{"duty":100,"ms":100},
-//  "s6":{"duty":100,"ms":100},"s7":{"duty":100,"ms":100},
-//  "s8":{"duty":100,"ms":100},"s9":{"duty":100,"ms":100},
-//  "s10":{"duty":100,"ms":100},"s11":{"duty":100,"ms":100},"repeat":true}}
+// {"ack":true,
+//   "device":"pwm/lab-ledge.pin:1","host":"ruth.3c71bf14fdf0",
+//   "refid":"3b952cbb-324c-4e98-8fd5-3f484f41c975",
+//   "seq":{"name":"flash","repeat":true,"run":true,
+//     "steps":
+//       [{"duty":8191,"ms":750},{"duty":0,"ms":1500},
+//        {"duty":4096,"ms":750},{"duty":0,"ms":1500},
+//        {"duty":2048,"ms":750},{"duty":0,"ms":1500},
+//        {"duty":1024,"ms":750},{"duty":0,"ms":1500}]}}
 
-// space for up to 13 sequences
-
-const size_t _capacity =
-    12 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + JSON_OBJECT_SIZE(13) + 270;
+const size_t _capacity = JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) +
+                         JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
 
 PulseWidth::PulseWidth() : Engine(ENGINE_PWM) {
   pwmDev::allOff(); // ensure all pins are off at initialization
@@ -75,7 +74,7 @@ void PulseWidth::command(void *data) {
     }
 
     // deserialize the msgpack data
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(_capacity);
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
     //
@@ -96,33 +95,30 @@ void PulseWidth::command(void *data) {
 }
 
 bool PulseWidth::commandExecute(JsonDocument &doc) {
-
   pwmDev_t *dev = findDevice(doc["device"]);
+  auto set_rc = false;
 
   if (dev == nullptr) {
     return false;
   }
 
-  // _latency_us.reset();
-
-  if (dev->isValid()) {
-    bool set_rc = false;
-
-    dev->writeStart();
-    set_rc = dev->updateDuty(doc);
-    dev->writeStop();
-
-    if (set_rc) {
-      bool ack = doc["ack"];
-      const RefID_t refid = doc["refid"];
-
-      commandAck(dev, ack, refid);
-    }
-
-    return true;
+  if (dev->notValid()) {
+    return false;
   }
 
-  return false;
+  bool duty_cmd = doc["duty_cmd"] | false;
+
+  if (duty_cmd) {
+    uint32_t new_duty = doc["duty"] | 0;
+
+    set_rc = dev->updateDuty(new_duty);
+  }
+
+  bool ack = doc["ack"] | false;
+  const string_t refid = doc["refid"];
+  commandAck(dev, ack, refid, set_rc);
+
+  return true;
 }
 
 void PulseWidth::core(void *task_data) {

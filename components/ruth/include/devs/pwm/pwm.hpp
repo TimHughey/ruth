@@ -46,6 +46,30 @@ public:
   static ledc_channel_t mapNumToChannel(const DeviceAddress_t &num);
   static void allOff();
 
+public:
+  pwmDev(DeviceAddress_t &num);
+  uint8_t devAddr();
+
+  void configureChannel();
+  ledc_channel_t channel() { return ledc_channel_.channel; };
+  ledc_mode_t speedMode() { return ledc_channel_.speed_mode; };
+  uint32_t dutyMax() { return duty_max_; };
+  uint32_t dutyMin() { return duty_min_; };
+  gpio_num_t gpioPin() { return gpio_pin_; };
+
+  // sequence support
+  void sequenceStart() { running_ = true; }
+  void sequenceEnd() { running_ = false; }
+  bool needsRun() { return running_; }
+  bool run();
+
+  bool updateDuty(uint32_t duty);
+
+  esp_err_t lastRC() { return last_rc_; };
+
+  // info / debug functions
+  const unique_ptr<char[]> debug();
+
 private:
   static const uint32_t pwm_max_addr_len_ = 1;
   static const uint32_t pwm_max_id_len_ = 40;
@@ -68,30 +92,6 @@ private:
                                          .timer_sel = LEDC_TIMER_1,
                                          .duty = duty_,
                                          .hpoint = 0};
-
-public:
-  pwmDev(DeviceAddress_t &num);
-  uint8_t devAddr();
-
-  void configureChannel();
-  ledc_channel_t channel() { return ledc_channel_.channel; };
-  ledc_mode_t speedMode() { return ledc_channel_.speed_mode; };
-  uint32_t dutyMax() { return duty_max_; };
-  uint32_t dutyMin() { return duty_min_; };
-  gpio_num_t gpioPin() { return gpio_pin_; };
-
-  // sequence support
-  void sequenceStart() { running_ = true; }
-  void sequenceEnd() { running_ = false; }
-  bool needsRun() { return running_; }
-  bool run();
-
-  bool updateDuty(JsonDocument &doc);
-
-  esp_err_t lastRC() { return last_rc_; };
-
-  // info / debug functions
-  const unique_ptr<char[]> debug();
 };
 } // namespace ruth
 
