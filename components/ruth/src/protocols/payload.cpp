@@ -82,8 +82,14 @@ bool MsgPayload::current() const {
   if (topic_mtime == 0)
     return true;
 
-  if (topic_mtime > (time(NULL) - 60))
+  auto one_minute_ago = time(NULL) - 60;
+
+  if (topic_mtime > one_minute_ago) {
+    ESP_LOGI("Payload", "topic_mtime=%ld one_minute_ago=%ld", topic_mtime,
+             one_minute_ago);
+
     return true;
+  }
 
   return false;
 }
@@ -115,7 +121,10 @@ void MsgPayload::parseTopic(struct mg_str *in_topic) {
       //  c. minus one to account for the slash
       //
       //  * the last part is from the previous slash to end of topic
-      const size_t len = i - spos;
+
+      // handle the case of the very end of the string
+      // (typical +/- 1 issue when handling arrays)
+      const size_t len = (i == in_topic->len) ? ((i - 1) - spos) : (i - spos);
 
       // construct the string from the starting position (spos) and length
       const string_t &part = string_t((in_topic->p) + spos, len);
