@@ -19,6 +19,7 @@
  */
 
 #include "protocols/payload.hpp"
+#include "readings/simple_text.hpp"
 
 namespace ruth {
 
@@ -26,12 +27,18 @@ MsgPayload::MsgPayload(struct mg_str *in_topic, struct mg_str *in_payload) {
   parseTopic(in_topic);
   validateSubtopics();
 
-  _data.reserve(in_payload->len + 2);
+  // _data.reserve(in_payload->len + 2);
   _data.assign(in_payload->p, (in_payload->p + in_payload->len));
-  _data.push_back(0x00); // ensure null termination
+  // _data.push_back(0x00); // ensure null termination
 
   if (invalid()) {
     _err_topic.assign(in_topic->p, in_topic->len);
+  }
+}
+
+MsgPayload::~MsgPayload() {
+  for (auto i = 0; i < _topic_parts.size(); i++) {
+    delete _topic_parts.at(i);
   }
 }
 
@@ -55,53 +62,32 @@ bool MsgPayload::emptyPayload() const { return _data.empty(); }
 
 // topic host functionality
 bool MsgPayload::forThisHost() const {
-  return (host().compare(Net::hostID()) == 0 ? true : false);
+  return (_topic_parts.at(PART_HOST)->compare(Net::hostID()) == 0 ? true
+                                                                  : false);
 }
 
-const string_t &MsgPayload::host() const { return _topic_parts[PART_HOST]; }
+const string_t &MsgPayload::host() const {
+  return *(_topic_parts.at(PART_HOST));
+}
 
 // subtopic functionality
 bool MsgPayload::hasSubtopic() const { return _has_part[PART_SUBTOPIC]; }
 
 bool MsgPayload::matchSubtopic(const char *match) const {
-  return (subtopic().compare(match) == 0 ? true : false);
+  return (_topic_parts.at(PART_SUBTOPIC)->compare(match) == 0 ? true : false);
 }
 
 const string_t &MsgPayload::subtopic() const {
-  return _topic_parts[PART_SUBTOPIC];
+  return *_topic_parts.at(PART_SUBTOPIC);
 }
-const char *MsgPayload::subtopic_cstr() const { return subtopic().c_str(); }
+const char *MsgPayload::subtopic_c() const {
+  return _topic_parts.at(PART_SUBTOPIC)->c_str();
+}
 
 // topic mtime functionality
 bool MsgPayload::current() const {
-  auto topic_mtime = mtime();
-
-  // how payload topic is determined to be valid:
-  //  a. assumed valid if mtime not available from topic
-  //  b. mtime from topic is within the last one (1) minute
-  if (topic_mtime == 0)
-    return true;
-
-  auto one_minute_ago = time(NULL) - 60;
-
-  if (topic_mtime > one_minute_ago) {
-    ESP_LOGI("Payload", "topic_mtime=%ld one_minute_ago=%ld", topic_mtime,
-             one_minute_ago);
-
-    return true;
-  }
-
-  return false;
-}
-
-time_t MsgPayload::mtime() const {
-  time_t topic_mtime = 0;
-
-  if (_has_part[PART_MTIME]) {
-    topic_mtime = atoll(_topic_parts[PART_MTIME].c_str());
-  }
-
-  return topic_mtime;
+  // is the mtime from the topic within the last one minute?
+  return (_mtime > (time(NULL) - 60)) ? true : false;
 }
 
 // use the slashes in the topic to parse out the subtopics
@@ -122,12 +108,10 @@ void MsgPayload::parseTopic(struct mg_str *in_topic) {
       //
       //  * the last part is from the previous slash to end of topic
 
-      // handle the case of the very end of the string
-      // (typical +/- 1 issue when handling arrays)
-      const size_t len = (i == in_topic->len) ? ((i - 1) - spos) : (i - spos);
-
       // construct the string from the starting position (spos) and length
-      const string_t &part = string_t((in_topic->p) + spos, len);
+      const size_t len = i - spos;
+      const string_t *part = new string_t(&(in_topic->p[spos]), len);
+
       _topic_parts.push_back(part);
 
       spos += len + 1; // the next starting position skips the slash
@@ -147,11 +131,15 @@ void MsgPayload::validateSubtopics() {
   //  index: 0....1......2..........3......
   //  topic: prod/<host>/<subtopic>/<mtime>
   for (uint32_t i = 0; i < _topic_parts.size(); i++) {
-    const string_t &part = _topic_parts[i];
+    const string_t *part = _topic_parts.at(i);
 
     if ((TopicParts_t)i < PART_END_OF_LIST) {
-      _has_part[i] = (part.empty()) ? false : true;
+      _has_part[i] = (part->empty()) ? false : true;
     }
+  }
+
+  if (_has_part[PART_MTIME]) {
+    _mtime = atoll(_topic_parts.at(PART_MTIME)->c_str());
   }
 }
 

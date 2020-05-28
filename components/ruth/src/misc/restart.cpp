@@ -54,7 +54,7 @@ void Restart::_now_() { _instance_()->restart(nullptr, nullptr, 0); }
 void Restart::restart(const char *text, const char *func,
                       uint32_t reboot_delay_ms) {
 
-  textReading::rlog("[%s] restart, reason=\"%s\" func=\"%s\"", Net::hostname(),
+  textReading::rlog("restart, reason=\"%s\" func=\"%s\"",
                     (text == nullptr) ? NONE : text,
                     (func == nullptr) ? NONE : func);
 

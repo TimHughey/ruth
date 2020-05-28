@@ -184,7 +184,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   }
 
   if (payload_rc == false) {
-    TR::rlog("[MQTT] subtopic=\"%s\" failed", payload->subtopic_cstr());
+    TR::rlog("[MQTT] subtopic=\"%s\" failed", payload->subtopic_c());
   }
 
   return payload_rc;

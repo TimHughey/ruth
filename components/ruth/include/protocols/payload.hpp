@@ -47,6 +47,8 @@ public:
   //
 
   MsgPayload(struct mg_str *in_topic, struct mg_str *in_payload);
+  MsgPayload(const MsgPayload &s) = delete; // no copies!
+  ~MsgPayload();
 
   // check validity and access the topic that failed validation
   bool valid() const;
@@ -67,11 +69,10 @@ public:
   bool matchSubtopic(const char *match) const;
 
   const string_t &subtopic() const;
-  const char *subtopic_cstr() const;
+  const char *subtopic_c() const;
 
   // topic mtime functionality
   bool current() const;
-  time_t mtime() const;
 
 private:
   typedef enum {
@@ -85,10 +86,10 @@ private:
   bool _has_part[PART_END_OF_LIST] = {};
   time_t _mtime = 0;
 
-  vector<char> _data;
+  vector<char> _data = {};
 
   static const size_t _max_parts = 6;
-  vector<string_t> _topic_parts;
+  vector<const string_t *> _topic_parts = {};
 
   string_t _err_topic;
 

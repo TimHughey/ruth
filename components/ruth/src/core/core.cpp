@@ -62,17 +62,8 @@ void Core::_loop() {
   // safety net 1:
   //    wait for the name to be set for 90 seconds, if the name is not
   //    set within in 90 seconds then there's some problem so reboot
-  if (Net::waitForName(90000) == false) {
-    Restart::now();
-  }
-
-  // safety net 2:
-  //    wait for the transport to be ready for up to 60 seconds (60000ms).
-  //    if the overall ready bit is not set then an issue after startup
-  //    (after startup since we wouldn't be here if transport never
-  //    became available)
-  if (Net::waitForReady(60000) == false) {
-    Restart::now();
+  if (Net::waitForName(45000) == false) {
+    Restart::restart("Name not assigned", __PRETTY_FUNCTION__);
   }
 
   // now that we have our name and protocols up, proceed with starting
@@ -198,7 +189,7 @@ void Core::markOtaValid() {
   if ((ota_marked_valid_) || (ota_valid_ms_ > (uint64_t)ota_valid_elapsed_))
     return;
 
-  // safety net 3:
+  // safety net 2:
   //    only after the core has been up for more than the configured
   //    seconds mark the OTA partition as valid
   OTA::markPartitionValid();
