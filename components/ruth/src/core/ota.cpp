@@ -84,10 +84,10 @@ void OTA::process() {
   elapsedMicros ota_elapsed;
   esp_err_t esp_rc = esp_https_ota(&config);
 
-  textReading::rlog("[%s] OTA completed in %0.2fs", esp_err_to_name(esp_rc),
-                    (float)ota_elapsed);
+  textReading::rlog("OTA elapsed %0.2fs [%s]", (float)ota_elapsed,
+                    esp_err_to_name(esp_rc));
 
-  Restart::restart("OTA complete");
+  Restart::restart();
 }
 
 // STATIC
