@@ -94,7 +94,7 @@ void Net::checkError(const char *func, esp_err_t err) {
   // ptr[0] = 0;
 
   NVS::commitMsg(tagEngine(), msg);
-  Restart::restart(msg, __PRETTY_FUNCTION__, 3000);
+  Restart::restart(msg);
 }
 
 void Net::connected(void *event_data) {

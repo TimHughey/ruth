@@ -51,8 +51,8 @@ public:
   ~MsgPayload();
 
   // check validity and access the topic that failed validation
-  bool valid() const;
-  bool invalid() const;
+  bool valid();
+  bool invalid();
   const char *errorTopic() const;
 
   // payload data functionality
@@ -65,14 +65,14 @@ public:
   const string_t &host() const;
 
   // subtopic functionality
-  bool hasSubtopic() const;
+  bool hasSubtopic();
   bool matchSubtopic(const char *match) const;
 
   const string_t &subtopic() const;
   const char *subtopic_c() const;
 
   // topic mtime functionality
-  bool current() const;
+  bool current();
 
 private:
   typedef enum {

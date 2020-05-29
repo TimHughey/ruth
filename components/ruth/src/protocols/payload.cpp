@@ -31,7 +31,7 @@ MsgPayload::MsgPayload(struct mg_str *in_topic, struct mg_str *in_payload) {
   _data.assign(in_payload->p, (in_payload->p + in_payload->len));
   // _data.push_back(0x00); // ensure null termination
 
-  if (invalid()) {
+  if (invalid() && _err_topic.empty()) {
     _err_topic.assign(in_topic->p, in_topic->len);
   }
 }
@@ -49,10 +49,8 @@ MsgPayload::~MsgPayload() {
 //
 
 // check validity and access the topic that failed validation
-bool MsgPayload::valid() const {
-  return (_has_part[PART_SUBTOPIC] && current());
-}
-bool MsgPayload::invalid() const { return !valid(); }
+bool MsgPayload::valid() { return (hasSubtopic() && current()); }
+bool MsgPayload::invalid() { return !valid(); }
 const char *MsgPayload::errorTopic() const { return _err_topic.c_str(); }
 
 // payload data functionality
@@ -71,7 +69,20 @@ const string_t &MsgPayload::host() const {
 }
 
 // subtopic functionality
-bool MsgPayload::hasSubtopic() const { return _has_part[PART_SUBTOPIC]; }
+bool MsgPayload::hasSubtopic() {
+  auto has_subtopic = _has_part[PART_SUBTOPIC];
+
+  if (has_subtopic)
+    return true;
+
+  auto max_len = 64;
+  unique_ptr<char[]> buf(new char[max_len + 1]);
+
+  snprintf(buf.get(), max_len, "payload topic does not have a subtopic");
+  _err_topic = buf.get();
+
+  return false;
+}
 
 bool MsgPayload::matchSubtopic(const char *match) const {
   return (_topic_parts.at(PART_SUBTOPIC)->compare(match) == 0 ? true : false);
@@ -85,9 +96,24 @@ const char *MsgPayload::subtopic_c() const {
 }
 
 // topic mtime functionality
-bool MsgPayload::current() const {
-  // is the mtime from the topic within the last one minute?
-  return (_mtime > (time(NULL) - 60)) ? true : false;
+bool MsgPayload::current() {
+  auto now = time(nullptr);
+
+  auto recent = (_mtime > (now - 60)) ? true : false;
+
+  if (recent)
+    return true;
+
+  auto max_len = 256;
+  unique_ptr<char[]> buf(new char[max_len + 1]);
+
+  auto diff = now - _mtime;
+
+  snprintf(buf.get(), max_len, "payload mtime failure, diff=%ld", diff);
+
+  _err_topic = buf.get();
+
+  return false;
 }
 
 // use the slashes in the topic to parse out the subtopics

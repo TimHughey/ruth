@@ -21,6 +21,7 @@
 #ifndef _ruth_pwm_dev_hpp
 #define _ruth_pwm_dev_hpp
 
+#include <list>
 #include <memory>
 #include <string>
 
@@ -28,11 +29,16 @@
 #include <driver/ledc.h>
 
 #include "devs/base.hpp"
+#include "devs/pwm/sequence/sequence.hpp"
 #include "external/ArduinoJson.h"
 
 using std::unique_ptr;
 
 namespace ruth {
+
+using std::list;
+
+using namespace pwm;
 
 typedef class pwmDev pwmDev_t;
 
@@ -51,47 +57,46 @@ public:
   uint8_t devAddr();
 
   void configureChannel();
-  ledc_channel_t channel() { return ledc_channel_.channel; };
-  ledc_mode_t speedMode() { return ledc_channel_.speed_mode; };
-  uint32_t dutyMax() { return duty_max_; };
-  uint32_t dutyMin() { return duty_min_; };
-  gpio_num_t gpioPin() { return gpio_pin_; };
+  ledc_channel_t channel() { return _ledc_channel.channel; };
+  ledc_mode_t speedMode() { return _ledc_channel.speed_mode; };
+  uint32_t dutyMax() { return _duty_max; };
+  uint32_t dutyMin() { return _duty_min; };
+  gpio_num_t gpioPin() { return _gpio_pin; };
 
   // sequence support
-  void sequenceStart() { running_ = true; }
-  void sequenceEnd() { running_ = false; }
-  bool needsRun() { return running_; }
-  bool run();
+  bool sequence(JsonDocument &doc);
 
   bool updateDuty(uint32_t duty);
+  bool updateDuty(JsonDocument &doc);
 
-  esp_err_t lastRC() { return last_rc_; };
+  esp_err_t lastRC() { return _last_rc; };
 
   // info / debug functions
   const unique_ptr<char[]> debug();
 
 private:
-  static const uint32_t pwm_max_addr_len_ = 1;
-  static const uint32_t pwm_max_id_len_ = 40;
-  static const uint32_t duty_max_ = 0x1fff;
-  static const uint32_t duty_min_ = 0;
+  static const uint32_t _pwm_max_id_len = 40;
+  static const uint32_t _duty_max = 0x1fff;
+  static const uint32_t _duty_min = 0;
 
-  gpio_num_t gpio_pin_;
-  uint32_t duty_ = 0; // default to zero (off)
-  esp_err_t last_rc_ = ESP_OK;
+  list<Sequence_t *> _sequences = {};
 
-  // flag that signals the device is running a sequence
-  bool running_ = false;
+  gpio_num_t _gpio_pin;
+  uint32_t _duty = 0; // default to zero (off)
+  esp_err_t _last_rc = ESP_OK;
 
-  ledc_channel_config_t ledc_channel_ = {.gpio_num = 0, // set by constructor
+  ledc_channel_config_t _ledc_channel = {.gpio_num = 0, // set by constructor
                                          .speed_mode = LEDC_HIGH_SPEED_MODE,
                                          // channel default value is changed
                                          // by constructor
                                          .channel = LEDC_CHANNEL_1,
                                          .intr_type = LEDC_INTR_DISABLE,
                                          .timer_sel = LEDC_TIMER_1,
-                                         .duty = duty_,
+                                         .duty = _duty,
                                          .hpoint = 0};
+
+private:
+  bool eraseSequence(const char *name);
 };
 } // namespace ruth
 

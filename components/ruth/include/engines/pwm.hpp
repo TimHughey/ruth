@@ -72,32 +72,6 @@ public:
 
   void stop();
 
-  //
-  // Sequence Support
-  //
-
-  bool anyDeviceNeedsRun() {
-    using std::any_of;
-
-    const DeviceMap_t devices = deviceMap();
-
-    return any_of(devices.begin(), devices.end(),
-                  [](pwmDev_t *dev) { return dev->needsRun(); });
-  }
-
-  bool runDevices() {
-    using std::for_each;
-
-    const DeviceMap_t devices = deviceMap();
-
-    bool any_ran = false;
-
-    for_each(devices.begin(), devices.end(),
-             [&any_ran](pwmDev_t *dev) { any_ran = dev->run() || any_ran; });
-
-    return any_ran;
-  }
-
 private:
   const TickType_t _loop_frequency =
       Profile::engineTaskIntervalTicks(ENGINE_PWM, TASK_CORE);

@@ -54,9 +54,15 @@ void Restart::_now_() { _instance_()->restart(nullptr, nullptr, 0); }
 void Restart::restart(const char *text, const char *func,
                       uint32_t reboot_delay_ms) {
 
-  textReading::rlog("restart, reason=\"%s\" func=\"%s\"",
-                    (text == nullptr) ? NONE : text,
-                    (func == nullptr) ? NONE : func);
+  unique_ptr<char[]> func_buf(new char[256]);
+  func_buf.get()[0] = 0x00;
+
+  if (func) {
+    snprintf(func_buf.get(), 255, " func=\"%s\"", func);
+  }
+
+  textReading::rlog("restart, reason=\"%s\"%s", (text == nullptr) ? NONE : text,
+                    func_buf.get());
 
   // gracefully shutdown MQTT
   MQTT::shutdown();

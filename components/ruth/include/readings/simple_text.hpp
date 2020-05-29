@@ -33,6 +33,7 @@
 
 namespace ruth {
 typedef class textReading textReading_t;
+typedef class textReading ST;
 
 typedef std::unique_ptr<textReading_t> textReading_ptr_t;
 

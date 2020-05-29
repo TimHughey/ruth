@@ -149,7 +149,6 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
 
   if (payload->invalid()) {
     TR::rlog("[MQTT] invalid topic=\"%s\"", payload->errorTopic());
-    return payload_rc;
   }
 
   if (payload->matchSubtopic("pwm")) {
@@ -319,10 +318,12 @@ void MQTT::core(void *data) {
   connect();
 
   // core forever loop
-  for (auto announce = true; _run_core; announce = false) {
-    if (announce) {
-      announceStartup();
-    }
+  // elapsedMillis main_elapsed;
+  for (auto announce = true; _run_core;) {
+    // if (announce && ((uint64_t)main_elapsed > 2000)) {
+    //   announceStartup();
+    //   announce = false;
+    // }
 
     // to alternate between prioritizing send and recv:
     //  1. wait here (recv)
@@ -331,6 +332,11 @@ void MQTT::core(void *data) {
 
     if (_mqtt_ready && _connection) {
       outboundMsg();
+    }
+
+    if (announce) {
+      announceStartup();
+      announce = false;
     }
   }
 

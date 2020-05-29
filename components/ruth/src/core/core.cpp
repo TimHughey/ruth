@@ -63,7 +63,7 @@ void Core::_loop() {
   //    wait for the name to be set for 90 seconds, if the name is not
   //    set within in 90 seconds then there's some problem so reboot
   if (Net::waitForName(45000) == false) {
-    Restart::restart("Name not assigned", __PRETTY_FUNCTION__);
+    Restart::restart("Did not receive profile and name assignment");
   }
 
   // now that we have our name and protocols up, proceed with starting
@@ -129,7 +129,7 @@ void Core::bootComplete() {
   num_tasks_ = uxTaskGetNumberOfTasks();
 
   NVS::processCommittedMsgs();
-  NVS::commitMsg("BOOT", "LAST SUCCESSFUL BOOT");
+  // NVS::commitMsg("BOOT", "LAST SUCCESSFUL BOOT");
 
   // lower main task priority since it's really just a watcher now
   UBaseType_t priority = uxTaskPriorityGet(NULL);

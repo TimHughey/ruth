@@ -24,7 +24,6 @@
 #include <esp_ota_ops.h>
 
 #include "net/network.hpp"
-#include "readings/simple_text.hpp"
 #include "readings/startup.hpp"
 
 namespace ruth {
@@ -34,8 +33,6 @@ startupReading::startupReading(uint32_t batt_mv) : remoteReading(batt_mv) {
   app_desc_ = esp_ota_get_app_description();
 
   reset_reason_ = decodeResetReason(esp_reset_reason());
-
-  textReading::rlog("startup reason=\"%s\"", reset_reason_.c_str());
 };
 
 void startupReading::populateJSON(JsonDocument &doc) {

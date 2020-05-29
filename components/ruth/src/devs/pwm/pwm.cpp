@@ -18,11 +18,13 @@
     https://www.wisslanding.com
 */
 
+#include <algorithm>
 #include <memory>
 #include <string>
 
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -39,38 +41,33 @@ const char *pwmDev::pwmDevDesc(const DeviceAddress_t &addr) {
   switch (addr.firstAddressByte()) {
   case 0x01:
     return (const char *)"pin:1";
-    break;
 
   case 0x02:
     return (const char *)"pin:2";
-    break;
 
   case 0x03:
     return (const char *)"pin:3";
-    break;
 
   case 0x04:
     return (const char *)"pin:4";
-    break;
 
   default:
     return (const char *)"unknown";
-    break;
   }
 }
 
 // construct a new pwmDev with a known address and compute the id
 pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
-  unique_ptr<char[]> id(new char[pwm_max_id_len_ + 1]);
+  unique_ptr<char[]> id(new char[_pwm_max_id_len + 1]);
 
-  gpio_pin_ = mapNumToGPIO(num);
+  _gpio_pin = mapNumToGPIO(num);
 
-  ledc_channel_.gpio_num = gpio_pin_;
-  ledc_channel_.channel = mapNumToChannel(num);
+  _ledc_channel.gpio_num = _gpio_pin;
+  _ledc_channel.channel = mapNumToChannel(num);
 
   setDescription(pwmDevDesc(num));
 
-  snprintf(id.get(), pwm_max_id_len_, "pwm/%s.%s", Net::hostname(),
+  snprintf(id.get(), _pwm_max_id_len, "pwm/%s.%s", Net::hostname(),
            pwmDevDesc(num));
 
   setID(id.get());
@@ -79,26 +76,57 @@ pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
 uint8_t pwmDev::devAddr() { return firstAddressByte(); };
 
 void pwmDev::configureChannel() {
-  gpio_set_level(gpio_pin_, 0);
-  last_rc_ = ledc_channel_config(&ledc_channel_);
+  gpio_set_level(_gpio_pin, 0);
+  _last_rc = ledc_channel_config(&_ledc_channel);
 }
 
-bool pwmDev::run() {
-  if (running_ == false) {
+bool pwmDev::sequence(JsonDocument &doc) {
+  JsonObject obj = doc["seq"];
+
+  if (obj.isNull())
     return false;
+
+  // retrieve the sequence name to erase duplicate / replacement
+  // the name will be passed the Sequence constructor (which will copy it)
+  const char *seq_name = obj["name"];
+
+  // if the sequence name exists, erase it before allocating the new
+  // sequence to minimize heap frag
+  bool erased = eraseSequence(seq_name);
+
+  xTaskHandle parent = xTaskGetCurrentTaskHandle();
+
+  Sequence_t *seq =
+      new Sequence(pwmDevDesc(addr()), seq_name, parent, &_ledc_channel, obj);
+
+  _sequences.push_back(seq);
+
+  if (erased) {
+    ST::rlog("pwmDev replaced sequence name=\"%s\"", seq_name);
+  } else {
+    ST::rlog("pwmDev created sequence name=\"%s\"", seq_name);
   }
 
-  // device ran, return true
+  if (seq->active()) {
+    seq->run();
+  }
+
   return true;
+}
+
+bool pwmDev::updateDuty(JsonDocument &doc) {
+  const uint32_t new_duty = doc["duty"] | 0;
+
+  return updateDuty(new_duty);
 }
 
 bool pwmDev::updateDuty(uint32_t new_duty) {
   auto esp_rc = ESP_OK;
 
-  const ledc_mode_t mode = ledc_channel_.speed_mode;
-  const ledc_channel_t channel = ledc_channel_.channel;
+  const ledc_mode_t mode = _ledc_channel.speed_mode;
+  const ledc_channel_t channel = _ledc_channel.channel;
 
-  if (new_duty > duty_max_)
+  if (new_duty > _duty_max)
     return false;
 
   writeStart();
@@ -106,11 +134,41 @@ bool pwmDev::updateDuty(uint32_t new_duty) {
   writeStop();
 
   if (esp_rc == ESP_OK) {
-    duty_ = new_duty;
+    _duty = new_duty;
     return true;
   }
 
   return false;
+}
+
+//
+// PRIVATE
+//
+
+bool pwmDev::eraseSequence(const char *name) {
+  bool rc = false;
+  const string_t name_str = name;
+
+  using std::find_if;
+
+  auto found = find_if(_sequences.begin(), _sequences.end(),
+                       [this, name_str](Sequence_t *seq) {
+                         if (name_str.compare(seq->name()) == 0)
+                           return true;
+
+                         return false;
+                       });
+
+  if (found != _sequences.end()) {
+    _sequences.erase(found);
+
+    Sequence_t *seq = *found;
+
+    delete seq;
+    rc = true;
+  }
+
+  return rc;
 }
 
 // STATIC
@@ -180,7 +238,7 @@ const unique_ptr<char[]> pwmDev::debug() {
 
   snprintf(debug_str.get(), max_len,
            "pwmDev(%s duty=%d channel=%d pin=%d last_rc=%s)", id().c_str(),
-           duty_, ledc_channel_.channel, gpio_pin_, esp_err_to_name(last_rc_));
+           _duty, _ledc_channel.channel, _gpio_pin, esp_err_to_name(_last_rc));
 
   return move(debug_str);
 }

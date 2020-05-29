@@ -94,7 +94,7 @@ private:
     }
 
     if (restart_request_) {
-      Restart::restart("restart requested", __PRETTY_FUNCTION__);
+      Restart::restart("restart requested");
     }
   }
 

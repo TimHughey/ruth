@@ -38,8 +38,10 @@ static const string_t engine_name = "PWM";
 //        {"duty":2048,"ms":750},{"duty":0,"ms":1500},
 //        {"duty":1024,"ms":750},{"duty":0,"ms":1500}]}}
 
-const size_t _capacity = JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) +
-                         JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
+// const size_t _capacity = JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) +
+//                          JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
+
+const size_t _capacity = 5 * 1024;
 
 PulseWidth::PulseWidth() : Engine(ENGINE_PWM) {
   pwmDev::allOff(); // ensure all pins are off at initialization
@@ -62,6 +64,12 @@ void PulseWidth::command(void *data) {
   while (true) {
     BaseType_t queue_rc = pdFALSE;
     MsgPayload_t *payload = nullptr;
+
+    auto notify_val = ulTaskNotifyTake(pdTRUE, 0);
+
+    if (notify_val) {
+      ESP_LOGI(engine_name.c_str(), "command task notified: %d", notify_val);
+    }
 
     _cmd_elapsed.reset();
 
@@ -86,7 +94,7 @@ void PulseWidth::command(void *data) {
 
     // did the deserailization succeed?
     if (err) {
-      ESP_LOGW(engine_name.c_str(), "[%s] MSGPACK parse failure", err.c_str());
+      ST::rlog("pwm command MSGPACK err=\"%s\"", err.c_str());
       continue;
     }
 
@@ -106,19 +114,28 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
     return false;
   }
 
-  bool duty_cmd = doc["duty_cmd"] | false;
+  const uint32_t pwm_cmd = doc["pwm_cmd"] | 0x00;
 
-  if (duty_cmd) {
-    uint32_t new_duty = doc["duty"] | 0;
+  switch (pwm_cmd) {
 
-    set_rc = dev->updateDuty(new_duty);
+  case 0x10: // duty
+    set_rc = dev->updateDuty(doc);
+    break;
+
+  case 0x20:
+    set_rc = dev->sequence(doc);
+    break;
+
+  default:
+    set_rc = false;
+    break;
   }
 
-  bool ack = doc["ack"] | false;
+  bool ack = doc["ack"] | true;
   const string_t refid = doc["refid"];
   commandAck(dev, ack, refid, set_rc);
 
-  return true;
+  return set_rc;
 }
 
 void PulseWidth::core(void *task_data) {
@@ -164,22 +181,13 @@ void PulseWidth::core(void *task_data) {
 
   // task run loop
   for (;;) {
+    // as of now there is nothing for this loop to do so we'll use
+    // task notification to wake up (if needed)
+    auto notify_val = ulTaskNotifyTake(pdTRUE, UINT32_MAX);
 
-    // run any device that wants to
-    if (anyDeviceNeedsRun()) {
-      if (runDevices()) {
-        // at least one device ran so wait a minimal time until next loop
-        taskDelayUntil(TASK_CORE, pdMS_TO_TICKS(3));
-        continue;
-      };
-
-      // otherwise... just fall through
+    if (notify_val) {
+      ESP_LOGI(engine_name.c_str(), "core task notified: %d", notify_val);
     }
-
-    // here will wait to be notified OR the Profile defined loop frequency
-    // this allows another task (e.g. command) to signal there's work to do
-    ulTaskNotifyTake(pdTRUE, _loop_frequency);
-    // taskDelayUntil(TASK_CORE, _loop_frequency);
   }
 }
 

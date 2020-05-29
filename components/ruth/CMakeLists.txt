@@ -16,8 +16,11 @@ set(
 set(
   RUTH_DEVS
     "src/devs/addr"   "src/devs/base"
-    "src/devs/ds"     "src/devs/i2c"
-    "src/devs/pwm/pwm")
+    "src/devs/ds"     "src/devs/i2c")
+
+set(
+  RUTH_PWM_DEVS
+    "src/devs/pwm/pwm"  "src/devs/pwm/sequence/sequence")
 
 set(
   RUTH_ENGINES
@@ -49,7 +52,7 @@ set(
 # component for idf to build
 idf_component_register(
   SRCS
-    ${RUTH_CORE} ${RUTH_MISC} ${RUTH_NET} ${RUTH_DEVS}
+    ${RUTH_CORE} ${RUTH_MISC} ${RUTH_NET} ${RUTH_DEVS} ${RUTH_PWM_DEVS}
     ${RUTH_ENGINES} ${RUTH_READINGS} ${RUTH_PROTOCOLS} ${RUTH_EXTERNAL_LIBS} ${RUTH_DRIVERS}
   INCLUDE_DIRS
     "include" "include/external"

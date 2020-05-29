@@ -87,7 +87,7 @@ void OTA::process() {
   textReading::rlog("[%s] OTA completed in %0.2fs", esp_err_to_name(esp_rc),
                     (float)ota_elapsed);
 
-  Restart::restart("OTA complete", __PRETTY_FUNCTION__);
+  Restart::restart("OTA complete");
 }
 
 // STATIC
