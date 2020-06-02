@@ -397,6 +397,7 @@ bool I2c::detectDevicesOnBus(int bus) {
       if (justSeenDevice(dev) == nullptr) {
         // device was not known, must add
         i2cDev_t *new_dev = new i2cDev(dev);
+        new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
         addDevice(new_dev);
       }
 

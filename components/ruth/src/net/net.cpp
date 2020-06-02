@@ -238,32 +238,39 @@ void Net::init() {
   init_rc_ = rc;
 }
 
+// polls the current time waiting for SNTP to complete or timeout is reached
 void Net::ensureTimeIsSet() {
-  // wait for time to be set
-  struct timeval curr_time = {};
-  const uint32_t total_wait_ms = 30000;
-  const uint32_t check_wait_ms = 10;
   elapsedMillis sntp_elapsed;
+  const uint32_t total_ms = 30000;
+  const uint32_t check_ms = 3000;
 
-  ESP_LOGI(tagEngine(), "waiting up to %ums (checking every %ums) for SNTP...",
-           total_wait_ms, check_wait_ms);
+  for (auto wait_sntp = true; wait_sntp;) {
+    struct timeval curr_time = {};
 
-  // continue to query the system time until seconds since epoch are
-  // greater than a known recent time
-  while ((curr_time.tv_sec < 1554830134) &&
-         ((uint32_t)sntp_elapsed < total_wait_ms)) {
+    uint32_t recent_time = 1591114560;
+
     StatusLED::brighter();
-    vTaskDelay(pdMS_TO_TICKS(check_wait_ms));
+
+    delay(check_ms);
+
     StatusLED::dimmer();
+
     gettimeofday(&curr_time, nullptr);
+
+    if ((curr_time.tv_sec > recent_time) || (sntp_elapsed > total_ms)) {
+      wait_sntp = false;
+    }
   }
+
+  // one final wait to ensure SNTP is fully set time
+  delay(check_ms);
 
   sntp_elapsed.freeze();
 
   StatusLED::brighter();
 
-  if ((uint32_t)sntp_elapsed > total_wait_ms) {
-    ESP_LOGE(tagEngine(), "timeout waiting for SNTP");
+  if (sntp_elapsed > total_ms) {
+    ESP_LOGE(tagEngine(), "SNTP timeout");
     checkError(__PRETTY_FUNCTION__, 0x1100FE);
   } else {
     xEventGroupSetBits(evg_, timeSetBit());

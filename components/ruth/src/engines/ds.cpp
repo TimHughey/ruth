@@ -344,6 +344,7 @@ void DallasSemi::discover(void *data) {
 
       if (justSeenDevice(dev) == nullptr) {
         dsDev_t *new_dev = new dsDev(dev);
+        new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
         addDevice(new_dev);
       }
 

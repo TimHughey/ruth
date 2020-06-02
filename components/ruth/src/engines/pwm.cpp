@@ -146,7 +146,7 @@ void PulseWidth::core(void *task_data) {
 
     unique_ptr<pwmDev> new_dev_ptr(new pwmDev(dev));
 
-    new_dev_ptr.get()->setMissingSeconds(60);
+    new_dev_ptr.get()->setMissingSeconds(_report_frequency * 60 * 1.5);
     new_dev_ptr.get()->configureChannel();
 
     if (new_dev_ptr.get()->lastRC() == ESP_OK) {

@@ -76,6 +76,7 @@ public:
 
   static void fromRaw(MsgPayload_t *payload) { Profile::_fromRaw(payload); };
 
+  // MISC
   static bool i2cMultiplexer() { return _instance_()->_i2c_mplex; };
 
   static const char *profileName() {

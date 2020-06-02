@@ -78,11 +78,13 @@ private: // member functions
   static void checkError(const char *func, esp_err_t err);
   void connected(void *event_data);
 
+  // delay task for milliseconds
+  void delay(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
+
   void disconnected(void *event_data);
   void init();
 
   // object specific methods of static methods
-
   const char *_dnsIP_();
   static Net_t *_instance_();
   bool _start_();
