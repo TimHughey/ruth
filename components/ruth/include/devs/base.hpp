@@ -142,7 +142,7 @@ protected:
   int _crc_mismatches = 0;
   int _read_errors = 0;
   int _write_errors = 0;
-  int _missing_secs = 15;
+  int _missing_secs = 45;
 };
 } // namespace ruth
 

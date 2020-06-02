@@ -66,9 +66,11 @@ public:
   //
   // Tasks
   //
-  void command(void *data);
+
   void core(void *data);
   void report(void *data);
+
+  void commandLocal(MsgPayload_t_ptr payload);
 
   void stop();
 

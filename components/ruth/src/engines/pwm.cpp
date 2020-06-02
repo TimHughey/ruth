@@ -48,58 +48,34 @@ PulseWidth::PulseWidth() : Engine(ENGINE_PWM) {
 
   addTask(TASK_CORE);
   addTask(TASK_REPORT);
-  addTask(TASK_COMMAND);
 }
 
 // STATIC!
 bool PulseWidth::engineEnabled() { return (__singleton__) ? true : false; }
 
 //
-// Tasks
+// Commands (processed via Core Task)
 //
 
-void PulseWidth::command(void *data) {
-  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
+void PulseWidth::commandLocal(MsgPayload_t_ptr payload) {
+  _cmd_elapsed.reset();
 
-  while (true) {
-    BaseType_t queue_rc = pdFALSE;
-    MsgPayload_t *payload = nullptr;
+  // deserialize the msgpack data
+  DynamicJsonDocument doc(_capacity);
+  DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
-    auto notify_val = ulTaskNotifyTake(pdTRUE, 0);
+  // NOTE
+  //      The original payload MUST be kept until we are completely finished
+  //      with the JsonDocument
 
-    if (notify_val) {
-      ESP_LOGI(engine_name.c_str(), "command task notified: %d", notify_val);
-    }
-
-    _cmd_elapsed.reset();
-
-    queue_rc = xQueueReceive(_cmd_q, &payload, portMAX_DELAY);
-    // wrap in a unique_ptr so it is freed when out of scope
-    unique_ptr<MsgPayload_t> payload_ptr(payload);
-
-    if (queue_rc == pdFALSE) {
-      continue;
-    }
-
-    // deserialize the msgpack data
-    DynamicJsonDocument doc(_capacity);
-    DeserializationError err = deserializeMsgPack(doc, payload->payload());
-
-    //
-    // NOTE
-    //
-    // The original payload MUST be kept until we are completely finished
-    // with the JsonDocument
-    //
-
-    // did the deserailization succeed?
-    if (err) {
-      ST::rlog("pwm command MSGPACK err=\"%s\"", err.c_str());
-      continue;
-    }
-
-    commandExecute(doc);
+  // did the deserailization succeed?
+  if (err) {
+    ST::rlog("pwm command MSGPACK err=\"%s\"", err.c_str());
+    return;
   }
+
+  commandExecute(doc);
+  _cmd_elapsed.freeze();
 }
 
 bool PulseWidth::commandExecute(JsonDocument &doc) {
@@ -138,10 +114,17 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
   return set_rc;
 }
 
+//
+// Tasks
+//
+
 void PulseWidth::core(void *task_data) {
   if (configureTimer() == false) {
     return;
   }
+
+  // create the command queue
+  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   Net::waitForNormalOps();
 
@@ -179,14 +162,33 @@ void PulseWidth::core(void *task_data) {
     devicesAvailable();
   }
 
-  // task run loop
+  // core task run loop
+  //  1.  acts on task notifications
+  //  2.  acts on queued command messages
   for (;;) {
-    // as of now there is nothing for this loop to do so we'll use
-    // task notification to wake up (if needed)
-    auto notify_val = ulTaskNotifyTake(pdTRUE, UINT32_MAX);
+    MsgPayload_t *payload = nullptr;
+
+    // wait for a queued command
+    // if one is available, wrap it in a unique ptr then send it to
+    // commandLocal for processing
+    auto queue_rc = xQueueReceive(_cmd_q, &payload, pdMS_TO_TICKS(1000));
+
+    if (queue_rc == pdTRUE) {
+      unique_ptr<MsgPayload_t> payload_ptr(payload);
+      commandLocal(move(payload_ptr));
+
+      if (_cmd_elapsed > 100) {
+        ESP_LOGI(engine_name.c_str(), "command elapsed=%lluµs",
+                 (uint64_t)_cmd_elapsed);
+      }
+    }
+
+    auto notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10));
 
     if (notify_val) {
-      ESP_LOGI(engine_name.c_str(), "core task notified: %d", notify_val);
+      auto stack_hw = uxTaskGetStackHighWaterMark(nullptr);
+
+      ST::rlog("core task notified, stack_hw=%d", stack_hw);
     }
   }
 }

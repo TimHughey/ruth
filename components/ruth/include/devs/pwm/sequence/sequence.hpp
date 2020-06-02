@@ -93,7 +93,7 @@ private:
     // this (object) is passed as the data to the task creation and is
     // used by the static runEngine method to call the run method
     ::xTaskCreate(&runTask, task_name.c_str(), _task.stackSize, this,
-                  _task.priority, &(_task.handle));
+                  _task.priority, &_task.handle);
   }
 
   // Task implementation

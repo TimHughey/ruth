@@ -39,7 +39,7 @@ Sequence::Sequence(const char *pin_desc, const char *name, xTaskHandle parent,
 
   _name.assign(name); // copy the name from the JsonObject
   _repeat = obj["repeat"] | false;
-  _active = obj["active"] | false;
+  _active = obj["activate"] | true;
 
   JsonArray steps_obj = obj["steps"];
 
@@ -61,7 +61,7 @@ void Sequence::loop(void *data) {
 
   ST::rlog("sequence \"%s\" starting", _name.c_str());
 
-  for (bool repeat = true; repeat; repeat = _repeat) {
+  do {
     for_each(_steps.begin(), _steps.end(), [this](Step_t *step) {
       const ledc_mode_t mode = _channel->speed_mode;
       const ledc_channel_t channel = _channel->channel;
@@ -78,11 +78,11 @@ void Sequence::loop(void *data) {
         ST::rlog("sequence notify val=%d", notify_val);
       }
     });
-  }
+  } while (_repeat == true);
 
   ST::rlog("sequence \"%s\" finished", _name.c_str());
 
-  // xTaskNotify(_parent, 0, eIncrement);
+  xTaskNotify(_parent, 0, eIncrement);
   stop();
 }
 

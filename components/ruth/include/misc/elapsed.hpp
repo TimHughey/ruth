@@ -62,6 +62,24 @@ public:
     return (lhs.val() < rhs) ? true : false;
   }
 
+  bool operator<(int rhs) const {
+    elapsedMillis lhs(*this);
+
+    return (lhs.val() < rhs) ? true : false;
+  }
+
+  bool operator>(int rhs) const {
+    elapsedMillis lhs(*this);
+
+    return (lhs.val() > rhs) ? true : false;
+  }
+
+  bool operator>(uint32_t rhs) const {
+    elapsedMillis lhs(*this);
+
+    return (lhs.val() > rhs) ? true : false;
+  }
+
   void freeze() {
     _frozen = true;
     _ms = millis() - _ms;
@@ -115,6 +133,41 @@ public:
   void reset() {
     _frozen = false;
     _us = micros();
+  }
+
+  bool operator>(int rhs) const {
+    elapsedMicros lhs(*this);
+
+    return (lhs.val() > rhs) ? true : false;
+  }
+
+  bool operator>(uint32_t rhs) const {
+    elapsedMicros lhs(*this);
+
+    return (lhs.val() > rhs) ? true : false;
+  }
+
+  bool operator<(const elapsedMicros &rhs) const {
+    elapsedMicros lhs(*this);
+    return lhs.val() < rhs.val();
+  }
+
+  bool operator<(uint64_t rhs) const {
+    elapsedMicros lhs(*this);
+
+    return (lhs.val() < rhs) ? true : false;
+  }
+
+  bool operator<(uint32_t rhs) const {
+    elapsedMicros lhs(*this);
+
+    return (lhs.val() < rhs) ? true : false;
+  }
+
+  bool operator<(int rhs) const {
+    elapsedMicros lhs(*this);
+
+    return (lhs.val() < rhs) ? true : false;
   }
 
   static float toSeconds(uint64_t val) { return (float)val / 1000000.0; }
