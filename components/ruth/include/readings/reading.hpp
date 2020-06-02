@@ -37,9 +37,6 @@
 namespace ruth {
 typedef enum {
   BASE = 0,
-  ENGINE,
-  PH,
-  RAM,
   REMOTE,
   RELHUM,
   SOIL,

@@ -33,7 +33,7 @@ set(
     "src/readings/humidity"     "src/readings/soil"
     "src/readings/startup"      "src/readings/pwm"
     "src/readings/simple_text"  "src/readings/positions"
-    "src/readings/remote"       "src/readings/engine")
+    "src/readings/remote")
 
 set(
   RUTH_PROTOCOLS
