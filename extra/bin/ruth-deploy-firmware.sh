@@ -7,13 +7,13 @@ if [[ ! -d ${ruth_devel} ]]; then
   exit 1
 fi
 
+# use pushd to cd to ruth devel and save the cwd
+pushd -q ${ruth_devel}
+
 host=$(hostname -s)
 if [[ "${host}" = "jophiel" ]]; then
   git pull || exit 1
 fi
-
-# use pushd to cd to ruth devel and save the cwd
-pushd -q ${ruth_devel}
 
 # use the ESP-IDF script to finish creating the environment
 # necessary to run idf.py
