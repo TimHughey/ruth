@@ -32,7 +32,7 @@ humidityReading::humidityReading(const string_t &id, float celsius,
     : celsiusReading(id, celsius) {
   // NOTE: subclassing of this class is not supported so _type
   // can be set directly without concern
-  _type = ReadingType_t::RELHUM;
+  _type = ReadingType_t::SENSOR;
   _relhum = relhum;
 }
 

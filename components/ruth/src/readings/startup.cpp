@@ -28,7 +28,7 @@
 
 namespace ruth {
 startupReading::startupReading(uint32_t batt_mv) : remoteReading(batt_mv) {
-  _type = ReadingType_t::STARTUP;
+  _type = ReadingType_t::BOOT;
 
   app_desc_ = esp_ota_get_app_description();
 

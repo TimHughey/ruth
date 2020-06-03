@@ -38,11 +38,9 @@ namespace ruth {
 typedef enum {
   BASE = 0,
   REMOTE,
-  RELHUM,
-  SOIL,
-  STARTUP,
+  SENSOR,
+  BOOT,
   SWITCH,
-  TEMP,
   TEXT,
   PWM
 } ReadingType_t;
@@ -119,9 +117,8 @@ public:
   void setWriteUS(uint64_t write_us) { _write_us = write_us; }
 
   static const char *typeString(ReadingType_t index) {
-    static const char *type_strings[] = {"base", "remote_runtime", "relhum",
-                                         "soil", "boot",           "switch",
-                                         "temp", "text",           "pwm"};
+    static const char *type_strings[] = {
+        "base", "remote_runtime", "sensor", "boot", "switch", "text", "pwm"};
 
     return type_strings[index];
   };

@@ -29,7 +29,7 @@ namespace ruth {
 soilReading::soilReading(const string_t &id, float celsius, int soil_moisture)
     : celsiusReading(id, celsius) {
   // override the reading type from the base class
-  _type = ReadingType_t::SOIL;
+  _type = ReadingType_t::SENSOR;
   _soil_moisture = soil_moisture;
 };
 

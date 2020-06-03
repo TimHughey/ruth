@@ -33,7 +33,7 @@ celsiusReading::celsiusReading(const string_t &id, float celsius)
 
   // set the type of reading if it hasn't already been set
   // since this class can be subclassed
-  _type = (_type == BASE) ? ReadingType_t::TEMP : _type;
+  _type = (_type == BASE) ? ReadingType_t::SENSOR : _type;
 };
 
 void celsiusReading::populateJSON(JsonDocument &doc) {
