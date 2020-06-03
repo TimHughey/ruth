@@ -36,24 +36,18 @@ startupReading::startupReading(uint32_t batt_mv) : remoteReading(batt_mv) {
 };
 
 void startupReading::populateJSON(JsonDocument &doc) {
-  char magic_word[] = "0x00000000";
   char sha256[12] = {};
 
   remoteReading::populateJSON(doc);
 
-  snprintf(magic_word, sizeof(magic_word), "0x%ux", app_desc_->magic_word);
   esp_ota_get_app_elf_sha256(sha256, sizeof(sha256));
 
+  doc["app_elf_sha256"] = sha256;
+  doc["build_time"] = app_desc_->time;
+  doc["build_date"] = app_desc_->date;
+  doc["firmware_vsn"] = app_desc_->version;
+  doc["idf_vsn"] = app_desc_->idf_ver;
   doc["reset_reason"] = reset_reason_.c_str();
-  doc["hw"] = "esp32";
-  doc["mword"] = magic_word;
-  doc["svsn"] = app_desc_->secure_version;
-  doc["vsn"] = app_desc_->version;
-  doc["proj"] = app_desc_->project_name;
-  doc["btime"] = app_desc_->time;
-  doc["bdate"] = app_desc_->date;
-  doc["idf"] = app_desc_->idf_ver;
-  doc["sha"] = sha256;
 };
 
 const string_t &startupReading::decodeResetReason(esp_reset_reason_t reason) {
