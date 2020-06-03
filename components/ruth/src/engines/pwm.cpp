@@ -62,7 +62,7 @@ void PulseWidth::commandLocal(MsgPayload_t_ptr payload) {
 
   // deserialize the msgpack data
   DynamicJsonDocument doc(_capacity);
-  DeserializationError err = deserializeMsgPack(doc, payload->payload());
+  DeserializationError err = deserializeMsgPack(doc, payload.get()->payload());
 
   // NOTE
   //      The original payload MUST be kept until we are completely finished
@@ -119,9 +119,7 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
 //
 
 void PulseWidth::core(void *task_data) {
-  if (configureTimer() == false) {
-    return;
-  }
+  configureTimer();
 
   // create the command queue
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
@@ -144,15 +142,16 @@ void PulseWidth::core(void *task_data) {
     DeviceAddress_t addr(i);
     pwmDev_t dev(addr);
 
-    unique_ptr<pwmDev> new_dev_ptr(new pwmDev(dev));
+    pwmDev *new_dev = new pwmDev(dev);
+    unique_ptr<pwmDev> new_dev_ptr(new_dev);
 
-    new_dev_ptr.get()->setMissingSeconds(_report_frequency * 60 * 1.5);
-    new_dev_ptr.get()->configureChannel();
+    new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
+    new_dev->configureChannel();
 
-    if (new_dev_ptr.get()->lastRC() == ESP_OK) {
+    if (new_dev->lastRC() == ESP_OK) {
       // release the pointer as we pass it to the known device list
-      addDevice(new_dev_ptr.get());
       new_dev_ptr.release();
+      addDevice(new_dev);
     }
   }
 
@@ -219,7 +218,7 @@ void PulseWidth::report(void *data) {
   }
 }
 
-bool PulseWidth::configureTimer() {
+void PulseWidth::configureTimer() {
   esp_err_t timer_rc;
 
   ledc_timer_config_t ledc_timer = {.speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -230,12 +229,8 @@ bool PulseWidth::configureTimer() {
 
   timer_rc = ledc_timer_config(&ledc_timer);
 
-  if (timer_rc == ESP_OK) {
-    ESP_LOGD(engine_name.c_str(), "ledc timer configured");
-    return true;
-  } else {
-    ESP_LOGE(engine_name.c_str(), "ledc timer [%s]", esp_err_to_name(timer_rc));
-    return false;
+  if (timer_rc != ESP_OK) {
+    ST::rlog("ledc timer config error=\"%s\"", esp_err_to_name(timer_rc));
   }
 }
 

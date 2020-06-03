@@ -262,7 +262,7 @@ void Net::ensureTimeIsSet() {
     }
   }
 
-  // one final wait to ensure SNTP is fully set time
+  // one final wait to ensure SNTP has fully set time
   delay(check_ms);
 
   sntp_elapsed.freeze();
@@ -274,7 +274,7 @@ void Net::ensureTimeIsSet() {
     checkError(__PRETTY_FUNCTION__, 0x1100FE);
   } else {
     xEventGroupSetBits(evg_, timeSetBit());
-    ESP_LOGI(tagEngine(), "SNTP complete in %ums", (uint32_t)sntp_elapsed);
+    ESP_LOGI(tagEngine(), "SNTP complete in %0.1fs", (float)sntp_elapsed);
   }
 }
 

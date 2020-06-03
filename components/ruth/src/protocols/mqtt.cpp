@@ -146,13 +146,20 @@ void MQTT::connectionClosed() {
 bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   auto payload_rc = false;
   auto payload = payload_ptr.get();
+  // save a copy of the subtopic in case we need to report a failure
+  // and the original payload has been moved and possibly freed
+  string_t subtopic(payload->subtopic());
 
   if (payload->invalid()) {
     TR::rlog("[MQTT] invalid topic=\"%s\"", payload->errorTopic());
   }
 
+  // in the various cases below we either move the payload_ptr to another
+  // function or directly use the contents.  once this if/then/else completes
+  // it is UNSAFE to use the payload_ptr -- assume it is no longer valid.
+  // if the payload_ptr happens to still hold a valid pointer, once it falls
+  // out of scope it will be freed.
   if (payload->matchSubtopic("pwm")) {
-    // move along the payload_ptr
     payload_rc = PulseWidth::queuePayload(move(payload_ptr));
 
   } else if (payload->matchSubtopic("i2c")) {
@@ -183,7 +190,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   }
 
   if (payload_rc == false) {
-    TR::rlog("[MQTT] subtopic=\"%s\" failed", payload->subtopic_c());
+    TR::rlog("[MQTT] subtopic=\"%s\" failed", subtopic.c_str());
   }
 
   return payload_rc;

@@ -89,7 +89,7 @@ private:
   // generic read device that will call the specific methods
   bool readDevice(pwmDev_t *dev);
 
-  bool configureTimer();
+  void configureTimer();
   bool detectDevice(pwmDev_t *dev);
 };
 } // namespace ruth
