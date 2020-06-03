@@ -242,18 +242,18 @@ void Net::init() {
 void Net::ensureTimeIsSet() {
   elapsedMillis sntp_elapsed;
   const uint32_t total_ms = 30000;
-  const uint32_t check_ms = 3000;
+  const uint32_t check_ms = 2998;
 
   for (auto wait_sntp = true; wait_sntp;) {
     struct timeval curr_time = {};
 
     uint32_t recent_time = 1591114560;
 
-    StatusLED::brighter();
+    StatusLED::percent(0.10);
 
-    delay(check_ms);
-
-    StatusLED::dimmer();
+    delay(check_ms / 2);
+    StatusLED::percent(0.75);
+    delay(check_ms / 2);
 
     gettimeofday(&curr_time, nullptr);
 
@@ -263,18 +263,17 @@ void Net::ensureTimeIsSet() {
   }
 
   // one final wait to ensure SNTP has fully set time
-  delay(check_ms);
-
-  sntp_elapsed.freeze();
-
-  StatusLED::brighter();
+  StatusLED::percent(0.10);
+  delay(check_ms / 2);
+  StatusLED::percent(0.75);
+  delay(check_ms / 2);
 
   if (sntp_elapsed > total_ms) {
     ESP_LOGE(tagEngine(), "SNTP timeout");
     checkError(__PRETTY_FUNCTION__, 0x1100FE);
   } else {
     xEventGroupSetBits(evg_, timeSetBit());
-    ESP_LOGI(tagEngine(), "SNTP complete in %0.1fs", (float)sntp_elapsed);
+    ESP_LOGI(tagEngine(), "SNTP complete in %0.1fs", sntp_elapsed.toSeconds());
   }
 }
 

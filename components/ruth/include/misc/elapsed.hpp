@@ -96,7 +96,8 @@ public:
     _ms = millis();
   }
 
-  static float toSeconds(uint64_t val) { return (float)val / 1000.0; }
+  float toSeconds() { return (float)(millis() - _ms) / (float)1000.0; }
+  static float toSeconds(uint64_t val) { return (float)val / (float)1000.0; }
 
 private:
   uint64_t _ms;

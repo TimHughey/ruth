@@ -63,6 +63,13 @@ void StatusLED::_off_() {
   activate_duty();
 }
 
+void StatusLED::_percent_(float p) {
+  uint32_t val = uint32_t(duty_max_ * p);
+
+  duty_ = val;
+  activate_duty();
+}
+
 void StatusLED::activate_duty() {
   ledc_set_duty_and_update(ledc_channel_.speed_mode, ledc_channel_.channel,
                            duty_, 0);

@@ -45,6 +45,7 @@ public:
   static void dim() { _instance_()->_dim_(); };
   static void dimmer() { _instance_()->_dimmer_(); };
   static void duty(uint32_t duty) { _instance_()->_duty_(duty); };
+  static void percent(float p) { _instance_()->_percent_(p); };
   static void off() { _instance_()->_off_(); };
 
 private:
@@ -60,6 +61,7 @@ private:
   void _dimmer_();
   void _duty_(uint32_t new_duty);
   void _off_();
+  void _percent_(float p);
 
 private:
   uint32_t duty_max_ = 0b1111111111111; // 13 bits, 8191
