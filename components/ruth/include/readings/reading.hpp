@@ -117,8 +117,8 @@ public:
   void setWriteUS(uint64_t write_us) { _write_us = write_us; }
 
   static const char *typeString(ReadingType_t index) {
-    static const char *type_strings[] = {
-        "base", "remote_runtime", "sensor", "boot", "switch", "text", "pwm"};
+    static const char *type_strings[] = {"base",   "remote", "sensor", "boot",
+                                         "switch", "text",   "pwm"};
 
     return type_strings[index];
   };
