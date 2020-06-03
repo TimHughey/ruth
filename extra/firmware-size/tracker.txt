@@ -561,3 +561,14 @@ Used static IRAM:   89916 bytes (  41156 available, 68.6% used)
     Flash rodata:  136556 bytes
 Total image size:~ 913039 bytes (.bin may be padded larger)
 <<<
+>>>
+a3d6d138 Misc Cleanup and Fixes
+Total sizes:
+ DRAM .data size:   14100 bytes
+ DRAM .bss  size:   24544 bytes
+Used static DRAM:   38644 bytes ( 142092 available, 21.4% used)
+Used static IRAM:   89916 bytes (  41156 available, 68.6% used)
+      Flash code:  674279 bytes
+    Flash rodata:  136804 bytes
+Total image size:~ 915099 bytes (.bin may be padded larger)
+<<<
