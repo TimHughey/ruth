@@ -33,56 +33,26 @@ namespace pwm {
 // NOTE:  all members assigned in constructor definition are constants or
 //        statics and do not need to be copied
 
-Sequence::Sequence(const char *pin_desc, const char *name, xTaskHandle parent,
-                   ledc_channel_config_t *channel, JsonObject &obj)
-    : _pin_desc(pin_desc), _parent(parent), _channel(channel) {
+Sequence::Sequence(const char *pin, ledc_channel_config_t *chan,
+                   JsonObject &obj)
+    : _pin(pin), _channel(chan) {
 
-  _name.assign(name); // copy the name from the JsonObject
-  _repeat = obj["repeat"] | false;
+  // grab a const char * to the name so we can make a local copy.
+  // REMINDER we must always make a local copy of data from the JsonDocument
+  const char *name_str = obj["name"];
+  _name.assign(name_str);
+
+  // grab the activate flag
   _active = obj["activate"] | true;
 
-  JsonArray steps_obj = obj["steps"];
-
-  for (JsonObject step_obj : steps_obj) {
-    Step_t *step = new Step_t(step_obj);
-
-    _steps.push_back(step);
-  }
+  // grab the task handle of the caller to use for later task notifications
+  _parent = xTaskGetCurrentTaskHandle();
 }
 
 Sequence::~Sequence() {
-  stop();
+  // ensure the taks is stopped and deleted from the run queue, nothing
+  // else to deallocate
 
-  // free the steps
-  for_each(_steps.begin(), _steps.end(), [this](Step_t *step) { delete step; });
-}
-
-void Sequence::loop(void *data) {
-
-  ST::rlog("sequence \"%s\" starting", _name.c_str());
-
-  do {
-    for_each(_steps.begin(), _steps.end(), [this](Step_t *step) {
-      const ledc_mode_t mode = _channel->speed_mode;
-      const ledc_channel_t channel = _channel->channel;
-
-      auto esp_rc = ledc_set_duty_and_update(mode, channel, step->duty(), 0);
-
-      if (esp_rc != ESP_OK) {
-        ST::rlog("sequence ledc_set_duty failed: %s", esp_err_to_name(esp_rc));
-      }
-
-      auto notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(step->ms()));
-
-      if (notify_val > 0) {
-        ST::rlog("sequence notify val=%d", notify_val);
-      }
-    });
-  } while (_repeat == true);
-
-  ST::rlog("sequence \"%s\" finished", _name.c_str());
-
-  xTaskNotify(_parent, 0, eIncrement);
   stop();
 }
 

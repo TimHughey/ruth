@@ -30,6 +30,7 @@
 
 #include "devs/base.hpp"
 #include "devs/pwm/pwm.hpp"
+#include "devs/pwm/sequence/basic.hpp"
 #include "local/types.hpp"
 #include "net/network.hpp"
 
@@ -94,10 +95,7 @@ bool pwmDev::sequence(JsonDocument &doc) {
   // sequence to minimize heap frag
   bool erased = eraseSequence(seq_name);
 
-  xTaskHandle parent = xTaskGetCurrentTaskHandle();
-
-  Sequence_t *seq =
-      new Sequence(pwmDevDesc(addr()), seq_name, parent, &_ledc_channel, obj);
+  Sequence_t *seq = new Basic(pwmDevDesc(addr()), &_ledc_channel, obj);
 
   _sequences.push_back(seq);
 
