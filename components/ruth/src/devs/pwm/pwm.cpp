@@ -171,10 +171,13 @@ bool pwmDev::cmdErase(const char *name) {
       });
 
   if (found != _cmds.end()) {
-    _cmds.erase(found);
-
     Command_t *cmd = *found;
 
+    // stop the command (if running)
+    cmd->stop();
+
+    // now it's safe to delete
+    _cmds.erase(found);
     delete cmd;
     rc = true;
   }

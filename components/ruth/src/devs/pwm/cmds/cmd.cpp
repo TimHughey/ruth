@@ -48,9 +48,7 @@ Command::Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj)
 }
 
 Command::~Command() {
-  // ensure the taks is stopped and deleted from the run queue, nothing
-  // else to deallocate
-
+  // ensure the task is stopped and deleted from the run queue
   stop();
 }
 

@@ -52,6 +52,8 @@ Basic::Basic(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd)
 }
 
 Basic::~Basic() {
+  stop(); // stop ourself, if running, before freeing the steps
+
   // free the steps
   for_each(_steps.begin(), _steps.end(), [this](Step_t *step) { delete step; });
 }
