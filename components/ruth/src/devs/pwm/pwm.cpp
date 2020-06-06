@@ -29,8 +29,8 @@
 #include <time.h>
 
 #include "devs/base.hpp"
+#include "devs/pwm/cmds/basic.hpp"
 #include "devs/pwm/pwm.hpp"
-#include "devs/pwm/sequence/basic.hpp"
 #include "local/types.hpp"
 #include "net/network.hpp"
 
@@ -74,42 +74,41 @@ pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
   setID(id.get());
 };
 
-uint8_t pwmDev::devAddr() { return firstAddressByte(); };
-
 void pwmDev::configureChannel() {
   gpio_set_level(_gpio_pin, 0);
   _last_rc = ledc_channel_config(&_ledc_channel);
 }
 
-bool pwmDev::sequence(JsonDocument &doc) {
-  JsonObject obj = doc["seq"];
+bool pwmDev::cmd(JsonDocument &doc) {
+  auto rc = false;
+  Command_t *cmd = nullptr;
+  JsonObject cmd_obj = doc["cmd"];
 
-  if (obj.isNull())
-    return false;
+  if (cmd_obj) {
+    // ok, there's a cmd.  extract the type, name and cmd details
+    string_t type = cmd_obj["type"];
+    const char *cmd_name = cmd_obj["name"];
 
-  // retrieve the sequence name to erase duplicate / replacement
-  // the name will be passed the Sequence constructor (which will copy it)
-  const char *seq_name = obj["name"];
+    // if the cmd name exists, erase it before allocating the new
+    // cmd to minimize heap frag
+    cmdErase(cmd_name);
 
-  // if the sequence name exists, erase it before allocating the new
-  // sequence to minimize heap frag
-  bool erased = eraseSequence(seq_name);
-
-  Sequence_t *seq = new Basic(pwmDevDesc(addr()), &_ledc_channel, obj);
-
-  _sequences.push_back(seq);
-
-  if (erased) {
-    ST::rlog("pwmDev replaced sequence name=\"%s\"", seq_name);
-  } else {
-    ST::rlog("pwmDev created sequence name=\"%s\"", seq_name);
+    if (type.compare("basic") == 0) {
+      cmd = new Basic(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
+    }
   }
 
-  if (seq->active()) {
-    seq->run();
+  if (cmd) {
+
+    _cmds.push_back(cmd);
+
+    if (cmd->active()) {
+      cmd->run();
+    }
+    rc = true;
   }
 
-  return true;
+  return rc;
 }
 
 bool pwmDev::updateDuty(JsonDocument &doc) {
@@ -143,26 +142,40 @@ bool pwmDev::updateDuty(uint32_t new_duty) {
 // PRIVATE
 //
 
-bool pwmDev::eraseSequence(const char *name) {
+bool pwmDev::cmdBasic(JsonDocument &cmd) { return true; }
+
+Command_t *pwmDev::cmdCreate(JsonObject &obj) {
+  string_t type = obj["type"];
+  Command_t *new_cmd = nullptr;
+
+  if (type.compare("basic") == 0) {
+    Basic_t *basic = new Basic(pwmDevDesc(addr()), &_ledc_channel, obj);
+    new_cmd = basic;
+  }
+
+  return new_cmd;
+}
+
+bool pwmDev::cmdErase(const char *name) {
   bool rc = false;
   const string_t name_str = name;
 
   using std::find_if;
 
-  auto found = find_if(_sequences.begin(), _sequences.end(),
-                       [this, name_str](Sequence_t *seq) {
-                         if (name_str.compare(seq->name()) == 0)
-                           return true;
+  auto found =
+      find_if(_cmds.begin(), _cmds.end(), [this, name_str](Command_t *cmd) {
+        if (name_str.compare(cmd->name()) == 0)
+          return true;
 
-                         return false;
-                       });
+        return false;
+      });
 
-  if (found != _sequences.end()) {
-    _sequences.erase(found);
+  if (found != _cmds.end()) {
+    _cmds.erase(found);
 
-    Sequence_t *seq = *found;
+    Command_t *cmd = *found;
 
-    delete seq;
+    delete cmd;
     rc = true;
   }
 

@@ -21,8 +21,8 @@ set(
 set(
   RUTH_PWM_DEVS
     "src/devs/pwm/pwm"
-    "src/devs/pwm/sequence/sequence"
-    "src/devs/pwm/sequence/basic")
+    "src/devs/pwm/cmds/cmd"
+    "src/devs/pwm/cmds/basic")
 
 set(
   RUTH_ENGINES

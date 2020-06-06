@@ -98,8 +98,9 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
     set_rc = dev->updateDuty(doc);
     break;
 
-  case 0x20:
-    set_rc = dev->sequence(doc);
+  case 0x11: // basic
+  case 0x12: // random
+    set_rc = dev->cmd(doc);
     break;
 
   default:
@@ -175,11 +176,6 @@ void PulseWidth::core(void *task_data) {
     if (queue_rc == pdTRUE) {
       unique_ptr<MsgPayload_t> payload_ptr(payload);
       commandLocal(move(payload_ptr));
-
-      if (_cmd_elapsed > 100) {
-        ESP_LOGI(engine_name.c_str(), "command elapsed=%lluµs",
-                 (uint64_t)_cmd_elapsed);
-      }
     }
 
     auto notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10));

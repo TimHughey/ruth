@@ -29,7 +29,7 @@
 #include <driver/ledc.h>
 
 #include "devs/base.hpp"
-#include "devs/pwm/sequence/sequence.hpp"
+#include "devs/pwm/cmds/cmd.hpp"
 #include "external/ArduinoJson.h"
 
 using std::unique_ptr;
@@ -54,8 +54,9 @@ public:
 
 public:
   pwmDev(DeviceAddress_t &num);
-  uint8_t devAddr();
+  uint8_t devAddr() { return firstAddressByte(); };
 
+  // ledc channel
   void configureChannel();
   ledc_channel_t channel() { return _ledc_channel.channel; };
   ledc_mode_t speedMode() { return _ledc_channel.speed_mode; };
@@ -63,8 +64,11 @@ public:
   uint32_t dutyMin() { return _duty_min; };
   gpio_num_t gpioPin() { return _gpio_pin; };
 
-  // sequence support
-  bool sequence(JsonDocument &doc);
+  // primary entry point for all cmds except duty
+  bool cmd(JsonDocument &doc);
+
+  // specific commands
+  bool cmdBasic(JsonDocument &cmd);
 
   bool updateDuty(uint32_t duty);
   bool updateDuty(JsonDocument &doc);
@@ -79,7 +83,7 @@ private:
   static const uint32_t _duty_max = 0x1fff;
   static const uint32_t _duty_min = 0;
 
-  list<Sequence_t *> _sequences = {};
+  list<Command_t *> _cmds = {};
 
   gpio_num_t _gpio_pin;
   uint32_t _duty = 0; // default to zero (off)
@@ -96,7 +100,8 @@ private:
                                          .hpoint = 0};
 
 private:
-  bool eraseSequence(const char *name);
+  Command_t *cmdCreate(JsonObject &obj);
+  bool cmdErase(const char *name);
 };
 } // namespace ruth
 

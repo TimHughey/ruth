@@ -1,6 +1,6 @@
 /*
     devs/pwm/sequence/basic.cpp
-    Ruth PWM Basic Sequence Class Implementation
+    Ruth PWM Basic Command Class Implementation
 
     Copyright (C) 2020  Tim Hughey
 
@@ -24,24 +24,30 @@
 
 #include <esp_log.h>
 
-#include "devs/pwm/sequence/basic.hpp"
+#include "devs/pwm/cmds/basic.hpp"
 #include "readings/simple_text.hpp"
 
 namespace ruth {
 namespace pwm {
-Basic::Basic(const char *pin, ledc_channel_config_t *chan, JsonObject &obj)
-    : Sequence(pin, chan, obj) {
+Basic::Basic(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd)
+    : Command(pin, chan, cmd) {
 
-  _repeat = obj["repeat"] | false;
+  JsonObject basic_obj = cmd["basic"];
 
-  JsonArray steps_obj = obj["steps"];
+  if (basic_obj) {
+    // should this command repeat forever?  default to false
+    _repeat = basic_obj["repeat"] | false;
 
-  for (JsonObject step_obj : steps_obj) {
-    Step_t *step = new Step_t(step_obj);
+    JsonArray steps_obj = basic_obj["steps"];
 
-    _steps.push_back(step);
+    for (JsonObject step_obj : steps_obj) {
+      Step_t *step = new Step_t(step_obj);
+
+      _steps.push_back(step);
+    }
   }
 
+  loopData(this);
   useLoopFunction(&loop);
 }
 
@@ -52,7 +58,7 @@ Basic::~Basic() {
 
 void Basic::_loop() {
 
-  ST::rlog("sequence \"%s\" starting", name_cstr());
+  ST::rlog("pwm cmd \"%s\" starting", name_cstr());
 
   do {
     for_each(_steps.begin(), _steps.end(), [this](Step_t *step) {
@@ -64,13 +70,13 @@ void Basic::_loop() {
       auto esp_rc = ledc_set_duty_and_update(mode, channel, step->duty(), 0);
 
       if (esp_rc != ESP_OK) {
-        ST::rlog("sequence ledc_set_duty failed: %s", esp_err_to_name(esp_rc));
+        ST::rlog("basic cmd ledc_set_duty failed: %s", esp_err_to_name(esp_rc));
       }
 
       auto notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(step->ms()));
 
       if (notify_val > 0) {
-        ST::rlog("sequence notify val=%d", notify_val);
+        ST::rlog("basic cmd notify val=%d", notify_val);
       }
     });
   } while (_repeat == true);

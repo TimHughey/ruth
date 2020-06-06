@@ -1,5 +1,5 @@
 /*
-    include/pwm/sequence/basic.hpp - Ruth PWM Basic Sequence Class
+    include/pwm/cmds/basic.hpp - Ruth PWM Basic Sequence Class
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_sequence_basic_hpp
-#define _ruth_pwm_sequence_basic_hpp
+#ifndef _ruth_pwm_cmd_basic_hpp
+#define _ruth_pwm_cmd_basic_hpp
 
 #include <memory>
 #include <string>
@@ -28,7 +28,7 @@
 #include "external/ArduinoJson.h"
 #include "local/types.hpp"
 
-#include "devs/pwm/sequence/sequence.hpp"
+#include "devs/pwm/cmds/cmd.hpp"
 
 namespace ruth {
 namespace pwm {
@@ -37,9 +37,9 @@ using std::vector;
 
 typedef class Basic Basic_t;
 
-class Basic : public Sequence {
+class Basic : public Command {
 public:
-  Basic(const char *pin, ledc_channel_config_t *chan, JsonObject &obj);
+  Basic(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd);
   ~Basic();
 
 protected:
@@ -54,7 +54,7 @@ private:
 
 private:
   vector<Step_t *> _steps = {}; // the actual steps
-  bool _repeat = false;         // should sequence repeat or execute once?
+  bool _repeat = false;         // should cmd repeat or execute once?
 };
 
 } // namespace pwm

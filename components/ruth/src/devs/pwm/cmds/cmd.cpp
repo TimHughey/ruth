@@ -1,6 +1,6 @@
 /*
-    devs/pwm/sequence/sequence.cpp
-    Ruth PWM Sequence Class Implementation
+    devs/pwm/cmduence/cmduence.cpp
+    Ruth PWM Command Class Implementation
 
     Copyright (C) 2020  Tim Hughey
 
@@ -24,7 +24,7 @@
 
 #include <esp_log.h>
 
-#include "devs/pwm/sequence/sequence.hpp"
+#include "devs/pwm/cmds/cmd.hpp"
 #include "readings/simple_text.hpp"
 
 namespace ruth {
@@ -33,8 +33,7 @@ namespace pwm {
 // NOTE:  all members assigned in constructor definition are constants or
 //        statics and do not need to be copied
 
-Sequence::Sequence(const char *pin, ledc_channel_config_t *chan,
-                   JsonObject &obj)
+Command::Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj)
     : _pin(pin), _channel(chan) {
 
   // grab a const char * to the name so we can make a local copy.
@@ -42,21 +41,20 @@ Sequence::Sequence(const char *pin, ledc_channel_config_t *chan,
   const char *name_str = obj["name"];
   _name.assign(name_str);
 
-  // grab the activate flag
+  // should this command immediately go active? default to true if not specified
   _active = obj["activate"] | true;
-
   // grab the task handle of the caller to use for later task notifications
   _parent = xTaskGetCurrentTaskHandle();
 }
 
-Sequence::~Sequence() {
+Command::~Command() {
   // ensure the taks is stopped and deleted from the run queue, nothing
   // else to deallocate
 
   stop();
 }
 
-void Sequence::stop() {
+void Command::stop() {
   // nothing to stop
   if (_task.handle == nullptr)
     return;
@@ -66,7 +64,7 @@ void Sequence::stop() {
 
   auto stack_hw = uxTaskGetStackHighWaterMark(nullptr);
 
-  ST::rlog("sequence deleting task=%p stack_hw=%d", to_delete, stack_hw);
+  ST::rlog("deleting task=%p stack_hw=%d", to_delete, stack_hw);
 
   // inform FreeRTOS to remove this task from the scheduler
   vTaskDelete(to_delete);

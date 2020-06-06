@@ -1,5 +1,5 @@
 /*
-    include/pwm/sequence/step.hpp - Ruth PWM Sequence Step Class
+    include/pwm/cmds/step.hpp - Ruth PWM Sequence Step Class
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_sequence_step_hpp
-#define _ruth_pwm_sequence_step_hpp
+#ifndef _ruth_pwm_cmd_step_hpp
+#define _ruth_pwm_cmd_step_hpp
 
 #include <memory>
 #include <string>

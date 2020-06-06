@@ -1,5 +1,5 @@
 /*
-    include/pwm/sequence/sequence.hpp - Ruth PWM Sequence Class
+    include/pwm/cmds/cmd.hpp - Ruth PWM Command Class
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_sequence_hpp
-#define _ruth_pwm_sequence_hpp
+#ifndef _ruth_pwm_cmd_hpp
+#define _ruth_pwm_cmd_hpp
 
 #include <memory>
 #include <string>
@@ -28,7 +28,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "devs/pwm/sequence/step.hpp"
+#include "devs/pwm/cmds/step.hpp"
 #include "readings/simple_text.hpp"
 
 namespace ruth {
@@ -36,21 +36,22 @@ namespace pwm {
 
 using std::vector;
 
-typedef class Sequence Sequence_t;
+typedef class Command Command_t;
 
-class Sequence {
+class Command {
 public:
-  Sequence(const char *pin, ledc_channel_config_t *chan, JsonObject &obj);
-  virtual ~Sequence();
+  Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj);
+  virtual ~Command();
 
-  Sequence() = delete;                  // no default sequences
-  Sequence(const Sequence &s) = delete; // no copies
+  Command() = delete;                 // no default cmds
+  Command(const Command &s) = delete; // no copies
 
   // member access
   const ledc_channel_config_t *channel() const { return _channel; }
   const string_t &name() { return _name; }
   const char *name_cstr() const { return _name.c_str(); }
 
+  void activate(bool yes_or_no) { _active = yes_or_no; }
   bool active() const { return _active; }
 
   // task implementation, control and access
@@ -59,18 +60,20 @@ public:
   void stop();
 
 protected:
+  void loopData(Command_t *obj) { _task.data = obj; }
   void useLoopFunction(TaskFunc_t *func) { _loop_func = func; }
 
 protected:
   TaskFunc_t *_loop_func = nullptr;
+  Command_t *_loop_data = nullptr;
 
 private:
-  string_t _name;      // name of this sequence
+  string_t _name;      // name of this cmd
   const char *_pin;    // pwm pin description
   xTaskHandle _parent; // task handle of parent for notification purposes
   ledc_channel_config_t *_channel; // ledc channel to control
 
-  bool _active = false; // should sequence become active?
+  bool _active = false; // should cmd become active?
 
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
@@ -90,16 +93,16 @@ private:
 
     // this (object) is passed as the data to the task creation and is
     // used by the static runEngine method to call the run method
-    ::xTaskCreate(&runTask, task_name.c_str(), _task.stackSize, this,
+    ::xTaskCreate(&runTask, task_name.c_str(), _task.stackSize, _task.data,
                   _task.priority, &_task.handle);
   }
 
   // Task implementation
   static void runTask(void *task_instance) {
-    Sequence_t *seq = (Sequence_t *)task_instance;
+    Command_t *seq = (Command_t *)task_instance;
     seq->_loop_func(seq->_task.data);
 
-    ST::rlog("sequence \"%s\" finished", seq->_name.c_str());
+    ST::rlog("cmd \"%s\" finished", seq->_name.c_str());
 
     xTaskNotify(seq->_parent, 0, eIncrement);
     seq->stop();
