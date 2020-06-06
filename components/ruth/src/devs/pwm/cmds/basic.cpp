@@ -1,5 +1,5 @@
 /*
-    devs/pwm/sequence/basic.cpp
+    devs/pwm/cmds/basic.cpp
     Ruth PWM Basic Command Class Implementation
 
     Copyright (C) 2020  Tim Hughey

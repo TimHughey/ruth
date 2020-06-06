@@ -67,9 +67,6 @@ public:
   // primary entry point for all cmds except duty
   bool cmd(JsonDocument &doc);
 
-  // specific commands
-  bool cmdBasic(JsonDocument &cmd);
-
   bool updateDuty(uint32_t duty);
   bool updateDuty(JsonDocument &doc);
 

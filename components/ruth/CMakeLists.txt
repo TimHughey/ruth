@@ -22,7 +22,8 @@ set(
   RUTH_PWM_DEVS
     "src/devs/pwm/pwm"
     "src/devs/pwm/cmds/cmd"
-    "src/devs/pwm/cmds/basic")
+    "src/devs/pwm/cmds/basic"
+    "src/devs/pwm/cmds/random")
 
 set(
   RUTH_ENGINES

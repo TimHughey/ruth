@@ -30,6 +30,7 @@
 
 #include "devs/base.hpp"
 #include "devs/pwm/cmds/basic.hpp"
+#include "devs/pwm/cmds/random.hpp"
 #include "devs/pwm/pwm.hpp"
 #include "local/types.hpp"
 #include "net/network.hpp"
@@ -85,16 +86,31 @@ bool pwmDev::cmd(JsonDocument &doc) {
   JsonObject cmd_obj = doc["cmd"];
 
   if (cmd_obj) {
-    // ok, there's a cmd.  extract the type, name and cmd details
-    string_t type = cmd_obj["type"];
+    // ok, there's a cmd.
+    // get the name so an existing cmd with the same name can be stopped
     const char *cmd_name = cmd_obj["name"];
+    string_t type = cmd_obj["type"];
 
     // if the cmd name exists, erase it before allocating the new
     // cmd to minimize heap frag
     cmdErase(cmd_name);
 
     if (type.compare("basic") == 0) {
-      cmd = new Basic(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
+      auto new_cmd = new Basic(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
+
+      if (new_cmd->active()) {
+        new_cmd->run();
+      }
+
+      cmd = new_cmd;
+    } else if (type.compare("random") == 0) {
+      auto new_cmd = new Random(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
+
+      if (new_cmd->active()) {
+        new_cmd->run();
+      }
+
+      cmd = new_cmd;
     }
   }
 
@@ -102,9 +118,6 @@ bool pwmDev::cmd(JsonDocument &doc) {
 
     _cmds.push_back(cmd);
 
-    if (cmd->active()) {
-      cmd->run();
-    }
     rc = true;
   }
 
@@ -142,16 +155,9 @@ bool pwmDev::updateDuty(uint32_t new_duty) {
 // PRIVATE
 //
 
-bool pwmDev::cmdBasic(JsonDocument &cmd) { return true; }
-
 Command_t *pwmDev::cmdCreate(JsonObject &obj) {
   string_t type = obj["type"];
   Command_t *new_cmd = nullptr;
-
-  if (type.compare("basic") == 0) {
-    Basic_t *basic = new Basic(pwmDevDesc(addr()), &_ledc_channel, obj);
-    new_cmd = basic;
-  }
 
   return new_cmd;
 }
