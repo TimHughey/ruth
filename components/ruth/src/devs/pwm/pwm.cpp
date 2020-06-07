@@ -89,36 +89,19 @@ bool pwmDev::cmd(JsonDocument &doc) {
     // ok, there's a cmd.
     // get the name so an existing cmd with the same name can be stopped
     const char *cmd_name = cmd_obj["name"];
-    string_t type = cmd_obj["type"];
 
     // if the cmd name exists, erase it before allocating the new
     // cmd to minimize heap frag
     cmdErase(cmd_name);
 
-    if (type.compare("basic") == 0) {
-      auto new_cmd = new Basic(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
+    cmd = cmdCreate(cmd_obj);
+    if (cmd) {
+      _cmds.push_back(cmd);
 
-      if (new_cmd->active()) {
-        new_cmd->run();
-      }
+      cmd->runIfNeeded();
 
-      cmd = new_cmd;
-    } else if (type.compare("random") == 0) {
-      auto new_cmd = new Random(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
-
-      if (new_cmd->active()) {
-        new_cmd->run();
-      }
-
-      cmd = new_cmd;
+      rc = true;
     }
-  }
-
-  if (cmd) {
-
-    _cmds.push_back(cmd);
-
-    rc = true;
   }
 
   return rc;
@@ -127,8 +110,16 @@ bool pwmDev::cmd(JsonDocument &doc) {
 bool pwmDev::updateDuty(JsonDocument &doc) {
   const uint32_t new_duty = doc["duty"] | 0;
 
+  if (_cmds.empty() == false) {
+    for_each(_cmds.begin(), _cmds.end(), [this](Command_t *cmd) {
+      if (cmd->running()) {
+        cmd->kill();
+      }
+    });
+  }
+
   return updateDuty(new_duty);
-}
+} // namespace ruth
 
 bool pwmDev::updateDuty(uint32_t new_duty) {
   auto esp_rc = ESP_OK;
@@ -155,11 +146,18 @@ bool pwmDev::updateDuty(uint32_t new_duty) {
 // PRIVATE
 //
 
-Command_t *pwmDev::cmdCreate(JsonObject &obj) {
-  string_t type = obj["type"];
-  Command_t *new_cmd = nullptr;
+Command_t *pwmDev::cmdCreate(JsonObject &cmd_obj) {
+  string_t type = cmd_obj["type"];
+  Command_t *cmd = nullptr;
 
-  return new_cmd;
+  if (type.compare("basic") == 0) {
+    cmd = new Basic(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
+
+  } else if (type.compare("random") == 0) {
+    cmd = new Random(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
+  }
+
+  return cmd;
 }
 
 bool pwmDev::cmdErase(const char *name) {
@@ -180,7 +178,7 @@ bool pwmDev::cmdErase(const char *name) {
     Command_t *cmd = *found;
 
     // stop the command (if running)
-    cmd->stop();
+    cmd->kill();
 
     // now it's safe to delete
     _cmds.erase(found);

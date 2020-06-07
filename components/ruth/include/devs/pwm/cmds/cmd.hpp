@@ -51,13 +51,13 @@ public:
   const string_t &name() { return _name; }
   const char *name_cstr() const { return _name.c_str(); }
 
-  void activate(bool yes_or_no) { _active = yes_or_no; }
-  bool active() const { return _active; }
+  void activate(bool yes_or_no) { _activate = yes_or_no; }
+  bool active() const { return _activate; }
 
   // task implementation, control and access
-  void run() { _start_(); }
+  void runIfNeeded();
   bool running() const { return (_task.handle == nullptr) ? false : true; }
-  void stop();
+  void kill();
 
 protected:
   void loopData(Command_t *obj) { _task.data = obj; }
@@ -73,7 +73,7 @@ private:
   xTaskHandle _parent; // task handle of parent for notification purposes
   ledc_channel_config_t *_channel; // ledc channel to control
 
-  bool _active = false; // should cmd become active?
+  bool _activate = false; // should cmd become active?
 
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
@@ -99,13 +99,13 @@ private:
 
   // Task implementation
   static void runTask(void *task_instance) {
-    Command_t *seq = (Command_t *)task_instance;
-    seq->_loop_func(seq->_task.data);
+    Command_t *cmd = (Command_t *)task_instance;
+    cmd->_loop_func(cmd->_task.data);
 
-    ST::rlog("cmd \"%s\" finished", seq->_name.c_str());
+    ST::rlog("cmd \"%s\" finished", cmd->_name.c_str());
 
-    xTaskNotify(seq->_parent, 0, eIncrement);
-    seq->stop();
+    xTaskNotify(cmd->_parent, 0, eIncrement);
+    cmd->kill();
   }
 };
 } // namespace pwm

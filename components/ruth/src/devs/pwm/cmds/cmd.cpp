@@ -42,17 +42,22 @@ Command::Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj)
   _name.assign(name_str);
 
   // should this command immediately go active? default to true if not specified
-  _active = obj["activate"] | true;
+  _activate = obj["activate"] | true;
   // grab the task handle of the caller to use for later task notifications
   _parent = xTaskGetCurrentTaskHandle();
 }
 
 Command::~Command() {
   // ensure the task is stopped and deleted from the run queue
-  stop();
+  kill();
 }
 
-void Command::stop() {
+void Command::runIfNeeded() {
+  if (_activate)
+    _start_();
+}
+
+void Command::kill() {
   // nothing to stop
   if (_task.handle == nullptr)
     return;

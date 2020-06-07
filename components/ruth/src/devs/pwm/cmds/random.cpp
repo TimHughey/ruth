@@ -54,7 +54,7 @@ Random::Random(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd)
 }
 
 Random::~Random() {
-  stop(); // stop ourself, if running, before freeing the steps
+  kill(); // kill our process, if running, before freeing the steps
 }
 
 void Random::_loop() {
@@ -69,11 +69,11 @@ void Random::_loop() {
     auto direction = randomDirection();
     auto steps = randomPrime() * (randomPrime() / 2);
 
-    for (auto i = 0; ((i < steps) && (_run == true)); i++) {
+    for (auto i = 0; (i < steps) && _run; i++) {
       auto next_duty = curr_duty + (_step * direction);
 
       if ((next_duty >= _max) || (next_duty <= _min)) {
-        next_duty = curr_duty + (randomPrime() * (direction * -1));
+        break;
       }
 
       curr_duty = next_duty;
@@ -83,8 +83,8 @@ void Random::_loop() {
     }
 
     // at the end of each sequence of steps pause
-    pause(randomPrime() * (randomPrime() / 2));
-  } while (_run == true);
+    pause(randomPrime() + (randomPrime() / 2));
+  } while (_run);
 
   ST::rlog("pwm cmd \"%s\" ended", name_cstr());
 
