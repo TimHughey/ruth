@@ -60,8 +60,6 @@ Basic::~Basic() {
 
 void Basic::_loop() {
 
-  ST::rlog("pwm cmd \"%s\" starting", name_cstr());
-
   do {
     for_each(_steps.begin(), _steps.end(), [this](Step_t *step) {
       const ledc_channel_config_t *chan = channel();
@@ -69,16 +67,13 @@ void Basic::_loop() {
       const ledc_mode_t mode = chan->speed_mode;
       const ledc_channel_t channel = chan->channel;
 
-      auto esp_rc = ledc_set_duty_and_update(mode, channel, step->duty(), 0);
-
-      if (esp_rc != ESP_OK) {
-        ST::rlog("basic cmd ledc_set_duty failed: %s", esp_err_to_name(esp_rc));
-      }
+      ledc_set_duty_and_update(mode, channel, step->duty(), 0);
 
       auto notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(step->ms()));
 
       if (notify_val > 0) {
-        ST::rlog("basic cmd notify val=%d", notify_val);
+        ST::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name_cstr(), pin(),
+                 notify_val);
       }
     });
   } while (_repeat == true);

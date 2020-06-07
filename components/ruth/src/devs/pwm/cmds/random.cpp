@@ -59,44 +59,37 @@ Random::~Random() {
 
 void Random::_loop() {
 
-  ST::rlog("random cmd \"%s\" starting", name_cstr());
-
   // pick a random starting point
   auto curr_duty = random((_max - _min) + _min);
 
   do {
     // pick a random initial direction and number of steps
     auto direction = randomDirection();
-    auto steps = randomPrime() * (randomPrime() / 2);
+    auto steps = randomPrime();
 
     for (auto i = 0; (i < steps) && _run; i++) {
       auto next_duty = curr_duty + (_step * direction);
 
       if ((next_duty >= _max) || (next_duty <= _min)) {
+        pause(randomPrime() + _step_ms);
         break;
       }
 
       curr_duty = next_duty;
       setDuty(next_duty);
 
-      pause(_step_ms);
+      pause(randomPrime() + _step_ms);
     }
-
-    // at the end of each sequence of steps pause
-    pause(randomPrime() + (randomPrime() / 2));
   } while (_run);
-
-  ST::rlog("pwm cmd \"%s\" ended", name_cstr());
-
-  // wait here forever
-  vTaskDelay(portMAX_DELAY);
 }
 
 void Random::pause(uint32_t ms) {
   auto notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ms));
 
   if (notify_val > 0) {
-    ST::rlog("task notify=%ld", notify_val);
+    _run = false;
+    ST::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name_cstr(), pin(),
+             notify_val);
   }
 }
 

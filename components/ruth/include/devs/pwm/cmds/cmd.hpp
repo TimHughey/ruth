@@ -54,6 +54,8 @@ public:
   void activate(bool yes_or_no) { _activate = yes_or_no; }
   bool active() const { return _activate; }
 
+  const char *pin() const { return _pin; }
+
   // task implementation, control and access
   void runIfNeeded();
   bool running() const { return (_task.handle == nullptr) ? false : true; }
@@ -100,9 +102,12 @@ private:
   // Task implementation
   static void runTask(void *task_instance) {
     Command_t *cmd = (Command_t *)task_instance;
+
+    ST::rlog("cmd \"%s\" starting on %s", cmd->name_cstr(), cmd->pin());
+
     cmd->_loop_func(cmd->_task.data);
 
-    ST::rlog("cmd \"%s\" finished", cmd->_name.c_str());
+    ST::rlog("cmd \"%s\" finished on \"%s\"", cmd->_name.c_str(), cmd->pin());
 
     xTaskNotify(cmd->_parent, 0, eIncrement);
     cmd->kill();
