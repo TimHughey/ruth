@@ -32,7 +32,7 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 
-#include "devs/ds_dev.hpp"
+#include "devs/ds/dev.hpp"
 #include "drivers/owb.h"
 #include "drivers/owb_rmt.h"
 #include "engines/engine.hpp"

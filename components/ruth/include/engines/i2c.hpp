@@ -31,7 +31,7 @@
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
 
-#include "devs/i2c_dev.hpp"
+#include "devs/i2c/dev.hpp"
 #include "engines/engine.hpp"
 
 namespace ruth {

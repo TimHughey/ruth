@@ -29,7 +29,7 @@
 
 #include "devs/base/addr.hpp"
 #include "devs/base/base.hpp"
-#include "devs/ds_dev.hpp"
+#include "devs/ds/dev.hpp"
 #include "drivers/owb.h"
 #include "local/types.hpp"
 
