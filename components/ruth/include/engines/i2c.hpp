@@ -55,7 +55,7 @@ typedef struct {
 #define RST_PIN_SEL GPIO_SEL_21
 
 typedef class I2c I2c_t;
-class I2c : public Engine<i2cDev_t> {
+class I2c : public Engine<I2cDevice_t> {
 
 private:
   I2c();
@@ -108,7 +108,7 @@ private:
   const TickType_t _cmd_timeout = pdMS_TO_TICKS(1000);
 
   DeviceAddress_t _mplex_addr = DeviceAddress(0x70);
-  i2cDev_t _multiplexer_dev = i2cDev(_mplex_addr);
+  I2cDevice_t _multiplexer_dev = I2cDevice(_mplex_addr);
   int _reset_pin_level = 0;
 
 private:
@@ -120,7 +120,7 @@ private:
       {DeviceAddress(0x27)}, {DeviceAddress(0x36)}, {DeviceAddress(0x00)}};
 
   static I2c_t *_instance_();
-  bool commandExecute(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
+  bool commandExecute(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
                       bool ack, const RefID_t &refid,
                       elapsedMicros &cmd_elapsed);
 
@@ -130,28 +130,28 @@ private:
   };
 
   // generic read device that will call the specific methods
-  bool readDevice(i2cDev_t *dev);
+  bool readDevice(I2cDevice_t *dev);
 
   // specific methods to read devices
-  bool readMCP23008(i2cDev_t *dev);
-  bool setMCP23008(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
+  bool readMCP23008(I2cDevice_t *dev);
+  bool setMCP23008(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
 
-  bool readSeesawSoil(i2cDev_t *dev);
-  bool readSHT31(i2cDev_t *dev);
+  bool readSeesawSoil(I2cDevice_t *dev);
+  bool readSHT31(I2cDevice_t *dev);
 
   // request data by sending command bytes and then reading the result
   // NOTE:  send and recv are executed as a single i2c transaction
-  esp_err_t requestData(i2cDev_t *dev, uint8_t *send, uint8_t send_len,
+  esp_err_t requestData(I2cDevice_t *dev, uint8_t *send, uint8_t send_len,
                         uint8_t *recv, uint8_t recv_len,
                         esp_err_t prev_esp_rc = ESP_OK, int timeout = 0);
 
   // utility methods
-  esp_err_t busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
+  esp_err_t busRead(I2cDevice_t *dev, uint8_t *buff, uint32_t len,
                     esp_err_t prev_esp_rc = ESP_OK);
-  esp_err_t busWrite(i2cDev_t *dev, uint8_t *buff, uint32_t len,
+  esp_err_t busWrite(I2cDevice_t *dev, uint8_t *buff, uint32_t len,
                      esp_err_t prev_esp_rc = ESP_OK);
   bool crcSHT31(const uint8_t *data);
-  bool detectDevice(i2cDev_t *dev);
+  bool detectDevice(I2cDevice_t *dev);
   bool detectDevicesOnBus(int bus);
 
   bool detectMultiplexer(const int max_attempts = 1);
@@ -161,7 +161,7 @@ private:
   uint32_t maxBuses();
   bool useMultiplexer();
   bool selectBus(uint32_t bus);
-  void printUnhandledDev(i2cDev_t *dev);
+  void printUnhandledDev(I2cDevice_t *dev);
 };
 } // namespace ruth
 

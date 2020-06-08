@@ -30,9 +30,9 @@ using std::unique_ptr;
 
 namespace ruth {
 
-typedef class dsDev dsDev_t;
+typedef class DsDevice DsDevice_t;
 
-class dsDev : public Device {
+class DsDevice : public Device {
 private:
   static const size_t _ds_max_addr_len = 8;
   static const uint8_t _family_byte = 0;
@@ -49,8 +49,8 @@ private:
   const string_t &familyDescription();
 
 public:
-  dsDev();
-  dsDev(DeviceAddress_t &addr, bool power = false);
+  DsDevice();
+  DsDevice(DeviceAddress_t &addr, bool power = false);
 
   uint8_t family();
   uint8_t crc();
@@ -77,7 +77,7 @@ public:
   const unique_ptr<char[]> debug();
 };
 
-typedef class dsDev dsDev_t;
+typedef class DsDevice DsDevice_t;
 
 } // namespace ruth
 

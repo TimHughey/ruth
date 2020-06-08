@@ -99,7 +99,7 @@ void I2c::command(void *data) {
     }
 
     string_t device = doc["device"] | "missing";
-    i2cDev_t *dev = findDevice(device);
+    I2cDevice_t *dev = findDevice(device);
 
     if (dev == nullptr) {
       textReading::rlog("[i2c] could not locate device \"%s\"", device.c_str());
@@ -135,7 +135,7 @@ void I2c::command(void *data) {
   }
 }
 
-bool I2c::commandExecute(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
+bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
                          bool ack, const RefID_t &refid,
                          elapsedMicros &cmd_elapsed) {
 
@@ -245,8 +245,8 @@ void I2c::report(void *data) {
 
     Net::waitForNormalOps();
 
-    for_each(beginDevices(), endDevices(), [this](i2cDev_t *item) {
-      i2cDev_t *dev = item;
+    for_each(beginDevices(), endDevices(), [this](I2cDevice_t *item) {
+      I2cDevice_t *dev = item;
 
       if (dev->available()) {
         takeBus();
@@ -268,7 +268,7 @@ void I2c::report(void *data) {
   }
 }
 
-esp_err_t I2c::busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
+esp_err_t I2c::busRead(I2cDevice_t *dev, uint8_t *buff, uint32_t len,
                        esp_err_t prev_esp_rc) {
   i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc;
@@ -301,7 +301,7 @@ esp_err_t I2c::busRead(i2cDev_t *dev, uint8_t *buff, uint32_t len,
   return esp_rc;
 }
 
-esp_err_t I2c::busWrite(i2cDev_t *dev, uint8_t *bytes, uint32_t len,
+esp_err_t I2c::busWrite(I2cDevice_t *dev, uint8_t *bytes, uint32_t len,
                         esp_err_t prev_esp_rc) {
   i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc;
@@ -346,7 +346,7 @@ bool I2c::crcSHT31(const uint8_t *data) {
   return (crc == *data);
 }
 
-bool I2c::detectDevice(i2cDev_t *dev) {
+bool I2c::detectDevice(I2cDevice_t *dev) {
   bool rc = false;
   // i2c_cmd_handle_t cmd = nullptr;
   esp_err_t esp_rc = ESP_FAIL;
@@ -387,7 +387,7 @@ bool I2c::detectDevicesOnBus(int bus) {
 
   for (uint8_t i = 0; addrs[i].isValid(); i++) {
     DeviceAddress_t &search_addr = addrs[i];
-    i2cDev_t dev(search_addr, useMultiplexer(), bus);
+    I2cDevice_t dev(search_addr, useMultiplexer(), bus);
 
     // abort detecting devices if the bus select fails
     if (selectBus(bus) == false)
@@ -396,7 +396,7 @@ bool I2c::detectDevicesOnBus(int bus) {
     if (detectDevice(&dev)) {
       if (justSeenDevice(dev) == nullptr) {
         // device was not known, must add
-        i2cDev_t *new_dev = new i2cDev(dev);
+        I2cDevice_t *new_dev = new I2cDevice(dev);
         new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
         addDevice(new_dev);
       }
@@ -485,13 +485,13 @@ bool I2c::pinReset() {
   return true;
 }
 
-void I2c::printUnhandledDev(i2cDev_t *dev) {
+void I2c::printUnhandledDev(I2cDevice_t *dev) {
   textReading::rlog("unhandled device \"%s\"", dev->debug().get());
 }
 
 bool I2c::useMultiplexer() { return _use_multiplexer; }
 
-bool I2c::readDevice(i2cDev_t *dev) {
+bool I2c::readDevice(I2cDevice_t *dev) {
   auto rc = false;
 
   if (selectBus(dev->bus())) {
@@ -530,7 +530,7 @@ bool I2c::readDevice(i2cDev_t *dev) {
   return rc;
 }
 
-bool I2c::readMCP23008(i2cDev_t *dev) {
+bool I2c::readMCP23008(I2cDevice_t *dev) {
   auto rc = false;
   auto positions = 0b00000000;
   esp_err_t esp_rc;
@@ -573,7 +573,7 @@ bool I2c::readMCP23008(i2cDev_t *dev) {
   return rc;
 }
 
-bool I2c::readSeesawSoil(i2cDev_t *dev) {
+bool I2c::readSeesawSoil(I2cDevice_t *dev) {
   auto rc = false;
   esp_err_t esp_rc;
   float tempC = 0.0;
@@ -656,7 +656,7 @@ bool I2c::readSeesawSoil(i2cDev_t *dev) {
   return rc;
 }
 
-bool I2c::readSHT31(i2cDev_t *dev) {
+bool I2c::readSHT31(I2cDevice_t *dev) {
   auto rc = false;
   esp_err_t esp_rc;
 
@@ -703,7 +703,7 @@ bool I2c::readSHT31(i2cDev_t *dev) {
   return rc;
 }
 
-esp_err_t I2c::requestData(i2cDev_t *dev, uint8_t *send, uint8_t send_len,
+esp_err_t I2c::requestData(I2cDevice_t *dev, uint8_t *send, uint8_t send_len,
                            uint8_t *recv, uint8_t recv_len,
                            esp_err_t prev_esp_rc, int timeout) {
   i2c_cmd_handle_t cmd = nullptr;
@@ -767,7 +767,7 @@ esp_err_t I2c::requestData(i2cDev_t *dev, uint8_t *send, uint8_t send_len,
 
 bool I2c::selectBus(uint32_t bus) {
   bool rc = true; // default return is success, failures detected inline
-  i2cDev_t multiplexer = i2cDev(_multiplexer_dev);
+  I2cDevice_t multiplexer = I2cDevice(_multiplexer_dev);
   esp_err_t esp_rc = ESP_FAIL;
 
   _bus_selects++;
@@ -798,7 +798,7 @@ bool I2c::selectBus(uint32_t bus) {
   return rc;
 }
 
-bool I2c::setMCP23008(i2cDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state) {
+bool I2c::setMCP23008(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state) {
   bool rc = false;
   auto esp_rc = ESP_OK;
 

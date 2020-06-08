@@ -30,13 +30,13 @@ namespace ruth {
 
 using std::unique_ptr;
 
-typedef class i2cDev i2cDev_t;
+typedef class I2cDevice I2cDevice_t;
 typedef class std::vector<uint8_t> RawData_t;
 
-class i2cDev : public Device {
+class I2cDevice : public Device {
 public:
-  i2cDev() {}
-  static const char *i2cDevDesc(uint8_t addr);
+  I2cDevice() {}
+  static const char *I2cDeviceDesc(uint8_t addr);
 
 private:
   static const uint32_t _i2c_max_addr_len = 1;
@@ -48,8 +48,8 @@ private:
   RawData_t _raw_data;
 
 public:
-  // construct a new i2cDev with a known address and compute the id
-  i2cDev(DeviceAddress_t &addr, bool use_multiplexer = false, uint8_t bus = 0);
+  // construct a new I2cDevice with a known address and compute the id
+  I2cDevice(DeviceAddress_t &addr, bool use_multiplexer = false, uint8_t bus = 0);
 
   uint8_t devAddr();
   bool useMultiplexer();

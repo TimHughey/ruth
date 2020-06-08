@@ -36,7 +36,7 @@ using std::unique_ptr;
 
 namespace ruth {
 
-const char *i2cDev::i2cDevDesc(uint8_t addr) {
+const char *I2cDevice::I2cDeviceDesc(uint8_t addr) {
   switch (addr) {
   case 0x44:
     return (const char *)"sht31";
@@ -63,8 +63,8 @@ const char *i2cDev::i2cDevDesc(uint8_t addr) {
   }
 }
 
-// construct a new i2cDev with a known address and compute the id
-i2cDev::i2cDev(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
+// construct a new I2cDevice with a known address and compute the id
+I2cDevice::I2cDevice(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
     : Device(addr) {
   _use_multiplexer = use_multiplexer;
   _bus = bus;
@@ -72,7 +72,7 @@ i2cDev::i2cDev(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
   auto const max_id_len = 63;
   unique_ptr<char[]> id(new char[max_id_len + 1]);
 
-  setDescription(i2cDevDesc(firstAddressByte()));
+  setDescription(I2cDeviceDesc(firstAddressByte()));
 
   snprintf(id.get(), max_id_len, "i2c/%s.%02x.%s", Net::hostname(), this->bus(),
            description().c_str());
@@ -82,27 +82,27 @@ i2cDev::i2cDev(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
   _raw_data.reserve(24);
 };
 
-uint8_t i2cDev::devAddr() { return firstAddressByte(); };
-bool i2cDev::useMultiplexer() { return _use_multiplexer; };
-uint8_t i2cDev::bus() const { return _bus; };
+uint8_t I2cDevice::devAddr() { return firstAddressByte(); };
+bool I2cDevice::useMultiplexer() { return _use_multiplexer; };
+uint8_t I2cDevice::bus() const { return _bus; };
 
-const RawData_t &i2cDev::rawData() { return _raw_data; }
+const RawData_t &I2cDevice::rawData() { return _raw_data; }
 
-uint8_t i2cDev::readAddr() {
+uint8_t I2cDevice::readAddr() {
   return (firstAddressByte() << 1) | I2C_MASTER_READ;
 };
 
-void i2cDev::storeRawData(RawData_t &data) { _raw_data = data; }
+void I2cDevice::storeRawData(RawData_t &data) { _raw_data = data; }
 
-uint8_t i2cDev::writeAddr() {
+uint8_t I2cDevice::writeAddr() {
   return (firstAddressByte() << 1) | I2C_MASTER_WRITE;
 };
 
-const unique_ptr<char[]> i2cDev::debug() {
+const unique_ptr<char[]> I2cDevice::debug() {
   const auto max_len = 127;
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
-  snprintf(debug_str.get(), max_len, "i2cDev(%s bus=%d use_mplex=%s)",
+  snprintf(debug_str.get(), max_len, "I2cDevice(%s bus=%d use_mplex=%s)",
            id().c_str(), _bus, (_use_multiplexer) ? "true" : "false");
 
   return move(debug_str);

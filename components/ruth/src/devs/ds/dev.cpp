@@ -35,7 +35,7 @@
 
 namespace ruth {
 
-dsDev::dsDev(DeviceAddress_t &addr, bool power) : Device(addr) {
+DsDevice::DsDevice(DeviceAddress_t &addr, bool power) : Device(addr) {
   char buff[_id_len] = {0x00};
   // byte   0: 8-bit family code
   // byte 1-6: 48-bit unique serial number
@@ -58,18 +58,18 @@ dsDev::dsDev(DeviceAddress_t &addr, bool power) : Device(addr) {
   setID(dev_id);
 };
 
-uint8_t dsDev::family() { return firstAddressByte(); };
-uint8_t dsDev::crc() { return lastAddressByte(); };
-uint8_t dsDev::addrLen() { return _ds_max_addr_len; }
-void dsDev::copyAddrToCmd(uint8_t *cmd) {
+uint8_t DsDevice::family() { return firstAddressByte(); };
+uint8_t DsDevice::crc() { return lastAddressByte(); };
+uint8_t DsDevice::addrLen() { return _ds_max_addr_len; }
+void DsDevice::copyAddrToCmd(uint8_t *cmd) {
   memcpy((cmd + 1), (uint8_t *)addr(), addr().len());
   // *(cmd + 1) = addr().firstAddressByte();
 }
 
-bool dsDev::isPowered() { return _power; };
-Reading_t *dsDev::reading() { return _reading; };
+bool DsDevice::isPowered() { return _power; };
+Reading_t *DsDevice::reading() { return _reading; };
 
-bool dsDev::isDS1820() {
+bool DsDevice::isDS1820() {
   auto rc = false;
 
   switch (family()) {
@@ -84,14 +84,14 @@ bool dsDev::isDS1820() {
 
   return rc;
 }
-bool dsDev::isDS2406() { return (family() == _family_DS2406) ? true : false; };
-bool dsDev::isDS2408() { return (family() == _family_DS2408) ? true : false; };
-bool dsDev::isDS2413() { return (family() == _family_DS2413) ? true : false; };
-bool dsDev::isDS2438() { return (family() == _family_DS2413) ? true : false; };
+bool DsDevice::isDS2406() { return (family() == _family_DS2406) ? true : false; };
+bool DsDevice::isDS2408() { return (family() == _family_DS2408) ? true : false; };
+bool DsDevice::isDS2413() { return (family() == _family_DS2413) ? true : false; };
+bool DsDevice::isDS2438() { return (family() == _family_DS2413) ? true : false; };
 
-bool dsDev::hasTemperature() { return isDS1820(); }
+bool DsDevice::hasTemperature() { return isDS1820(); }
 
-uint8_t *dsDev::parseId(char *name) {
+uint8_t *DsDevice::parseId(char *name) {
   static uint8_t addr[_addr_len] = {0x00};
   //                 00000000001111111
   //       byte num: 01234567890123456
@@ -113,11 +113,11 @@ uint8_t *dsDev::parseId(char *name) {
   return addr;
 }
 
-const string_t &dsDev::familyDescription() {
+const string_t &DsDevice::familyDescription() {
   return familyDescription(family());
 }
 
-const string_t &dsDev::familyDescription(uint8_t family) {
+const string_t &DsDevice::familyDescription(uint8_t family) {
   static string_t desc;
 
   switch (family) {
@@ -151,12 +151,12 @@ const string_t &dsDev::familyDescription(uint8_t family) {
   return desc;
 };
 
-void dsDev::logPresenceFailed() {
-  ESP_LOGI("dsDev", "%s presence failure", familyDescription().c_str());
+void DsDevice::logPresenceFailed() {
+  ESP_LOGI("DsDevice", "%s presence failure", familyDescription().c_str());
 }
 
 // static member function for validating an address (ROM) is validAddress
-bool dsDev::validAddress(DeviceAddress_t &addr) {
+bool DsDevice::validAddress(DeviceAddress_t &addr) {
   bool rc = true;
 
   if (addr[_family_byte] == 0x00)
@@ -171,11 +171,11 @@ bool dsDev::validAddress(DeviceAddress_t &addr) {
   return rc;
 }
 
-const unique_ptr<char[]> dsDev::debug() {
+const unique_ptr<char[]> DsDevice::debug() {
   const auto max_len = 63;
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
-  snprintf(debug_str.get(), max_len, "dsDev(family=%s %s)",
+  snprintf(debug_str.get(), max_len, "DsDevice(family=%s %s)",
            familyDescription().c_str(), addr().debug().get());
 
   return move(debug_str);

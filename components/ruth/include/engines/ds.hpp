@@ -40,7 +40,7 @@
 namespace ruth {
 
 typedef class DallasSemi DallasSemi_t;
-class DallasSemi : public Engine<dsDev_t> {
+class DallasSemi : public Engine<DsDevice_t> {
 
 private:
   DallasSemi();
@@ -103,23 +103,23 @@ private:
   static DallasSemi_t *_instance_();
 
   bool checkDevicesPowered();
-  bool commandExecute(dsDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
+  bool commandExecute(DsDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
                       bool ack, const RefID_t &refid,
                       elapsedMicros &cmd_elapsed);
 
   bool devicesPowered() { return _devices_powered; }
 
-  bool readDevice(dsDev_t *dev);
+  bool readDevice(DsDevice_t *dev);
 
   // specific methods to read devices
-  bool readDS1820(dsDev_t *dev, celsiusReading_t **reading);
-  bool readDS2408(dsDev_t *dev, positionsReading_t **reading = nullptr);
-  bool readDS2406(dsDev_t *dev, positionsReading_t **reading);
-  bool readDS2413(dsDev_t *dev, positionsReading_t **reading);
+  bool readDS1820(DsDevice_t *dev, celsiusReading_t **reading);
+  bool readDS2408(DsDevice_t *dev, positionsReading_t **reading = nullptr);
+  bool readDS2406(DsDevice_t *dev, positionsReading_t **reading);
+  bool readDS2413(DsDevice_t *dev, positionsReading_t **reading);
 
-  bool setDS2406(dsDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
-  bool setDS2408(dsDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
-  bool setDS2413(dsDev_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
+  bool setDS2406(DsDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
+  bool setDS2408(DsDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
+  bool setDS2413(DsDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
 
   // FIXME:  hard code there are always temperature devices
   bool tempDevicesPresent() { return _temp_devices_present; }

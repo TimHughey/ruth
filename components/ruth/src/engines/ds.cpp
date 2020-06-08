@@ -115,7 +115,7 @@ void DallasSemi::command(void *data) {
       continue;
     }
     string_t device = doc["device"] | "missing";
-    dsDev_t *dev = findDevice(device);
+    DsDevice_t *dev = findDevice(device);
 
     if (dev == nullptr) {
       textReading::rlog("[DalSemi] could not find device \"%s\"",
@@ -153,7 +153,7 @@ void DallasSemi::command(void *data) {
   }
 }
 
-bool DallasSemi::commandExecute(dsDev_t *dev, uint32_t cmd_mask,
+bool DallasSemi::commandExecute(DsDevice_t *dev, uint32_t cmd_mask,
                                 uint32_t cmd_state, bool ack,
                                 const RefID_t &refid,
                                 elapsedMicros &cmd_elapsed) {
@@ -340,10 +340,10 @@ void DallasSemi::discover(void *data) {
       device_found = true;
 
       DeviceAddress_t found_addr(search_state.rom_code.bytes, 8);
-      dsDev_t dev(found_addr, true);
+      DsDevice_t dev(found_addr, true);
 
       if (justSeenDevice(dev) == nullptr) {
-        dsDev_t *new_dev = new dsDev(dev);
+        DsDevice_t *new_dev = new DsDevice(dev);
         new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
         addDevice(new_dev);
       }
@@ -424,8 +424,8 @@ void DallasSemi::report(void *data) {
     // last wake is after the event group has been satisified
     saveTaskLastWake(TASK_REPORT);
 
-    for_each(beginDevices(), endDevices(), [this](dsDev_t *item) {
-      dsDev_t *dev = item;
+    for_each(beginDevices(), endDevices(), [this](DsDevice_t *item) {
+      DsDevice_t *dev = item;
 
       if (dev->available()) {
         takeBus();
@@ -448,7 +448,7 @@ void DallasSemi::report(void *data) {
   }
 }
 
-bool DallasSemi::readDevice(dsDev_t *dev) {
+bool DallasSemi::readDevice(DsDevice_t *dev) {
   celsiusReading_t *celsius = nullptr;
   positionsReading_t *positions = nullptr;
   auto rc = false;
@@ -507,7 +507,7 @@ bool DallasSemi::readDevice(dsDev_t *dev) {
 }
 
 // specific device scratchpad methods
-bool DallasSemi::readDS1820(dsDev_t *dev, celsiusReading_t **reading) {
+bool DallasSemi::readDS1820(DsDevice_t *dev, celsiusReading_t **reading) {
   owb_status owb_s;
   uint8_t data[9] = {0x00};
   bool type_s = false;
@@ -582,7 +582,7 @@ bool DallasSemi::readDS1820(dsDev_t *dev, celsiusReading_t **reading) {
   return rc;
 }
 
-bool DallasSemi::readDS2406(dsDev_t *dev, positionsReading_t **reading) {
+bool DallasSemi::readDS2406(DsDevice_t *dev, positionsReading_t **reading) {
   owb_status owb_s;
   bool rc = false;
 
@@ -643,7 +643,7 @@ bool DallasSemi::readDS2406(dsDev_t *dev, positionsReading_t **reading) {
   return rc;
 }
 
-bool DallasSemi::readDS2408(dsDev_t *dev, positionsReading_t **reading) {
+bool DallasSemi::readDS2408(DsDevice_t *dev, positionsReading_t **reading) {
   owb_status owb_s;
   bool rc = false;
 
@@ -716,7 +716,7 @@ bool DallasSemi::readDS2408(dsDev_t *dev, positionsReading_t **reading) {
   return rc;
 }
 
-bool DallasSemi::readDS2413(dsDev_t *dev, positionsReading_t **reading) {
+bool DallasSemi::readDS2413(DsDevice_t *dev, positionsReading_t **reading) {
   owb_status owb_s;
   bool rc = false;
 
@@ -824,7 +824,7 @@ void DallasSemi::core(void *data) {
   }
 }
 
-bool DallasSemi::setDS2406(dsDev_t *dev, uint32_t cmd_mask,
+bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
                            uint32_t cmd_state) {
   owb_status owb_s;
   bool rc = false;
@@ -902,7 +902,7 @@ bool DallasSemi::setDS2406(dsDev_t *dev, uint32_t cmd_mask,
   return rc;
 }
 
-bool DallasSemi::setDS2408(dsDev_t *dev, uint32_t cmd_mask,
+bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
                            uint32_t cmd_state) {
   owb_status owb_s;
   bool rc = false;
@@ -996,7 +996,7 @@ bool DallasSemi::setDS2408(dsDev_t *dev, uint32_t cmd_mask,
   return rc;
 }
 
-bool DallasSemi::setDS2413(dsDev_t *dev, uint32_t cmd_mask,
+bool DallasSemi::setDS2413(DsDevice_t *dev, uint32_t cmd_mask,
                            uint32_t cmd_state) {
   owb_status owb_s;
   bool rc = false;

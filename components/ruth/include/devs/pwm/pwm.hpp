@@ -40,20 +40,20 @@ using std::list;
 
 using namespace pwm;
 
-typedef class pwmDev pwmDev_t;
+typedef class PwmDevice PwmDevice_t;
 
 #define PWM_GPIO_PIN_SEL (GPIO_SEL_32 | GPIO_SEL_15 | GPIO_SEL_33 | GPIO_SEL_27)
 
-class pwmDev : public Device {
+class PwmDevice : public Device {
 public:
-  pwmDev() {}
-  static const char *pwmDevDesc(const DeviceAddress_t &addr);
+  PwmDevice() {}
+  static const char *PwmDeviceDesc(const DeviceAddress_t &addr);
   static gpio_num_t mapNumToGPIO(const DeviceAddress_t &num);
   static ledc_channel_t mapNumToChannel(const DeviceAddress_t &num);
   static void allOff();
 
 public:
-  pwmDev(DeviceAddress_t &num);
+  PwmDevice(DeviceAddress_t &num);
   uint8_t devAddr() { return firstAddressByte(); };
 
   // ledc channel

@@ -39,7 +39,7 @@ using std::unique_ptr;
 
 namespace ruth {
 
-const char *pwmDev::pwmDevDesc(const DeviceAddress_t &addr) {
+const char *PwmDevice::PwmDeviceDesc(const DeviceAddress_t &addr) {
   switch (addr.firstAddressByte()) {
   case 0x01:
     return (const char *)"pin:1";
@@ -58,8 +58,8 @@ const char *pwmDev::pwmDevDesc(const DeviceAddress_t &addr) {
   }
 }
 
-// construct a new pwmDev with a known address and compute the id
-pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
+// construct a new PwmDevice with a known address and compute the id
+PwmDevice::PwmDevice(DeviceAddress_t &num) : Device(num) {
   unique_ptr<char[]> id(new char[_pwm_max_id_len + 1]);
 
   _gpio_pin = mapNumToGPIO(num);
@@ -67,20 +67,20 @@ pwmDev::pwmDev(DeviceAddress_t &num) : Device(num) {
   _ledc_channel.gpio_num = _gpio_pin;
   _ledc_channel.channel = mapNumToChannel(num);
 
-  setDescription(pwmDevDesc(num));
+  setDescription(PwmDeviceDesc(num));
 
   snprintf(id.get(), _pwm_max_id_len, "pwm/%s.%s", Net::hostname(),
-           pwmDevDesc(num));
+           PwmDeviceDesc(num));
 
   setID(id.get());
 };
 
-void pwmDev::configureChannel() {
+void PwmDevice::configureChannel() {
   gpio_set_level(_gpio_pin, 0);
   _last_rc = ledc_channel_config(&_ledc_channel);
 }
 
-bool pwmDev::cmd(uint32_t pwm_cmd, JsonDocument &doc) {
+bool PwmDevice::cmd(uint32_t pwm_cmd, JsonDocument &doc) {
   auto rc = false;
   Command_t *cmd = nullptr;
 
@@ -117,7 +117,7 @@ bool pwmDev::cmd(uint32_t pwm_cmd, JsonDocument &doc) {
   return rc;
 }
 
-bool pwmDev::cmdKill() {
+bool PwmDevice::cmdKill() {
   auto rc = false; // true = a cmd was killed
 
   if (_cmds.empty() == false) {
@@ -132,7 +132,7 @@ bool pwmDev::cmdKill() {
   return rc;
 }
 
-bool pwmDev::updateDuty(uint32_t new_duty) {
+bool PwmDevice::updateDuty(uint32_t new_duty) {
   auto esp_rc = ESP_OK;
 
   const ledc_mode_t mode = _ledc_channel.speed_mode;
@@ -157,21 +157,21 @@ bool pwmDev::updateDuty(uint32_t new_duty) {
 // PRIVATE
 //
 
-Command_t *pwmDev::cmdCreate(JsonObject &cmd_obj) {
+Command_t *PwmDevice::cmdCreate(JsonObject &cmd_obj) {
   string_t type = cmd_obj["type"];
   Command_t *cmd = nullptr;
 
   if (type.compare("basic") == 0) {
-    cmd = new Basic(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
+    cmd = new Basic(PwmDeviceDesc(addr()), &_ledc_channel, cmd_obj);
 
   } else if (type.compare("random") == 0) {
-    cmd = new Random(pwmDevDesc(addr()), &_ledc_channel, cmd_obj);
+    cmd = new Random(PwmDeviceDesc(addr()), &_ledc_channel, cmd_obj);
   }
 
   return cmd;
 }
 
-bool pwmDev::cmdErase(const char *name) {
+bool PwmDevice::cmdErase(const char *name) {
   bool rc = false;
   const string_t name_str = name;
 
@@ -201,7 +201,7 @@ bool pwmDev::cmdErase(const char *name) {
 }
 
 // STATIC
-void pwmDev::allOff() {
+void PwmDevice::allOff() {
   gpio_num_t pins[4] = {GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
 
   // ensure all pins to be used as PWM are off
@@ -221,7 +221,7 @@ void pwmDev::allOff() {
 }
 
 // STATIC
-ledc_channel_t pwmDev::mapNumToChannel(const DeviceAddress_t &num) {
+ledc_channel_t PwmDevice::mapNumToChannel(const DeviceAddress_t &num) {
   switch (num.firstAddressByte()) {
   case 0x01:
     // NOTE: LEDC_CHANNEL_0 is used for the onboard red status led
@@ -242,7 +242,7 @@ ledc_channel_t pwmDev::mapNumToChannel(const DeviceAddress_t &num) {
 }
 
 // STATIC
-gpio_num_t pwmDev::mapNumToGPIO(const DeviceAddress_t &num) {
+gpio_num_t PwmDevice::mapNumToGPIO(const DeviceAddress_t &num) {
   switch (num.firstAddressByte()) {
   case 0x01:
     return GPIO_NUM_32;
@@ -261,12 +261,12 @@ gpio_num_t pwmDev::mapNumToGPIO(const DeviceAddress_t &num) {
   }
 }
 
-const unique_ptr<char[]> pwmDev::debug() {
+const unique_ptr<char[]> PwmDevice::debug() {
   const auto max_len = 127;
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
   snprintf(debug_str.get(), max_len,
-           "pwmDev(%s duty=%d channel=%d pin=%d last_rc=%s)", id().c_str(),
+           "PwmDevice(%s duty=%d channel=%d pin=%d last_rc=%s)", id().c_str(),
            _duty, _ledc_channel.channel, _gpio_pin, esp_err_to_name(_last_rc));
 
   return move(debug_str);

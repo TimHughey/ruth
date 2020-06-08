@@ -40,7 +40,7 @@ namespace ruth {
 using std::move;
 
 typedef class PulseWidth PulseWidth_t;
-class PulseWidth : public Engine<pwmDev_t> {
+class PulseWidth : public Engine<PwmDevice_t> {
 
 private:
   PulseWidth();
@@ -87,10 +87,10 @@ private:
   bool commandExecute(JsonDocument &doc);
 
   // generic read device that will call the specific methods
-  bool readDevice(pwmDev_t *dev);
+  bool readDevice(PwmDevice_t *dev);
 
   void configureTimer();
-  bool detectDevice(pwmDev_t *dev);
+  bool detectDevice(PwmDevice_t *dev);
 };
 } // namespace ruth
 

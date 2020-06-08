@@ -44,7 +44,7 @@ static const string_t engine_name = "PWM";
 const size_t _capacity = 5 * 1024;
 
 PulseWidth::PulseWidth() : Engine(ENGINE_PWM) {
-  pwmDev::allOff(); // ensure all pins are off at initialization
+  PwmDevice::allOff(); // ensure all pins are off at initialization
 
   addTask(TASK_CORE);
   addTask(TASK_REPORT);
@@ -79,7 +79,7 @@ void PulseWidth::commandLocal(MsgPayload_t_ptr payload) {
 }
 
 bool PulseWidth::commandExecute(JsonDocument &doc) {
-  pwmDev_t *dev = findDevice(doc["device"]);
+  PwmDevice_t *dev = findDevice(doc["device"]);
   auto set_rc = false;
 
   if (dev == nullptr) {
@@ -133,10 +133,10 @@ void PulseWidth::core(void *task_data) {
   // to the known device list since they are onboard hardware.
   for (uint8_t i = 1; i <= 4; i++) {
     DeviceAddress_t addr(i);
-    pwmDev_t dev(addr);
+    PwmDevice_t dev(addr);
 
-    pwmDev *new_dev = new pwmDev(dev);
-    unique_ptr<pwmDev> new_dev_ptr(new_dev);
+    PwmDevice *new_dev = new PwmDevice(dev);
+    unique_ptr<PwmDevice> new_dev_ptr(new_dev);
 
     new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
     new_dev->configureChannel();
@@ -191,8 +191,8 @@ void PulseWidth::report(void *data) {
 
     Net::waitForNormalOps();
 
-    for_each(beginDevices(), endDevices(), [this](pwmDev_t *item) {
-      pwmDev_t *dev = item;
+    for_each(beginDevices(), endDevices(), [this](PwmDevice_t *item) {
+      PwmDevice_t *dev = item;
 
       if (dev->available()) {
 
@@ -230,7 +230,7 @@ PulseWidth_t *PulseWidth::_instance_() {
   return __singleton__;
 }
 
-bool PulseWidth::readDevice(pwmDev_t *dev) {
+bool PulseWidth::readDevice(PwmDevice_t *dev) {
   auto rc = false;
 
   dev->readStart();
