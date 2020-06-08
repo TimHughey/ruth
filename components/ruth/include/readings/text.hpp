@@ -1,5 +1,5 @@
 /*
-    simple_text.hpp -- Simple Text (aka Log) Reading
+    text.hpp -- Simple Text (aka Log) Reading
     Copyright (C) 2019  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_text_reading_hpp
-#define _ruth_text_reading_hpp
+#ifndef _ruth_reading_text_hpp
+#define _ruth_reading_text_hpp
 
 #include <string>
 
@@ -32,16 +32,17 @@
 #include "readings/reading.hpp"
 
 namespace ruth {
-typedef class textReading textReading_t;
-typedef class textReading ST;
+namespace reading {
+typedef class Text Text_t;
+typedef class Text ST;
 
-typedef std::unique_ptr<textReading_t> textReading_ptr_t;
+typedef std::unique_ptr<Text_t> Text_ptr_t;
 
-class textReading : public Reading {
+class Text : public Reading {
 public:
-  textReading();
-  textReading(const char *text);
-  ~textReading();
+  Text();
+  Text(const char *text);
+  ~Text();
 
   char *append() { return _append_text; };
   uint32_t availableBytes() { return _remaining_bytes; };
@@ -74,18 +75,14 @@ public:
 private:
   static const uint32_t _max_len = 1024;
 
-  char _actual[_max_len + 1];
+  char _actual[_max_len + 1] = {};
   char *_append_text = _actual;
   uint32_t _remaining_bytes = _max_len;
 
-  void init() {
-    _type = ReadingType_t::TEXT;
-    _actual[0] = 0x00; // null terminate the buffer
-  }
-
 protected:
   virtual void populateJSON(JsonDocument &doc);
-}; // namespace ruth
+};
+} // namespace reading
 } // namespace ruth
 
 #endif // text_reading_hpp

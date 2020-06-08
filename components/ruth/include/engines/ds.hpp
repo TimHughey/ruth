@@ -112,10 +112,10 @@ private:
   bool readDevice(DsDevice_t *dev);
 
   // specific methods to read devices
-  bool readDS1820(DsDevice_t *dev, celsiusReading_t **reading);
-  bool readDS2408(DsDevice_t *dev, positionsReading_t **reading = nullptr);
-  bool readDS2406(DsDevice_t *dev, positionsReading_t **reading);
-  bool readDS2413(DsDevice_t *dev, positionsReading_t **reading);
+  bool readDS1820(DsDevice_t *dev, Sensor_t **reading);
+  bool readDS2408(DsDevice_t *dev, Positions_t **reading = nullptr);
+  bool readDS2406(DsDevice_t *dev, Positions_t **reading);
+  bool readDS2413(DsDevice_t *dev, Positions_t **reading);
 
   bool setDS2406(DsDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
   bool setDS2408(DsDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state);

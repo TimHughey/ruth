@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef reading_h
-#define reading_h
+#ifndef _ruth_reading_hpp
+#define _ruth_reading_hpp
 
 // #include <memory>
 #include <string>
@@ -31,57 +31,27 @@
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
 
-// Possible future improvement
-// typedef std::unique_ptr<string_t> myString;
-
 namespace ruth {
-typedef enum {
-  BASE = 0,
-  REMOTE,
-  SENSOR,
-  BOOT,
-  SWITCH,
-  TEXT,
-  PWM
-} ReadingType_t;
+namespace reading {
 
 typedef class Reading Reading_t;
 typedef std::unique_ptr<Reading_t> Reading_ptr_t;
 
 class Reading {
-private:
-  // reading metadata (id, measured time and type)
-  string_t _id;
-  time_t _mtime = time(nullptr); // time the reading was measureed
-
-  // tracking info
-  RefID_t _refid;
-  bool _cmd_ack = false;
-  string_t _cmd_err;
-  uint32_t _latency_us = 0;
-
-  bool _log_reading = false;
-
-  uint64_t _read_us = 0;
-  uint64_t _write_us = 0;
-  int _crc_mismatches = 0;
-  int _read_errors = 0;
-  int _write_errors = 0;
-
-  char *_json = nullptr;
-
 protected:
-  ReadingType_t _type = BASE;
-
-  void commonJSON(JsonDocument &doc);
-  virtual void populateJSON(JsonDocument &doc){};
+  typedef enum {
+    BASE = 0,
+    REMOTE,
+    SENSOR,
+    BOOT,
+    SWITCH,
+    TEXT,
+    PWM
+  } ReadingType_t;
 
 public:
-  // default constructor, Reading type undefined
-  Reading(){};
-  Reading(time_t mtime) : _mtime(mtime){};
-  Reading(const string_t &id, time_t mtime = time(nullptr))
-      : _id(id), _mtime(mtime){};
+  Reading(ReadingType_t type) : _type(type){};
+  Reading(const string_t &id, ReadingType_t type) : _id(id), _type(type){};
 
   virtual ~Reading() {
     if (_json != nullptr) {
@@ -121,8 +91,35 @@ public:
                                          "switch", "text",   "pwm"};
 
     return type_strings[index];
-  };
+  }
+
+private:
+  // reading metadata (id, measured time and type)
+  string_t _id;
+  time_t _mtime = time(nullptr); // time the reading was measureed
+
+  // tracking info
+  RefID_t _refid;
+  bool _cmd_ack = false;
+  string_t _cmd_err;
+  uint32_t _latency_us = 0;
+
+  bool _log_reading = false;
+
+  uint64_t _read_us = 0;
+  uint64_t _write_us = 0;
+  int _crc_mismatches = 0;
+  int _read_errors = 0;
+  int _write_errors = 0;
+
+  char *_json = nullptr;
+
+  ReadingType_t _type = BASE;
+
+  void commonJSON(JsonDocument &doc);
+  virtual void populateJSON(JsonDocument &doc){};
 };
+} // namespace reading
 } // namespace ruth
 
 #endif // reading_h

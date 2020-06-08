@@ -20,9 +20,9 @@
 
 #include "engines/pwm.hpp"
 
-using std::unique_ptr;
-
 namespace ruth {
+using std::unique_ptr;
+using namespace reading;
 
 static PulseWidth_t *__singleton__ = nullptr;
 static const string_t engine_name = "PWM";
@@ -70,7 +70,7 @@ void PulseWidth::commandLocal(MsgPayload_t_ptr payload) {
 
   // did the deserailization succeed?
   if (err) {
-    ST::rlog("pwm command MSGPACK err=\"%s\"", err.c_str());
+    Text::rlog("pwm command MSGPACK err=\"%s\"", err.c_str());
     return;
   }
 
@@ -175,7 +175,7 @@ void PulseWidth::core(void *task_data) {
     if (notify_val) {
       auto stack_hw = uxTaskGetStackHighWaterMark(nullptr);
 
-      ST::rlog("core task notified, stack_hw=%d", stack_hw);
+      Text::rlog("core task notified, stack_hw=%d", stack_hw);
     }
   }
 }
@@ -218,7 +218,7 @@ void PulseWidth::configureTimer() {
   timer_rc = ledc_timer_config(&ledc_timer);
 
   if (timer_rc != ESP_OK) {
-    ST::rlog("ledc timer config error=\"%s\"", esp_err_to_name(timer_rc));
+    Text::rlog("ledc timer config error=\"%s\"", esp_err_to_name(timer_rc));
   }
 }
 
@@ -240,8 +240,8 @@ bool PulseWidth::readDevice(PwmDevice_t *dev) {
   if (duty == LEDC_ERR_DUTY) {
     ESP_LOGW(engine_name.c_str(), "error reading duty");
   } else {
-    pwmReading_t *reading = new pwmReading(
-        dev->id(), time(nullptr), dev->dutyMax(), dev->dutyMin(), duty);
+    Reading_t *reading =
+        new Pwm(dev->id(), dev->dutyMax(), dev->dutyMin(), duty);
 
     reading->setLogReading();
     dev->setReading(reading);

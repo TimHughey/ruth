@@ -23,39 +23,37 @@
 #include <time.h>
 
 #include "protocols/mqtt.hpp"
-#include "readings/simple_text.hpp"
+#include "readings/text.hpp"
 
 namespace ruth {
-textReading::textReading() { init(); }
-textReading::textReading(const char *text) {
-  init();
-
+Text::Text() : Reading(TEXT) {}
+Text::Text(const char *text) : Reading(TEXT) {
   strncpy(_actual, text, maxLength());
 }
 
-textReading::~textReading() {}
+Text::~Text() {}
 
-void textReading::consoleInfo(const char *tag) {
+void Text::consoleInfo(const char *tag) {
   if (_actual[0])
     ESP_LOGI(tag, "%s", _actual);
 }
 
-void textReading::consoleErr(const char *tag) {
+void Text::consoleErr(const char *tag) {
   if (_actual[0])
     ESP_LOGE(tag, "%s", _actual);
 }
 
-void textReading::consoleWarn(const char *tag) {
+void Text::consoleWarn(const char *tag) {
   if (_actual[0])
     ESP_LOGW(tag, "%s", _actual);
 }
 
-void textReading::populateJSON(JsonDocument &doc) {
+void Text::populateJSON(JsonDocument &doc) {
   doc["text"] = _actual;
   doc["log"] = true;
 }
 
-void textReading::printf(const char *format, ...) {
+void Text::printf(const char *format, ...) {
   va_list arglist;
   size_t bytes;
 
@@ -66,7 +64,7 @@ void textReading::printf(const char *format, ...) {
   use(bytes);
 }
 
-void textReading::printf(struct tm *timeinfo, const char *format, ...) {
+void Text::printf(struct tm *timeinfo, const char *format, ...) {
   va_list arglist;
   size_t bytes;
 
@@ -88,16 +86,16 @@ void textReading::printf(struct tm *timeinfo, const char *format, ...) {
   use(bytes);
 }
 
-void textReading::publish() {
+void Text::publish() {
   if (_actual[0]) {
     MQTT::publish(this);
   }
 }
 
-void textReading::rlog(const char *format, ...) {
+void Text::rlog(const char *format, ...) {
   va_list arglist;
-  textReading_ptr_t log_ptr(new textReading_t);
-  textReading_t *log = log_ptr.get();
+  Text_ptr_t log_ptr(new Text_t);
+  Text_t *log = log_ptr.get();
 
   // protect against memory allocation failures
   if (log) {
@@ -113,12 +111,12 @@ void textReading::rlog(const char *format, ...) {
   }
 }
 
-void textReading::rlog(struct tm *timeinfo, const char *format, ...) {
+void Text::rlog(struct tm *timeinfo, const char *format, ...) {
   va_list arglist;
   size_t bytes;
 
-  textReading_ptr_t log_ptr(new textReading_t);
-  textReading_t *log = log_ptr.get();
+  Text_ptr_t log_ptr(new Text_t);
+  Text_t *log = log_ptr.get();
 
   if (log) {
     // print the formatted string to the buffer and use the bytes

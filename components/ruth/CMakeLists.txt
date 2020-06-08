@@ -34,10 +34,9 @@ set(
 
 set(
   RUTH_READINGS
-    "src/readings/celsius"      "src/readings/reading"
-    "src/readings/humidity"     "src/readings/soil"
-    "src/readings/startup"      "src/readings/pwm"
-    "src/readings/simple_text"  "src/readings/positions"
+    "src/readings/sensor"  "src/readings/reading"
+    "src/readings/startup" "src/readings/pwm"
+    "src/readings/text"    "src/readings/positions"
     "src/readings/remote")
 
 set(

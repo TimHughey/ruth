@@ -36,8 +36,8 @@
 #include "protocols/payload.hpp"
 
 namespace ruth {
-
 using std::move;
+using namespace reading;
 
 typedef class PulseWidth PulseWidth_t;
 class PulseWidth : public Engine<PwmDevice_t> {

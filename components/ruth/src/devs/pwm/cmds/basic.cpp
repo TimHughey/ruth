@@ -25,7 +25,7 @@
 #include <esp_log.h>
 
 #include "devs/pwm/cmds/basic.hpp"
-#include "readings/simple_text.hpp"
+#include "readings/text.hpp"
 
 namespace ruth {
 namespace pwm {

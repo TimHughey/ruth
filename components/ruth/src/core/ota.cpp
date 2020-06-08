@@ -23,6 +23,7 @@
 #include "misc/restart.hpp"
 
 namespace ruth {
+using namespace reading;
 
 static const char *TAG = "OTATask";
 
@@ -77,15 +78,15 @@ void OTA::process() {
   config.event_handler = OTA::httpEventHandler;
   config.timeout_ms = 1000;
 
-  textReading::rlog("OTA begin partition=\"%s\" addr=0x%x", ota_part->label,
-                    ota_part->address);
+  Text::rlog("OTA begin partition=\"%s\" addr=0x%x", ota_part->label,
+             ota_part->address);
 
   // track the time it takes to perform ota
   elapsedMicros ota_elapsed;
   esp_err_t esp_rc = esp_https_ota(&config);
 
-  textReading::rlog("OTA elapsed %0.2fs [%s]", (float)ota_elapsed,
-                    esp_err_to_name(esp_rc));
+  Text::rlog("OTA elapsed %0.2fs [%s]", (float)ota_elapsed,
+             esp_err_to_name(esp_rc));
 
   Restart::restart("OTA complete");
 }
@@ -105,11 +106,11 @@ void OTA::markPartitionValid() {
       esp_err_t mark_valid_rc = esp_ota_mark_app_valid_cancel_rollback();
 
       if (mark_valid_rc == ESP_OK) {
-        textReading::rlog("[%s] partition=\"%s\" marked as valid",
-                          esp_err_to_name(mark_valid_rc), run_part->label);
+        Text::rlog("[%s] partition=\"%s\" marked as valid",
+                   esp_err_to_name(mark_valid_rc), run_part->label);
       } else {
-        textReading::rlog("[%s] failed to mark partition=\"%s\" as valid",
-                          esp_err_to_name(mark_valid_rc), run_part->label);
+        Text::rlog("[%s] failed to mark partition=\"%s\" as valid",
+                   esp_err_to_name(mark_valid_rc), run_part->label);
       }
     }
   }

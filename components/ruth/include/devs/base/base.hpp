@@ -38,6 +38,7 @@
 namespace ruth {
 
 using std::unique_ptr;
+using namespace reading;
 
 typedef class Device Device_t;
 class Device {

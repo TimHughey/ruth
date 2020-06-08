@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_reading_hpp
-#define _ruth_pwm_reading_hpp
+#ifndef _ruth_reading_pwm_hpp
+#define _ruth_reading_pwm_hpp
 
 #include <sys/time.h>
 #include <time.h>
@@ -27,9 +27,10 @@
 #include "readings/reading.hpp"
 
 namespace ruth {
-typedef class pwmReading pwmReading_t;
+namespace reading {
+typedef class Pwm Pwm_t;
 
-class pwmReading : public Reading {
+class Pwm : public Reading {
 private:
   // actual reading data
   uint32_t duty_max_ = 4095;
@@ -37,12 +38,11 @@ private:
   uint32_t duty_ = 0;
 
 public:
-  pwmReading(const string_t &id, time_t mtime, uint32_t duty_max,
-             uint32_t duty_min, uint32_t duty);
+  Pwm(const string_t &id, uint32_t duty_max, uint32_t duty_min, uint32_t duty);
 
 protected:
   virtual void populateJSON(JsonDocument &doc);
 };
-
+} // namespace reading
 } // namespace ruth
 #endif // __cplusplus

@@ -35,7 +35,7 @@ namespace ruth {
 // TODO:  roll this out across the entire project
 using string_t = std::string;
 
-typedef std::unique_ptr<char[]> msg_buff_t;
+typedef std::unique_ptr<char[]> MsgBuff_t;
 
 // type passed to xTaskCreate as the function to run as a task
 typedef void(TaskFunc_t)(void *);
@@ -50,14 +50,8 @@ typedef struct {
 
 typedef string_t RefID_t;
 
-typedef struct {
-  char id[16];
-  char prefix[5];
-  QueueHandle_t q;
-} cmdQueue_t;
-
 // messages received via MQTT and parsed by Arduino JSON
-typedef std::vector<char> rawMsg_t;
+typedef std::vector<char> RawMsg_t;
 
 } // namespace ruth
 #endif // ruth_type_hpp

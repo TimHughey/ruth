@@ -18,11 +18,9 @@
     https://www.wisslanding.com
 */
 
-#include "readings/celsius.hpp"
-#include "readings/humidity.hpp"
 #include "readings/positions.hpp"
 #include "readings/pwm.hpp"
 #include "readings/remote.hpp"
-#include "readings/simple_text.hpp"
-#include "readings/soil.hpp"
+#include "readings/sensor.hpp"
 #include "readings/startup.hpp"
+#include "readings/text.hpp"

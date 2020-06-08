@@ -92,7 +92,7 @@ void DallasSemi::command(void *data) {
     unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     if (queue_rc == pdFALSE) {
-      textReading::rlog("[DalSemi] [rc=%d] queue receive failed", queue_rc);
+      Text::rlog("[DalSemi] [rc=%d] queue receive failed", queue_rc);
 
       continue;
     }
@@ -110,7 +110,7 @@ void DallasSemi::command(void *data) {
 
     // did the deserailization succeed?
     if (err) {
-      textReading::rlog("[%s] MSGPACK parse failure", err.c_str());
+      Text::rlog("[%s] MSGPACK parse failure", err.c_str());
 
       continue;
     }
@@ -118,8 +118,7 @@ void DallasSemi::command(void *data) {
     DsDevice_t *dev = findDevice(device);
 
     if (dev == nullptr) {
-      textReading::rlog("[DalSemi] could not find device \"%s\"",
-                        device.c_str());
+      Text::rlog("[DalSemi] could not find device \"%s\"", device.c_str());
 
       continue;
     }
@@ -251,7 +250,7 @@ void DallasSemi::convert(void *data) {
 
       if (owb_s != OWB_STATUS_OK) {
 
-        textReading::rlog("[DalSemi] temp convert failed (0x%02x)", owb_s);
+        Text::rlog("[DalSemi] temp convert failed (0x%02x)", owb_s);
 
         break;
       }
@@ -283,7 +282,7 @@ void DallasSemi::convert(void *data) {
 
         if ((esp_timer_get_time() - _wait_start) >= _max_temp_convert_us) {
 
-          textReading::rlog("[DalSemi] temp convert timed out)");
+          Text::rlog("[DalSemi] temp convert timed out)");
 
           resetBus();
           in_progress = false; // signal to break from loop
@@ -364,7 +363,7 @@ void DallasSemi::discover(void *data) {
 
         if (owb_s != OWB_STATUS_OK) {
 
-          textReading::rlog("DalSemi search next failed owb_s=\"%d\"", owb_s);
+          Text::rlog("DalSemi search next failed owb_s=\"%d\"", owb_s);
         }
       }
     }
@@ -449,8 +448,8 @@ void DallasSemi::report(void *data) {
 }
 
 bool DallasSemi::readDevice(DsDevice_t *dev) {
-  celsiusReading_t *celsius = nullptr;
-  positionsReading_t *positions = nullptr;
+  Sensor_t *reading = nullptr;
+  Positions_t *positions = nullptr;
   auto rc = false;
 
   if (dev->isNotValid()) {
@@ -470,10 +469,10 @@ bool DallasSemi::readDevice(DsDevice_t *dev) {
   case 0x22:
   case 0x28:
     dev->readStart();
-    rc = readDS1820(dev, &celsius);
+    rc = readDS1820(dev, &reading);
     dev->readStop();
     if (rc)
-      dev->setReading(celsius);
+      dev->setReading(reading);
     break;
 
   case 0x29: // DS2408 (8-channel switch)
@@ -507,7 +506,7 @@ bool DallasSemi::readDevice(DsDevice_t *dev) {
 }
 
 // specific device scratchpad methods
-bool DallasSemi::readDS1820(DsDevice_t *dev, celsiusReading_t **reading) {
+bool DallasSemi::readDS1820(DsDevice_t *dev, Sensor_t **reading) {
   owb_status owb_s;
   uint8_t data[9] = {0x00};
   bool type_s = false;
@@ -534,8 +533,8 @@ bool DallasSemi::readDS1820(DsDevice_t *dev, celsiusReading_t **reading) {
 
   if (owb_s != OWB_STATUS_OK) {
 
-    textReading::rlog("device \"%s\" read failure owb_s=\"%d\"",
-                      dev->id().c_str(), owb_s);
+    Text::rlog("device \"%s\" read failure owb_s=\"%d\"", dev->id().c_str(),
+               owb_s);
 
     return rc;
   }
@@ -568,8 +567,7 @@ bool DallasSemi::readDS1820(DsDevice_t *dev, celsiusReading_t **reading) {
 
   if (crc8 != 0x00) {
 
-    textReading::rlog("device \"%s\" failed crc8=\"0x%02x\"", dev->id().c_str(),
-                      crc8);
+    Text::rlog("device \"%s\" failed crc8=\"0x%02x\"", dev->id().c_str(), crc8);
 
     return rc;
   }
@@ -577,12 +575,12 @@ bool DallasSemi::readDS1820(DsDevice_t *dev, celsiusReading_t **reading) {
   float celsius = (float)raw / 16.0;
 
   rc = true;
-  *reading = new celsiusReading(dev->id(), celsius);
+  *reading = new Sensor(dev->id(), celsius);
 
   return rc;
 }
 
-bool DallasSemi::readDS2406(DsDevice_t *dev, positionsReading_t **reading) {
+bool DallasSemi::readDS2406(DsDevice_t *dev, Positions_t **reading) {
   owb_status owb_s;
   bool rc = false;
 
@@ -604,8 +602,8 @@ bool DallasSemi::readDS2406(DsDevice_t *dev, positionsReading_t **reading) {
 
   if (owb_s != OWB_STATUS_OK) {
 
-    textReading::rlog("device \"%s\" cmd failure owb_s=\"%d\"",
-                      dev->id().c_str(), owb_s);
+    Text::rlog("device \"%s\" cmd failure owb_s=\"%d\"", dev->id().c_str(),
+               owb_s);
 
     return rc;
   }
@@ -617,8 +615,8 @@ bool DallasSemi::readDS2406(DsDevice_t *dev, positionsReading_t **reading) {
 
   if (owb_s != OWB_STATUS_OK) {
 
-    textReading::rlog("device \"%s\" read failure owb_s=\"%d\"",
-                      dev->id().c_str(), owb_s);
+    Text::rlog("device \"%s\" read failure owb_s=\"%d\"", dev->id().c_str(),
+               owb_s);
 
     return rc;
   }
@@ -637,13 +635,12 @@ bool DallasSemi::readDS2406(DsDevice_t *dev, positionsReading_t **reading) {
   }
 
   rc = true;
-  *reading =
-      new positionsReading(dev->id(), time(nullptr), positions, (uint8_t)2);
+  *reading = new Positions(dev->id(), positions, (uint8_t)2);
 
   return rc;
 }
 
-bool DallasSemi::readDS2408(DsDevice_t *dev, positionsReading_t **reading) {
+bool DallasSemi::readDS2408(DsDevice_t *dev, Positions_t **reading) {
   owb_status owb_s;
   bool rc = false;
 
@@ -680,8 +677,8 @@ bool DallasSemi::readDS2408(DsDevice_t *dev, positionsReading_t **reading) {
 
   if (owb_s != OWB_STATUS_OK) {
 
-    textReading::rlog("device \"%s\" failed to read cmd result owb_s=\"%d\"",
-                      dev->id().c_str(), owb_s);
+    Text::rlog("device \"%s\" failed to read cmd result owb_s=\"%d\"",
+               dev->id().c_str(), owb_s);
 
     return rc;
   }
@@ -695,8 +692,8 @@ bool DallasSemi::readDS2408(DsDevice_t *dev, positionsReading_t **reading) {
 
   if (!crc16) {
 
-    textReading::rlog("device \"%s\" failed crc16=\"0x%02x\"",
-                      dev->id().c_str(), crc16);
+    Text::rlog("device \"%s\" failed crc16=\"0x%02x\"", dev->id().c_str(),
+               crc16);
 
     return rc;
   }
@@ -708,15 +705,14 @@ bool DallasSemi::readDS2408(DsDevice_t *dev, positionsReading_t **reading) {
       ~(dev_cmd[sizeof(dev_cmd) - 3]) & 0xFF; // constrain to 8bits
 
   if (reading != nullptr) {
-    *reading =
-        new positionsReading(dev->id(), time(nullptr), positions, (uint32_t)8);
+    *reading = new Positions(dev->id(), positions, (uint32_t)8);
   }
   rc = true;
 
   return rc;
 }
 
-bool DallasSemi::readDS2413(DsDevice_t *dev, positionsReading_t **reading) {
+bool DallasSemi::readDS2413(DsDevice_t *dev, Positions_t **reading) {
   owb_status owb_s;
   bool rc = false;
 
@@ -734,8 +730,8 @@ bool DallasSemi::readDS2413(DsDevice_t *dev, positionsReading_t **reading) {
   if (owb_s != OWB_STATUS_OK) {
     dev->readStop();
 
-    textReading::rlog("device \"%s\" cmd failure owb_s=\"%d\"",
-                      dev->id().c_str(), owb_s);
+    Text::rlog("device \"%s\" cmd failure owb_s=\"%d\"", dev->id().c_str(),
+               owb_s);
 
     return rc;
   }
@@ -754,10 +750,9 @@ bool DallasSemi::readDS2413(DsDevice_t *dev, positionsReading_t **reading) {
   // both bytes should be the same
   if (buff[0] != buff[1]) {
 
-    textReading::rlog(
-        "device \"%s\" state byte0=\"0x%02x\" and byte1=\"0x%02x\" "
-        "should match",
-        dev->id().c_str(), buff[0], buff[1]);
+    Text::rlog("device \"%s\" state byte0=\"0x%02x\" and byte1=\"0x%02x\" "
+               "should match",
+               dev->id().c_str(), buff[0], buff[1]);
 
     return rc;
   }
@@ -781,8 +776,7 @@ bool DallasSemi::readDS2413(DsDevice_t *dev, positionsReading_t **reading) {
   }
 
   rc = true;
-  *reading =
-      new positionsReading(dev->id(), time(nullptr), positions, (uint8_t)2);
+  *reading = new Positions(dev->id(), positions, (uint8_t)2);
 
   return rc;
 }
@@ -829,7 +823,7 @@ bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
   owb_status owb_s;
   bool rc = false;
 
-  positionsReading_t *reading = (positionsReading_t *)dev->reading();
+  Positions_t *reading = (Positions_t *)dev->reading();
 
   uint32_t asis_state = reading->state();
 
@@ -858,8 +852,8 @@ bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
 
   if (owb_s != OWB_STATUS_OK) {
 
-    textReading::rlog("device \"%s\" send read cmd failure owb_s=\"%d\"",
-                      dev->id().c_str(), owb_s);
+    Text::rlog("device \"%s\" send read cmd failure owb_s=\"%d\"",
+               dev->id().c_str(), owb_s);
 
     return rc;
   }
@@ -870,8 +864,8 @@ bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
 
   if (owb_s != OWB_STATUS_OK) {
 
-    textReading::rlog("device \"%s\" failed to read cmd results owb_s=\"%d\"",
-                      dev->id().c_str(), owb_s);
+    Text::rlog("device \"%s\" failed to read cmd results owb_s=\"%d\"",
+               dev->id().c_str(), owb_s);
 
     return rc;
   }
@@ -884,9 +878,8 @@ bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
 
     if (owb_s != OWB_STATUS_OK) {
 
-      textReading::rlog(
-          "device \"%s\" failed to persist scratchpad owb_s=\"%d\"",
-          dev->id().c_str(), owb_s);
+      Text::rlog("device \"%s\" failed to persist scratchpad owb_s=\"%d\"",
+                 dev->id().c_str(), owb_s);
 
       return rc;
     }
@@ -895,8 +888,8 @@ bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
     rc = true;
   } else {
 
-    textReading::rlog("device \"%s\" failed crc16=\"0x%02x\"",
-                      dev->id().c_str(), crc16);
+    Text::rlog("device \"%s\" failed crc16=\"0x%02x\"", dev->id().c_str(),
+               crc16);
   }
 
   return rc;
@@ -907,20 +900,19 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
   owb_status owb_s;
   bool rc = false;
 
-  textReading *rlog = new textReading_t;
+  Text *rlog = new Text_t;
 
   // read the device to ensure we have the current state
   // important because setting the new state relies, in part, on the existing
   // state for the pios not changing
   if (readDevice(dev) == false) {
     rlog->reuse();
-    textReading::rlog("device \"%s\" read before set failed",
-                      dev->id().c_str());
+    Text::rlog("device \"%s\" read before set failed", dev->id().c_str());
 
     return rc;
   }
 
-  positionsReading_t *reading = (positionsReading_t *)dev->reading();
+  Positions_t *reading = (Positions_t *)dev->reading();
 
   uint32_t asis_state = reading->state();
   uint32_t new_state = 0x00;
@@ -952,8 +944,8 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
 
   if (owb_s != OWB_STATUS_OK) {
     rlog->reuse();
-    textReading::rlog("device \"%s\" set cmd failed owb_s=\"%d\"",
-                      dev->debug().get(), owb_s);
+    Text::rlog("device \"%s\" set cmd failed owb_s=\"%d\"", dev->debug().get(),
+               owb_s);
 
     return rc;
   }
@@ -964,8 +956,8 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
 
   if (owb_s != OWB_STATUS_OK) {
     rlog->reuse();
-    textReading::rlog("device \"%s\" check byte read failed owb_s=\"%d\"",
-                      dev->debug().get(), owb_s);
+    Text::rlog("device \"%s\" check byte read failed owb_s=\"%d\"",
+               dev->debug().get(), owb_s);
 
     return rc;
   }
@@ -982,15 +974,14 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
   if ((conf_byte == 0xaa) || (dev_state == new_state)) {
     rc = true;
   } else if (((conf_byte & 0xa0) == 0xa0) || ((conf_byte & 0x0a) == 0x0a)) {
-    textReading::rlog("device \"%s\" SET OK-PARTIAL conf=\"%02x\" state "
-                      "req=\"%02x\" dev=\"%02x\"",
-                      dev->id().c_str(), conf_byte, new_state, dev_state);
+    Text::rlog("device \"%s\" SET OK-PARTIAL conf=\"%02x\" state "
+               "req=\"%02x\" dev=\"%02x\"",
+               dev->id().c_str(), conf_byte, new_state, dev_state);
     rc = true;
   } else {
-    textReading::rlog(
-        "device \"%s\" SET FAILED conf=\"%02x\" state req=\"%02x\" "
-        "dev=\"%02x\"",
-        dev->id().c_str(), conf_byte, new_state, dev_state);
+    Text::rlog("device \"%s\" SET FAILED conf=\"%02x\" state req=\"%02x\" "
+               "dev=\"%02x\"",
+               dev->id().c_str(), conf_byte, new_state, dev_state);
   }
 
   return rc;
@@ -1005,13 +996,12 @@ bool DallasSemi::setDS2413(DsDevice_t *dev, uint32_t cmd_mask,
   // important because setting the new state relies, in part, on the existing
   // state for the pios not changing
   if (readDevice(dev) == false) {
-    textReading::rlog("device \"%s\" read before set failed",
-                      dev->id().c_str());
+    Text::rlog("device \"%s\" read before set failed", dev->id().c_str());
 
     return rc;
   }
 
-  positionsReading_t *reading = (positionsReading_t *)dev->reading();
+  Positions_t *reading = (Positions_t *)dev->reading();
 
   uint32_t asis_state = reading->state();
   uint32_t new_state = 0x00;

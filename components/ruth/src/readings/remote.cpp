@@ -28,23 +28,19 @@
 #include "readings/remote.hpp"
 
 namespace ruth {
-remoteReading::remoteReading(uint32_t batt_mv)
-    : Reading(time(nullptr)), batt_mv_(batt_mv) {
+namespace reading {
+Remote::Remote(uint32_t batt_mv) : Reading(REMOTE), batt_mv_(batt_mv) {
 
-  _type = ReadingType_t::REMOTE;
-
-  ap_rc_ = esp_wifi_sta_get_ap_info(&ap_);
-
-  if (ap_rc_ != ESP_OK) {
-    bzero(&ap_, sizeof(ap_));
-  }
-
-  heap_free_ = esp_get_free_heap_size();
-  heap_min_ = esp_get_minimum_free_heap_size();
-  uptime_us_ = esp_timer_get_time();
+  grabMetrics();
 };
 
-void remoteReading::populateJSON(JsonDocument &doc) {
+Remote::Remote(ReadingType_t type, uint32_t batt_mv)
+    : Reading(type), batt_mv_(batt_mv) {
+
+  grabMetrics();
+}
+
+void Remote::populateJSON(JsonDocument &doc) {
   char bssid_str[] = "xx:xx:xx:xx:xx:xx";
   snprintf(bssid_str, sizeof(bssid_str), "%02x:%02x:%02x:%02x:%02x:%02x",
            ap_.bssid[0], ap_.bssid[1], ap_.bssid[2], ap_.bssid[3], ap_.bssid[4],
@@ -57,5 +53,21 @@ void remoteReading::populateJSON(JsonDocument &doc) {
   doc["heap_free"] = heap_free_;
   doc["heap_min"] = heap_min_;
   doc["uptime_us"] = uptime_us_;
-};
+}
+
+//
+// Private
+//
+void Remote::grabMetrics() {
+  ap_rc_ = esp_wifi_sta_get_ap_info(&ap_);
+
+  if (ap_rc_ != ESP_OK) {
+    bzero(&ap_, sizeof(ap_));
+  }
+
+  heap_free_ = esp_get_free_heap_size();
+  heap_min_ = esp_get_minimum_free_heap_size();
+  uptime_us_ = esp_timer_get_time();
+}
+} // namespace reading
 } // namespace ruth

@@ -32,13 +32,10 @@
 #include "devs/pwm/cmds/cmd.hpp"
 #include "external/ArduinoJson.h"
 
-using std::unique_ptr;
-
 namespace ruth {
-
 using std::list;
-
 using namespace pwm;
+using namespace reading;
 
 typedef class PwmDevice PwmDevice_t;
 

@@ -25,7 +25,7 @@
 #include <esp_log.h>
 
 #include "devs/pwm/cmds/cmd.hpp"
-#include "readings/simple_text.hpp"
+#include "readings/text.hpp"
 
 namespace ruth {
 namespace pwm {
@@ -57,7 +57,7 @@ void Command::pause(uint32_t ms) {
 
   if (_notify_val > 0) {
     _run = false;
-    ST::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name_cstr(), pin(),
+    Text::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name_cstr(), pin(),
              _notify_val);
   }
 }
@@ -77,7 +77,7 @@ void Command::kill() {
 
   auto stack_hw = uxTaskGetStackHighWaterMark(nullptr);
 
-  ST::rlog("killing cmd \"%s\" notify=%ld handle=%p stack_hw=%d", name_cstr(),
+  Text::rlog("killing cmd \"%s\" notify=%ld handle=%p stack_hw=%d", name_cstr(),
            _notify_val, to_delete, stack_hw);
 
   // inform FreeRTOS to remove this task from the scheduler

@@ -50,7 +50,7 @@ using std::move;
 using std::unique_ptr;
 using std::vector;
 
-using TR = ruth::textReading_t;
+using TR = ruth::Text_t;
 
 static const char *TAG = "MQTT";
 // __singleton__ is used by private MQTT static functions
@@ -107,7 +107,7 @@ MQTT::~MQTT() {
 
 void MQTT::announceStartup() {
   uint32_t batt_mv = Core::batteryMilliVolt();
-  startupReading_t startup(batt_mv);
+  Startup_t startup(batt_mv);
 
   _publish(&startup);
   StatusLED::off();

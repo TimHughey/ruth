@@ -26,20 +26,20 @@
 #include "readings/pwm.hpp"
 
 namespace ruth {
+namespace reading {
 
-pwmReading::pwmReading(const string_t &id, time_t mtime, uint32_t duty_max,
-                       uint32_t duty_min, uint32_t duty)
-    : Reading(id, mtime) {
+Pwm::Pwm(const string_t &id, uint32_t duty_max, uint32_t duty_min,
+         uint32_t duty)
+    : Reading(id, PWM) {
   duty_max_ = duty_max;
   duty_min_ = duty_min;
   duty_ = duty;
+}
 
-  _type = ReadingType_t::PWM;
-};
-
-void pwmReading::populateJSON(JsonDocument &doc) {
+void Pwm::populateJSON(JsonDocument &doc) {
   doc["duty"] = duty_;
   doc["duty_max"] = duty_max_;
   doc["duty_min"] = duty_min_;
-};
+}
+} // namespace reading
 } // namespace ruth

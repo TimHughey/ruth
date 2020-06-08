@@ -19,7 +19,7 @@
  */
 
 #include "protocols/payload.hpp"
-#include "readings/simple_text.hpp"
+#include "readings/text.hpp"
 
 namespace ruth {
 

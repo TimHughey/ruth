@@ -49,7 +49,8 @@ private:
 
 public:
   // construct a new I2cDevice with a known address and compute the id
-  I2cDevice(DeviceAddress_t &addr, bool use_multiplexer = false, uint8_t bus = 0);
+  I2cDevice(DeviceAddress_t &addr, bool use_multiplexer = false,
+            uint8_t bus = 0);
 
   uint8_t devAddr();
   bool useMultiplexer();

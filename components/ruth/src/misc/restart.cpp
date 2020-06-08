@@ -61,7 +61,7 @@ void Restart::restart(const char *text, const char *func,
     snprintf(func_buf.get(), 255, " func=\"%s\"", func);
   }
 
-  textReading::rlog("restart, reason=\"%s\"%s", (text == nullptr) ? NONE : text,
+  Text::rlog("restart, reason=\"%s\"%s", (text == nullptr) ? NONE : text,
                     func_buf.get());
 
   // gracefully shutdown MQTT

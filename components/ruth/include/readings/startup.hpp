@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef startup_reading_hpp
-#define startup_reading_hpp
+#ifndef _ruth_reading_startup_hpp
+#define _ruth_reading_startup_hpp
 
 #include <string>
 
@@ -31,20 +31,22 @@
 #include "readings/remote.hpp"
 
 namespace ruth {
-typedef class startupReading startupReading_t;
+namespace reading {
+typedef class Startup Startup_t;
 
-class startupReading : public remoteReading {
+class Startup : public Remote {
 private:
   const esp_app_desc_t *app_desc_;
   string_t reset_reason_;
 
 public:
-  startupReading(uint32_t batt_mv);
+  Startup(uint32_t batt_mv);
   static const string_t &decodeResetReason(esp_reset_reason_t reason);
 
 protected:
   virtual void populateJSON(JsonDocument &doc);
 };
+} // namespace reading
 } // namespace ruth
 
 #endif // startup_reading_hpp

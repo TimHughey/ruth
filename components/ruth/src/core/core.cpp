@@ -232,7 +232,7 @@ void Core::trackHeap() {
   }
 
   if (Net::waitForReady(0) == true) {
-    remoteReading_ptr_t remote(new remoteReading(batt_mv));
+    Remote_ptr_t remote(new Remote(batt_mv));
     remote->publish();
   }
 
@@ -268,8 +268,8 @@ unique_ptr<char[]> Core::dateTimeString(time_t t) {
 //   if (_task_map.size() == 0)
 //     return;
 //
-//   textReading *rlog = new textReading();
-//   textReading_ptr_t rlog_ptr(rlog);
+//   Text *rlog = new Text();
+//   Text_ptr_t rlog_ptr(rlog);
 //
 //   for_each(_task_map.begin(), _task_map.end(), [rlog](TaskMapItem_t item) {
 //     string_t name = item.first;

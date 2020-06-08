@@ -77,7 +77,7 @@ void I2c::command(void *data) {
     unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     if (queue_rc == pdFALSE) {
-      textReading::rlog("[i2c] [rc=%d] cmd queue receive failed", queue_rc);
+      Text::rlog("[i2c] [rc=%d] cmd queue receive failed", queue_rc);
       continue;
     }
 
@@ -94,7 +94,7 @@ void I2c::command(void *data) {
 
     // did the deserailization succeed?
     if (err) {
-      textReading::rlog("[%s] MSGPACK parse failure", err.c_str());
+      Text::rlog("[%s] MSGPACK parse failure", err.c_str());
       continue;
     }
 
@@ -102,7 +102,7 @@ void I2c::command(void *data) {
     I2cDevice_t *dev = findDevice(device);
 
     if (dev == nullptr) {
-      textReading::rlog("[i2c] could not locate device \"%s\"", device.c_str());
+      Text::rlog("[i2c] could not locate device \"%s\"", device.c_str());
       continue;
     }
 
@@ -135,8 +135,8 @@ void I2c::command(void *data) {
   }
 }
 
-bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
-                         bool ack, const RefID_t &refid,
+bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
+                         uint32_t cmd_state, bool ack, const RefID_t &refid,
                          elapsedMicros &cmd_elapsed) {
 
   // _latency_us.reset();
@@ -259,7 +259,7 @@ void I2c::report(void *data) {
 
       } else {
         if (dev->missing()) {
-          textReading::rlog("device \"%s\" is missing", dev->id().c_str());
+          Text::rlog("device \"%s\" is missing", dev->id().c_str());
         }
       }
     });
@@ -464,8 +464,8 @@ bool I2c::installDriver() {
   if (rc) {
     return rc;
   } else {
-    textReading::rlog("i2c failure config_rc=\"%s\" install_rc=\"%s\"",
-                      esp_err_to_name(config_rc), esp_err_to_name(install_rc));
+    Text::rlog("i2c failure config_rc=\"%s\" install_rc=\"%s\"",
+               esp_err_to_name(config_rc), esp_err_to_name(install_rc));
   }
 
   // 2020-05-20: the delay below is likely unncessary because of improved
@@ -486,7 +486,7 @@ bool I2c::pinReset() {
 }
 
 void I2c::printUnhandledDev(I2cDevice_t *dev) {
-  textReading::rlog("unhandled device \"%s\"", dev->debug().get());
+  Text::rlog("unhandled device \"%s\"", dev->debug().get());
 }
 
 bool I2c::useMultiplexer() { return _use_multiplexer; }
@@ -559,15 +559,14 @@ bool I2c::readMCP23008(I2cDevice_t *dev) {
 
     dev->justSeen();
 
-    positionsReading_t *reading =
-        new positionsReading(dev->id(), time(nullptr), positions, (uint8_t)8);
+    Positions_t *reading = new Positions(dev->id(), positions, (uint8_t)8);
 
     reading->setLogReading();
     dev->setReading(reading);
     rc = true;
   } else {
-    textReading::rlog("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
-                      dev->id().c_str());
+    Text::rlog("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
+               dev->id().c_str());
   }
 
   return rc;
@@ -644,13 +643,13 @@ bool I2c::readSeesawSoil(I2cDevice_t *dev) {
   if (esp_rc == ESP_OK) {
     dev->justSeen();
 
-    soilReading_t *reading = new soilReading(dev->id(), tempC, soil_moisture);
+    Reading_t *reading = new Sensor(dev->id(), tempC, soil_moisture);
 
     dev->setReading(reading);
     rc = true;
   } else {
-    textReading::rlog("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
-                      dev->id().c_str());
+    Text::rlog("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
+               dev->id().c_str());
   }
 
   return rc;
@@ -684,7 +683,7 @@ bool I2c::readSHT31(I2cDevice_t *dev) {
       float tc = (float)((stc * 175) / 0xffff) - 45;
       float rh = (float)((srh * 100) / 0xffff);
 
-      humidityReading_t *reading = new humidityReading(dev->id(), tc, rh);
+      Sensor_t *reading = new Sensor(dev->id(), tc, rh);
 
       dev->setReading(reading);
 
@@ -692,12 +691,12 @@ bool I2c::readSHT31(I2cDevice_t *dev) {
     } else { // crc did not match
 
       dev->crcMismatch();
-      textReading::rlog("device \"%s\" crc check failed",
-                        esp_err_to_name(esp_rc), dev->id().c_str());
+      Text::rlog("device \"%s\" crc check failed", esp_err_to_name(esp_rc),
+                 dev->id().c_str());
     }
   } else { // esp_rc != ESP_OK
-    textReading::rlog("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
-                      dev->id().c_str());
+    Text::rlog("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
+               dev->id().c_str());
   }
 
   return rc;
@@ -810,13 +809,12 @@ bool I2c::setMCP23008(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state) {
   // important because setting the new state relies, in part, on the existing
   // state for the pios not changing
   if (readDevice(dev) == false) {
-    textReading::rlog("device \"%s\" read before set failed",
-                      dev->debug().get());
+    Text::rlog("device \"%s\" read before set failed", dev->debug().get());
 
     return rc;
   }
 
-  positionsReading_t *reading = (positionsReading_t *)dev->reading();
+  Positions_t *reading = (Positions_t *)dev->reading();
 
   // if register 0x00 (IODIR) is not 0x00 (IODIR isn't output) then
   // set it to output
@@ -843,8 +841,8 @@ bool I2c::setMCP23008(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state) {
   esp_rc = requestData(dev, tx_data.data(), tx_data.size(), nullptr, 0, esp_rc);
 
   if (esp_rc != ESP_OK) {
-    textReading::rlog("[%s] device \"%s\" set failed", esp_err_to_name(esp_rc),
-                      dev->debug().get());
+    Text::rlog("[%s] device \"%s\" set failed", esp_err_to_name(esp_rc),
+               dev->debug().get());
 
     return rc;
   }

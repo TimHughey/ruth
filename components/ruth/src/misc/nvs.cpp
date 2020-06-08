@@ -194,7 +194,7 @@ void NVS::publishMsg(const char *key, NVSMessage_t *blob) {
 
   localtime_r(&(blob->time), timeinfo.get());
 
-  textReading::rlog(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
+  Text::rlog(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
 }
 
 void NVS::zeroBuffers() {

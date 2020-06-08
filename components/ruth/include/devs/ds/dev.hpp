@@ -26,8 +26,6 @@
 
 #include "devs/base/base.hpp"
 
-using std::unique_ptr;
-
 namespace ruth {
 
 typedef class DsDevice DsDevice_t;

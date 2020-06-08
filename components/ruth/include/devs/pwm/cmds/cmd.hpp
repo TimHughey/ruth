@@ -29,12 +29,12 @@
 #include <freertos/task.h>
 
 #include "devs/pwm/cmds/step.hpp"
-#include "readings/simple_text.hpp"
+#include "readings/text.hpp"
 
 namespace ruth {
 namespace pwm {
-
 using std::vector;
+using namespace reading;
 
 typedef class Command Command_t;
 
@@ -96,7 +96,7 @@ private:
   void _start_(void *task_data = nullptr) {
     // already running or loop function is not set
     if (_task.handle || (_loop_func == nullptr)) {
-      ST::rlog("pwm cmd _start_() _task.handle or _loop_func are nullptr");
+      Text::rlog("pwm cmd _start_() _task.handle or _loop_func are nullptr");
       return;
     }
 
@@ -109,8 +109,8 @@ private:
     xTaskCreate(&runTask, task_name.c_str(), _task.stackSize, _task.data,
                 _task.priority, &_task.handle);
 
-    ST::rlog("cmd \"%s\" started on %s handle=%p", name_cstr(), pin(),
-             _task.handle);
+    Text::rlog("cmd \"%s\" started on %s handle=%p", name_cstr(), pin(),
+               _task.handle);
   }
 
   // Task implementation

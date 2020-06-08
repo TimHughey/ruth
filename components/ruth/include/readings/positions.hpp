@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_positions_reading_hpp
-#define _ruth_positions_reading_hpp
+#ifndef _ruth_reading_positions_hpp
+#define _ruth_reading_positions_hpp
 
 #include <string>
 
@@ -30,9 +30,10 @@
 #include "readings/reading.hpp"
 
 namespace ruth {
-typedef class positionsReading positionsReading_t;
+namespace reading {
+typedef class Positions Positions_t;
 
-class positionsReading : public Reading {
+class Positions : public Reading {
 private:
   static const uint32_t _max_pios = 16;
   // actual reading data
@@ -41,13 +42,13 @@ private:
 
 public:
   // undefined reading
-  positionsReading(const string_t &id, time_t mtime, uint32_t states,
-                   uint32_t pios);
+  Positions(const string_t &id, uint32_t states, uint32_t pios);
   uint32_t state() { return _states; }
 
 protected:
   virtual void populateJSON(JsonDocument &doc);
 };
+} // namespace reading
 } // namespace ruth
 
 #endif // positions_reading_h

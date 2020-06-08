@@ -38,6 +38,8 @@
 
 namespace ruth {
 
+using namespace reading;
+
 typedef struct {
   size_t len = 0;
   string_t *data = nullptr;

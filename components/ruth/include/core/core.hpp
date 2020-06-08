@@ -39,6 +39,7 @@
 
 namespace ruth {
 using std::unique_ptr;
+using namespace ruth;
 
 typedef class Core Core_t;
 

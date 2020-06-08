@@ -57,7 +57,7 @@ void Device::justSeen() {
   _last_seen = time(nullptr);
 
   if (was_missing) {
-    textReading::rlog("missing device \"%s\" has returned", _id.c_str());
+    Text::rlog("missing device \"%s\" has returned", _id.c_str());
   }
 }
 void Device::setID(const string_t &new_id) { _id = new_id; }

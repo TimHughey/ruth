@@ -26,11 +26,9 @@
 #include "readings/positions.hpp"
 
 namespace ruth {
-positionsReading::positionsReading(const string_t &id, time_t mtime,
-                                   uint32_t states, uint32_t pios)
-    : Reading(id, mtime) {
-
-  _type = ReadingType_t::SWITCH;
+namespace reading {
+Positions::Positions(const string_t &id, uint32_t states, uint32_t pios)
+    : Reading(id, SWITCH) {
 
   if (pios <= _max_pios) {
     _pios = pios;
@@ -38,7 +36,7 @@ positionsReading::positionsReading(const string_t &id, time_t mtime,
   }
 }
 
-void positionsReading::populateJSON(JsonDocument &doc) {
+void Positions::populateJSON(JsonDocument &doc) {
   doc["pio_count"] = _pios;
 
   JsonArray states = doc.createNestedArray("states");
@@ -51,4 +49,5 @@ void positionsReading::populateJSON(JsonDocument &doc) {
     item["state"] = pio_state;
   }
 }
+} // namespace reading
 } // namespace ruth

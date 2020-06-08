@@ -42,8 +42,8 @@
 #include "readings/readings.hpp"
 
 namespace ruth {
-
 using std::vector;
+using namespace reading;
 
 template <class DEV> class Engine {
 
@@ -100,8 +100,8 @@ public:
 
     if (numKnownDevices() > maxDevices()) {
 
-      textReading::rlog("adding device \"%s\" would exceed max devices",
-                        dev->id().c_str());
+      Text::rlog("adding device \"%s\" would exceed max devices",
+                 dev->id().c_str());
 
       return rc;
     }

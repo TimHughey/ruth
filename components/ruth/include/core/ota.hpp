@@ -33,8 +33,6 @@
 
 namespace ruth {
 
-using std::unique_ptr;
-
 typedef class OTA OTA_t;
 class OTA {
 public:

@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_remote_reading_hpp
-#define _ruth_remote_reading_hpp
+#ifndef _ruth_reading_remote_hpp
+#define _ruth_reading_remote_hpp
 
 #include <string>
 
@@ -34,10 +34,19 @@
 using std::unique_ptr;
 
 namespace ruth {
-typedef class remoteReading remoteReading_t;
-typedef unique_ptr<remoteReading_t> remoteReading_ptr_t;
+namespace reading {
+typedef class Remote Remote_t;
+typedef unique_ptr<Remote_t> Remote_ptr_t;
 
-class remoteReading : public Reading {
+class Remote : public Reading {
+
+public:
+  Remote(uint32_t batt_mv);
+  Remote(ReadingType_t type, uint32_t battZ_mv);
+
+protected:
+  virtual void populateJSON(JsonDocument &doc);
+
 private:
   wifi_ap_record_t ap_;
   esp_err_t ap_rc_;
@@ -46,12 +55,10 @@ private:
   uint32_t heap_min_;
   uint64_t uptime_us_;
 
-public:
-  remoteReading(uint32_t batt_mv);
-
-protected:
-  virtual void populateJSON(JsonDocument &doc);
+private:
+  void grabMetrics();
 };
+} // namespace reading
 } // namespace ruth
 
 #endif

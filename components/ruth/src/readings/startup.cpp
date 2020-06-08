@@ -27,18 +27,17 @@
 #include "readings/startup.hpp"
 
 namespace ruth {
-startupReading::startupReading(uint32_t batt_mv) : remoteReading(batt_mv) {
-  _type = ReadingType_t::BOOT;
-
+namespace reading {
+Startup::Startup(uint32_t batt_mv) : Remote(BOOT, batt_mv) {
   app_desc_ = esp_ota_get_app_description();
 
   reset_reason_ = decodeResetReason(esp_reset_reason());
 };
 
-void startupReading::populateJSON(JsonDocument &doc) {
+void Startup::populateJSON(JsonDocument &doc) {
   char sha256[12] = {};
 
-  remoteReading::populateJSON(doc);
+  Remote::populateJSON(doc);
 
   esp_ota_get_app_elf_sha256(sha256, sizeof(sha256));
 
@@ -50,7 +49,7 @@ void startupReading::populateJSON(JsonDocument &doc) {
   doc["reset_reason"] = reset_reason_.c_str();
 };
 
-const string_t &startupReading::decodeResetReason(esp_reset_reason_t reason) {
+const string_t &Startup::decodeResetReason(esp_reset_reason_t reason) {
   static string_t _reason;
 
   switch (reason) {
@@ -103,4 +102,5 @@ const string_t &startupReading::decodeResetReason(esp_reset_reason_t reason) {
 
   return _reason;
 }
+} // namespace reading
 } // namespace ruth

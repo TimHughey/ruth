@@ -30,6 +30,9 @@
 #include "readings/reading.hpp"
 
 namespace ruth {
+namespace reading {
+
+using ruth::MQTT;
 
 void Reading::commonJSON(JsonDocument &doc) {
   doc["host"] = Net::hostID();
@@ -91,5 +94,5 @@ string_t *Reading::json(char *buffer, size_t len) {
 }
 
 void Reading::publish() { MQTT::publish(this); }
-
+} // namespace reading
 } // namespace ruth

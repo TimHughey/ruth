@@ -26,11 +26,9 @@
 #define _ruth_misc_elapsed_hpp
 
 #include <cstdint>
-
 #include <esp_timer.h>
 
 namespace ruth {
-
 class elapsedMillis {
 
 public:
