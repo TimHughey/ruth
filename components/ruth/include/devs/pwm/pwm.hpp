@@ -65,7 +65,9 @@ public:
   gpio_num_t gpioPin() { return _gpio_pin; };
 
   // primary entry point for all cmds except duty
-  bool cmd(JsonDocument &doc);
+  bool cmd(uint32_t pwm_cmd, JsonDocument &doc);
+
+  bool cmdKill();
 
   bool updateDuty(uint32_t duty);
   bool updateDuty(JsonDocument &doc);

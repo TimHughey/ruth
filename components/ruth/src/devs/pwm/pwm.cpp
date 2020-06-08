@@ -80,46 +80,57 @@ void pwmDev::configureChannel() {
   _last_rc = ledc_channel_config(&_ledc_channel);
 }
 
-bool pwmDev::cmd(JsonDocument &doc) {
+bool pwmDev::cmd(uint32_t pwm_cmd, JsonDocument &doc) {
   auto rc = false;
   Command_t *cmd = nullptr;
-  JsonObject cmd_obj = doc["cmd"];
 
-  if (cmd_obj) {
-    // ok, there's a cmd.
-    // get the name so an existing cmd with the same name can be stopped
-    const char *cmd_name = cmd_obj["name"];
+  if (pwm_cmd == 0x10) {
+    // this is a set duty cmd and is always given top priority
+    const auto new_duty = doc["duty"] | 0;
+    cmdKill();
 
-    // if the cmd name exists, erase it before allocating the new
-    // cmd to minimize heap frag
-    cmdErase(cmd_name);
+    rc = updateDuty(new_duty);
+  } else {
+    // handle the more complex commands that become running tasks
+    JsonObject cmd_obj = doc["cmd"];
 
-    cmd = cmdCreate(cmd_obj);
-    if (cmd) {
-      _cmds.push_back(cmd);
+    if (cmd_obj) {
+      // ok, there's a cmd.
+      // get the name so an existing cmd with the same name can be stopped
+      const char *cmd_name = cmd_obj["name"];
 
-      cmd->runIfNeeded();
+      // if the cmd name exists, erase it before allocating the new
+      // cmd to minimize heap frag
+      cmdErase(cmd_name);
 
-      rc = true;
+      cmd = cmdCreate(cmd_obj);
+      if (cmd) {
+        _cmds.push_back(cmd);
+
+        cmd->runIfNeeded();
+
+        rc = true;
+      }
     }
   }
 
   return rc;
 }
 
-bool pwmDev::updateDuty(JsonDocument &doc) {
-  const uint32_t new_duty = doc["duty"] | 0;
+bool pwmDev::cmdKill() {
+  auto rc = false; // true = a cmd was killed
 
   if (_cmds.empty() == false) {
-    for_each(_cmds.begin(), _cmds.end(), [this](Command_t *cmd) {
+    for_each(_cmds.begin(), _cmds.end(), [this, &rc](Command_t *cmd) {
       if (cmd->running()) {
+        rc = true;
         cmd->kill();
       }
     });
   }
 
-  return updateDuty(new_duty);
-} // namespace ruth
+  return rc;
+}
 
 bool pwmDev::updateDuty(uint32_t new_duty) {
   auto esp_rc = ESP_OK;

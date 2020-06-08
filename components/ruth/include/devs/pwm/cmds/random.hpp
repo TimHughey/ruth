@@ -50,7 +50,6 @@ private:
   void _loop();
 
   uint32_t directionFromVal(uint32_t val) const { return (val == 0) ? -1 : 1; }
-  void pause(uint32_t ms);
   esp_err_t setDuty(uint32_t duty);
   uint32_t random(uint32_t modulo) const { return esp_random() % modulo; }
   uint32_t randomDirection() const { return directionFromVal(random(2)); }
@@ -62,8 +61,6 @@ private:
   uint32_t _num_primes = 10;
   uint32_t _step = 100;
   uint32_t _step_ms = 75;
-
-  bool _run = true;
 
   // primes
   static uint32_t _primes[26];

@@ -92,20 +92,12 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
 
   const uint32_t pwm_cmd = doc["pwm_cmd"] | 0x00;
 
-  switch (pwm_cmd) {
-
-  case 0x10: // duty
-    set_rc = dev->updateDuty(doc);
-    break;
-
-  case 0x11: // basic
-  case 0x12: // random
-    set_rc = dev->cmd(doc);
-    break;
-
-  default:
-    set_rc = false;
-    break;
+  if (pwm_cmd < 0x1000) {
+    // this command is device specific, send it there for processing
+    set_rc = dev->cmd(pwm_cmd, doc);
+  } else {
+    // this command is for the engine
+    set_rc = true;
   }
 
   bool ack = doc["ack"] | true;

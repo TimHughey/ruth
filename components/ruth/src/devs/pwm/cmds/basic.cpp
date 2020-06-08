@@ -69,14 +69,9 @@ void Basic::_loop() {
 
       ledc_set_duty_and_update(mode, channel, step->duty(), 0);
 
-      auto notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(step->ms()));
-
-      if (notify_val > 0) {
-        ST::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name_cstr(), pin(),
-                 notify_val);
-      }
+      pause(step->ms());
     });
-  } while (_repeat == true);
+  } while (_repeat && keepRunning());
 }
 } // namespace pwm
 } // namespace ruth

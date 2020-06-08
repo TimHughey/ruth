@@ -67,7 +67,7 @@ void Random::_loop() {
     auto direction = randomDirection();
     auto steps = randomPrime();
 
-    for (auto i = 0; (i < steps) && _run; i++) {
+    for (auto i = 0; (i < steps) && keepRunning(); i++) {
       auto next_duty = curr_duty + (_step * direction);
 
       if ((next_duty >= _max) || (next_duty <= _min)) {
@@ -80,17 +80,7 @@ void Random::_loop() {
 
       pause(randomPrime() + _step_ms);
     }
-  } while (_run);
-}
-
-void Random::pause(uint32_t ms) {
-  auto notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ms));
-
-  if (notify_val > 0) {
-    _run = false;
-    ST::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name_cstr(), pin(),
-             notify_val);
-  }
+  } while (keepRunning());
 }
 
 esp_err_t Random::setDuty(uint32_t duty) {

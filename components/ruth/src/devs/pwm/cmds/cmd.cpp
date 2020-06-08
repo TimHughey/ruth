@@ -52,6 +52,16 @@ Command::~Command() {
   kill();
 }
 
+void Command::pause(uint32_t ms) {
+  _notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ms));
+
+  if (_notify_val > 0) {
+    _run = false;
+    ST::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name_cstr(), pin(),
+             _notify_val);
+  }
+}
+
 void Command::runIfNeeded() {
   if (_activate)
     _start_();
@@ -67,10 +77,14 @@ void Command::kill() {
 
   auto stack_hw = uxTaskGetStackHighWaterMark(nullptr);
 
-  ST::rlog("deleting task=%p stack_hw=%d", to_delete, stack_hw);
+  ST::rlog("killing cmd \"%s\" notify=%ld handle=%p stack_hw=%d", name_cstr(),
+           _notify_val, to_delete, stack_hw);
 
   // inform FreeRTOS to remove this task from the scheduler
   vTaskDelete(to_delete);
+
+  // NOTE: nothing can be returned from this function as code after
+  //       vTaskDelete is never executed
 }
 
 } // namespace pwm
