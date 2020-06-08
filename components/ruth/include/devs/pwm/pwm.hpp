@@ -28,7 +28,7 @@
 #include <driver/gpio.h>
 #include <driver/ledc.h>
 
-#include "devs/base.hpp"
+#include "devs/base/base.hpp"
 #include "devs/pwm/cmds/cmd.hpp"
 #include "external/ArduinoJson.h"
 

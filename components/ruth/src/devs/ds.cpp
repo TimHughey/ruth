@@ -27,8 +27,8 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "devs/addr.hpp"
-#include "devs/base.hpp"
+#include "devs/base/addr.hpp"
+#include "devs/base/base.hpp"
 #include "devs/ds_dev.hpp"
 #include "drivers/owb.h"
 #include "local/types.hpp"

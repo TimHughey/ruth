@@ -28,7 +28,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "devs/base.hpp"
+#include "devs/base/base.hpp"
 #include "devs/pwm/cmds/basic.hpp"
 #include "devs/pwm/cmds/random.hpp"
 #include "devs/pwm/pwm.hpp"

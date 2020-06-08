@@ -25,8 +25,8 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "devs/addr.hpp"
-#include "devs/base.hpp"
+#include "devs/base/addr.hpp"
+#include "devs/base/base.hpp"
 #include "local/types.hpp"
 #include "readings/readings.hpp"
 

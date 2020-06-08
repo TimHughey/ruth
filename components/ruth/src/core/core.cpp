@@ -19,7 +19,7 @@
 */
 
 #include "core/core.hpp"
-#include "devs/base.hpp"
+#include "devs/base/base.hpp"
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
 #include "engines/pwm.hpp"

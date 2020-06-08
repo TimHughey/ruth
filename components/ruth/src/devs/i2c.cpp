@@ -27,7 +27,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "devs/base.hpp"
+#include "devs/base/base.hpp"
 #include "devs/i2c_dev.hpp"
 #include "local/types.hpp"
 #include "net/network.hpp"

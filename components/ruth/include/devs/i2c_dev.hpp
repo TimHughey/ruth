@@ -24,7 +24,7 @@
 #include <memory>
 #include <string>
 
-#include "devs/base.hpp"
+#include "devs/base/base.hpp"
 
 namespace ruth {
 
