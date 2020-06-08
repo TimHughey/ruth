@@ -34,7 +34,6 @@
 namespace ruth {
 namespace reading {
 typedef class Text Text_t;
-typedef class Text ST;
 
 typedef std::unique_ptr<Text_t> Text_ptr_t;
 
