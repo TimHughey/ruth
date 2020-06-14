@@ -900,13 +900,10 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
   owb_status owb_s;
   bool rc = false;
 
-  Text *rlog = new Text_t;
-
   // read the device to ensure we have the current state
   // important because setting the new state relies, in part, on the existing
   // state for the pios not changing
   if (readDevice(dev) == false) {
-    rlog->reuse();
     Text::rlog("device \"%s\" read before set failed", dev->id().c_str());
 
     return rc;
@@ -943,7 +940,6 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
   owb_s = owb_write_bytes(_ds, dev_cmd, sizeof(dev_cmd));
 
   if (owb_s != OWB_STATUS_OK) {
-    rlog->reuse();
     Text::rlog("device \"%s\" set cmd failed owb_s=\"%d\"", dev->debug().get(),
                owb_s);
 
@@ -955,7 +951,7 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
   owb_s = owb_read_bytes(_ds, check, sizeof(check));
 
   if (owb_s != OWB_STATUS_OK) {
-    rlog->reuse();
+
     Text::rlog("device \"%s\" check byte read failed owb_s=\"%d\"",
                dev->debug().get(), owb_s);
 
@@ -963,8 +959,6 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
   }
 
   resetBus();
-
-  rlog->reuse();
 
   // check what the device returned to determine success or failure
   // byte 0: 0xAA is the confirmation response

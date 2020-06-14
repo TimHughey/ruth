@@ -139,8 +139,6 @@ bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
                          uint32_t cmd_state, bool ack, const RefID_t &refid,
                          elapsedMicros &cmd_elapsed) {
 
-  // _latency_us.reset();
-
   if (dev->isValid()) {
     bool set_rc = false;
 
