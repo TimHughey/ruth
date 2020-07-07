@@ -63,7 +63,7 @@ private:
   uint32_t _step_ms = 75;
 
   // primes
-  static uint32_t _primes[26];
+  static uint32_t _primes[35];
 };
 
 } // namespace pwm
