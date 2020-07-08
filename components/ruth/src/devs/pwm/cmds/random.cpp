@@ -31,10 +31,10 @@ namespace ruth {
 namespace pwm {
 
 // initialize the array of primes
-uint32_t Random::_primes[35] = {2,   3,   5,   7,   11,  13,  17,  19,  23,
+uint32_t Random::_primes[36] = {2,   3,   5,   7,   11,  13,  17,  19,  23,
                                 29,  31,  37,  41,  43,  47,  53,  59,  61,
                                 67,  71,  73,  79,  83,  89,  97,  101, 103,
-                                107, 109, 113, 127, 131, 137, 139, 149};
+                                107, 109, 113, 127, 131, 137, 139, 149, 151};
 
 Random::Random(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd)
     : Command(pin, chan, cmd) {
@@ -45,7 +45,12 @@ Random::Random(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd)
     // max duty value permitted
     _max = obj["max"] | _max;
     _min = obj["min"] | _min;
-    _num_primes = obj["primes"] | _num_primes;
+
+    uint32_t num_primes = obj["primes"] | _num_primes;
+
+    // prevent the requested primes from exceeding the available primes
+    _num_primes = (num_primes > availablePrimes()) ? _num_primes : num_primes;
+
     _step = obj["step"] | _step;
     _step_ms = obj["step_ms"] | _step_ms;
   }

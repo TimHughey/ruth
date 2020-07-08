@@ -49,21 +49,39 @@ protected:
 private:
   void _loop();
 
-  uint32_t directionFromVal(uint32_t val) const { return (val == 0) ? -1 : 1; }
+  size_t availablePrimes() { return sizeof(_primes) / sizeof(_primes[0]); }
+
+  int32_t directionFromVal(uint32_t val) const {
+
+    switch (val) {
+    case 0:
+      return 0;
+
+    case 1:
+      return -1;
+
+    case 2:
+      return 1;
+
+    default:
+      return 0;
+    }
+  }
+
   esp_err_t setDuty(uint32_t duty);
   uint32_t random(uint32_t modulo) const { return esp_random() % modulo; }
-  uint32_t randomDirection() const { return directionFromVal(random(2)); }
+  int32_t randomDirection() const { return directionFromVal(random(3)); }
   uint32_t randomPrime() const { return _primes[random(_num_primes)]; }
 
 private:
   uint32_t _max = 8191;
   uint32_t _min = 0;
-  uint32_t _num_primes = 10;
-  uint32_t _step = 100;
-  uint32_t _step_ms = 75;
+  uint32_t _num_primes = 35;
+  uint32_t _step = 7;
+  uint32_t _step_ms = 65;
 
   // primes
-  static uint32_t _primes[35];
+  static uint32_t _primes[36];
 };
 
 } // namespace pwm
