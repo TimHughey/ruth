@@ -90,7 +90,7 @@ private:
                   .data = nullptr,
                   .lastWake = 0,
                   .priority = 13,
-                  .stackSize = 3072};
+                  .stackSize = 4096};
 
 private:
   void _start_(void *task_data = nullptr) {
