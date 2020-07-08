@@ -68,6 +68,7 @@ protected:
   void loopData(Command_t *obj) { _task.data = obj; }
   uint32_t notifyValue() const { return _notify_val; }
   void pause(uint32_t);
+  xTaskHandle taskHandle() { return _task.handle; }
   void useLoopFunction(TaskFunc_t *func) { _loop_func = func; }
 
 private:
@@ -90,7 +91,7 @@ private:
                   .data = nullptr,
                   .lastWake = 0,
                   .priority = 13,
-                  .stackSize = 4096};
+                  .stackSize = 5120};
 
 private:
   void _start_(void *task_data = nullptr) {
@@ -109,8 +110,8 @@ private:
     xTaskCreate(&runTask, task_name.c_str(), _task.stackSize, _task.data,
                 _task.priority, &_task.handle);
 
-    Text::rlog("cmd \"%s\" started on %s handle=%p", name_cstr(), pin(),
-               _task.handle);
+    // Text::rlog("cmd \"%s\" started on %s handle=%p", name_cstr(), pin(),
+    //            _task.handle);
   }
 
   // Task implementation
