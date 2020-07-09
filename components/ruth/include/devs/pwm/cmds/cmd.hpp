@@ -51,16 +51,13 @@ public:
   const string_t &name() { return _name; }
   const char *name_cstr() const { return _name.c_str(); }
 
-  void activate(bool yes_or_no) { _activate = yes_or_no; }
-  bool active() const { return _activate; }
-
   const char *pin() const { return _pin; }
 
   // public API for task info and control
   void kill();
   void notify() const { xTaskNotify(_task.handle, 0, eIncrement); }
   bool running() const { return (_task.handle == nullptr) ? false : true; }
-  void runIfNeeded();
+  bool run();
 
 protected:
   // Task control, info and settings for subclasses
@@ -77,8 +74,6 @@ private:
   xTaskHandle _parent; // task handle of parent for notification purposes
   ledc_channel_config_t *_channel; // ledc channel to control
 
-  bool _activate = false; // should cmd become active?
-
   // Task Specific member variables
   uint32_t _notify_val = 0;
 
@@ -91,7 +86,7 @@ private:
                   .data = nullptr,
                   .lastWake = 0,
                   .priority = 13,
-                  .stackSize = 5120};
+                  .stackSize = 3072};
 
 private:
   void _start_(void *task_data = nullptr) {

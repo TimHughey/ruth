@@ -21,7 +21,6 @@
 #ifndef _ruth_pwm_dev_hpp
 #define _ruth_pwm_dev_hpp
 
-#include <list>
 #include <memory>
 #include <string>
 
@@ -33,7 +32,6 @@
 #include "external/ArduinoJson.h"
 
 namespace ruth {
-using std::list;
 using namespace pwm;
 using namespace reading;
 
@@ -79,7 +77,7 @@ private:
   static const uint32_t _duty_max = 0x1fff;
   static const uint32_t _duty_min = 0;
 
-  list<Command_t *> _cmds = {};
+  Command_t *_cmd = nullptr;
 
   gpio_num_t _gpio_pin;
   uint32_t _duty = 0; // default to zero (off)
@@ -97,7 +95,6 @@ private:
 
 private:
   Command_t *cmdCreate(JsonObject &obj);
-  bool cmdErase(const char *name);
 };
 } // namespace ruth
 

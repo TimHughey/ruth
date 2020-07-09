@@ -41,8 +41,6 @@ Command::Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj)
   const char *name_str = obj["name"];
   _name.assign(name_str);
 
-  // should this command immediately go active? default to true if not specified
-  _activate = obj["activate"] | true;
   // grab the task handle of the caller to use for later task notifications
   _parent = xTaskGetCurrentTaskHandle();
 }
@@ -58,13 +56,13 @@ void Command::pause(uint32_t ms) {
   if (_notify_val > 0) {
     _run = false;
     Text::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name_cstr(), pin(),
-             _notify_val);
+               _notify_val);
   }
 }
 
-void Command::runIfNeeded() {
-  if (_activate)
-    _start_();
+bool Command::run() {
+  _start_();
+  return true;
 }
 
 void Command::kill() {
@@ -78,7 +76,7 @@ void Command::kill() {
   auto stack_hw = uxTaskGetStackHighWaterMark(nullptr);
 
   Text::rlog("killing cmd \"%s\" notify=%ld handle=%p stack_hw=%d", name_cstr(),
-           _notify_val, to_delete, stack_hw);
+             _notify_val, to_delete, stack_hw);
 
   // inform FreeRTOS to remove this task from the scheduler
   vTaskDelete(to_delete);

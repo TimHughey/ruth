@@ -82,7 +82,9 @@ void PwmDevice::configureChannel() {
 
 bool PwmDevice::cmd(uint32_t pwm_cmd, JsonDocument &doc) {
   auto rc = false;
-  Command_t *cmd = nullptr;
+
+  // this is a new cmd so always kill the running command, if one exists
+  cmdKill();
 
   if (pwm_cmd == 0x10) {
     // this is a set duty cmd and is always given top priority
@@ -94,23 +96,9 @@ bool PwmDevice::cmd(uint32_t pwm_cmd, JsonDocument &doc) {
     // handle the more complex commands that become running tasks
     JsonObject cmd_obj = doc["cmd"];
 
-    if (cmd_obj) {
-      // ok, there's a cmd.
-      // get the name so an existing cmd with the same name can be stopped
-      const char *cmd_name = cmd_obj["name"];
-
-      // if the cmd name exists, erase it before allocating the new
-      // cmd to minimize heap frag
-      cmdErase(cmd_name);
-
-      cmd = cmdCreate(cmd_obj);
-      if (cmd) {
-        _cmds.push_back(cmd);
-
-        cmd->runIfNeeded();
-
-        rc = true;
-      }
+    // there's a command in the payload, attempt to create it and run it
+    if (cmd_obj && (_cmd = cmdCreate(cmd_obj))) {
+      rc = _cmd->run();
     }
   }
 
@@ -120,13 +108,15 @@ bool PwmDevice::cmd(uint32_t pwm_cmd, JsonDocument &doc) {
 bool PwmDevice::cmdKill() {
   auto rc = false; // true = a cmd was killed
 
-  if (_cmds.empty() == false) {
-    for_each(_cmds.begin(), _cmds.end(), [this, &rc](Command_t *cmd) {
-      if (cmd->running()) {
-        rc = true;
-        cmd->kill();
-      }
-    });
+  if (_cmd) {
+    // must kill the command before deleting it!!!
+    _cmd->kill();
+
+    delete _cmd;
+
+    _cmd = nullptr;
+
+    rc = true;
   }
 
   return rc;
@@ -169,35 +159,6 @@ Command_t *PwmDevice::cmdCreate(JsonObject &cmd_obj) {
   }
 
   return cmd;
-}
-
-bool PwmDevice::cmdErase(const char *name) {
-  bool rc = false;
-  const string_t name_str = name;
-
-  using std::find_if;
-
-  auto found =
-      find_if(_cmds.begin(), _cmds.end(), [this, name_str](Command_t *cmd) {
-        if (name_str.compare(cmd->name()) == 0)
-          return true;
-
-        return false;
-      });
-
-  if (found != _cmds.end()) {
-    Command_t *cmd = *found;
-
-    // stop the command (if running)
-    cmd->kill();
-
-    // now it's safe to delete
-    _cmds.erase(found);
-    delete cmd;
-    rc = true;
-  }
-
-  return rc;
 }
 
 // STATIC
