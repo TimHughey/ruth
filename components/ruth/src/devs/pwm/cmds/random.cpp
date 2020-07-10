@@ -69,7 +69,9 @@ void Random::_loop() {
              taskHandle());
 
   // pick a random starting point
-  auto curr_duty = random((_max - _min) + _min);
+  auto duty = random((_max - _min) + _min);
+
+  fadeTo(duty);
 
   do {
     // pick a random initial direction and number of steps
@@ -77,27 +79,19 @@ void Random::_loop() {
     auto steps = randomPrime();
 
     for (auto i = 0; (i < steps) && keepRunning(); i++) {
-      auto next_duty = curr_duty + (_step * direction);
+      uint32_t next_duty = duty + (_step * direction);
 
       if ((next_duty >= _max) || (next_duty <= _min)) {
         pause(randomPrime() + _step_ms);
         break;
       }
 
-      curr_duty = next_duty;
+      duty = next_duty;
       setDuty(next_duty);
 
       pause(randomPrime() + _step_ms);
     }
   } while (keepRunning());
-}
-
-esp_err_t Random::setDuty(uint32_t duty) {
-  const ledc_channel_config_t *chan = channel();
-  const ledc_mode_t mode = chan->speed_mode;
-  const ledc_channel_t channel = chan->channel;
-
-  return ledc_set_duty_and_update(mode, channel, duty, 0);
 }
 
 } // namespace pwm

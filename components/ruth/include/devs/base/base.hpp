@@ -108,6 +108,9 @@ public:
   int readErrors() const { return _read_errors; }
   int writeErrors() const { return _write_errors; }
 
+  // delay task for milliseconds
+  void delay(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
+
   // int crcMismatchCount();
   // int readErrorCount();
   // int writeErrorCount();

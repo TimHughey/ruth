@@ -61,11 +61,14 @@ public:
 
 protected:
   // Task control, info and settings for subclasses
+  uint32_t getDuty();
+  void fadeTo(uint32_t duty);
   bool keepRunning() const { return _run; }
   void loopData(Command_t *obj) { _task.data = obj; }
   uint32_t notifyValue() const { return _notify_val; }
   void pause(uint32_t);
   xTaskHandle taskHandle() { return _task.handle; }
+  esp_err_t setDuty(uint32_t duty);
   void useLoopFunction(TaskFunc_t *func) { _loop_func = func; }
 
 private:
@@ -86,7 +89,7 @@ private:
                   .data = nullptr,
                   .lastWake = 0,
                   .priority = 13,
-                  .stackSize = 3072};
+                  .stackSize = 4096};
 
 private:
   void _start_(void *task_data = nullptr) {

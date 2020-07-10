@@ -68,7 +68,6 @@ private:
     }
   }
 
-  esp_err_t setDuty(uint32_t duty);
   uint32_t random(uint32_t modulo) const { return esp_random() % modulo; }
   int32_t randomDirection() const { return directionFromVal(random(3)); }
   uint32_t randomPrime() const { return _primes[random(_num_primes)]; }

@@ -50,6 +50,35 @@ Command::~Command() {
   kill();
 }
 
+void Command::fadeTo(uint32_t fade_to) {
+  const auto step = 7;
+  const auto delay_ms = 55;
+
+  auto current_duty = getDuty();
+  auto direction = (fade_to < current_duty) ? -1 : 1;
+
+  uint32_t steps = labs(current_duty - fade_to) / step;
+
+  auto new_duty = current_duty;
+
+  for (auto i = 0; (i < steps) && keepRunning(); i++) {
+    new_duty += (direction * step);
+    setDuty(new_duty);
+
+    pause(delay_ms);
+  }
+}
+
+uint32_t Command::getDuty() {
+  const ledc_channel_config_t *chan = channel();
+  const ledc_mode_t mode = chan->speed_mode;
+  const ledc_channel_t channel = chan->channel;
+
+  auto duty = ledc_get_duty(mode, channel);
+
+  return duty;
+}
+
 void Command::pause(uint32_t ms) {
   _notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ms));
 
@@ -63,6 +92,14 @@ void Command::pause(uint32_t ms) {
 bool Command::run() {
   _start_();
   return true;
+}
+
+esp_err_t Command::setDuty(uint32_t duty) {
+  const ledc_channel_config_t *chan = channel();
+  const ledc_mode_t mode = chan->speed_mode;
+  const ledc_channel_t channel = chan->channel;
+
+  return ledc_set_duty_and_update(mode, channel, duty, 0);
 }
 
 void Command::kill() {

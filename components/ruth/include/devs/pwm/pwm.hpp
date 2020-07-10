@@ -21,6 +21,7 @@
 #ifndef _ruth_pwm_dev_hpp
 #define _ruth_pwm_dev_hpp
 
+#include <cstdlib>
 #include <memory>
 #include <string>
 
@@ -55,8 +56,10 @@ public:
   void configureChannel();
   ledc_channel_t channel() { return _ledc_channel.channel; };
   ledc_mode_t speedMode() { return _ledc_channel.speed_mode; };
+  uint32_t duty();
   uint32_t dutyMax() { return _duty_max; };
   uint32_t dutyMin() { return _duty_min; };
+
   gpio_num_t gpioPin() { return _gpio_pin; };
 
   // primary entry point for all cmds except duty

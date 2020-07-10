@@ -122,6 +122,12 @@ bool PwmDevice::cmdKill() {
   return rc;
 }
 
+uint32_t PwmDevice::duty() {
+  _duty = ledc_get_duty(speedMode(), channel());
+
+  return _duty;
+}
+
 bool PwmDevice::updateDuty(uint32_t new_duty) {
   auto esp_rc = ESP_OK;
 
