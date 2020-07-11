@@ -78,18 +78,22 @@ void Random::_loop() {
     auto direction = randomDirection();
     auto steps = randomPrime();
 
-    for (auto i = 0; (i < steps) && keepRunning(); i++) {
+    auto in_range = true;
+    auto pause_ms = randomPrime() + _step_ms;
+
+    for (auto i = 0; (i < steps) && keepRunning() && in_range; i++) {
       uint32_t next_duty = duty + (_step * direction);
 
       if ((next_duty >= _max) || (next_duty <= _min)) {
-        pause(randomPrime() + _step_ms);
+        pause(randomPrime() * _step_ms);
+        in_range = false;
         break;
       }
 
       duty = next_duty;
       setDuty(next_duty);
 
-      pause(randomPrime() + _step_ms);
+      pause(pause_ms);
     }
   } while (keepRunning());
 }

@@ -64,7 +64,8 @@ private:
       return 1;
 
     default:
-      return 0;
+      // favor decreasing brightness
+      return -1;
     }
   }
 
