@@ -95,6 +95,7 @@ MQTT::~MQTT() {
   // is only freeing any messages (most likely zero) that hadn't been published
   mqttOutMsg_t *msg;
   while (xQueueReceive(_q_out, &msg, 0) == pdTRUE) {
+
     // the msg is a simple struct so free the enclosed data
 
     // TODO: refactor mqttOutMsg_t so this isn't necessary
