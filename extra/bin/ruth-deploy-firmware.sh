@@ -19,6 +19,8 @@ fi
 # necessary to run idf.py
 source ./esp-idf/export.sh &>! /tmp/idf-export.log
 
+export IDF_CCACHE_ENABLE=1
+
 # if it failed output the captured log and exit
 if [[ ! $? ]]; then
   cat /tmp/idf-export.log
