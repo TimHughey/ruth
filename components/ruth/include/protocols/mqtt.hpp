@@ -25,14 +25,15 @@
 #include <memory>
 #include <string>
 
+#include <esp_event.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <freertos/queue.h>
 #include <freertos/task.h>
+#include <mqtt_client.h>
 #include <sdkconfig.h>
 
-#include "external/mongoose.h"
 #include "protocols/payload.hpp"
 #include "readings/readings.hpp"
 
@@ -70,22 +71,29 @@ private:
 
   // member functions via static singleton to handle events
   // and expose public API (e.g. publish)
-  void _handshake_(struct mg_connection *nc);
-  void _incomingMsg_(struct mg_str *topic, struct mg_str *payload);
+  void _brokerAck_() { _broker_acks++; }
+  void _incomingMsg_(esp_mqtt_event_t *event);
   void _publish(Reading_t *reading);
   void _publish(Reading_t &reading);
   void _publish(Reading_ptr_t reading);
-  void _subscribeFeeds_(struct mg_connection *nc);
-  void _subACK_(struct mg_mqtt_message *msg);
+  void _subscribeFeeds_(esp_mqtt_client_handle_t client);
+  void _subACK_(esp_mqtt_event_handle_t event);
 
-  static void _ev_handler(struct mg_connection *nc, int ev, void *p);
+  // void (*esp_event_handler_t)(void *event_handler_arg, esp_event_base_t
+  // event_base, int32_t event_id, void *event_data)
+  static void _ev_handler(void *handler_args, esp_event_base_t base,
+                          int32_t event_id, void *event_data);
+
+  static esp_err_t _ev_callback(esp_mqtt_event_handle_t event);
 
 private:
   // private member variables
+  esp_mqtt_client_config_t mqtt_cfg;
 
   // private strings defining essential connection info
   // const char *_dns_server = CONFIG_RUTH_DNS_SERVER;
   const string_t _host = CONFIG_RUTH_MQTT_HOST;
+  const string_t _uri = "mqtt://" CONFIG_RUTH_MQTT_HOST;
   const int _port = CONFIG_RUTH_MQTT_PORT;
   const char *_user = CONFIG_RUTH_MQTT_USER;
   const char *_passwd = CONFIG_RUTH_MQTT_PASSWD;
@@ -116,9 +124,9 @@ private:
                   .priority = 14,
                   .stackSize = (5 * 1024)};
 
-  struct mg_mgr _mgr = {};
-  struct mg_connection *_connection = nullptr;
+  esp_mqtt_client_handle_t _connection = nullptr;
   uint16_t _msg_id = (uint16_t)esp_random() + 1;
+  uint64_t _broker_acks = 0;
   bool _mqtt_ready = false;
 
   // mg_mgr uses LWIP and the timeout is specified in ms
@@ -128,7 +136,7 @@ private:
   TickType_t _inbound_rb_wait_ticks = pdMS_TO_TICKS(1000);
   TickType_t _outbound_msg_ticks = pdMS_TO_TICKS(30);
 
-  const size_t _q_out_len = (sizeof(mqttOutMsg_t) * 128);
+  const size_t _q_out_len = 64;
   QueueHandle_t _q_out = nullptr;
 
   uint16_t _subscribe_msg_id;
@@ -136,7 +144,6 @@ private:
 private:
   // instance member functions
   void announceStartup();
-  void connect();
 
   // actual function that becomes the task main loop
   void core(void *data);

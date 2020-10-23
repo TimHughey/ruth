@@ -572,3 +572,14 @@ Used static IRAM:   89916 bytes (  41156 available, 68.6% used)
     Flash rodata:  136804 bytes
 Total image size:~ 915099 bytes (.bin may be padded larger)
 <<<
+>>>
+05710557c42e8f45fe3b7b92a163e42dac0016d6 Enabled ccache in Ruth Deploy Script
+Total sizes:
+ DRAM .data size:   13800 bytes
+ DRAM .bss  size:   19096 bytes
+Used static DRAM:   32896 bytes ( 147840 available, 18.2% used)
+Used static IRAM:   90071 bytes (  41001 available, 68.7% used)
+      Flash code:  606739 bytes
+    Flash rodata:  130884 bytes
+Total image size:~ 860590 bytes (.bin may be padded larger)
+<<<

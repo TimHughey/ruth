@@ -34,7 +34,6 @@
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
 #include "engines/pwm.hpp"
-#include "external/mongoose.h"
 #include "local/types.hpp"
 #include "misc/nvs.hpp"
 #include "misc/restart.hpp"
@@ -114,24 +113,6 @@ void MQTT::announceStartup() {
   StatusLED::off();
 }
 
-void MQTT::connect() {
-
-  // if a shutdown is underway then do not attempt to connect
-  if (_shutdown) {
-    return;
-  }
-
-  // build the client id once
-  if (_client_id.empty()) {
-    _client_id = "ruth-" + Net::macAddress();
-  }
-
-  Net::waitForReady();
-
-  StatusLED::brighter();
-  _connection = mg_connect(&_mgr, _endpoint.c_str(), _ev_handler);
-}
-
 void MQTT::connectionClosed() {
   StatusLED::dim();
 
@@ -139,9 +120,6 @@ void MQTT::connectionClosed() {
   _connection = nullptr;
 
   Net::clearTransportReady();
-
-  // always attempt to reconnect
-  connect();
 }
 
 bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
@@ -197,29 +175,16 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   return payload_rc;
 }
 
-void MQTT::_handshake_(struct mg_connection *nc) {
-  struct mg_send_mqtt_handshake_opts opts;
-  bzero(&opts, sizeof(opts));
-
-  opts.flags =
-      MG_MQTT_CLEAN_SESSION | MG_MQTT_HAS_PASSWORD | MG_MQTT_HAS_USER_NAME;
-  opts.user_name = _user;
-  opts.password = _passwd;
-
-  mg_set_protocol_mqtt(nc);
-  mg_send_mqtt_handshake_opt(nc, _client_id.c_str(), opts);
-}
-
-void MQTT::_incomingMsg_(struct mg_str *in_topic, struct mg_str *in_payload) {
+void MQTT::_incomingMsg_(esp_mqtt_event_t *event) {
 
   // ensure there is actually a payload to handle
-  if (in_payload->len == 0)
+  if (event->total_data_len == 0)
     return;
 
   // we wrap the newly allocated MsgPayload in a unique_ptr then move
   // it downstream to the various classes that process it.  the only potential
   // memory leak is when the payload is queued to an Engine.
-  MsgPayload_t_ptr payload_ptr(new MsgPayload(in_topic, in_payload));
+  MsgPayload_t_ptr payload_ptr(new MsgPayload(event));
 
   // messages with subtopics are handled locally
   //  1. placed on a queue for another task
@@ -266,8 +231,11 @@ void MQTT::outboundMsg() {
     const auto *msg = entry->data;
     size_t msg_len = entry->len;
 
-    mg_mqtt_publish(_connection, _feed_rpt.c_str(), _msg_id++, MG_MQTT_QOS(1),
-                    msg->data(), msg_len);
+    // int esp_mqtt_client_publish(esp_mqtt_client_handle_t client, const char
+    // *topic, const char *data, int len, int qos, int retain)
+
+    _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(),
+                                      msg->data(), msg_len, 1, false);
 
     delete msg;
     delete entry;
@@ -311,32 +279,40 @@ void MQTT::publish_msg(string_t *msg) {
 }
 
 void MQTT::core(void *data) {
-  struct mg_mgr_init_opts opts = {};
+  esp_mqtt_client_config_t opts = {};
 
   esp_log_level_set(TAG, ESP_LOG_INFO);
 
   // wait for network to be ready to ensure dns resolver is available
   Net::waitForReady();
 
-  // mongoose uses it's own dns resolver so set the namserver from dhcp
-  opts.nameserver = Net::dnsIP();
+  // build the client id once
+  if (_client_id.empty()) {
+    _client_id = "ruth-" + Net::macAddress();
+  }
 
-  mg_mgr_init_opt(&_mgr, NULL, opts);
+  opts.uri = _uri.c_str();
+  opts.disable_clean_session = true;
+  opts.username = _user;
+  opts.password = _passwd;
+  opts.client_id = _client_id.c_str();
+  opts.reconnect_timeout_ms = 10000;
+  opts.buffer_size = 1536;
 
-  connect();
+  _connection = esp_mqtt_client_init(&opts);
+  StatusLED::brighter();
+
+  // esp_mqtt_client_register_event(esp_mqtt_client_handle_t client,
+  // esp_mqtt_event_id_t event, esp_event_handler_t event_handler, void
+  // *event_handler_arg)
+
+  esp_mqtt_client_register_event(_connection,
+                                 (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID,
+                                 _ev_handler, _connection);
+  esp_mqtt_client_start(_connection);
 
   // core forever loop
-  // elapsedMillis main_elapsed;
   for (auto announce = true; _run_core;) {
-    // if (announce && ((uint64_t)main_elapsed > 2000)) {
-    //   announceStartup();
-    //   announce = false;
-    // }
-
-    // to alternate between prioritizing send and recv:
-    //  1. wait here (recv)
-    //  2. wait in outboundMsg (send)
-    mg_mgr_poll(&_mgr, _inbound_msg_ms);
 
     if (_mqtt_ready && _connection) {
       outboundMsg();
@@ -354,108 +330,95 @@ void MQTT::core(void *data) {
   // b. free the mg_mgr
   // c. signel mqtt is no longer ready
   _shutdown = true;
-  mg_mgr_free(&_mgr);
+  esp_mqtt_client_disconnect(_connection);
+  esp_mqtt_client_destroy(_connection);
+  _connection = nullptr;
   _mqtt_ready = false;
 
   // wait here forever, vTaskDelete will remove us from the scheduler
   vTaskDelay(UINT32_MAX);
 }
 
-void MQTT::_subACK_(struct mg_mqtt_message *msg) {
+void MQTT::_subACK_(esp_mqtt_event_handle_t event) {
 
-  if (msg->message_id == _subscribe_msg_id) {
-    ESP_LOGV(TAG, "subACK for EXPECTED msg_id=%d", msg->message_id);
+  if (event->msg_id == _subscribe_msg_id) {
+    ESP_LOGV(TAG, "subACK for EXPECTED msg_id=%d", event->msg_id);
     _mqtt_ready = true;
     Net::setTransportReady();
     // NOTE: do not announce startup here.  doing so creates a race condition
     // that results in occasionally using epoch as the startup time
   } else {
-    ESP_LOGW(TAG, "subACK for UNKNOWN msg_id=%d", msg->message_id);
+    ESP_LOGW(TAG, "subACK for UNKNOWN msg_id=%d", event->msg_id);
   }
 }
 
-void MQTT::_subscribeFeeds_(struct mg_connection *nc) {
+void MQTT::_subscribeFeeds_(esp_mqtt_client_handle_t client) {
+  const char *topic = _feed_host.c_str();
+  int qos = 1; // hardcoded QoS
 
-  struct mg_mqtt_topic_expression sub[] = {
-      {.topic = _feed_host.c_str(), .qos = 1}};
+  _subscribe_msg_id = esp_mqtt_client_subscribe(client, topic, qos);
 
-  _subscribe_msg_id = _msg_id++;
-  ESP_LOGI(TAG, "subscribe feeds \"%s\" msg_id=%d", sub[0].topic,
-           _subscribe_msg_id);
-  mg_mqtt_subscribe(nc, sub, 1, _subscribe_msg_id);
+  ESP_LOGI(TAG, "subscribe feed \"%s\" msg_id=%d", topic, _subscribe_msg_id);
 }
 
 // STATIC
-void MQTT::_ev_handler(struct mg_connection *nc, int ev, void *p) {
-  auto *msg = (struct mg_mqtt_message *)p;
-  // string_t topic;
+void MQTT::_ev_handler(void *handler_args, esp_event_base_t base,
+                       int32_t event_id, void *event_data) {
 
-  switch (ev) {
-  case MG_EV_CONNECT: {
-    int *status = (int *)p;
-    ESP_LOGV(TAG, "CONNECT msg=%p err_code=%d err_str=%s", (void *)msg, *status,
-             strerror(*status));
+  esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
 
-    __singleton__->_handshake_(nc);
+  _ev_callback(event);
+}
+
+esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
+  esp_err_t rc = ESP_OK;
+  esp_mqtt_client_handle_t client = event->client;
+  esp_mqtt_connect_return_code_t status;
+
+  switch (event->event_id) {
+  case MQTT_EVENT_BEFORE_CONNECT:
+    StatusLED::brighter();
+    ESP_LOGI(TAG, "BEFORE_CONNECT");
+    break;
+
+  case MQTT_EVENT_CONNECTED:
+    status = event->error_handle->connect_return_code;
+    ESP_LOGI(TAG, "CONNECT msg=%p err_code=%d", (void *)event, status);
+
+    if (status != MQTT_CONNECTION_ACCEPTED) {
+      ESP_LOGW(TAG, "mqtt connection error: %d", status);
+      rc = ESP_FAIL;
+    }
+
     StatusLED::off();
-    break;
-  }
-
-  case MG_EV_MQTT_CONNACK:
-    if (msg->connack_ret_code != MG_EV_MQTT_CONNACK_ACCEPTED) {
-      ESP_LOGW(TAG, "mqtt connection error: %d", msg->connack_ret_code);
-      return;
-    }
-
-    ESP_LOGV(TAG, "MG_EV_MQTT_CONNACK rc=%d", msg->connack_ret_code);
-    __singleton__->_subscribeFeeds_(nc);
+    __singleton__->_subscribeFeeds_(client);
 
     break;
 
-  case MG_EV_MQTT_SUBACK:
-    __singleton__->_subACK_(msg);
-
-    break;
-
-  case MG_EV_MQTT_SUBSCRIBE:
-    ESP_LOGV(TAG, "subscribe event, payload=%s", msg->payload.p);
-    break;
-
-  case MG_EV_MQTT_UNSUBACK:
-    ESP_LOGV(TAG, "unsub ack");
-    break;
-
-  case MG_EV_MQTT_PUBLISH:
-    // topic.assign(msg->topic.p, msg->topic.len);
-    // ESP_LOGI(TAG, "%s qos(%d)", topic.c_str(), msg->qos);
-    if (msg->qos == 1) {
-
-      mg_mqtt_puback(__singleton__->_connection, msg->message_id);
-    }
-
-    __singleton__->_incomingMsg_(&(msg->topic), &(msg->payload));
-    break;
-
-  case MG_EV_MQTT_PINGRESP:
-    ESP_LOGV(TAG, "ping response");
-    break;
-
-  case MG_EV_CLOSE:
+  case MQTT_EVENT_DISCONNECTED:
     StatusLED::dim();
+
     __singleton__->connectionClosed();
     break;
 
-  case MG_EV_POLL:
-  case MG_EV_RECV:
-  case MG_EV_SEND:
-  case MG_EV_MQTT_PUBACK:
-    // events to ignore
+  case MQTT_EVENT_SUBSCRIBED:
+    __singleton__->_subACK_(event);
+    break;
+
+  case MQTT_EVENT_DATA:
+    __singleton__->_incomingMsg_(event);
+    break;
+
+  case MQTT_EVENT_PUBLISHED:
+    __singleton__->_brokerAck_();
     break;
 
   default:
-    ESP_LOGW(TAG, "unhandled event 0x%04x", ev);
+    ESP_LOGW(TAG, "unhandled event 0x%04x", event->event_id);
     break;
   }
+
+  return rc;
 }
 
 void MQTT::coreTask(void *task_instance) {

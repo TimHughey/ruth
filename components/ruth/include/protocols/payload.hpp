@@ -23,10 +23,10 @@
 
 #include <cstdlib>
 #include <memory>
+#include <mqtt_client.h>
 #include <string>
 #include <vector>
 
-#include "external/mongoose.h"
 #include "net/network.hpp"
 
 namespace ruth {
@@ -46,7 +46,7 @@ public:
   //  minimize aggressive inlining and code bloat
   //
 
-  MsgPayload(struct mg_str *in_topic, struct mg_str *in_payload);
+  MsgPayload(esp_mqtt_event_t *event);
   MsgPayload(const MsgPayload &s) = delete; // no copies!
   ~MsgPayload();
 
@@ -94,7 +94,7 @@ private:
   string_t _err_topic;
 
   // parse out subtopics using slashes in topic
-  void parseTopic(struct mg_str *in_topic);
+  void parseTopic(esp_mqtt_event_t *event);
   // validate and determine if the expected subtopics are present
   void validateSubtopics();
 };

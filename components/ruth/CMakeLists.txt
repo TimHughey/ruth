@@ -44,10 +44,6 @@ set(
     "src/protocols/mqtt"        "src/protocols/payload")
 
 set(
-  RUTH_EXTERNAL_LIBS
-    "src/libs/mongoose.c")
-
-set(
   RUTH_DRIVERS
     "src/drivers/owb_gpio.c"  "src/drivers/owb_rmt.c"
     "src/drivers/owb.c")
@@ -57,14 +53,13 @@ set(
 idf_component_register(
   SRCS
     ${RUTH_CORE} ${RUTH_MISC} ${RUTH_NET} ${RUTH_DEVS} ${RUTH_PWM_DEVS}
-    ${RUTH_ENGINES} ${RUTH_READINGS} ${RUTH_PROTOCOLS} ${RUTH_EXTERNAL_LIBS} ${RUTH_DRIVERS}
+    ${RUTH_ENGINES} ${RUTH_READINGS} ${RUTH_PROTOCOLS} ${RUTH_DRIVERS}
   INCLUDE_DIRS
     "include" "include/external"
   REQUIRES
-    esp_http_client esp_https_ota nvs_flash app_update esp_adc_cal
+    esp_http_client esp_https_ota mqtt nvs_flash app_update esp_adc_cal
   EMBED_FILES
     ca.pem)
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
-  MG_LOCALS MG_ENABLE_HTTP=0 ARDUINOJSON_ENABLE_STD_STREAM
-  ARDUINOJSON_USE_LONG_LONG)
+  ARDUINOJSON_ENABLE_STD_STREAM ARDUINOJSON_USE_LONG_LONG)

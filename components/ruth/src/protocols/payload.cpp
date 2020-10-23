@@ -23,16 +23,16 @@
 
 namespace ruth {
 
-MsgPayload::MsgPayload(struct mg_str *in_topic, struct mg_str *in_payload) {
-  parseTopic(in_topic);
+MsgPayload::MsgPayload(esp_mqtt_event_t *event) {
+  parseTopic(event);
   validateSubtopics();
 
   // _data.reserve(in_payload->len + 2);
-  _data.assign(in_payload->p, (in_payload->p + in_payload->len));
+  _data.assign(event->data, (event->data + event->data_len));
   // _data.push_back(0x00); // ensure null termination
 
   if (invalid() && _err_topic.empty()) {
-    _err_topic.assign(in_topic->p, in_topic->len);
+    _err_topic.assign(event->data, event->data_len);
   }
 }
 
@@ -117,16 +117,16 @@ bool MsgPayload::current() {
 }
 
 // use the slashes in the topic to parse out the subtopics
-void MsgPayload::parseTopic(struct mg_str *in_topic) {
+void MsgPayload::parseTopic(esp_mqtt_event_t *event) {
   static const size_t max_parts = sizeof(_topic_parts);
 
   // i is the index into the topic vector
   // spos is the starting position of the part found (starting at zero)
-  for (size_t i = 0, spos = 0; i <= in_topic->len; i++) {
+  for (size_t i = 0, spos = 0; i <= event->topic_len; i++) {
     // part is found when either:
     //  a. slash is detected
     //  b. the end of the topic is reached
-    if ((in_topic->p[i] == '/') || (i == in_topic->len)) {
+    if ((event->topic[i] == '/') || (i == event->topic_len)) {
       // slash was found, compute the length of the part
       //  a. position of the slash (i)
       //  b  subtract the starting position (spos)
@@ -136,7 +136,7 @@ void MsgPayload::parseTopic(struct mg_str *in_topic) {
 
       // construct the string from the starting position (spos) and length
       const size_t len = i - spos;
-      const string_t *part = new string_t(&(in_topic->p[spos]), len);
+      const string_t *part = new string_t(&(event->topic[spos]), len);
 
       _topic_parts.push_back(part);
 
