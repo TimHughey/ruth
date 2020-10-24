@@ -92,14 +92,12 @@ private:
 
   // private strings defining essential connection info
   // const char *_dns_server = CONFIG_RUTH_DNS_SERVER;
-  const string_t _host = CONFIG_RUTH_MQTT_HOST;
-  const string_t _uri = "mqtt://" CONFIG_RUTH_MQTT_HOST;
-  const int _port = CONFIG_RUTH_MQTT_PORT;
+  // const string_t _host = CONFIG_RUTH_MQTT_HOST;
+  const string_t _uri = CONFIG_RUTH_MQTT_URI;
   const char *_user = CONFIG_RUTH_MQTT_USER;
   const char *_passwd = CONFIG_RUTH_MQTT_PASSWD;
 
   string_t _client_id;
-  string_t _endpoint = "example.wisslanding.com +extra";
 
   // NOTES:
   //   1. final feeds are built in the constructor
@@ -111,17 +109,15 @@ private:
   // NOTE:  _feed_host is replacing _feed_cmd
   string_t _feed_host_suffix = "/#";
   string_t _feed_rpt_prefix = "r/";
-
-  // attempt to 'preallocate' the feed strings
-  string_t _feed_host = "0123456789abcdef0123456789abcdef0123456789a";
-  string_t _feed_rpt = "0123456789abcdef0123456789abcdef0123456789a";
+  string_t _feed_host;
+  string_t _feed_rpt;
 
   bool _run_core = true;
   bool _shutdown = false;
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .lastWake = 0,
-                  .priority = 14,
+                  .priority = 13,
                   .stackSize = (5 * 1024)};
 
   esp_mqtt_client_handle_t _connection = nullptr;
@@ -129,11 +125,7 @@ private:
   uint64_t _broker_acks = 0;
   bool _mqtt_ready = false;
 
-  // mg_mgr uses LWIP and the timeout is specified in ms
-  int _inbound_msg_ms = 1;
-
   // prioritize inbound messages
-  TickType_t _inbound_rb_wait_ticks = pdMS_TO_TICKS(1000);
   TickType_t _outbound_msg_ticks = pdMS_TO_TICKS(30);
 
   const size_t _q_out_len = 64;

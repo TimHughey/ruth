@@ -33,20 +33,12 @@ menu "IoT"
 			default y
 
 
-		config RUTH_MQTT_HOST
+		config RUTH_MQTT_URI
 			depends on RUTH_MQTT_CONFIG
-			string "IoT Endpoint Host"
-			default "jophiel.wisslanding.com"
+			string "IoT Endpoint URI"
+			default "mqtt://mqtt.live.wisslanding.com:1883"
 			help
 				Endpoint host name for the IoT MQTT/S gateway
-
-		config RUTH_MQTT_PORT
-			depends on RUTH_MQTT_CONFIG
-			int "IoT Endpoint Port"
-			default 1883
-			range 0 65535
-			help
-				Endpoint port for the IoT MQTT/S gateway
 
 		config RUTH_MQTT_USER
 			depends on RUTH_MQTT_CONFIG

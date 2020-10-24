@@ -65,12 +65,6 @@ MQTT::MQTT() {
 
   ESP_LOGV(TAG, "reporting to feed=\"%s\"", _feed_rpt.c_str());
 
-  // create the endpoint URI
-  const auto max_endpoint = 127;
-  unique_ptr<char[]> endpoint(new char[max_endpoint + 1]);
-  snprintf(endpoint.get(), max_endpoint, "%s:%d", _host.c_str(), _port);
-  _endpoint = endpoint.get();
-
   _q_out = xQueueCreate(_q_out_len, sizeof(mqttOutMsg_t *));
 
   ESP_LOGI(TAG, "OUT queue len(%d) msg_size(%u) total_size(%u)", _q_out_len,
@@ -378,7 +372,7 @@ esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
   switch (event->event_id) {
   case MQTT_EVENT_BEFORE_CONNECT:
     StatusLED::brighter();
-    ESP_LOGI(TAG, "BEFORE_CONNECT");
+    ESP_LOGI(TAG, "BEFORE_CONNECT uri=%s", __singleton__->_uri.c_str());
     break;
 
   case MQTT_EVENT_CONNECTED:
