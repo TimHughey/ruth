@@ -58,7 +58,7 @@ private:
   size_t _time_str_max_len = 25;
   size_t _msg_len = 0;
 
-  const char *_possible_keys[7] = {"BOOT", "Net",      "Net-connection", "I2c",
+  const char *_possible_keys[7] = {"BOOT", "Net",      "I2c",
                                    "MQTT", "hostname", "END_KEYS"};
 
   bool _committed_msgs_processed = false;

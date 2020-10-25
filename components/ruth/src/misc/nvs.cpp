@@ -190,7 +190,7 @@ bool NVS::notOpen() {
 }
 
 void NVS::publishMsg(const char *key, NVSMessage_t *blob) {
-  std::unique_ptr<struct tm> timeinfo(new struct tm);
+  unique_ptr<struct tm> timeinfo(new struct tm);
 
   localtime_r(&(blob->time), timeinfo.get());
 

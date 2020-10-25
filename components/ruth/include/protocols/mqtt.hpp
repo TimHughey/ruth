@@ -117,7 +117,7 @@ private:
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .lastWake = 0,
-                  .priority = 13,
+                  .priority = 14,
                   .stackSize = (5 * 1024)};
 
   esp_mqtt_client_handle_t _connection = nullptr;
