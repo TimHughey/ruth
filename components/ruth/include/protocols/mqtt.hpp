@@ -113,23 +113,17 @@ private:
   string_t _feed_rpt;
 
   bool _run_core = true;
-  bool _shutdown = false;
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .lastWake = 0,
-                  .priority = 14,
-                  .stackSize = (5 * 1024)};
+                  .priority = 1,
+                  .stackSize = 2048};
 
   esp_mqtt_client_handle_t _connection = nullptr;
-  uint16_t _msg_id = (uint16_t)esp_random() + 1;
+  int32_t _msg_id = esp_random() + 1;
   uint64_t _broker_acks = 0;
   bool _mqtt_ready = false;
-
-  // prioritize inbound messages
-  TickType_t _outbound_msg_ticks = pdMS_TO_TICKS(30);
-
-  const size_t _q_out_len = 64;
-  QueueHandle_t _q_out = nullptr;
+  esp_mqtt_connect_return_code_t _last_return_code;
 
   uint16_t _subscribe_msg_id;
 
@@ -140,7 +134,6 @@ private:
   // actual function that becomes the task main loop
   void core(void *data);
   bool handlePayload(MsgPayload_t_ptr payload);
-  void outboundMsg();
 
   void publish_msg(string_t *msg);
   void connectionClosed();

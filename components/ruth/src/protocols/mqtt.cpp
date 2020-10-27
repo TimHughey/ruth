@@ -52,6 +52,7 @@ using std::vector;
 using TR = ruth::Text_t;
 
 static const char *TAG = "MQTT";
+static const char *ESP_TAG = "ESP-MQTT";
 // __singleton__ is used by private MQTT static functions
 static MQTT *__singleton__ = nullptr;
 // _instance_ is used for public API
@@ -64,39 +65,9 @@ MQTT::MQTT() {
   _feed_host = _feed_prefix + Net::hostID() + _feed_host_suffix;
 
   ESP_LOGV(TAG, "reporting to feed=\"%s\"", _feed_rpt.c_str());
-
-  _q_out = xQueueCreate(_q_out_len, sizeof(mqttOutMsg_t *));
-
-  ESP_LOGI(TAG, "OUT queue len(%d) msg_size(%u) total_size(%u)", _q_out_len,
-           sizeof(mqttOutMsg_t), (sizeof(mqttOutMsg_t) * _q_out_len));
 }
 
-MQTT::~MQTT() {
-  // direct allocations outside of member variables are:
-  //  a. the outbound msg queue
-  //  b. mg_mgr
-  //
-  // the mg_mgr is freed by shutdown()
-
-  // so, the only thing to free are the items in the queue (if any) and the
-  // queue itself.
-
-  // pop each message from the queue with zero wait ticks until
-  // xQueueReceive() returns something other than pdTRUE
-
-  // mg_mgr_free() is called before the destructor ensuring that this loop
-  // is only freeing any messages (most likely zero) that hadn't been published
-  mqttOutMsg_t *msg;
-  while (xQueueReceive(_q_out, &msg, 0) == pdTRUE) {
-
-    // the msg is a simple struct so free the enclosed data
-
-    // TODO: refactor mqttOutMsg_t so this isn't necessary
-    delete msg->data;
-    delete msg;
-  }
-
-  vQueueDelete(_q_out);
+MQTT::~MQTT() { // memory clean up handled by shutdown
 }
 
 void MQTT::announceStartup() {
@@ -215,51 +186,15 @@ void MQTT::_publish(Reading_ptr_t reading) {
   publish_msg(msg);
 }
 
-void MQTT::outboundMsg() {
-  mqttOutMsg_t *entry;
-  auto q_rc = pdFALSE;
-
-  q_rc = xQueueReceive(_q_out, &entry, _outbound_msg_ticks);
-
-  while ((q_rc == pdTRUE) && Net::waitForReady(0)) {
-    const auto *msg = entry->data;
-    size_t msg_len = entry->len;
-
-    // int esp_mqtt_client_publish(esp_mqtt_client_handle_t client, const char
-    // *topic, const char *data, int len, int qos, int retain)
-
-    _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(),
-                                      msg->data(), msg_len, 1, false);
-
-    delete msg;
-    delete entry;
-
-    q_rc = xQueueReceive(_q_out, &entry, pdMS_TO_TICKS(20));
-  }
-}
-
 void MQTT::publish_msg(string_t *msg) {
-  auto q_rc = pdFALSE;
-  mqttOutMsg_t *entry = new mqttOutMsg_t;
+  _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(), msg->data(),
+                                    msg->size(), 1, false);
 
-  // setup the entry noting that the actual pointer to the string will
-  // be included so be certain to deallocate when it comes out of the
-  // ringbuffer
-  entry->len = msg->length();
-  entry->data = msg;
-
-  // queue send takes a pointer to what should be copied to the queue
-  // using the size defined when the queue was created
-  q_rc = xQueueSendToBack(_q_out, (void *)&entry, pdMS_TO_TICKS(50));
-
-  if (q_rc == pdFALSE) {
-    delete entry;
-    delete msg;
-
+  // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
+  if (_msg_id < 0) {
     unique_ptr<char[]> log_msg(new char[128]);
-    auto space_avail = uxQueueSpacesAvailable(_q_out);
 
-    sprintf(log_msg.get(), "PUBLISH msg FAILED space_avail(%d)", space_avail);
+    sprintf(log_msg.get(), "PUBLISH msg FAILED [%d]", _last_return_code);
 
     ESP_LOGW(TAG, "%s", log_msg.get());
 
@@ -270,6 +205,8 @@ void MQTT::publish_msg(string_t *msg) {
     // pass a nullptr for the message so Restart doesn't attempt to publish
     Restart::restart(nullptr, __PRETTY_FUNCTION__);
   }
+
+  delete msg;
 }
 
 void MQTT::core(void *data) {
@@ -291,7 +228,9 @@ void MQTT::core(void *data) {
   opts.password = _passwd;
   opts.client_id = _client_id.c_str();
   opts.reconnect_timeout_ms = 10000;
-  opts.buffer_size = 1536;
+  opts.buffer_size = 1024;
+  opts.out_buffer_size = 3072;
+  opts.user_context = this;
 
   _connection = esp_mqtt_client_init(&opts);
   StatusLED::brighter();
@@ -307,23 +246,29 @@ void MQTT::core(void *data) {
 
   // core forever loop
   for (auto announce = true; _run_core;) {
-
-    if (_mqtt_ready && _connection) {
-      outboundMsg();
-    }
-
-    if (announce) {
+    if (_mqtt_ready && announce) {
       announceStartup();
       announce = false;
+
+      UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
+      auto stack_percent =
+          100.0 - ((float)stack_high_water / (float)_task.stackSize * 100.0);
+
+      ESP_LOGI(TAG, "after announce stack used=%0.1f%% hw=%u", stack_percent,
+               stack_high_water);
     }
+
+    vTaskDelay(1000);
   }
 
   // if the core task loop ever exits then a shutdown is underway.
 
-  // a. set _shutdown=true to prevent autoconnect
-  // b. free the mg_mgr
-  // c. signel mqtt is no longer ready
-  _shutdown = true;
+  // a. disable auto reconnect
+  // b. force disconnection
+  // c. destroy (free) the client control structure
+  // d. signel mqtt is no longer ready
+  opts.disable_auto_reconnect = true;
+  esp_mqtt_set_config(_connection, &opts);
   esp_mqtt_client_disconnect(_connection);
   esp_mqtt_client_destroy(_connection);
   _connection = nullptr;
@@ -334,7 +279,6 @@ void MQTT::core(void *data) {
 }
 
 void MQTT::_subACK_(esp_mqtt_event_handle_t event) {
-
   if (event->msg_id == _subscribe_msg_id) {
     ESP_LOGV(TAG, "subACK for EXPECTED msg_id=%d", event->msg_id);
     _mqtt_ready = true;
@@ -369,18 +313,27 @@ esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
   esp_mqtt_client_handle_t client = event->client;
   esp_mqtt_connect_return_code_t status;
 
+  MQTT_t *mqtt = (MQTT_t *)event->user_context;
+
+  UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
+  auto stack_size = 6 * 1024;
+  auto stack_percent =
+      100.0 - ((float)stack_high_water / (float)stack_size * 100.0);
+
   switch (event->event_id) {
   case MQTT_EVENT_BEFORE_CONNECT:
     StatusLED::brighter();
-    ESP_LOGI(TAG, "BEFORE_CONNECT uri=%s", __singleton__->_uri.c_str());
+    ESP_LOGI(ESP_TAG, "[stack=%0.1f%%] BEFORE_CONNECT uri=%s", stack_percent,
+             __singleton__->_uri.c_str());
     break;
 
   case MQTT_EVENT_CONNECTED:
     status = event->error_handle->connect_return_code;
-    ESP_LOGI(TAG, "CONNECT msg=%p err_code=%d", (void *)event, status);
+    ESP_LOGI(ESP_TAG, "[stack=%0.1f%%] CONNECT msg=%p err_code=%d",
+             stack_percent, (void *)event, status);
 
     if (status != MQTT_CONNECTION_ACCEPTED) {
-      ESP_LOGW(TAG, "mqtt connection error: %d", status);
+      ESP_LOGW(ESP_TAG, "mqtt connection error: %d", status);
       rc = ESP_FAIL;
     }
 
@@ -396,7 +349,9 @@ esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
     break;
 
   case MQTT_EVENT_SUBSCRIBED:
-    __singleton__->_subACK_(event);
+    ESP_LOGI(ESP_TAG, "[stack=%0.1f%%] SUBSCRIBED msg_id=%u", stack_percent,
+             event->msg_id);
+    mqtt->_subACK_(event);
     break;
 
   case MQTT_EVENT_DATA:
@@ -404,11 +359,17 @@ esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
     break;
 
   case MQTT_EVENT_PUBLISHED:
+    // ESP_LOGI(TAG, "[%0.1f%%] broker ACK msg_id=%d", stack_percent,
+    //          event->msg_id);
     __singleton__->_brokerAck_();
     break;
 
+  case MQTT_EVENT_ERROR:
+    __singleton__->_last_return_code = event->error_handle->connect_return_code;
+    break;
+
   default:
-    ESP_LOGW(TAG, "unhandled event 0x%04x", event->event_id);
+    ESP_LOGW(ESP_TAG, "unhandled event 0x%04x", event->event_id);
     break;
   }
 
@@ -461,7 +422,8 @@ void MQTT::shutdown() {
 
   // a. signal FreeRTOS to remove the task from the scheduler
   // b. the IDLE task will ultimately free the FreeRTOS memory for the task.
-  // the memory allocated by the MQTT instance must be freed in it's destructor.
+  // the memory allocated by the MQTT instance must be freed in it's
+  // destructor.
   vTaskDelete(handle);
 
   // now that FreeRTOS will no longer schedule the MQTT task set singleton to

@@ -142,10 +142,10 @@ void Core::bootComplete() {
 
   UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
 
-  auto stack_remaining = stack_size_ - stack_high_water;
-  auto stack_used = ((float)stack_remaining / (float)stack_high_water) * 100.0;
-  ESP_LOGI(TAG, "BOOT COMPLETE in %0.2fs tasks=%d stack[used=%0.1f%% slack=%u]",
-           (float)core_elapsed_, num_tasks_, stack_used, stack_remaining);
+  auto stack_used =
+      100.0 - ((float)stack_high_water / (float)stack_size_ * 100.0);
+  ESP_LOGI(TAG, "BOOT COMPLETE in %0.2fs tasks=%d stack[used=%0.1f%% hw=%u]",
+           (float)core_elapsed_, num_tasks_, stack_used, stack_high_water);
 
   boot_complete_ = true;
   ota_valid_elapsed_.reset();
@@ -168,13 +168,11 @@ void Core::consoleTimestamp() {
   }
 
   UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
+  auto stack_used =
+      100.0 - ((float)stack_high_water / (float)stack_size_) * 100.0;
 
-  auto stack_remaining = stack_size_ - stack_high_water;
-  auto stack_used = ((float)stack_remaining / (float)stack_high_water) * 100.0;
-
-  ESP_LOGI(TAG, ">> %s << %s stack[used=%0.1f%% slack=%u]",
-           dateTimeString().get(), Net::hostname(), stack_used,
-           stack_remaining);
+  ESP_LOGI(TAG, ">> %s << %s stack[used=%0.1f%% hw=%u]", dateTimeString().get(),
+           Net::hostname(), stack_used, stack_high_water);
 
   if (timestamp_first_report_ && (timestamp_freq_ms_ >= (5 * 60 * 1000.0))) {
     timestamp_first_report_ = false;
