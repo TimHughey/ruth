@@ -98,39 +98,48 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
     TR::rlog("[MQTT] invalid topic=\"%s\"", payload->errorTopic());
   }
 
+  // NOTE:
   // in the various cases below we either move the payload_ptr to another
   // function or directly use the contents.  once this if/then/else completes
   // it is UNSAFE to use the payload_ptr -- assume it is no longer valid.
   // if the payload_ptr happens to still hold a valid pointer, once it falls
   // out of scope it will be freed.
-  if (payload->matchSubtopic("pwm")) {
-    payload_rc = PulseWidth::queuePayload(move(payload_ptr));
 
-  } else if (payload->matchSubtopic("i2c")) {
-    payload_rc = I2c::queuePayload(move(payload_ptr));
+  // only handle Engine commands if the Engines have been started
+  if (Core::enginesStarted()) {
+    if (payload->matchSubtopic("pwm")) {
+      payload_rc = PulseWidth::queuePayload(move(payload_ptr));
 
-  } else if (payload->matchSubtopic("ds")) {
-    payload_rc = DallasSemi::queuePayload(move(payload_ptr));
+    } else if (payload->matchSubtopic("i2c")) {
+      payload_rc = I2c::queuePayload(move(payload_ptr));
 
-  } else if (payload->matchSubtopic("profile")) {
+    } else if (payload->matchSubtopic("ds")) {
+      payload_rc = DallasSemi::queuePayload(move(payload_ptr));
+    }
+  }
+
+  // always handle Profile, OTA and Restart messages regardless of if
+  // Engines (e.g. PulseWidth, DalSemi, I2c) are running.  this covers
+  // the typically short period of time between assignment of an
+  // IP, SNTP completion, announcing startup and receipt of the Profile
+  // and start of the Engines.
+
+  // said differently, Engine commands could be received prior to
+  // the Profile which can not be processed and must be ignored.
+
+  // we can also process OTA and restart commands
+  if (payload->matchSubtopic("profile")) {
     Profile::fromRaw(payload);
-    payload_rc = Profile::valid();
 
-    if (payload_rc) {
-      Profile::postParseActions();
+    if (Profile::valid()) {
+      payload_rc = Profile::postParseActions();
     }
   } else if (payload->matchSubtopic("ota")) {
-    // from MQTT's perspective the payload was successful
-    payload_rc = true;
-
     OTA *ota = OTA::payload(move(payload_ptr));
-    Core::otaRequest(ota);
+    payload_rc = Core::otaRequest(ota);
 
   } else if (payload->matchSubtopic("restart")) {
-
-    // from MQTT's perspective the payload was successful
-    payload_rc = true;
-    Core::restartRequest();
+    payload_rc = Core::restartRequest();
   }
 
   if (payload_rc == false) {
@@ -223,7 +232,7 @@ void MQTT::core(void *data) {
   }
 
   opts.uri = _uri.c_str();
-  opts.disable_clean_session = true;
+  opts.disable_clean_session = false;
   opts.username = _user;
   opts.password = _passwd;
   opts.client_id = _client_id.c_str();

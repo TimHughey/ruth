@@ -44,7 +44,7 @@ typedef class Profile Profile_t;
 
 class Profile {
 public:
-  static void postParseActions() { _instance_()->_postParseActions(); };
+  static bool postParseActions() { return _instance_()->_postParseActions(); };
 
   static const char *assignedName() {
     return _instance_()->_assigned_name.c_str();
@@ -95,7 +95,7 @@ private:
   static void _fromRaw(MsgPayload_t *payload);
   static Profile_t *_instance_();
 
-  void _postParseActions();
+  bool _postParseActions();
 
 private:
   elapsedMicros _parse_elapsed;

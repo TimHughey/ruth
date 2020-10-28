@@ -168,7 +168,7 @@ uint32_t Profile::engineTaskStack(EngineTypes_t engine_type,
 // PRIVATE
 //
 
-void Profile::_postParseActions() {
+bool Profile::_postParseActions() {
 
   // ESP_LOGI("Profile", "msgpack deserialization took %lldus",
   //          (uint64_t)_parse_elapsed);
@@ -177,6 +177,7 @@ void Profile::_postParseActions() {
   //          _version());
 
   Net::setName(_assigned_name.c_str());
+  return true;
 }
 
 void Profile::_fromRaw(MsgPayload_t *payload) {

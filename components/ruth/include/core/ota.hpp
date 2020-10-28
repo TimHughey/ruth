@@ -88,7 +88,7 @@ private:
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .lastWake = 0,
-                  .priority = 10,
+                  .priority = 1, // allow reporting to continue
                   .stackSize = (5 * 1024)};
 
   bool _ota_in_progress = false;

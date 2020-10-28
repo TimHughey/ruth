@@ -49,11 +49,12 @@ public:
   static void loop() { _instance_()->_loop(); };
 
   static uint32_t batteryMilliVolt() { return _instance_()->_battMV(); };
+  static bool enginesStarted() { return _instance_()->engines_started_; };
   static uint32_t vref() { return 1100; };
 
   static unique_ptr<char[]> dateTimeString(time_t t = 0);
-  static void otaRequest(OTA_t *ota) { _instance_()->_otaRequest(ota); };
-  static void restartRequest() { _instance_()->_restartRequest(); };
+  static bool otaRequest(OTA_t *ota) { return _instance_()->_otaRequest(ota); };
+  static bool restartRequest() { return _instance_()->_restartRequest(); };
 
 private:
   // constructor is private, this is a singleton
@@ -63,20 +64,24 @@ private:
   void _loop();
   void _start(xTaskHandle app_task);
   uint32_t _battMV();
-  void _otaRequest(OTA_t *ota) {
+  bool _otaRequest(OTA_t *ota) {
     // store the pointer to the ota request
     ota_request_ = ota;
 
     // notify app_main task to process it via Core::_loop()
     xTaskNotify(app_task_, 0x0, eIncrement);
+
+    return true;
   };
 
-  void _restartRequest() {
+  bool _restartRequest() {
     // flag a restart was requested
     restart_request_ = true;
 
     // notify app_main task to process it via Core::_loop()
     xTaskNotify(app_task_, 0x0, eIncrement);
+
+    return true;
   };
 
   // private functions for class
