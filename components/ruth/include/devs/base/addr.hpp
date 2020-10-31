@@ -35,32 +35,33 @@ typedef class DeviceAddress DeviceAddress_t;
 
 class DeviceAddress {
 private:
-  static const uint32_t _max_len = 10;
-  vector<uint8_t> _addr;
+  vector<uint8_t> _bytes;
 
 public:
-  static const int max_addr_len = _max_len;
   DeviceAddress(){};
+  DeviceAddress(const DeviceAddress &rhs); // vopy constructor
   // construct a very simple device address of only one byte
   DeviceAddress(uint8_t addr);
   // construct a slightly more complex device of a multi byte address
   DeviceAddress(uint8_t *addr, uint32_t len);
 
   uint32_t len() const;
-  uint8_t firstAddressByte() const;
-  // uint8_t addressByteByIndex(uint32_t index);
-  uint8_t lastAddressByte() const;
-  uint32_t max_len() const;
+  uint32_t size() const;
+
+  uint8_t firstByte() const;
+  uint8_t lastByte() const;
+  uint8_t singleByte() const;
+
   bool isValid() const;
 
   // support type casting from DeviceAddress to a plain ole uint8_t array
   operator uint8_t *();
 
-  uint8_t operator[](int i);
+  uint8_t operator[](int i) const;
 
   bool operator==(const DeviceAddress_t &rhs);
 
-  const unique_ptr<char[]> debug();
+  const unique_ptr<char[]> debug() const;
 
 private:
 };

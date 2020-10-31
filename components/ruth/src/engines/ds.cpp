@@ -161,7 +161,7 @@ bool DallasSemi::commandExecute(DsDevice_t *dev, uint32_t cmd_mask,
     return false;
   }
 
-  if (dev->isValid()) {
+  if (dev->valid()) {
     bool set_rc = false;
 
     needBus();
@@ -452,7 +452,7 @@ bool DallasSemi::readDevice(DsDevice_t *dev) {
   Positions_t *positions = nullptr;
   auto rc = false;
 
-  if (dev->isNotValid()) {
+  if (dev->notValid()) {
     return false;
   }
 

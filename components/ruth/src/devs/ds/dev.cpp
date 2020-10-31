@@ -55,14 +55,14 @@ DsDevice::DsDevice(DeviceAddress_t &addr, bool power) : Device(addr) {
           addr[4], addr[5], addr[6]); // byte 4-6: serial number
 
   const string_t dev_id = buff;
-  setID(dev_id);
+  setID(move(dev_id));
 };
 
 uint8_t DsDevice::family() { return firstAddressByte(); };
 uint8_t DsDevice::crc() { return lastAddressByte(); };
-uint8_t DsDevice::addrLen() { return _ds_max_addr_len; }
+uint8_t DsDevice::addrLen() { return _addr_len; }
 void DsDevice::copyAddrToCmd(uint8_t *cmd) {
-  memcpy((cmd + 1), (uint8_t *)addr(), addr().len());
+  memcpy((cmd + 1), (uint8_t *)addrBytes(), address().size());
   // *(cmd + 1) = addr().firstAddressByte();
 }
 
@@ -84,10 +84,18 @@ bool DsDevice::isDS1820() {
 
   return rc;
 }
-bool DsDevice::isDS2406() { return (family() == _family_DS2406) ? true : false; };
-bool DsDevice::isDS2408() { return (family() == _family_DS2408) ? true : false; };
-bool DsDevice::isDS2413() { return (family() == _family_DS2413) ? true : false; };
-bool DsDevice::isDS2438() { return (family() == _family_DS2413) ? true : false; };
+bool DsDevice::isDS2406() {
+  return (family() == _family_DS2406) ? true : false;
+};
+bool DsDevice::isDS2408() {
+  return (family() == _family_DS2408) ? true : false;
+};
+bool DsDevice::isDS2413() {
+  return (family() == _family_DS2413) ? true : false;
+};
+bool DsDevice::isDS2438() {
+  return (family() == _family_DS2413) ? true : false;
+};
 
 bool DsDevice::hasTemperature() { return isDS1820(); }
 
@@ -164,7 +172,7 @@ bool DsDevice::validAddress(DeviceAddress_t &addr) {
 
   // reminder crc8 is only first seven bytes
   // owb_crc8_bytes returns 0x00 if last byte is CRC and there's a match
-  if (owb_crc8_bytes(0x00, (uint8_t *)addr, _addr_len - 1) != 0x00) {
+  if (owb_crc8_bytes(0x00, (uint8_t *)addr, addr.len() - 1) != 0x00) {
     rc = false;
   }
 
@@ -176,7 +184,7 @@ const unique_ptr<char[]> DsDevice::debug() {
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
   snprintf(debug_str.get(), max_len, "DsDevice(family=%s %s)",
-           familyDescription().c_str(), addr().debug().get());
+           familyDescription().c_str(), address().debug().get());
 
   return move(debug_str);
 }

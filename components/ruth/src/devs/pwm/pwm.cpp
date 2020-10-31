@@ -35,12 +35,13 @@
 #include "local/types.hpp"
 #include "net/network.hpp"
 
+using std::move;
 using std::unique_ptr;
 
 namespace ruth {
 
 const char *PwmDevice::PwmDeviceDesc(const DeviceAddress_t &addr) {
-  switch (addr.firstAddressByte()) {
+  switch (addr.singleByte()) {
   case 0x01:
     return (const char *)"pin:1";
 
@@ -72,7 +73,8 @@ PwmDevice::PwmDevice(DeviceAddress_t &num) : Device(num) {
   snprintf(id.get(), _pwm_max_id_len, "pwm/%s.%s", Net::hostname(),
            PwmDeviceDesc(num));
 
-  setID(id.get());
+  const string_t dev_id = id.get();
+  setID(move(dev_id));
 };
 
 void PwmDevice::configureChannel() {
@@ -158,10 +160,10 @@ Command_t *PwmDevice::cmdCreate(JsonObject &cmd_obj) {
   Command_t *cmd = nullptr;
 
   if (type.compare("basic") == 0) {
-    cmd = new Basic(PwmDeviceDesc(addr()), &_ledc_channel, cmd_obj);
+    cmd = new Basic(PwmDeviceDesc(address()), &_ledc_channel, cmd_obj);
 
   } else if (type.compare("random") == 0) {
-    cmd = new Random(PwmDeviceDesc(addr()), &_ledc_channel, cmd_obj);
+    cmd = new Random(PwmDeviceDesc(address()), &_ledc_channel, cmd_obj);
   }
 
   return cmd;
@@ -189,7 +191,7 @@ void PwmDevice::allOff() {
 
 // STATIC
 ledc_channel_t PwmDevice::mapNumToChannel(const DeviceAddress_t &num) {
-  switch (num.firstAddressByte()) {
+  switch (num.singleByte()) {
   case 0x01:
     // NOTE: LEDC_CHANNEL_0 is used for the onboard red status led
     return (LEDC_CHANNEL_2);
@@ -210,7 +212,7 @@ ledc_channel_t PwmDevice::mapNumToChannel(const DeviceAddress_t &num) {
 
 // STATIC
 gpio_num_t PwmDevice::mapNumToGPIO(const DeviceAddress_t &num) {
-  switch (num.firstAddressByte()) {
+  switch (num.singleByte()) {
   case 0x01:
     return GPIO_NUM_32;
 

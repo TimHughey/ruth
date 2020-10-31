@@ -30,42 +30,50 @@
 
 namespace ruth {
 
+// copy constructor
+DeviceAddress::DeviceAddress(const DeviceAddress &rhs) : _bytes(rhs._bytes) {
+  _bytes.shrink_to_fit();
+}
+
 DeviceAddress::DeviceAddress(uint8_t addr) {
-  _addr.resize(1);
-  _addr.assign(&addr, &addr + 1);
+  _bytes.push_back(addr);
+  _bytes.shrink_to_fit();
 }
 
 DeviceAddress::DeviceAddress(uint8_t *addr, uint32_t len) {
-  _addr.reserve(len);
-  _addr.assign(addr, addr + len);
+  _bytes.assign(addr, addr + len);
+  _bytes.shrink_to_fit();
 }
 
-uint32_t DeviceAddress::len() const { return _addr.size(); }
-uint8_t DeviceAddress::firstAddressByte() const { return _addr.front(); }
-// uint8_t DeviceAddress::addressByteByIndex(uint32_t index) { return _addr[0]; }
-uint8_t DeviceAddress::lastAddressByte() const { return _addr.back(); }
-uint32_t DeviceAddress::max_len() const { return _max_len; }
+uint32_t DeviceAddress::len() const { return _bytes.size(); }
+uint32_t DeviceAddress::size() const { return _bytes.size(); }
 
-// support type casting from DeviceAddress to a plain ole char array
-DeviceAddress::operator uint8_t *() { return _addr.data(); }
+uint8_t DeviceAddress::firstByte() const { return _bytes.front(); }
+uint8_t DeviceAddress::lastByte() const { return _bytes.back(); }
+uint8_t DeviceAddress::singleByte() const { return _bytes.front(); }
 
-uint8_t DeviceAddress::operator[](int i) { return _addr.at(i); }
+// uint32_t DeviceAddress::max_len() const { return _max_len; }
+
+// support type casting from DeviceAddress to a plain ole uint_t array
+DeviceAddress::operator uint8_t *() { return _bytes.data(); }
+
+uint8_t DeviceAddress::operator[](int i) const { return _bytes.at(i); }
 
 // NOTE:
 //    1. the == ooperator will compare the actual addr and not the pointers
 //    2. the lhs argument decides the length of address to compare
 bool DeviceAddress::operator==(const DeviceAddress_t &rhs) {
-  return (_addr == rhs._addr);
+  return (_bytes == rhs._bytes);
 }
 
 bool DeviceAddress::isValid() const {
-  if (_addr.empty() || _addr.front() == 0x00)
+  if (_bytes.empty() || _bytes.front() == 0x00)
     return false;
 
   return true;
 }
 
-const std::unique_ptr<char[]> DeviceAddress::debug() {
+const std::unique_ptr<char[]> DeviceAddress::debug() const {
   auto const max_len = 63;
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
   char *str = debug_str.get();
@@ -75,7 +83,7 @@ const std::unique_ptr<char[]> DeviceAddress::debug() {
   snprintf(str, max_len, "DeviceAddress(0x");
 
   // append each of the address bytes
-  for_each(_addr.begin(), _addr.end(), [this, str](uint8_t byte) {
+  for_each(_bytes.begin(), _bytes.end(), [this, str](uint8_t byte) {
     auto curr_len = strlen(str);
     snprintf(str + curr_len, (max_len - curr_len), "%02x", byte);
   });

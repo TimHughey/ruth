@@ -583,3 +583,14 @@ Used static IRAM:   90071 bytes (  41001 available, 68.7% used)
     Flash rodata:  130884 bytes
 Total image size:~ 860590 bytes (.bin may be padded larger)
 <<<
+>>>
+f90f9a5e3ea732b09a2f3dffa8e24386936776b4 Increased MQTT Watcher Task Stack
+Total sizes:
+ DRAM .data size:   13800 bytes
+ DRAM .bss  size:   19088 bytes
+Used static DRAM:   32888 bytes ( 147848 available, 18.2% used)
+Used static IRAM:   89959 bytes (  41113 available, 68.6% used)
+      Flash code:  605867 bytes
+    Flash rodata:  130084 bytes
+Total image size:~ 858798 bytes (.bin may be padded larger)
+<<<

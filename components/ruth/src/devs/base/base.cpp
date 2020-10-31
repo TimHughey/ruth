@@ -36,11 +36,11 @@ using std::move;
 using std::unique_ptr;
 
 // construct a new Device with only an address
-Device::Device(DeviceAddress_t &addr) { _addr = addr; }
+Device::Device(const DeviceAddress_t &addr) : _addr(addr) {}
 
-Device::Device(const string_t &id, DeviceAddress_t &addr) {
-  _id = id; // copy id and addr objects
-  _addr = addr;
+Device::Device(const string_t &id, const DeviceAddress_t &addr)
+    : _id(id), _addr(addr) {
+  // copy id and addr objects
 }
 
 // base class will handle deleteing the reading, if needed
@@ -50,6 +50,8 @@ Device::~Device() {
 }
 
 bool Device::operator==(Device_t *rhs) const { return (_id == rhs->_id); }
+
+const DeviceAddress_t &Device::address() const { return _addr; }
 
 void Device::justSeen() {
   auto was_missing = missing();
@@ -61,7 +63,6 @@ void Device::justSeen() {
   }
 }
 void Device::setID(const string_t &new_id) { _id = new_id; }
-void Device::setID(char *new_id) { _id = new_id; }
 
 // updaters
 void Device::setReading(Reading_t *reading) {
@@ -96,21 +97,17 @@ void Device::setReadingCmdAck(uint32_t latency_us, const char *refid) {
   }
 }
 
-uint8_t Device::firstAddressByte() const { return _addr.firstAddressByte(); };
-uint8_t Device::lastAddressByte() const { return _addr.lastAddressByte(); };
-DeviceAddress_t &Device::addr() { return _addr; }
+uint8_t Device::firstAddressByte() const { return _addr.firstByte(); };
+uint8_t Device::lastAddressByte() const { return _addr.lastByte(); };
+
 uint8_t *Device::addrBytes() { return (uint8_t *)_addr; }
 Reading_t *Device::reading() { return _reading; }
-uint32_t Device::idMaxLen() { return _id_len; };
 
 bool Device::valid() const {
   return (firstAddressByte() != 0x00 ? true : false);
 }
 
-bool Device::notValid() const { return !isValid(); }
-
-bool Device::isValid() const { return valid(); }
-bool Device::isNotValid() const { return !valid(); }
+bool Device::notValid() const { return !valid(); }
 
 // metrics functions
 void Device::readStart() { _read_us.reset(); }
@@ -120,9 +117,6 @@ uint64_t Device::readStop() {
 
   return (uint64_t)_read_us;
 }
-uint64_t Device::readUS() { return (uint64_t)_read_us; }
-time_t Device::readTimestamp() { return _read_timestamp; }
-time_t Device::timeCreated() { return _created_mtime; }
 
 bool Device::available() const {
   // last_seen defaults to 0 when constructed (e.g. discovered) so avoid
@@ -144,7 +138,6 @@ uint64_t Device::writeStop() {
 
   return (uint64_t)_write_us;
 }
-uint64_t Device::writeUS() { return (uint64_t)_write_us; }
 
 void Device::crcMismatch() { _crc_mismatches++; }
 void Device::readFailure() { _read_errors++; }

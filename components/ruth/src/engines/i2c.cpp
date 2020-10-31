@@ -139,7 +139,7 @@ bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
                          uint32_t cmd_state, bool ack, const RefID_t &refid,
                          elapsedMicros &cmd_elapsed) {
 
-  if (dev->isValid()) {
+  if (dev->valid()) {
     bool set_rc = false;
 
     needBus();
@@ -421,22 +421,6 @@ bool I2c::detectMultiplexer(const int max_attempts) {
   return _use_multiplexer;
 }
 
-// 2020-05-20: the stablity of the I2c SDK has improved and this code
-// is unncessary
-
-// bool I2c::hardReset() {
-//   esp_err_t rc;
-//
-//   delay(1000);
-//
-//   rc = i2c_driver_delete(I2C_NUM_0);
-//
-//   periph_module_disable(PERIPH_I2C0_MODULE);
-//   periph_module_enable(PERIPH_I2C0_MODULE);
-//
-//   return installDriver();
-// }
-//
 bool I2c::installDriver() {
   esp_err_t config_rc = ESP_FAIL;
   esp_err_t install_rc = ESP_FAIL;
@@ -479,6 +463,7 @@ bool I2c::pinReset() {
   gpio_set_level(RST_PIN, 0); // pull the pin low to reset i2c devices
   delay(250);                 // give plenty of time for all devices to reset
   gpio_set_level(RST_PIN, 1); // bring all devices online
+  delay(1000);
 
   return true;
 }

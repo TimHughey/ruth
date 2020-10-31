@@ -45,33 +45,27 @@ class Device {
 public:
   Device() {} // all values are defaulted in definition of class(es)
 
-  Device(DeviceAddress_t &addr);
-  Device(const string_t &id, DeviceAddress_t &addr);
+  Device(const DeviceAddress_t &addr);
+  Device(const string_t &id, const DeviceAddress_t &addr);
   // Device(const Device_t &dev); // copy constructor
   virtual ~Device(); // base class will handle deleting the reading, if needed
 
   // operators
   bool operator==(Device_t *rhs) const;
 
-  static uint32_t idMaxLen();
+  const DeviceAddress_t &address() const;
+  uint8_t *addrBytes();
 
   bool valid() const;
   bool notValid() const;
-
-  // deprecated
-  bool isValid() const;
-  bool isNotValid() const;
 
   // updaters
   void justSeen();
 
   uint8_t firstAddressByte() const;
   uint8_t lastAddressByte() const;
-  DeviceAddress_t &addr();
-  uint8_t *addrBytes();
 
   void setID(const string_t &new_id);
-  void setID(char *new_id);
   const string_t &id() const { return _id; };
 
   // description of device
@@ -90,10 +84,6 @@ public:
   uint64_t readStop();
   void writeStart();
   uint64_t writeStop();
-  uint64_t readUS();
-  uint64_t writeUS();
-  time_t readTimestamp();
-  time_t timeCreated();
 
   void setMissingSeconds(uint32_t missing_secs) {
     _missing_secs = missing_secs;
@@ -111,31 +101,20 @@ public:
   // delay task for milliseconds
   void delay(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
 
-  // int crcMismatchCount();
-  // int readErrorCount();
-  // int writeErrorCount();
-
   virtual const unique_ptr<char[]> debug();
-  // virtual const string_t to_string(Device_t const &);
-  // virtual void debug(char *buff, size_t len);
 
 private:
   string_t _id;          // unique identifier of this device
   DeviceAddress_t _addr; // address of this device
   string_t _desc;
 
-  uint32_t _cmd_mask = 0;
-  uint32_t _cmd_state = 0;
-
 protected:
-  static const uint32_t _addr_len = DeviceAddress::max_addr_len;
+  // static const uint32_t _addr_len = DeviceAddress::max_addr_len;
   static const uint32_t _id_len = 30;
-  static const uint32_t _desc_len = 15; // max length of desciption
+  // static const uint32_t _desc_len = 15; // max length of desciption
 
-  // char _desc[_desc_len + 1] = {0x00}; // desciption of the device
   Reading_t *_reading = nullptr;
 
-  time_t _created_mtime = time(nullptr);
   time_t _last_seen = 0; // mtime of last time this device was discovered
 
   elapsedMicros _read_us;

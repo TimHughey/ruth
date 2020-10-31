@@ -32,6 +32,7 @@
 #include "local/types.hpp"
 #include "net/network.hpp"
 
+using std::move;
 using std::unique_ptr;
 
 namespace ruth {
@@ -77,7 +78,7 @@ I2cDevice::I2cDevice(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
   snprintf(id.get(), max_id_len, "i2c/%s.%02x.%s", Net::hostname(), this->bus(),
            description().c_str());
 
-  setID(id.get());
+  setID(move(id.get()));
 
   _raw_data.reserve(24);
 };
