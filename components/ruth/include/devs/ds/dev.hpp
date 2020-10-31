@@ -32,7 +32,6 @@ typedef class DsDevice DsDevice_t;
 
 class DsDevice : public Device {
 private:
-  static const size_t _addr_len = 8;
   static const uint8_t _family_byte = 0;
   static const uint8_t _crc_byte = 7;
 
@@ -50,9 +49,10 @@ public:
   DsDevice();
   DsDevice(DeviceAddress_t &addr, bool power = false);
 
+  void makeID();
+
   uint8_t family();
   uint8_t crc();
-  uint8_t addrLen();
   void copyAddrToCmd(uint8_t *cmd);
   bool isPowered();
   Reading_t *reading();
@@ -64,13 +64,8 @@ public:
   bool isDS2413();
   bool isDS2438();
 
-  static uint8_t *parseId(char *name);
-
   // info / debug functions
   void logPresenceFailed();
-
-  // static member function for validating an address (ROM) is validAddress
-  static bool validAddress(DeviceAddress_t &addr);
 
   const unique_ptr<char[]> debug();
 };

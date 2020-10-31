@@ -62,7 +62,10 @@ void Device::justSeen() {
     Text::rlog("missing device \"%s\" has returned", _id.c_str());
   }
 }
-void Device::setID(const string_t &new_id) { _id = new_id; }
+void Device::setID(const string_t &new_id) {
+  _id = new_id;
+  _id.shrink_to_fit();
+}
 
 // updaters
 void Device::setReading(Reading_t *reading) {

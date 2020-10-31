@@ -65,6 +65,8 @@ public:
   uint8_t firstAddressByte() const;
   uint8_t lastAddressByte() const;
 
+  static size_t maxIdLen() { return 63; }
+  virtual void makeID() = 0;
   void setID(const string_t &new_id);
   const string_t &id() const { return _id; };
 
@@ -109,10 +111,6 @@ private:
   string_t _desc;
 
 protected:
-  // static const uint32_t _addr_len = DeviceAddress::max_addr_len;
-  static const uint32_t _id_len = 30;
-  // static const uint32_t _desc_len = 15; // max length of desciption
-
   Reading_t *_reading = nullptr;
 
   time_t _last_seen = 0; // mtime of last time this device was discovered

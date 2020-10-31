@@ -385,7 +385,7 @@ bool I2c::detectDevicesOnBus(int bus) {
 
   for (uint8_t i = 0; addrs[i].isValid(); i++) {
     DeviceAddress_t &search_addr = addrs[i];
-    I2cDevice_t dev(search_addr, useMultiplexer(), bus);
+    I2cDevice_t dev(search_addr, bus);
 
     // abort detecting devices if the bus select fails
     if (selectBus(bus) == false)

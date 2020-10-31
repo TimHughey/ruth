@@ -36,7 +36,6 @@
 namespace ruth {
 
 DsDevice::DsDevice(DeviceAddress_t &addr, bool power) : Device(addr) {
-  char buff[_id_len] = {0x00};
   // byte   0: 8-bit family code
   // byte 1-6: 48-bit unique serial number
   // byte   7: crc
@@ -44,23 +43,34 @@ DsDevice::DsDevice(DeviceAddress_t &addr, bool power) : Device(addr) {
 
   setDescription(familyDescription());
 
+  makeID();
+};
+
+void DsDevice::makeID() {
+  vector<char> buffer;
+
+  buffer.reserve(maxIdLen());
+
+  auto addr = address();
+
   //                 00000000001111111
   //       byte num: 01234567890123456
   //     exmaple id: ds/28ffa442711604
   // format of name: ds/famil code + 48-bit serial (without the crc)
   //      total len: 18 bytes (id + string terminator)
-  sprintf(buff, "ds/%02x%02x%02x%02x%02x%02x%02x",
-          addr[0],                    // byte 0: family code
-          addr[1], addr[2], addr[3],  // byte 1-3: serial number
-          addr[4], addr[5], addr[6]); // byte 4-6: serial number
+  auto length = snprintf(buffer.data(), buffer.capacity(),
+                         "ds/%02x%02x%02x%02x%02x%02x%02x",
+                         addr[0],                    // byte 0: family code
+                         addr[1], addr[2], addr[3],  // byte 1-3: serial number
+                         addr[4], addr[5], addr[6]); // byte 4-6: serial number
 
-  const string_t dev_id = buff;
-  setID(move(dev_id));
-};
+  const string_t id(buffer.data(), length);
+
+  setID(move(id));
+}
 
 uint8_t DsDevice::family() { return firstAddressByte(); };
 uint8_t DsDevice::crc() { return lastAddressByte(); };
-uint8_t DsDevice::addrLen() { return _addr_len; }
 void DsDevice::copyAddrToCmd(uint8_t *cmd) {
   memcpy((cmd + 1), (uint8_t *)addrBytes(), address().size());
   // *(cmd + 1) = addr().firstAddressByte();
@@ -98,28 +108,6 @@ bool DsDevice::isDS2438() {
 };
 
 bool DsDevice::hasTemperature() { return isDS1820(); }
-
-uint8_t *DsDevice::parseId(char *name) {
-  static uint8_t addr[_addr_len] = {0x00};
-  //                 00000000001111111
-  //       byte num: 01234567890123456
-  // format of name: ds/01020304050607
-  //      total len: 18 bytes (id + string terminator)
-  if ((name[0] == 'd') && (name[1] == 's') && (name[2] == '/') &&
-      (name[_id_len - 1] == 0x00)) {
-    for (uint32_t i = 3, j = 0; j < _addr_len; i = i + 2, j++) {
-      char digit[3] = {name[i], name[i + 1], 0x00};
-      char *end_ptr;
-      unsigned long val = strtoul(digit, &end_ptr, 16); // convert from hex
-
-      addr[j] = (uint8_t)val;
-    }
-  }
-
-  // calculate the crc8 and store as the last byte of the address
-  addr[_crc_byte] = owb_crc8_bytes(0x00, (uint8_t *)addr, _addr_len - 2);
-  return addr;
-}
 
 const string_t &DsDevice::familyDescription() {
   return familyDescription(family());
@@ -161,22 +149,6 @@ const string_t &DsDevice::familyDescription(uint8_t family) {
 
 void DsDevice::logPresenceFailed() {
   ESP_LOGI("DsDevice", "%s presence failure", familyDescription().c_str());
-}
-
-// static member function for validating an address (ROM) is validAddress
-bool DsDevice::validAddress(DeviceAddress_t &addr) {
-  bool rc = true;
-
-  if (addr[_family_byte] == 0x00)
-    rc = false;
-
-  // reminder crc8 is only first seven bytes
-  // owb_crc8_bytes returns 0x00 if last byte is CRC and there's a match
-  if (owb_crc8_bytes(0x00, (uint8_t *)addr, addr.len() - 1) != 0x00) {
-    rc = false;
-  }
-
-  return rc;
 }
 
 const unique_ptr<char[]> DsDevice::debug() {

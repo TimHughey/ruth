@@ -61,8 +61,6 @@ const char *PwmDevice::PwmDeviceDesc(const DeviceAddress_t &addr) {
 
 // construct a new PwmDevice with a known address and compute the id
 PwmDevice::PwmDevice(DeviceAddress_t &num) : Device(num) {
-  unique_ptr<char[]> id(new char[_pwm_max_id_len + 1]);
-
   _gpio_pin = mapNumToGPIO(num);
 
   _ledc_channel.gpio_num = _gpio_pin;
@@ -70,12 +68,21 @@ PwmDevice::PwmDevice(DeviceAddress_t &num) : Device(num) {
 
   setDescription(PwmDeviceDesc(num));
 
-  snprintf(id.get(), _pwm_max_id_len, "pwm/%s.%s", Net::hostname(),
-           PwmDeviceDesc(num));
-
-  const string_t dev_id = id.get();
-  setID(move(dev_id));
+  makeID();
 };
+
+void PwmDevice::makeID() {
+  vector<char> buffer;
+
+  buffer.reserve(maxIdLen());
+
+  auto length = snprintf(buffer.data(), buffer.capacity(), "pwm/%s.%s",
+                         Net::hostname(), PwmDeviceDesc(firstAddressByte()));
+
+  const string_t id(buffer.data(), length);
+
+  setID(move(id));
+}
 
 void PwmDevice::configureChannel() {
   gpio_set_level(_gpio_pin, 0);

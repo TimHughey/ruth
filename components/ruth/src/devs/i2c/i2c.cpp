@@ -37,6 +37,8 @@ using std::unique_ptr;
 
 namespace ruth {
 
+static int _timeout_default = 0;
+
 const char *I2cDevice::I2cDeviceDesc(uint8_t addr) {
   switch (addr) {
   case 0x44:
@@ -65,27 +67,35 @@ const char *I2cDevice::I2cDeviceDesc(uint8_t addr) {
 }
 
 // construct a new I2cDevice with a known address and compute the id
-I2cDevice::I2cDevice(DeviceAddress_t &addr, bool use_multiplexer, uint8_t bus)
-    : Device(addr) {
-  _use_multiplexer = use_multiplexer;
-  _bus = bus;
-
-  auto const max_id_len = 63;
-  unique_ptr<char[]> id(new char[max_id_len + 1]);
+I2cDevice::I2cDevice(DeviceAddress_t &addr, uint8_t bus)
+    : Device(addr), _bus(bus) {
+  // initialize the default timeout, if needed
+  if (_timeout_default == 0) {
+    i2c_get_timeout(I2C_NUM_0, &_timeout_default);
+  }
 
   setDescription(I2cDeviceDesc(firstAddressByte()));
 
-  snprintf(id.get(), max_id_len, "i2c/%s.%02x.%s", Net::hostname(), this->bus(),
-           description().c_str());
-
-  setID(move(id.get()));
-
   _raw_data.reserve(24);
+
+  makeID();
 };
 
 uint8_t I2cDevice::devAddr() { return firstAddressByte(); };
-bool I2cDevice::useMultiplexer() { return _use_multiplexer; };
 uint8_t I2cDevice::bus() const { return _bus; };
+
+void I2cDevice::makeID() {
+  vector<char> buffer;
+
+  buffer.reserve(maxIdLen());
+
+  auto length = snprintf(buffer.data(), buffer.capacity(), "i2c/%s.%02x.%s",
+                         Net::hostname(), this->bus(), description().c_str());
+
+  const string_t id(buffer.data(), length);
+
+  setID(move(id));
+}
 
 const RawData_t &I2cDevice::rawData() { return _raw_data; }
 
@@ -95,6 +105,9 @@ uint8_t I2cDevice::readAddr() {
 
 void I2cDevice::storeRawData(RawData_t &data) { _raw_data = data; }
 
+// STATIC
+int timeoutDefault() { return _timeout_default; }
+
 uint8_t I2cDevice::writeAddr() {
   return (firstAddressByte() << 1) | I2C_MASTER_WRITE;
 };
@@ -103,8 +116,8 @@ const unique_ptr<char[]> I2cDevice::debug() {
   const auto max_len = 127;
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
-  snprintf(debug_str.get(), max_len, "I2cDevice(%s bus=%d use_mplex=%s)",
-           id().c_str(), _bus, (_use_multiplexer) ? "true" : "false");
+  snprintf(debug_str.get(), max_len, "I2cDevice(%s bus=%d)", id().c_str(),
+           _bus);
 
   return move(debug_str);
 }

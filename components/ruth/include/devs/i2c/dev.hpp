@@ -39,25 +39,22 @@ public:
   static const char *I2cDeviceDesc(uint8_t addr);
 
 private:
-  static const uint32_t _i2c_max_addr_len = 1;
-  static const uint32_t _i2c_max_id_len = 30;
-  static const uint32_t _i2c_addr_byte = 0;
-  bool _use_multiplexer = false; // is the multiplexer is needed to reach device
-  uint8_t _bus = 0; // if using multiplexer then this is the bus number
-                    // where the device is hosted
+  uint8_t _bus = 0; // with multiplexer 0 >= x <= 8, zero otherwise
   RawData_t _raw_data;
 
 public:
   // construct a new I2cDevice with a known address and compute the id
-  I2cDevice(DeviceAddress_t &addr, bool use_multiplexer = false,
-            uint8_t bus = 0);
+  I2cDevice(DeviceAddress_t &addr, uint8_t bus = 0);
 
   uint8_t devAddr();
-  bool useMultiplexer();
   uint8_t bus() const;
+
+  void makeID();
+
   const RawData_t &rawData();
   uint8_t readAddr();
   void storeRawData(RawData_t &data);
+  static int timeoutDefault();
   uint8_t writeAddr();
 
   // info / debug functions

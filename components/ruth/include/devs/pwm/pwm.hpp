@@ -52,6 +52,8 @@ public:
   PwmDevice(DeviceAddress_t &num);
   uint8_t devAddr() { return firstAddressByte(); };
 
+  void makeID();
+
   // ledc channel
   void configureChannel();
   ledc_channel_t channel() { return _ledc_channel.channel; };
@@ -76,7 +78,6 @@ public:
   const unique_ptr<char[]> debug();
 
 private:
-  static const uint32_t _pwm_max_id_len = 40;
   static const uint32_t _duty_max = 0x1fff;
   static const uint32_t _duty_min = 0;
 
