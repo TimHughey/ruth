@@ -64,7 +64,7 @@ case $argv[1] in
     ;;
 
   erase)
-    idf.py erase build
+    idf.py erase_flash build
     idf.py flash monitor
     ;;
 
