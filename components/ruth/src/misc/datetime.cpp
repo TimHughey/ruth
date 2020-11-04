@@ -1,6 +1,6 @@
 /*
-    nvs.hpp -- Abstraction for ESP32 NVS
-    Copyright (C) 2019  Tim Hughey
+    datetime.cpp - Ruth DateTime
+    Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,31 +18,16 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_nvs_hpp
-#define _ruth_nvs_hpp
-
-#include <string>
-
-#include <sys/time.h>
-#include <time.h>
-
-#include <esp_system.h>
-#include <nvs.h>
-#include <nvs_flash.h>
+#include "misc/datetime.hpp"
 
 namespace ruth {
 
-typedef class NVS NVS_t;
+DateTime::DateTime(time_t t) {
+  time_t mtime = (t == 0) ? time(nullptr) : t;
 
-class NVS {
-private:
-  NVS();
-  ~NVS();
-  static NVS *_instance_();
+  struct tm timeinfo = {};
 
-public:
-  static NVS_t *init();
-};
+  localtime_r(&mtime, &timeinfo);
+  strftime(buffer_, buffer_len_, "%c", &timeinfo);
+}
 } // namespace ruth
-
-#endif // nvs.hpp

@@ -771,7 +771,7 @@ bool I2c::selectBus(uint32_t bus) {
 
       if (_bus_select_errors > 50) {
         const char *msg = "BUS SELECT ERRORS EXCEEDED";
-        NVS::commitMsg("I2c", msg);
+        // NVS::commitMsg("I2c", msg);
         Restart::restart(msg, __PRETTY_FUNCTION__, 0);
       }
     }

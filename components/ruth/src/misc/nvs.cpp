@@ -56,24 +56,6 @@ NVS::NVS() {
                esp_err_to_name(_esp_rc));
     }
   }
-
-  if (_esp_rc == ESP_OK) {
-    _nvs_open_rc = nvs_open(_nvs_namespace, NVS_READWRITE, &_handle);
-
-    if (_nvs_open_rc != ESP_OK) {
-      ESP_LOGW(TAG, "[%s] nvs_open()", esp_err_to_name(_esp_rc));
-    }
-  }
-
-  if (_blob == nullptr) {
-    _blob = (NVSMessage_t *)malloc(sizeof(NVSMessage_t));
-  }
-
-  if (_time_str == nullptr) {
-    _time_str = (char *)malloc(_time_str_max_len);
-  }
-
-  zeroBuffers();
 }
 
 // STATIC
@@ -89,121 +71,18 @@ NVS_t *NVS::_instance_() {
 
 NVS::~NVS() {
   if (__singleton__) {
-    nvs_close(__singleton__->_handle);
-
-    if (__singleton__->_blob != nullptr) {
-      free(__singleton__->_blob);
-    }
-
-    if (__singleton__->_time_str != nullptr) {
-      free(__singleton__->_time_str);
-    }
 
     delete __singleton__;
     __singleton__ = nullptr;
   }
 }
 
-// STATIC
-esp_err_t NVS::commitMsg(const char *key, const char *msg) {
-  return _instance_()->__commitMsg(key, msg);
-}
+// void NVS::publishMsg(const char *key, NVSMessage_t *blob) {
+//   unique_ptr<struct tm> timeinfo(new struct tm);
+//
+//   localtime_r(&(blob->time), timeinfo.get());
+//
+//   Text::rlog(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
+// }
 
-// PRIVATE
-esp_err_t NVS::__commitMsg(const char *key, const char *msg) {
-  esp_log_level_set(TAG, ESP_LOG_INFO);
-
-  zeroBuffers();
-
-  if (notOpen()) {
-    return _nvs_open_rc;
-  }
-
-  _blob->time = time(nullptr);
-  strncpy(_blob->msg, msg, NVS_MSG_MAX_LEN);
-
-  _esp_rc = nvs_set_blob(_handle, key, _blob, sizeof(NVSMessage_t));
-
-  if (_esp_rc == ESP_OK) {
-    _esp_rc = nvs_commit(_handle);
-  }
-
-  return _esp_rc;
-}
-
-// STATIC
-esp_err_t NVS::processCommittedMsgs() {
-  if (_instance_()->_committed_msgs_processed == false) {
-    _instance_()->_committed_msgs_processed = true;
-    return _instance_()->__processCommittedMsgs();
-  } else {
-    return ESP_OK;
-  }
-}
-
-esp_err_t NVS::__processCommittedMsgs() {
-  bool need_commit = false;
-
-  zeroBuffers();
-
-  if (notOpen()) {
-    return _nvs_open_rc;
-  }
-
-  for (uint8_t i = 0; strncmp(_possible_keys[i], "END_KEYS", 15) != 0; i++) {
-    _msg_len = sizeof(NVSMessage_t);
-
-    // ESP_LOGD(TAG, "looking for key(%s)", _possible_keys[i]);
-    _esp_rc = nvs_get_blob(_handle, _possible_keys[i], _blob, &_msg_len);
-
-    switch (_esp_rc) {
-    case ESP_OK:
-      publishMsg(_possible_keys[i], _blob);
-      nvs_erase_key(_handle, _possible_keys[i]);
-      need_commit = true;
-      break;
-
-    case ESP_ERR_NVS_NOT_FOUND:
-      // ESP_LOGD(TAG, "key(%s) not available", _possible_keys[i]);
-      break;
-
-    default:
-      ESP_LOGW(TAG, "[%s] while searching for key(%s)",
-               esp_err_to_name(_esp_rc), _possible_keys[i]);
-    }
-  }
-
-  if (need_commit) {
-    _esp_rc = nvs_commit(_handle);
-  }
-
-  return _esp_rc;
-}
-
-bool NVS::notOpen() {
-  if (_nvs_open_rc == ESP_OK) {
-    return false;
-  } else {
-    ESP_LOGW(TAG, "[%s] nvs not open", esp_err_to_name(_nvs_open_rc));
-    return true;
-  }
-}
-
-void NVS::publishMsg(const char *key, NVSMessage_t *blob) {
-  unique_ptr<struct tm> timeinfo(new struct tm);
-
-  localtime_r(&(blob->time), timeinfo.get());
-
-  Text::rlog(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
-}
-
-void NVS::zeroBuffers() {
-  if (_blob != nullptr) {
-    _blob->time = 0;
-    _blob->msg[0] = 0;
-  }
-
-  if (_time_str != nullptr)
-    bzero(_time_str, _time_str_max_len);
-}
 } // namespace ruth

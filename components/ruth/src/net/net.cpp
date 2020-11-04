@@ -9,9 +9,6 @@
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
-#include <freertos/task.h>
-#include <nvs_flash.h>
-#include <string.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -19,7 +16,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#include "misc/nvs.hpp"
+#include "core/binder.hpp"
 #include "misc/restart.hpp"
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
@@ -71,29 +68,22 @@ void Net::checkError(const char *func, esp_err_t err) {
 
   case 0x1100FF:
     ESP_LOGE(tagEngine(), "failed to acquire IP address");
-    NVS::commitMsg(tagEngine(), "IP address aquisition failure");
+    // NVS::commitMsg(tagEngine(), "IP address acquisition failure");
     break;
 
   case 0x1100FE:
     ESP_LOGE(tagEngine(), "SNTP failed");
-    NVS::commitMsg(tagEngine(), "SNTP failure");
+    // NVS::commitMsg(tagEngine(), "SNTP failure");
     break;
 
   default:
     snprintf(msg, max_msg_len, "[%s] %s", esp_err_to_name(err), func);
     ESP_LOGE(tagEngine(), "%s", msg);
-    NVS::commitMsg(tagEngine(), msg);
+    // NVS::commitMsg(tagEngine(), msg);
     break;
   }
 
-  // UNCOMMENT FOR CORE DUMP INSTEAD OF RESTART
-  // prevent the compiler from optimzing out this code
-  // volatile uint32_t *ptr = (uint32_t *)0x0000000;
-
-  // write to a nullptr to trigger core dump
-  // ptr[0] = 0;
-
-  NVS::commitMsg(tagEngine(), msg);
+  // NVS::commitMsg(tagEngine(), msg);
   Restart::restart(msg);
 }
 
@@ -351,8 +341,8 @@ bool Net::_start_() {
   cfg.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
   cfg.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
   cfg.sta.bssid_set = 0;
-  strncpy((char *)cfg.sta.ssid, CONFIG_WIFI_SSID, sizeof(cfg.sta.ssid));
-  strncpy((char *)cfg.sta.password, CONFIG_WIFI_PASSWORD,
+  strncpy((char *)cfg.sta.ssid, Binder::wifiSsid(), sizeof(cfg.sta.ssid));
+  strncpy((char *)cfg.sta.password, Binder::wifiPasswd(),
           sizeof(cfg.sta.password));
 
   rc = esp_wifi_set_config(WIFI_IF_STA, &cfg);
@@ -373,8 +363,9 @@ bool Net::_start_() {
   ESP_LOGI(tagEngine(), "standing by for IP address...");
   if (waitForIP()) {
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, (char *)"ntp1.wisslanding.com");
-    sntp_setservername(1, (char *)"ntp2.wisslanding.com");
+
+    sntp_setservername(0, Binder::ntpServer(0));
+    sntp_setservername(1, Binder::ntpServer(1));
     sntp_init();
 
     ensureTimeIsSet();

@@ -35,7 +35,6 @@
 #include "engines/i2c.hpp"
 #include "engines/pwm.hpp"
 #include "local/types.hpp"
-#include "misc/nvs.hpp"
 #include "misc/restart.hpp"
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
@@ -61,6 +60,8 @@ static MQTT *_instance_ = nullptr;
 // SINGLETON! constructor is private
 MQTT::MQTT() {
   // create the report and command feed topics
+  _feed_prefix = Binder::env();
+  _feed_prefix.push_back('/');
   _feed_rpt = _feed_prefix + _feed_rpt_prefix + Net::hostID();
   _feed_host = _feed_prefix + Net::hostID() + _feed_host_suffix;
 
@@ -82,7 +83,6 @@ void MQTT::connectionClosed() {
   StatusLED::dim();
 
   _mqtt_ready = false;
-  _connection = nullptr;
 
   Net::clearTransportReady();
 }
@@ -209,7 +209,7 @@ void MQTT::publish_msg(string_t *msg) {
 
     // we only commit the failure to NVS and directly call esp_restart()
     // since MQTT is broken
-    NVS::commitMsg(TAG, log_msg.get());
+    // NVS::commitMsg(TAG, log_msg.get());
 
     // pass a nullptr for the message so Restart doesn't attempt to publish
     Restart::restart(nullptr, __PRETTY_FUNCTION__);
@@ -231,10 +231,10 @@ void MQTT::core(void *data) {
     _client_id = "ruth-" + Net::macAddress();
   }
 
-  opts.uri = _uri.c_str();
+  opts.uri = Binder::mqttUri();
   opts.disable_clean_session = false;
-  opts.username = _user;
-  opts.password = _passwd;
+  opts.username = Binder::mqttUser();
+  opts.password = Binder::mqttPasswd();
   opts.client_id = _client_id.c_str();
   opts.reconnect_timeout_ms = 10000;
   opts.buffer_size = 1024;
@@ -333,7 +333,7 @@ esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
   case MQTT_EVENT_BEFORE_CONNECT:
     StatusLED::brighter();
     ESP_LOGI(ESP_TAG, "[stack=%0.1f%%] BEFORE_CONNECT uri=%s", stack_percent,
-             __singleton__->_uri.c_str());
+             Binder::mqttUri());
     break;
 
   case MQTT_EVENT_CONNECTED:

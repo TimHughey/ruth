@@ -19,6 +19,7 @@
 */
 
 #include "core/core.hpp"
+#include "core/binder.hpp"
 #include "devs/base/base.hpp"
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
@@ -86,11 +87,14 @@ void Core::_loop() {
 void Core::_start(xTaskHandle app_task) {
   app_task_ = app_task;
 
+  // get NVS started, it is needed by Net
+  NVS::init();
+
   // initialize the StatusLED singleton
   StatusLED::init();
 
-  // get NVS started, it is needed by Net
-  NVS::init();
+  // initialized the Binder singleton
+  Binder::init();
   StatusLED::brighter();
 
   // get the Network up and running as soon as possible
@@ -128,7 +132,7 @@ void Core::bootComplete() {
 
   num_tasks_ = uxTaskGetNumberOfTasks();
 
-  NVS::processCommittedMsgs();
+  // NVS::processCommittedMsgs();
   // NVS::commitMsg("BOOT", "LAST SUCCESSFUL BOOT");
 
   // lower main task priority since it's really just a watcher now
@@ -171,7 +175,7 @@ void Core::consoleTimestamp() {
   auto stack_used =
       100.0 - ((float)stack_high_water / (float)stack_size_) * 100.0;
 
-  ESP_LOGI(TAG, ">> %s << %s stack[used=%0.1f%% hw=%u]", dateTimeString().get(),
+  ESP_LOGI(TAG, ">> %s << %s stack[used=%0.1f%% hw=%u]", DateTime().get(),
            Net::hostname(), stack_used, stack_high_water);
 
   if (timestamp_first_report_ && (timestamp_freq_ms_ >= (5 * 60 * 1000.0))) {
@@ -246,20 +250,6 @@ Core_t *Core::_instance_() {
   return __singleton__;
 }
 
-// NOTE:  Use .get() to access the underlying char array
-unique_ptr<char[]> Core::dateTimeString(time_t t) {
-  const auto buf_size = 28;
-  unique_ptr<char[]> buf(new char[buf_size + 1]);
-
-  time_t mtime = (t == 0) ? time(nullptr) : t;
-
-  struct tm timeinfo = {};
-
-  localtime_r(&mtime, &timeinfo);
-  strftime(buf.get(), buf_size, "%c", &timeinfo);
-
-  return move(buf);
-}
 } // namespace ruth
 
 // void TimestampTask::reportTaskStacks() {

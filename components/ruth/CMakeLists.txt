@@ -1,13 +1,12 @@
 
 set(
   RUTH_CORE
-    "src/core/core"  "src/core/ota"
+    "src/core/binder" "src/core/core"  "src/core/ota"
   )
 
 set(
   RUTH_MISC
-    "src/misc/restart"      "src/misc/nvs"
-    "src/misc/status_led")
+    "src/misc/datetime" "src/misc/restart" "src/misc/nvs" "src/misc/status_led")
 
 set(
   RUTH_NET
@@ -57,9 +56,11 @@ idf_component_register(
   INCLUDE_DIRS
     "include" "include/external"
   REQUIRES
-    esp_http_client esp_https_ota mqtt nvs_flash app_update esp_adc_cal
+    spiffs esp_http_client esp_https_ota mqtt nvs_flash app_update esp_adc_cal
   EMBED_FILES
     ca.pem)
+
+spiffs_create_partition_image(ruthfs ../../extra/ruthfs/image FLASH_IN_PROJECT)
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
   ARDUINOJSON_ENABLE_STD_STREAM ARDUINOJSON_USE_LONG_LONG)

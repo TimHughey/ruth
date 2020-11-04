@@ -29,11 +29,13 @@
 #include <esp_adc_cal.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
+
 #include <sys/time.h>
 #include <time.h>
 
 #include "core/ota.hpp"
 #include "local/types.hpp"
+#include "misc/datetime.hpp"
 #include "misc/elapsed.hpp"
 #include "misc/restart.hpp"
 
@@ -52,7 +54,6 @@ public:
   static bool enginesStarted() { return _instance_()->engines_started_; };
   static uint32_t vref() { return 1100; };
 
-  static unique_ptr<char[]> dateTimeString(time_t t = 0);
   static bool otaRequest(OTA_t *ota) { return _instance_()->_otaRequest(ota); };
   static bool restartRequest() { return _instance_()->_restartRequest(); };
 

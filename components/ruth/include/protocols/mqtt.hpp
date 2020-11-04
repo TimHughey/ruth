@@ -34,6 +34,7 @@
 #include <mqtt_client.h>
 #include <sdkconfig.h>
 
+#include "core/binder.hpp"
 #include "protocols/payload.hpp"
 #include "readings/readings.hpp"
 
@@ -89,14 +90,6 @@ private:
 private:
   // private member variables
   esp_mqtt_client_config_t mqtt_cfg;
-
-  // private strings defining essential connection info
-  // const char *_dns_server = CONFIG_RUTH_DNS_SERVER;
-  // const string_t _host = CONFIG_RUTH_MQTT_HOST;
-  const string_t _uri = CONFIG_RUTH_MQTT_URI;
-  const char *_user = CONFIG_RUTH_MQTT_USER;
-  const char *_passwd = CONFIG_RUTH_MQTT_PASSWD;
-
   string_t _client_id;
 
   // NOTES:
@@ -104,7 +97,7 @@ private:
   //   2. feeds are always prefixed by the environment
   //   3. should include the actual host ID
   //   4. end with the corresponding suffix
-  const string_t _feed_prefix = CONFIG_RUTH_ENV "/";
+  string_t _feed_prefix;
 
   // NOTE:  _feed_host is replacing _feed_cmd
   string_t _feed_host_suffix = "/#";

@@ -1,9 +1,0 @@
-
-# Name,Type,SubType,Offset,Size,Flags
-# bootloader:  32k
-nvs,data,nvs,0x9000,20K,
-otadata,data,ota,0xe000,8K,
-ota_0,app,ota_0,0x10000,1200k,
-ota_1,app,ota_1,,1200k,
-
-# unallocated:  340k

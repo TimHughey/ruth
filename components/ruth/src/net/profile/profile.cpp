@@ -36,13 +36,12 @@ static const size_t _doc_capacity =
     6 * JSON_OBJECT_SIZE(2) + 9 * JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(4) +
     JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(10) + 620;
 
-static const char *_none = "none";
 static const bool _unset_bool = false;
 
 Profile::Profile(MsgPayload_t *payload) {
   const char *c_str = nullptr;
 
-  DynamicJsonDocument root(_doc_capacity);
+  StaticJsonDocument<_doc_capacity> root;
 
   _parse_elapsed.reset();
   _parse_err = deserializeMsgPack(root, payload->payload());
@@ -64,15 +63,15 @@ Profile::Profile(MsgPayload_t *payload) {
   const JsonObject core = root["core"];
   const JsonObject misc = root["misc"];
 
-  c_str = root["assigned_name"] | _none;
+  c_str = root["assigned_name"] | "none";
   _assigned_name = c_str;
 
   _mtime = root["mtime"] | _mtime;
 
-  c_str = meta["profile_name"] | _none;
+  c_str = meta["profile_name"] | "none";
   _profile_name = c_str;
 
-  c_str = meta["version"] | _none;
+  c_str = meta["version"] | "none";
   _version = c_str;
 
   _watch_stacks = misc["watch_stacks"] | _watch_stacks;
@@ -169,13 +168,6 @@ uint32_t Profile::engineTaskStack(EngineTypes_t engine_type,
 //
 
 bool Profile::_postParseActions() {
-
-  // ESP_LOGI("Profile", "msgpack deserialization took %lldus",
-  //          (uint64_t)_parse_elapsed);
-  //
-  // ESP_LOGI("Profile", "using profile=\"%s\" version=\"%s\"", _profileName(),
-  //          _version());
-
   Net::setName(_assigned_name.c_str());
   return true;
 }
