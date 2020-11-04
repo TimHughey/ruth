@@ -1,5 +1,5 @@
 /*
-    i2c_dev.hpp - Ruth I2C
+    i2c/base.hpp - Ruth I2C Device Base
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_i2c_dev_hpp
-#define _ruth_i2c_dev_hpp
+#ifndef _ruth_i2c_device_base_hpp
+#define _ruth_i2c_device_base_hpp
 
 #include <memory>
 #include <string>
@@ -41,14 +41,20 @@ public:
 private:
   uint8_t _bus = 0; // with multiplexer 0 >= x <= 8, zero otherwise
   RawData_t _raw_data;
+  RawData_t _buffer;
+
+  esp_err_t _esp_rc_prev = ESP_OK;
+  esp_err_t _esp_rc = ESP_OK;
 
 public:
   // construct a new I2cDevice with a known address and compute the id
-  I2cDevice(DeviceAddress_t &addr, uint8_t bus = 0);
+  I2cDevice(const DeviceAddress_t &addr, uint8_t bus = 0);
+  // I2cDevice(uint8_t addr, uint8_t bus = 0);
 
   uint8_t devAddr();
   uint8_t bus() const;
 
+  void constructCommon();
   void makeID();
 
   const RawData_t &rawData();
@@ -59,6 +65,16 @@ public:
 
   // info / debug functions
   const unique_ptr<char[]> debug();
+
+protected:
+  RawData_t _tx;
+  RawData_t _rx;
+
+  void clearPreviousError() { _esp_rc_prev = ESP_OK; };
+  bool hasPreviousErrpr() { return (_esp_rc_prev == ESP_OK) ? false : true; };
+  esp_err_t previousError() { return _esp_rc_prev; };
+
+  bool requestData();
 };
 } // namespace ruth
 

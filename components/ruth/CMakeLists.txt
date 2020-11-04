@@ -17,7 +17,8 @@ set(
     "src/devs/base/addr"
     "src/devs/base/base"
     "src/devs/ds/ds"
-    "src/devs/i2c/i2c")
+    "src/devs/i2c/base"
+    "src/devs/i2c/mplex")
 
 set(
   RUTH_PWM_DEVS

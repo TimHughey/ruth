@@ -100,9 +100,6 @@ void Device::setReadingCmdAck(uint32_t latency_us, const char *refid) {
   }
 }
 
-uint8_t Device::firstAddressByte() const { return _addr.firstByte(); };
-uint8_t Device::lastAddressByte() const { return _addr.lastByte(); };
-
 uint8_t *Device::addrBytes() { return (uint8_t *)_addr; }
 Reading_t *Device::reading() { return _reading; }
 

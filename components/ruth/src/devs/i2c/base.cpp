@@ -28,7 +28,7 @@
 #include <time.h>
 
 #include "devs/base/base.hpp"
-#include "devs/i2c/dev.hpp"
+#include "devs/i2c/base.hpp"
 #include "local/types.hpp"
 #include "net/network.hpp"
 
@@ -67,8 +67,16 @@ const char *I2cDevice::I2cDeviceDesc(uint8_t addr) {
 }
 
 // construct a new I2cDevice with a known address and compute the id
-I2cDevice::I2cDevice(DeviceAddress_t &addr, uint8_t bus)
+// I2cDevice::I2cDevice(uint8_t addr, uint8_t bus) : Device(addr), _bus(bus) {
+//   constructCommon();
+// };
+
+I2cDevice::I2cDevice(const DeviceAddress_t &addr, uint8_t bus)
     : Device(addr), _bus(bus) {
+  constructCommon();
+}
+
+void I2cDevice::constructCommon() {
   // initialize the default timeout, if needed
   if (_timeout_default == 0) {
     i2c_get_timeout(I2C_NUM_0, &_timeout_default);
@@ -77,9 +85,8 @@ I2cDevice::I2cDevice(DeviceAddress_t &addr, uint8_t bus)
   setDescription(I2cDeviceDesc(firstAddressByte()));
 
   _raw_data.reserve(24);
-
   makeID();
-};
+}
 
 uint8_t I2cDevice::devAddr() { return firstAddressByte(); };
 uint8_t I2cDevice::bus() const { return _bus; };

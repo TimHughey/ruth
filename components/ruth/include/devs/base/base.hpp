@@ -62,8 +62,9 @@ public:
   // updaters
   void justSeen();
 
-  uint8_t firstAddressByte() const;
-  uint8_t lastAddressByte() const;
+  uint8_t singleByteAddress() const { return _addr.firstByte(); };
+  uint8_t firstAddressByte() const { return _addr.firstByte(); };
+  uint8_t lastAddressByte() const { return _addr.lastByte(); };
 
   static size_t maxIdLen() { return 63; }
   virtual void makeID() = 0;
