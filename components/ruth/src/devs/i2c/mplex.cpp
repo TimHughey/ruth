@@ -18,26 +18,21 @@
     https://www.wisslanding.com
 */
 
-#include <memory>
-#include <string>
-
 #include <driver/i2c.h>
 #include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <sys/time.h>
-#include <time.h>
 
-#include "devs/base/base.hpp"
 #include "devs/i2c/mplex.hpp"
-#include "local/types.hpp"
-#include "net/network.hpp"
+#include "misc/restart.hpp"
 
 namespace ruth {
 TCA9548B::TCA9548B() : I2cDevice(DeviceAddress(0x70)) {}
 
 bool TCA9548B::detect() {
+  auto rc = false;
   // when detecting a device always reset the previous command esp_err_t
   clearPreviousError();
+
+  // return selectBus(0x00);
 
   // to the detect the multiplexer we:
   //  1.  write 0x00 to the control register (disable all buses)
@@ -49,11 +44,38 @@ bool TCA9548B::detect() {
 
   // if the device read succeeded and the control register is 0x00
   // the multiplexer is available
-  if ((requestData() == ESP_OK) && (_rx[0] == 0x00)) {
-    return true;
+  rc = (requestData(_tx, _rx) && (_rx[0] == 0x00));
+
+  return rc;
+}
+
+bool TCA9548B::selectBus(uint8_t bus) {
+  // RawData_t tx;
+  bool rc = true; // default return is success, failures detected inline
+
+  _bus_selects++;
+
+  if (bus >= _max_buses) {
+    return false;
   }
 
-  return false;
+  // the bus is selected by sending a single byte to the multiplexer
+  // device with the bit for the bus select
+  RawData_t tx = {(uint8_t)(0x01 << bus)};
+
+  if (busWrite(tx)) {
+    return rc;
+  } else {
+    _bus_select_errors++;
+    rc = false;
+
+    if (_bus_select_errors > 50) {
+      const char *msg = "I2c bus select errors exceeded";
+      Restart::restart(msg, __PRETTY_FUNCTION__, 0);
+    }
+  }
+
+  return rc;
 }
 
 } // namespace ruth

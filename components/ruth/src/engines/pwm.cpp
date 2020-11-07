@@ -237,9 +237,7 @@ bool PulseWidth::readDevice(PwmDevice_t *dev) {
   auto duty = ledc_get_duty(dev->speedMode(), dev->channel());
   dev->readStop();
 
-  if (duty == LEDC_ERR_DUTY) {
-    ESP_LOGW(engine_name.c_str(), "error reading duty");
-  } else {
+  if (duty != LEDC_ERR_DUTY) {
     Reading_t *reading =
         new Pwm(dev->id(), dev->dutyMax(), dev->dutyMin(), duty);
 

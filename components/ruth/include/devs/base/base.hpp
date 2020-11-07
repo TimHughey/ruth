@@ -50,9 +50,6 @@ public:
   // Device(const Device_t &dev); // copy constructor
   virtual ~Device(); // base class will handle deleting the reading, if needed
 
-  // operators
-  bool operator==(Device_t *rhs) const;
-
   const DeviceAddress_t &address() const;
   uint8_t *addrBytes();
 
@@ -102,7 +99,7 @@ public:
   int writeErrors() const { return _write_errors; }
 
   // delay task for milliseconds
-  void delay(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
+  void delay(uint32_t ms) const { vTaskDelay(pdMS_TO_TICKS(ms)); }
 
   virtual const unique_ptr<char[]> debug();
 

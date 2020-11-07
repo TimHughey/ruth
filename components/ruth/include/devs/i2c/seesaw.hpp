@@ -1,5 +1,5 @@
 /*
-    sht31.hpp - Ruth I2C SHT31 Device
+    i2c/seesaw.hpp - Ruth I2C Device Seesaw
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_i2c_dev_sht31_hpp
-#define _ruth_i2c_dev_sht31_hpp
+#ifndef _ruth_i2c_dev_seesaw_hpp
+#define _ruth_i2c_dev_seesaw_hpp
 
 #include <memory>
 #include <string>
@@ -28,21 +28,22 @@
 
 namespace ruth {
 
-typedef class SHT31 SHT31_t;
+typedef class Seesaw Seesaw_t;
 
-class SHT31 : public I2cDevice {
+class Seesaw : public I2cDevice {
 public:
-  SHT31(uint8_t bus = 0, uint8_t addr = 0x44);
-  SHT31(const SHT31_t &rhs, time_t missing_secs = 60);
+  Seesaw(uint8_t bus = 0, uint8_t addr = 0x36);
+  Seesaw(const Seesaw_t &rhs, time_t missing_secs);
 
   bool detect();
   bool read();
+  bool writeState(uint32_t cmd_mask, uint32_t cmd_state);
 
 private:
+  bool crc(const uint8_t *data);
+
   RawData_t _tx;
   RawData_t _rx;
-
-  bool crc(const RawData_t &data, size_t index = 0);
 };
 
 } // namespace ruth

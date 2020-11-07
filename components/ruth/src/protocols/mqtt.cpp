@@ -65,7 +65,7 @@ MQTT::MQTT() {
   _feed_rpt = _feed_prefix + _feed_rpt_prefix + Net::hostID();
   _feed_host = _feed_prefix + Net::hostID() + _feed_host_suffix;
 
-  ESP_LOGV(TAG, "reporting to feed=\"%s\"", _feed_rpt.c_str());
+  ESP_LOGV(TAG, "reporting to feed[%s]", _feed_rpt.c_str());
 }
 
 MQTT::~MQTT() { // memory clean up handled by shutdown
@@ -95,7 +95,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   string_t subtopic(payload->subtopic());
 
   if (payload->invalid()) {
-    TR::rlog("[MQTT] invalid topic=\"%s\"", payload->errorTopic());
+    TR::rlog("[MQTT] invalid topic[%s]", payload->errorTopic());
   }
 
   // NOTE:
@@ -143,7 +143,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   }
 
   if (payload_rc == false) {
-    TR::rlog("[MQTT] subtopic=\"%s\" failed", subtopic.c_str());
+    TR::rlog("[MQTT] subtopic[%s] failed", subtopic.c_str());
   }
 
   return payload_rc;
@@ -201,16 +201,6 @@ void MQTT::publish_msg(string_t *msg) {
 
   // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
   if (_msg_id < 0) {
-    unique_ptr<char[]> log_msg(new char[128]);
-
-    sprintf(log_msg.get(), "PUBLISH msg FAILED [%d]", _last_return_code);
-
-    ESP_LOGW(TAG, "%s", log_msg.get());
-
-    // we only commit the failure to NVS and directly call esp_restart()
-    // since MQTT is broken
-    // NVS::commitMsg(TAG, log_msg.get());
-
     // pass a nullptr for the message so Restart doesn't attempt to publish
     Restart::restart(nullptr, __PRETTY_FUNCTION__);
   }
@@ -263,7 +253,7 @@ void MQTT::core(void *data) {
       auto stack_percent =
           100.0 - ((float)stack_high_water / (float)_task.stackSize * 100.0);
 
-      ESP_LOGI(TAG, "after announce stack used=%0.1f%% hw=%u", stack_percent,
+      ESP_LOGI(TAG, "after announce stack used[%0.1f%%] hw[%u]", stack_percent,
                stack_high_water);
     }
 
@@ -289,13 +279,12 @@ void MQTT::core(void *data) {
 
 void MQTT::_subACK_(esp_mqtt_event_handle_t event) {
   if (event->msg_id == _subscribe_msg_id) {
-    ESP_LOGV(TAG, "subACK for EXPECTED msg_id=%d", event->msg_id);
     _mqtt_ready = true;
     Net::setTransportReady();
     // NOTE: do not announce startup here.  doing so creates a race condition
     // that results in occasionally using epoch as the startup time
   } else {
-    ESP_LOGW(TAG, "subACK for UNKNOWN msg_id=%d", event->msg_id);
+    ESP_LOGW(TAG, "subACK for UNKNOWN msg_id[%d]", event->msg_id);
   }
 }
 
@@ -305,7 +294,7 @@ void MQTT::_subscribeFeeds_(esp_mqtt_client_handle_t client) {
 
   _subscribe_msg_id = esp_mqtt_client_subscribe(client, topic, qos);
 
-  ESP_LOGI(TAG, "subscribe feed \"%s\" msg_id=%d", topic, _subscribe_msg_id);
+  ESP_LOGI(TAG, "subscribe feed[%s] msg_id[%d]", topic, _subscribe_msg_id);
 }
 
 // STATIC
@@ -332,17 +321,17 @@ esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
   switch (event->event_id) {
   case MQTT_EVENT_BEFORE_CONNECT:
     StatusLED::brighter();
-    ESP_LOGI(ESP_TAG, "[stack=%0.1f%%] BEFORE_CONNECT uri=%s", stack_percent,
+    ESP_LOGI(ESP_TAG, "stack[%0.1f%%] BEFORE_CONNECT uri[%s]", stack_percent,
              Binder::mqttUri());
     break;
 
   case MQTT_EVENT_CONNECTED:
     status = event->error_handle->connect_return_code;
-    ESP_LOGI(ESP_TAG, "[stack=%0.1f%%] CONNECT msg=%p err_code=%d",
+    ESP_LOGI(ESP_TAG, "stack[%0.1f%%] CONNECT msg[%p] err_code[%d]",
              stack_percent, (void *)event, status);
 
     if (status != MQTT_CONNECTION_ACCEPTED) {
-      ESP_LOGW(ESP_TAG, "mqtt connection error: %d", status);
+      ESP_LOGW(ESP_TAG, "mqtt connection error[%d]", status);
       rc = ESP_FAIL;
     }
 
@@ -358,7 +347,7 @@ esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
     break;
 
   case MQTT_EVENT_SUBSCRIBED:
-    ESP_LOGI(ESP_TAG, "[stack=%0.1f%%] SUBSCRIBED msg_id=%u", stack_percent,
+    ESP_LOGI(ESP_TAG, "stack[%0.1f%%] SUBSCRIBED msg_id[%u]", stack_percent,
              event->msg_id);
     mqtt->_subACK_(event);
     break;
@@ -378,7 +367,7 @@ esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
     break;
 
   default:
-    ESP_LOGW(ESP_TAG, "unhandled event 0x%04x", event->event_id);
+    ESP_LOGW(ESP_TAG, "unhandled event[0x%04x]", event->event_id);
     break;
   }
 
@@ -454,7 +443,6 @@ void MQTT::start() {
   }
 
   if (mqtt->_task.handle != nullptr) {
-    ESP_LOGW(TAG, "task exists [%p]", (void *)mqtt->_task.handle);
     return;
   }
 

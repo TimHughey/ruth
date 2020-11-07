@@ -32,6 +32,9 @@
 #include <freertos/task.h>
 
 #include "devs/i2c/base.hpp"
+#include "devs/i2c/mcp23008.hpp"
+#include "devs/i2c/mplex.hpp"
+#include "devs/i2c/sht31.hpp"
 #include "engines/engine.hpp"
 
 namespace ruth {
@@ -42,11 +45,6 @@ typedef struct {
   TickType_t discover;
   TickType_t report;
 } i2cLastWakeTime_t;
-
-// I2C master will check ack from slave*
-#define ACK_CHECK_EN (i2c_ack_type_t)0x1
-// I2C master will not check ack from slave
-#define ACK_CHECK_DIS (i2c_ack_type_t)0x0
 
 #define SDA_PIN ((gpio_num_t)18)
 #define SCL_PIN ((gpio_num_t)19)
@@ -88,6 +86,9 @@ public:
 
   void stop();
 
+  // engine.hpp virtual implementation
+  bool readDevice(I2cDevice_t *dev) { return dev->read(); }
+
 private:
   i2c_config_t _conf;
   const TickType_t _loop_frequency =
@@ -99,67 +100,34 @@ private:
   const TickType_t _report_frequency =
       Profile::engineTaskIntervalTicks(ENGINE_I2C, TASK_REPORT);
 
-  static const uint32_t _max_buses = 8;
+  const time_t _dev_missing_secs =
+      ((_report_frequency * 1.5) / portTICK_PERIOD_MS) * 1000 * 60;
+
   bool _use_multiplexer = false;
   i2cLastWakeTime_t _last_wake;
 
-  uint32_t _bus_selects = 0;
-  uint32_t _bus_select_errors = 0;
   const TickType_t _cmd_timeout = pdMS_TO_TICKS(1000);
 
-  DeviceAddress_t _mplex_addr = DeviceAddress(0x70);
-  I2cDevice_t _multiplexer_dev = I2cDevice(_mplex_addr);
+  I2cMultiplexer_t _mplex;
   int _reset_pin_level = 0;
 
 private:
-  // array is zero terminated
-  DeviceAddress_t _search_addrs[12] = {
-      {DeviceAddress(0x44)}, {DeviceAddress(0x5C)}, {DeviceAddress(0x20)},
-      {DeviceAddress(0x21)}, {DeviceAddress(0x22)}, {DeviceAddress(0x23)},
-      {DeviceAddress(0x24)}, {DeviceAddress(0x25)}, {DeviceAddress(0x26)},
-      {DeviceAddress(0x27)}, {DeviceAddress(0x36)}, {DeviceAddress(0x00)}};
-
   static I2c_t *_instance_();
   bool commandExecute(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state,
                       bool ack, const RefID_t &refid,
                       elapsedMicros &cmd_elapsed);
 
-  DeviceAddress_t *search_addrs() { return _search_addrs; };
-  inline uint32_t search_addrs_count() {
-    return sizeof(_search_addrs) / sizeof(DeviceAddress_t);
-  };
-
-  // generic read device that will call the specific methods
-  bool readDevice(I2cDevice_t *dev);
-
-  // specific methods to read devices
-  bool readMCP23008(I2cDevice_t *dev);
-  bool setMCP23008(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
-
-  bool readSeesawSoil(I2cDevice_t *dev);
-  bool readSHT31(I2cDevice_t *dev);
-
-  // request data by sending command bytes and then reading the result
-  // NOTE:  send and recv are executed as a single i2c transaction
-  esp_err_t requestData(I2cDevice_t *dev, uint8_t *send, uint8_t send_len,
-                        uint8_t *recv, uint8_t recv_len,
-                        esp_err_t prev_esp_rc = ESP_OK, int timeout = 0);
-
   // utility methods
-  esp_err_t busRead(I2cDevice_t *dev, uint8_t *buff, uint32_t len,
-                    esp_err_t prev_esp_rc = ESP_OK);
-  esp_err_t busWrite(I2cDevice_t *dev, uint8_t *buff, uint32_t len,
-                     esp_err_t prev_esp_rc = ESP_OK);
-  bool crcSHT31(const uint8_t *data);
-  bool detectDevice(I2cDevice_t *dev);
+  // esp_err_t busRead(I2cDevice_t *dev, uint8_t *buff, uint32_t len,
+  //                   esp_err_t prev_esp_rc = ESP_OK);
+
   bool detectDevicesOnBus(int bus);
 
-  bool detectMultiplexer(const int max_attempts = 1);
+  bool detectMultiplexer();
   bool pinReset();
   bool hardReset();
   bool installDriver();
-  uint32_t maxBuses();
-  bool useMultiplexer();
+  bool useMultiplexer() const { return _use_multiplexer; }
   bool selectBus(uint32_t bus);
   void printUnhandledDev(I2cDevice_t *dev);
 };

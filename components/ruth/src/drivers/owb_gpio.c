@@ -129,7 +129,7 @@ static owb_status _reset(const OneWireBus * bus, bool * is_present)
 
     portEXIT_CRITICAL(&timeCriticalMutex);
 
-    present = (level1 == 0) && (level2 == 1);   // Sample for presence pulse from slave
+    present = (level1 == 0) && (level2 == 1);
     ESP_LOGD(TAG, "reset: level1 0x%x, level2 0x%x, present %d", level1, level2, present);
 
     *is_present = present;

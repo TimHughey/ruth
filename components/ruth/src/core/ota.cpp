@@ -62,12 +62,9 @@ OTA::OTA(MsgPayload_t_ptr payload_ptr) {
   parse_elapsed.freeze();
 
   // did the deserailization succeed?
-  if (err) {
-    ESP_LOGW(TAG, "[%s] MSGPACK parse failure", err.c_str());
-    return;
+  if (!err) {
+    _uri = doc["uri"] | "";
   }
-
-  _uri = doc["uri"] | "";
 }
 
 void OTA::process() {
@@ -131,27 +128,16 @@ const unique_ptr<char[]> OTA::debug() {
 //
 esp_err_t OTA::httpEventHandler(esp_http_client_event_t *evt) {
   switch (evt->event_id) {
-  case HTTP_EVENT_ERROR:
-    // ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
-    break;
-  case HTTP_EVENT_ON_CONNECTED:
-    // ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
-    break;
-  case HTTP_EVENT_HEADER_SENT:
-    // ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
-    break;
   case HTTP_EVENT_ON_HEADER:
     ESP_LOGI(TAG, "OTA HTTPS HEADER: key(%s), value(%s)", evt->header_key,
              evt->header_value);
     break;
+  case HTTP_EVENT_ERROR:
+  case HTTP_EVENT_ON_CONNECTED:
+  case HTTP_EVENT_HEADER_SENT:
   case HTTP_EVENT_ON_DATA:
-    // ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-    break;
   case HTTP_EVENT_ON_FINISH:
-    // ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
-    break;
   case HTTP_EVENT_DISCONNECTED:
-    // ESP_LOGD(TAG, "HTTP_EVENT_DISCONNECTED");
     break;
   }
   return ESP_OK;

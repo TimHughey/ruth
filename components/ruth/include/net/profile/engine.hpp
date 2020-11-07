@@ -55,10 +55,6 @@ public:
     if (task_type != TASK_COMMAND) {
       _interval_ms = task_doc["interval_ms"] | UINT32_MAX;
     }
-
-    // ESP_LOGI("PET", "engine=\"%s\" task=\"%s\" stack=%u pri=%u
-    // interval_ms=%u",
-    //          _engine_key, _task_key, _stack_size, _priority, _interval_ms);
   }
 
   // DEFAULT DESTRUCTOR

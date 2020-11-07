@@ -29,16 +29,28 @@
 namespace ruth {
 
 typedef class TCA9548B TCA9548B_t;
-typedef TCA9548B_t i2cMultiplexer_t;
+typedef TCA9548B_t I2cMultiplexer_t;
 
 class TCA9548B : public I2cDevice {
 public:
   TCA9548B();
 
   bool detect();
+  uint32_t maxBuses() const { return _max_buses; }
   // reads of the multiplexer device are not required
-  bool read() { return false; }
-  bool selectBus(uint8_t);
+
+  bool selectBus(uint8_t bus);
+
+  const char *description() const { return (const char *)"TCA9548B"; };
+
+private:
+  static const uint32_t _max_buses = 8;
+
+  uint32_t _bus_selects = 0;
+  uint32_t _bus_select_errors = 0;
+
+  RawData_t _tx;
+  RawData_t _rx;
 };
 
 } // namespace ruth

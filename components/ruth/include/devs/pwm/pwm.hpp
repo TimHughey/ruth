@@ -50,6 +50,7 @@ public:
 
 public:
   PwmDevice(DeviceAddress_t &num);
+
   uint8_t devAddr() { return firstAddressByte(); };
 
   void makeID();

@@ -62,12 +62,12 @@ uint8_t DeviceAddress::operator[](int i) const { return _bytes.at(i); }
 // NOTE:
 //    1. the == ooperator will compare the actual addr and not the pointers
 //    2. the lhs argument decides the length of address to compare
-bool DeviceAddress::operator==(const DeviceAddress_t &rhs) {
+bool DeviceAddress::operator==(const DeviceAddress_t &rhs) const {
   return (_bytes == rhs._bytes);
 }
 
 bool DeviceAddress::isValid() const {
-  if (_bytes.empty() || _bytes.front() == 0x00)
+  if (_bytes.empty() || (_bytes.front() == 0x00))
     return false;
 
   return true;

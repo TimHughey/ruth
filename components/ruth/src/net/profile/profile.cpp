@@ -48,14 +48,14 @@ Profile::Profile(MsgPayload_t *payload) {
   _parse_elapsed.freeze();
 
   if (_parse_err) {
-    ESP_LOGW("Profile", "msgpack err=\"%s\"", _parse_err.c_str());
+    ESP_LOGW("Profile", "parse failed %s", _parse_err.c_str());
     return;
   }
 
   auto used = root.memoryUsage();
   auto used_percent = ((float)used / (float)_doc_capacity) * 100.0;
-  ESP_LOGI("Profile", "JsonDocument memory usage %0.1f%% (%u/%u)", used_percent,
-           used, _doc_capacity);
+  ESP_LOGI("Profile", "JsonDocument usage[%0.1f%%] (%u/%u)", used_percent, used,
+           _doc_capacity);
 
   _valid = true;
 
@@ -80,7 +80,7 @@ Profile::Profile(MsgPayload_t *payload) {
 
   _i2c_mplex = misc["i2c_mplex"] | _i2c_mplex;
 
-  // the two loops will creat and place in a vector a PET
+  // the two loops will create and place in a vector a PET
   // for all combinations of Engines and Engine Tasks.  NOTE:  this is a
   // flat list so finding the proper entry requires comparing EngineType and
   // EngineTaskType

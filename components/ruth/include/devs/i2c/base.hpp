@@ -25,13 +25,13 @@
 #include <string>
 
 #include "devs/base/base.hpp"
+#include "devs/i2c/rawdata.hpp"
 
 namespace ruth {
 
 using std::unique_ptr;
 
 typedef class I2cDevice I2cDevice_t;
-typedef class std::vector<uint8_t> RawData_t;
 
 class I2cDevice : public Device {
 public:
@@ -40,42 +40,57 @@ public:
 
 private:
   uint8_t _bus = 0; // with multiplexer 0 >= x <= 8, zero otherwise
-  RawData_t _raw_data;
-  RawData_t _buffer;
 
   esp_err_t _esp_rc_prev = ESP_OK;
   esp_err_t _esp_rc = ESP_OK;
 
+  TickType_t _cmd_timeout = pdMS_TO_TICKS(2000);
+  static const uint64_t _timeouts_max = 5;
+  uint64_t _timeouts = 0;
+
 public:
   // construct a new I2cDevice with a known address and compute the id
-  I2cDevice(const DeviceAddress_t &addr, uint8_t bus = 0);
-  // I2cDevice(uint8_t addr, uint8_t bus = 0);
+  I2cDevice(const DeviceAddress_t &addr, uint8_t bus = 0,
+            time_t missing_secs = 600);
 
-  uint8_t devAddr();
-  uint8_t bus() const;
+  bool operator==(const I2cDevice_t &rhs) const;
 
-  void constructCommon();
+  uint8_t devAddr() const { return firstAddressByte(); }
+  uint8_t bus() const { return _bus; }
+
+  bool busWrite(RawData_t &tx, float timeout_scale = 1.0);
+
+  bool checkForOk();
+  void checkForTimeout();
+
+  virtual const char *description() const {
+    return I2cDeviceDesc(singleByteAddress());
+  };
+
+  virtual bool detect() { return false; };
+
   void makeID();
 
-  const RawData_t &rawData();
-  uint8_t readAddr();
-  void storeRawData(RawData_t &data);
+  virtual bool read() { return false; };
+  virtual bool writeState(uint32_t cmd_mask, uint32_t cmd_state) {
+    return false;
+  }
+  uint8_t readAddr() const;
   static int timeoutDefault();
-  uint8_t writeAddr();
+  uint8_t writeAddr() const;
 
   // info / debug functions
   const unique_ptr<char[]> debug();
 
 protected:
-  RawData_t _tx;
-  RawData_t _rx;
+  void clearPreviousError() { _esp_rc_prev = ESP_OK; }
+  bool hasPreviousErrpr() { return (_esp_rc_prev == ESP_OK) ? false : true; }
+  esp_err_t previousError() { return _esp_rc_prev; }
 
-  void clearPreviousError() { _esp_rc_prev = ESP_OK; };
-  bool hasPreviousErrpr() { return (_esp_rc_prev == ESP_OK) ? false : true; };
-  esp_err_t previousError() { return _esp_rc_prev; };
+  esp_err_t recentError() { return _esp_rc; }
 
-  bool requestData();
+  bool requestData(RawData_t &tx, RawData_t &rx, float timeout_scale = 1.0);
 };
 } // namespace ruth
 
-#endif // i2c_dev_h
+#endif

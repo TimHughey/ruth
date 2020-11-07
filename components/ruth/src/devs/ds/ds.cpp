@@ -147,9 +147,7 @@ const string_t &DsDevice::familyDescription(uint8_t family) {
   return desc;
 };
 
-void DsDevice::logPresenceFailed() {
-  ESP_LOGI("DsDevice", "%s presence failure", familyDescription().c_str());
-}
+void DsDevice::logPresenceFailed() {}
 
 const unique_ptr<char[]> DsDevice::debug() {
   const auto max_len = 63;

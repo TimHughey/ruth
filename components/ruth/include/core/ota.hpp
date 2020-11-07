@@ -63,8 +63,8 @@ private:
   static OTA_t *_instance_(MsgPayload_t_ptr payload_ptr = nullptr);
 
   void _start_(void *task_data = nullptr) {
+    // ignore requests for OTA if one is in progress
     if (_ota_in_progress) {
-      ESP_LOGW("OTATask", "OTA in progress, ignoring request");
       return;
     }
 

@@ -35,9 +35,6 @@ static Net_t *__singleton__ = nullptr;
 Net::Net() { evg_ = xEventGroupCreate(); }
 
 void Net::acquiredIP(void *event_data) {
-
-  wifi_ap_record_t ap;
-
   esp_netif_get_ip_info(netif_, &ip_info_);
   esp_netif_get_dns_info(netif_, ESP_NETIF_DNS_MAIN, &primary_dns_);
 
@@ -45,45 +42,23 @@ void Net::acquiredIP(void *event_data) {
   snprintf(dns_str_, sizeof(dns_str_), IPSTR, dns_ip[0], dns_ip[1], dns_ip[2],
            dns_ip[3]);
 
-  esp_err_t ap_rc = esp_wifi_sta_get_ap_info(&ap);
-  ESP_LOGI(tagEngine(), "[%s] AP channel(%d,%d) rssi(%ddB)",
-           esp_err_to_name(ap_rc), ap.primary, ap.second, ap.rssi);
-
-  ESP_LOGI(tagEngine(), "ready ip(" IPSTR ") dns(%s)", IP2STR(&ip_info_.ip),
-           dns_str_);
-
   xEventGroupSetBits(evg_, ipBit());
 }
 
 // STATIC!!
 void Net::checkError(const char *func, esp_err_t err) {
+  if (err == ESP_OK) {
+    return;
+  }
+
   const size_t max_msg_len = 256;
   char *msg = new char[max_msg_len];
 
   vTaskDelay(pdMS_TO_TICKS(1000)); // let things settle
 
-  switch (err) {
-  case ESP_OK:
-    return;
+  snprintf(msg, max_msg_len, "[%s] %s", esp_err_to_name(err), func);
+  ESP_LOGE(tagEngine(), "%s", msg);
 
-  case 0x1100FF:
-    ESP_LOGE(tagEngine(), "failed to acquire IP address");
-    // NVS::commitMsg(tagEngine(), "IP address acquisition failure");
-    break;
-
-  case 0x1100FE:
-    ESP_LOGE(tagEngine(), "SNTP failed");
-    // NVS::commitMsg(tagEngine(), "SNTP failure");
-    break;
-
-  default:
-    snprintf(msg, max_msg_len, "[%s] %s", esp_err_to_name(err), func);
-    ESP_LOGE(tagEngine(), "%s", msg);
-    // NVS::commitMsg(tagEngine(), msg);
-    break;
-  }
-
-  // NVS::commitMsg(tagEngine(), msg);
   Restart::restart(msg);
 }
 
@@ -92,21 +67,10 @@ void Net::connected(void *event_data) {
 }
 
 void Net::disconnected(void *event_data) {
-  wifi_event_sta_disconnected_t *data =
-      (wifi_event_sta_disconnected_t *)event_data;
 
   xEventGroupClearBits(evg_, connectedBit());
 
-  const char *reason_str = disconnectReason((wifi_err_reason_t)data->reason);
-
-  if (reason_str) {
-    ESP_LOGI(tagEngine(), "wifi disconnected %s", reason_str);
-  } else {
-    ESP_LOGI(tagEngine(), "wifi disconnected reason=%d", data->reason);
-  }
-
   if (reconnect_) {
-    ESP_LOGI(tagEngine(), "wifi ATTEMPTING connect");
     esp_wifi_connect();
   }
 }
@@ -117,7 +81,7 @@ void Net::ip_events(void *ctx, esp_event_base_t base, int32_t id, void *data) {
   Net_t *net = (Net_t *)ctx;
 
   if (ctx == nullptr) {
-    ESP_LOGE(tagEngine(), "%s ctx==nullptr", __PRETTY_FUNCTION__);
+    return;
   }
 
   switch (id) {
@@ -126,8 +90,6 @@ void Net::ip_events(void *ctx, esp_event_base_t base, int32_t id, void *data) {
     break;
 
   default:
-    ESP_LOGW(tagEngine(), "%s unhandled event id(0x%02x)", __PRETTY_FUNCTION__,
-             id);
     break;
   }
 }
@@ -139,7 +101,7 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
   Net_t *net = (Net_t *)ctx;
 
   if (ctx == nullptr) {
-    ESP_LOGE(tagEngine(), "%s ctx==nullptr", __PRETTY_FUNCTION__);
+    return;
   }
 
   switch (id) {
@@ -157,30 +119,18 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
     break;
 
   case WIFI_EVENT_STA_STOP:
-    ESP_LOGI(tagEngine(), "wifi stopped");
     break;
 
   default:
-    ESP_LOGW(tagEngine(), "%s unhandled event id(0x%02x)", __PRETTY_FUNCTION__,
-             id);
     break;
   }
 }
 
 void Net::stop() {
   _instance_()->reconnect_ = false;
-  esp_err_t rc;
 
-  rc = esp_wifi_disconnect();
-  // ESP_LOGI(tagEngine(), "[%s] esp_wifi_disconnect()", esp_err_to_name(rc));
-  // vTaskDelay(pdMS_TO_TICKS(500));
-
-  rc = esp_wifi_stop();
-  ESP_LOGI(tagEngine(), "[%s] esp_wifi_stop()", esp_err_to_name(rc));
-
-  // rc = esp_wifi_deinit();
-  // ESP_LOGI(tagEngine(), "[%s] esp_wifi_deinit()", esp_err_to_name(rc));
-  // vTaskDelay(pdMS_TO_TICKS(1000));
+  esp_wifi_disconnect();
+  esp_wifi_stop();
 }
 
 EventGroupHandle_t Net::eventGroup() { return _instance_()->evg_; }
@@ -221,10 +171,6 @@ void Net::init() {
   rc = esp_wifi_set_storage(WIFI_STORAGE_FLASH);
   checkError(__PRETTY_FUNCTION__, rc);
 
-  // finally, check the rc.  if any of the API calls above failed
-  // the rc represents the error of the specific API.
-  checkError(__PRETTY_FUNCTION__, rc);
-
   init_rc_ = rc;
 }
 
@@ -259,11 +205,10 @@ void Net::ensureTimeIsSet() {
   delay(check_ms / 2);
 
   if (sntp_elapsed > total_ms) {
-    ESP_LOGE(tagEngine(), "SNTP timeout");
-    checkError(__PRETTY_FUNCTION__, 0x1100FE);
+    Restart::restart("SNTP failed");
   } else {
     xEventGroupSetBits(evg_, timeSetBit());
-    ESP_LOGI(tagEngine(), "SNTP complete in %0.1fs", sntp_elapsed.toSeconds());
+    ESP_LOGI(tagEngine(), "SNTP complete[%0.1fs]", sntp_elapsed.toSeconds());
   }
 }
 
@@ -329,8 +274,6 @@ bool Net::_start_() {
 
   rc = esp_wifi_set_ps(powersave);
   checkError(__PRETTY_FUNCTION__, rc);
-  ESP_LOGI(tagEngine(), "[%s] wifi powersave [%d]", esp_err_to_name(rc),
-           powersave);
 
   rc = esp_wifi_set_protocol(
       WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
@@ -357,9 +300,6 @@ bool Net::_start_() {
   esp_wifi_start();
   StatusLED::brighter();
 
-  ESP_LOGI(tagEngine(), "certificate authority pem available [%d bytes]",
-           _ca_end_ - _ca_start_);
-
   ESP_LOGI(tagEngine(), "standing by for IP address...");
   if (waitForIP()) {
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
@@ -375,8 +315,7 @@ bool Net::_start_() {
     //       we are ready for normal operations
     xEventGroupSetBits(evg_, (readyBit() | normalOpsBit()));
   } else {
-    // reuse checkError for IP address failure
-    checkError(__PRETTY_FUNCTION__, 0x1100FF);
+    Restart::restart("IP address assignment failed");
   }
 
   return true;
@@ -387,7 +326,6 @@ void Net::resumeNormalOps() {
 }
 
 void Net::suspendNormalOps() {
-  ESP_LOGW(tagEngine(), "suspending normal ops");
   xEventGroupClearBits(_instance_()->eventGroup(), Net::normalOpsBit());
 }
 

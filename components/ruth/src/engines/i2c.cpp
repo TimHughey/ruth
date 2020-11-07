@@ -45,6 +45,18 @@ I2c::I2c() : Engine(ENGINE_I2C) {
   addTask(TASK_DISCOVER);
   addTask(TASK_REPORT);
   addTask(TASK_COMMAND);
+
+  gpio_config_t rst_pin_cfg;
+
+  rst_pin_cfg.pin_bit_mask = RST_PIN_SEL;
+  rst_pin_cfg.mode = GPIO_MODE_OUTPUT;
+  rst_pin_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
+  rst_pin_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  rst_pin_cfg.intr_type = GPIO_INTR_DISABLE;
+
+  gpio_config(&rst_pin_cfg);
+
+  gpio_set_level(RST_PIN, 1); // bring all devices online
 }
 
 I2c_t *I2c::_instance_() {
@@ -139,19 +151,14 @@ bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
                          uint32_t cmd_state, bool ack, const RefID_t &refid,
                          elapsedMicros &cmd_elapsed) {
 
+  auto set_rc = false;
+
   if (dev->valid()) {
-    bool set_rc = false;
 
     needBus();
     takeBus();
 
-    // the device write time is the total duration of all processing
-    // of the write -- not just the duration on the bus
-    dev->writeStart();
-
-    set_rc = setMCP23008(dev, cmd_mask, cmd_state);
-
-    dev->writeStop();
+    set_rc = dev->writeState(cmd_mask, cmd_state);
 
     if (set_rc) {
       commandAck(dev, ack, refid);
@@ -159,23 +166,11 @@ bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
 
     clearNeedBus();
     giveBus();
-
-    return true;
   }
-  return false;
+  return set_rc;
 }
 
 void I2c::core(void *task_data) {
-
-  gpio_config_t rst_pin_cfg;
-
-  rst_pin_cfg.pin_bit_mask = RST_PIN_SEL;
-  rst_pin_cfg.mode = GPIO_MODE_OUTPUT;
-  rst_pin_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
-  rst_pin_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
-  rst_pin_cfg.intr_type = GPIO_INTR_DISABLE;
-
-  gpio_config(&rst_pin_cfg);
 
   bool driver_ready = false;
 
@@ -201,15 +196,15 @@ void I2c::core(void *task_data) {
 
 void I2c::discover(void *data) {
   saveTaskLastWake(TASK_DISCOVER);
-  bool detect_rc = true;
 
   while (waitForEngine()) {
+    bool detect_rc = true;
 
     takeBus();
     detectMultiplexer();
 
     if (useMultiplexer()) {
-      for (uint32_t bus = 0; (detect_rc && (bus < maxBuses())); bus++) {
+      for (uint32_t bus = 0; (detect_rc && (bus < _mplex.maxBuses())); bus++) {
         detect_rc = detectDevicesOnBus(bus);
       }
     } else { // multiplexer not available, just search bus 0
@@ -218,11 +213,10 @@ void I2c::discover(void *data) {
 
     giveBus();
 
-    // signal to other tasks if there are devices available
-    // after delaying a bit (to improve i2c bus stability)
-    delay(100);
-
     if (numKnownDevices() > 0) {
+      // signal to other tasks if there are devices available
+      // after delaying a bit (to improve i2c bus stability)
+      delay(500);
       devicesAvailable();
     }
 
@@ -249,7 +243,7 @@ void I2c::report(void *data) {
       if (dev->available()) {
         takeBus();
 
-        if (readDevice(dev)) {
+        if (selectBus(dev->bus()) && dev->read()) {
           publish(dev);
         }
 
@@ -266,157 +260,74 @@ void I2c::report(void *data) {
   }
 }
 
-esp_err_t I2c::busRead(I2cDevice_t *dev, uint8_t *buff, uint32_t len,
-                       esp_err_t prev_esp_rc) {
-  i2c_cmd_handle_t cmd = nullptr;
-  esp_err_t esp_rc;
-
-  if (prev_esp_rc != ESP_OK) {
-    return prev_esp_rc;
-  }
-
-  int timeout = 0;
-  i2c_get_timeout(I2C_NUM_0, &timeout);
-
-  cmd = i2c_cmd_link_create(); // allocate i2c cmd queue
-  i2c_master_start(cmd);       // queue i2c START
-
-  i2c_master_write_byte(cmd, dev->readAddr(),
-                        true); // queue the READ for device and check for ACK
-
-  i2c_master_read(cmd, buff, len,
-                  I2C_MASTER_LAST_NACK); // queue the READ of number of bytes
-  i2c_master_stop(cmd);                  // queue i2c STOP
-
-  // execute queued i2c cmd
-  esp_rc = i2c_master_cmd_begin(I2C_NUM_0, cmd, _cmd_timeout);
-  i2c_cmd_link_delete(cmd);
-
-  if (esp_rc != ESP_OK) {
-    dev->readFailure();
-  }
-
-  return esp_rc;
-}
-
-esp_err_t I2c::busWrite(I2cDevice_t *dev, uint8_t *bytes, uint32_t len,
-                        esp_err_t prev_esp_rc) {
-  i2c_cmd_handle_t cmd = nullptr;
-  esp_err_t esp_rc;
-
-  if (prev_esp_rc != ESP_OK) {
-    return prev_esp_rc;
-  }
-
-  cmd = i2c_cmd_link_create(); // allocate i2c cmd queue
-  i2c_master_start(cmd);       // queue i2c START
-
-  i2c_master_write_byte(cmd, dev->writeAddr(),
-                        true); // queue the device address (with WRITE)
-                               // and check for ACK
-  i2c_master_write(cmd, bytes, len,
-                   true); // queue bytes to send (with ACK check)
-  i2c_master_stop(cmd);   // queue i2c STOP
-
-  // execute queued i2c cmd
-  esp_rc = i2c_master_cmd_begin(I2C_NUM_0, cmd, _cmd_timeout);
-  i2c_cmd_link_delete(cmd);
-
-  if (esp_rc != ESP_OK) {
-    dev->writeFailure();
-  }
-
-  return esp_rc;
-}
-
-bool I2c::crcSHT31(const uint8_t *data) {
-  uint8_t crc = 0xFF;
-
-  for (uint32_t j = 2; j; --j) {
-    crc ^= *data++;
-
-    for (uint32_t i = 8; i; --i) {
-      crc = (crc & 0x80) ? (crc << 1) ^ 0x31 : (crc << 1);
-    }
-  }
-
-  // data was ++ in the above loop so it is already pointing at the crc
-  return (crc == *data);
-}
-
-bool I2c::detectDevice(I2cDevice_t *dev) {
-  bool rc = false;
-  // i2c_cmd_handle_t cmd = nullptr;
-  esp_err_t esp_rc = ESP_FAIL;
-  uint8_t sht31_cmd_data[] = {0x30, // soft-reset
-                              0xa2};
-  uint8_t detect_cmd[] = {dev->devAddr()};
-
-  switch (dev->devAddr()) {
-
-  case 0x70: // TCA9548B - TI i2c bus multiplexer
-  case 0x44: // SHT-31 humidity sensor
-    esp_rc = busWrite(dev, sht31_cmd_data, sizeof(sht31_cmd_data));
-    break;
-  case 0x20: // MCP23008 0x20 - 0x27
-  case 0x21:
-  case 0x22:
-  case 0x23:
-  case 0x24:
-  case 0x25:
-  case 0x26:
-  case 0x27:
-  case 0x36: // STEMMA (seesaw based soil moisture sensor)
-    esp_rc = busWrite(dev, detect_cmd, sizeof(detect_cmd));
-    break;
-  }
-
-  if (esp_rc == ESP_OK) {
-    rc = true;
-  }
-
-  return rc;
-}
+// esp_err_t I2c::busRead(I2cDevice_t *dev, uint8_t *buff, uint32_t len,
+//                        esp_err_t prev_esp_rc) {
+//   i2c_cmd_handle_t cmd = nullptr;
+//   esp_err_t esp_rc;
+//
+//   if (prev_esp_rc != ESP_OK) {
+//     return prev_esp_rc;
+//   }
+//
+//   int timeout = 0;
+//   i2c_get_timeout(I2C_NUM_0, &timeout);
+//
+//   cmd = i2c_cmd_link_create(); // allocate i2c cmd queue
+//   i2c_master_start(cmd);       // queue i2c START
+//
+//   i2c_master_write_byte(cmd, dev->readAddr(),
+//                         true); // queue the READ for device and check for ACK
+//
+//   i2c_master_read(cmd, buff, len,
+//                   I2C_MASTER_LAST_NACK); // queue the READ of number of bytes
+//   i2c_master_stop(cmd);                  // queue i2c STOP
+//
+//   // execute queued i2c cmd
+//   esp_rc = i2c_master_cmd_begin(I2C_NUM_0, cmd, _cmd_timeout);
+//   i2c_cmd_link_delete(cmd);
+//
+//   if (esp_rc != ESP_OK) {
+//     dev->readFailure();
+//   }
+//
+//   return esp_rc;
+// }
 
 bool I2c::detectDevicesOnBus(int bus) {
-  bool rc = false;
+  auto rc = false;
+  SHT31_t sht31(bus);
+  MCP23008_t mcp23008(bus);
 
-  DeviceAddress_t *addrs = search_addrs();
+  if (selectBus(bus) == false) {
+    return false;
+  }
 
-  for (uint8_t i = 0; addrs[i].isValid(); i++) {
-    DeviceAddress_t &search_addr = addrs[i];
-    I2cDevice_t dev(search_addr, bus);
+  if (sht31.detect()) {
+    rc = true;
 
-    // abort detecting devices if the bus select fails
-    if (selectBus(bus) == false)
-      break;
+    if (justSaw(sht31) == nullptr) {
 
-    if (detectDevice(&dev)) {
-      if (justSeenDevice(dev) == nullptr) {
-        // device was not known, must add
-        I2cDevice_t *new_dev = new I2cDevice(dev);
-        new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
-        addDevice(new_dev);
-      }
+      SHT31_t *new_dev = new SHT31(sht31, _dev_missing_secs);
+      new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
+      addDevice(new_dev);
+    }
+  }
 
-      devicesAvailable();
-      rc = true;
+  if (mcp23008.detect()) {
+    rc = true;
+
+    if (justSaw(mcp23008) == nullptr) {
+      MCP23008_t *new_dev = new MCP23008(mcp23008, _dev_missing_secs);
+      new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
+      addDevice(new_dev);
     }
   }
 
   return rc;
 }
 
-bool I2c::detectMultiplexer(const int max_attempts) {
-  // _use_multiplexer initially set based on profile
-  // however is updated based on actual multiplexer detection
-  _use_multiplexer = Profile::i2cMultiplexer();
-
-  if (_use_multiplexer && detectDevice(&_multiplexer_dev)) {
-    _use_multiplexer = true;
-  } else {
-    _use_multiplexer = false;
-  }
+bool I2c::detectMultiplexer() {
+  _use_multiplexer = (Profile::i2cMultiplexer() && _mplex.detect());
 
   return _use_multiplexer;
 }
@@ -450,20 +361,14 @@ bool I2c::installDriver() {
                esp_err_to_name(config_rc), esp_err_to_name(install_rc));
   }
 
-  // 2020-05-20: the delay below is likely unncessary because of improved
-  //             i2c SDK stability
-  // delay(1000);
-
   return rc;
 }
 
-uint32_t I2c::maxBuses() { return _max_buses; }
 bool I2c::pinReset() {
-
   gpio_set_level(RST_PIN, 0); // pull the pin low to reset i2c devices
   delay(250);                 // give plenty of time for all devices to reset
   gpio_set_level(RST_PIN, 1); // bring all devices online
-  delay(1000);
+  delay(1000);                // give time for devices to initialize
 
   return true;
 }
@@ -472,367 +377,12 @@ void I2c::printUnhandledDev(I2cDevice_t *dev) {
   Text::rlog("unhandled device \"%s\"", dev->debug().get());
 }
 
-bool I2c::useMultiplexer() { return _use_multiplexer; }
-
-bool I2c::readDevice(I2cDevice_t *dev) {
-  auto rc = false;
-
-  if (selectBus(dev->bus())) {
-    switch (dev->devAddr()) {
-
-    case 0x44:
-      rc = readSHT31(dev);
-      break;
-
-    case 0x20: // MCP23008 can be user configured to 0x20 + three bits
-    case 0x21:
-    case 0x22:
-    case 0x23:
-    case 0x24:
-    case 0x25:
-    case 0x26:
-    case 0x27:
-      rc = readMCP23008(dev);
-      break;
-
-    case 0x36: // Seesaw Soil Probe
-      rc = readSeesawSoil(dev);
-      break;
-
-    default:
-      printUnhandledDev(dev);
-      rc = true;
-      break;
-    }
-  }
-
-  if (rc) {
-    justSeenDevice(dev);
-  }
-
-  return rc;
-}
-
-bool I2c::readMCP23008(I2cDevice_t *dev) {
-  auto rc = false;
-  auto positions = 0b00000000;
-  esp_err_t esp_rc;
-
-  RawData_t request{0x00}; // IODIR Register (address 0x00)
-
-  // register       register      register          register
-  // 0x00 - IODIR   0x01 - IPOL   0x02 - GPINTEN    0x03 - DEFVAL
-  // 0x04 - INTCON  0x05 - IOCON  0x06 - GPPU       0x07 - INTF
-  // 0x08 - INTCAP  0x09 - GPIO   0x0a - OLAT
-
-  // at POR the MCP2x008 operates in sequential mode where continued reads
-  // automatically increment the address (register).  we read all registers
-  // (12 bytes) in one shot.
-  RawData_t all_registers;
-  all_registers.resize(12); // 12 bytes (0x00-0x0a)
-
-  esp_rc = requestData(dev, request.data(), request.size(),
-                       all_registers.data(), all_registers.capacity());
-
-  if (esp_rc == ESP_OK) {
-    // GPIO register is little endian so no conversion is required
-    positions = all_registers[0x0a]; // OLAT register (address 0x0a)
-
-    dev->storeRawData(all_registers);
-
-    dev->justSeen();
-
-    Positions_t *reading = new Positions(dev->id(), positions, (uint8_t)8);
-
-    reading->setLogReading();
-    dev->setReading(reading);
-    rc = true;
-  } else {
-    Text::rlog("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
-               dev->id().c_str());
-  }
-
-  return rc;
-}
-
-bool I2c::readSeesawSoil(I2cDevice_t *dev) {
-  auto rc = false;
-  esp_err_t esp_rc;
-  float tempC = 0.0;
-  int soil_moisture;
-  // int sw_version;
-
-  // seesaw data queries are two bytes that describe:
-  //   1. module
-  //   2. register
-  // NOTE: array is ONLY for the transmit since the response varies
-  //       by module and register
-  uint8_t data_request[] = {0x00,  // MSB: module
-                            0x00}; // LSB: register
-
-  // seesaw responses to data queries vary in length.  this buffer will be
-  // reused for all queries so it must be the max of all response lengths
-  //   1. capacitance - 16bit integer (two bytes)
-  //   2. temperature - 32bit float (four bytes)
-  uint8_t buff[] = {
-      0x00, 0x00, // capactive: (int)16bit, temperature: (float)32 bits
-      0x00, 0x00  // capactive: not used, temperature: (float)32 bits
-  };
-
-  // address i2c device
-  // write request to read module and register
-  //  temperture: SEESAW_STATUS_BASE, SEEWSAW_STATUS_TEMP  (4 bytes)
-  //     consider other status: SEESAW_STATUS_HW_ID, *VERSION, *OPTIONS
-  //  capacitance:  SEESAW_TOUCH_BASE, SEESAW_TOUCH_CHANNEL_OFFSET (2 bytes)
-  // delay (maybe?)
-  // write request to read bytes of the register
-
-  dev->readStart();
-
-  // first, request and receive the onboard temperature
-  data_request[0] = 0x00; // SEESAW_STATUS_BASE
-  data_request[1] = 0x04; // SEESAW_STATUS_TEMP
-  esp_rc = busWrite(dev, data_request, 2);
-  delay(20);
-  esp_rc = busRead(dev, buff, 4, esp_rc);
-
-  // conversion copied from AdaFruit Seesaw library
-  tempC = (1.0 / (1UL << 16)) *
-          (float)(((uint32_t)buff[0] << 24) | ((uint32_t)buff[1] << 16) |
-                  ((uint32_t)buff[2] << 8) | (uint32_t)buff[3]);
-
-  // second, request and receive the touch capacitance (soil moisture)
-  data_request[0] = 0x0f; // SEESAW_TOUCH_BASE
-  data_request[1] = 0x10; // SEESAW_TOUCH_CHANNEL_OFFSET
-
-  esp_rc = busWrite(dev, data_request, 2);
-  delay(20);
-  esp_rc = busRead(dev, buff, 2, esp_rc);
-
-  soil_moisture = ((uint16_t)buff[0] << 8) | buff[1];
-
-  // third, request and receive the board version
-  // data_request[0] = 0x00; // SEESAW_STATUS_BASE
-  // data_request[1] = 0x02; // SEESAW_STATUS_VERSION
-  //
-  // esp_rc = bus_write(dev, data_request, 2);
-  // esp_rc = bus_read(dev, buff, 4, esp_rc);
-  //
-  // sw_version = ((uint32_t)buff[0] << 24) | ((uint32_t)buff[1] << 16) |
-  //              ((uint32_t)buff[2] << 8) | (uint32_t)buff[3];
-
-  dev->readStop();
-
-  if (esp_rc == ESP_OK) {
-    dev->justSeen();
-
-    Reading_t *reading = new Sensor(dev->id(), tempC, soil_moisture);
-
-    dev->setReading(reading);
-    rc = true;
-  } else {
-    Text::rlog("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
-               dev->id().c_str());
-  }
-
-  return rc;
-}
-
-bool I2c::readSHT31(I2cDevice_t *dev) {
-  auto rc = false;
-  esp_err_t esp_rc;
-
-  uint8_t request[] = {
-      0x2c, // single-shot measurement, with clock stretching
-      0x06  // high-repeatability measurement (max duration 15ms)
-  };
-  uint8_t buff[] = {
-      0x00, 0x00, // tempC high byte, low byte
-      0x00,       // crc8 of temp
-      0x00, 0x00, // relh high byte, low byte
-      0x00        // crc8 of relh
-  };
-
-  esp_rc = requestData(dev, request, sizeof(request), buff, sizeof(buff));
-
-  if (esp_rc == ESP_OK) {
-    dev->justSeen();
-
-    if (crcSHT31(buff) && crcSHT31(&(buff[3]))) {
-      // conversion from SHT31 datasheet
-      uint16_t stc = (buff[0] << 8) | buff[1];
-      uint16_t srh = (buff[3] << 8) | buff[4];
-
-      float tc = (float)((stc * 175) / 0xffff) - 45;
-      float rh = (float)((srh * 100) / 0xffff);
-
-      Sensor_t *reading = new Sensor(dev->id(), tc, rh);
-
-      dev->setReading(reading);
-
-      rc = true;
-    } else { // crc did not match
-
-      dev->crcMismatch();
-      Text::rlog("device \"%s\" crc check failed", esp_err_to_name(esp_rc),
-                 dev->id().c_str());
-    }
-  } else { // esp_rc != ESP_OK
-    Text::rlog("[%s] device \"%s\" read issue", esp_err_to_name(esp_rc),
-               dev->id().c_str());
-  }
-
-  return rc;
-}
-
-esp_err_t I2c::requestData(I2cDevice_t *dev, uint8_t *send, uint8_t send_len,
-                           uint8_t *recv, uint8_t recv_len,
-                           esp_err_t prev_esp_rc, int timeout) {
-  i2c_cmd_handle_t cmd = nullptr;
-  esp_err_t esp_rc;
-
-  dev->readStart();
-
-  if (prev_esp_rc != ESP_OK) {
-    dev->readFailure();
-    dev->readStop();
-    return prev_esp_rc;
-  }
-
-  int _save_timeout = 0;
-  if (timeout > 0) {
-    i2c_get_timeout(I2C_NUM_0, &_save_timeout);
-    i2c_set_timeout(I2C_NUM_0, timeout);
-  }
-
-  cmd = i2c_cmd_link_create(); // allocate i2c cmd queue
-  i2c_master_start(cmd);       // queue i2c START
-
-  i2c_master_write_byte(cmd, dev->writeAddr(),
-                        true); // queue the WRITE for device and check for ACK
-
-  i2c_master_write(cmd, send, send_len,
-                   I2C_MASTER_ACK); // queue the device command bytes
-
-  // clock stretching is leveraged in the event the device requires time
-  // to execute the command (e.g. temperature conversion)
-  // use timeout to adjust time to wait for clock, if needed
-
-  if ((recv != nullptr) && (recv_len > 0)) {
-    // start a new command sequence without sending a stop
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, dev->readAddr(),
-                          true); // queue the READ for device and check for ACK
-
-    i2c_master_read(cmd, recv, recv_len,
-                    I2C_MASTER_LAST_NACK); // queue the READ of number of bytes
-    i2c_master_stop(cmd);                  // queue i2c STOP
-  }
-
-  // execute queued i2c cmd
-  esp_rc = i2c_master_cmd_begin(I2C_NUM_0, cmd, _cmd_timeout);
-  i2c_cmd_link_delete(cmd);
-
-  if (esp_rc != ESP_OK) {
-    dev->readFailure();
-  }
-
-  // if the timeout was changed restore it
-  if (_save_timeout > 0) {
-    i2c_set_timeout(I2C_NUM_0, _save_timeout);
-  }
-
-  dev->readStop();
-
-  return esp_rc;
-}
-
 bool I2c::selectBus(uint32_t bus) {
-  bool rc = true; // default return is success, failures detected inline
-  I2cDevice_t multiplexer = I2cDevice(_multiplexer_dev);
-  esp_err_t esp_rc = ESP_FAIL;
-
-  _bus_selects++;
-
-  if (bus >= _max_buses) {
-    return false;
+  if (useMultiplexer()) {
+    return _mplex.selectBus(bus);
   }
 
-  if (useMultiplexer() && (bus < _max_buses)) {
-    // the bus is selected by sending a single byte to the multiplexer
-    // device with the bit for the bus select
-    uint8_t bus_cmd[1] = {(uint8_t)(0x01 << bus)};
-
-    esp_rc = busWrite(&multiplexer, bus_cmd, 1);
-
-    if (esp_rc != ESP_OK) {
-      _bus_select_errors++;
-      rc = false;
-
-      if (_bus_select_errors > 50) {
-        const char *msg = "BUS SELECT ERRORS EXCEEDED";
-        // NVS::commitMsg("I2c", msg);
-        Restart::restart(msg, __PRETTY_FUNCTION__, 0);
-      }
-    }
-  }
-
-  return rc;
-}
-
-bool I2c::setMCP23008(I2cDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state) {
-  bool rc = false;
-  auto esp_rc = ESP_OK;
-
-  RawData_t tx_data;
-
-  tx_data.reserve(12);
-
-  // read the device to ensure we have the current state
-  // important because setting the new state relies, in part, on the existing
-  // state for the pios not changing
-  if (readDevice(dev) == false) {
-    Text::rlog("device \"%s\" read before set failed", dev->debug().get());
-
-    return rc;
-  }
-
-  Positions_t *reading = (Positions_t *)dev->reading();
-
-  // if register 0x00 (IODIR) is not 0x00 (IODIR isn't output) then
-  // set it to output
-  if (dev->rawData().at(0) > 0x00) {
-    tx_data.insert(tx_data.end(), {0x00, 0x00});
-    esp_rc =
-        requestData(dev, tx_data.data(), tx_data.size(), nullptr, 0, esp_rc);
-  }
-
-  auto asis_state = reading->state();
-  auto new_state = 0x00;
-
-  // XOR the new state against the as_is state using the mask
-  // it is critical that we use the recently read state to avoid
-  // overwriting the device state that MCP is not aware of
-  new_state = asis_state ^ ((asis_state ^ cmd_state) & cmd_mask);
-
-  // to set the GPIO we will write to two registers:
-  // a. IODIR (0x00) - setting all GPIOs to output (0b00000000)
-  // b. OLAT (0x0a)  - the new state
-  tx_data.clear();
-  tx_data.insert(tx_data.end(), {0x0a, (uint8_t)(new_state & 0xff)});
-
-  esp_rc = requestData(dev, tx_data.data(), tx_data.size(), nullptr, 0, esp_rc);
-
-  if (esp_rc != ESP_OK) {
-    Text::rlog("[%s] device \"%s\" set failed", esp_err_to_name(esp_rc),
-               dev->debug().get());
-
-    return rc;
-  }
-
-  rc = true;
-
-  return rc;
+  return true;
 }
 
 } // namespace ruth

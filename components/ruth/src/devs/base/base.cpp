@@ -49,8 +49,6 @@ Device::~Device() {
     delete _reading;
 }
 
-bool Device::operator==(Device_t *rhs) const { return (_id == rhs->_id); }
-
 const DeviceAddress_t &Device::address() const { return _addr; }
 
 void Device::justSeen() {

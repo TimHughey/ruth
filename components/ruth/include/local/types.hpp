@@ -50,7 +50,6 @@ typedef struct {
 
 typedef string_t RefID_t;
 
-// messages received via MQTT and parsed by Arduino JSON
 typedef std::vector<char> RawMsg_t;
 
 } // namespace ruth

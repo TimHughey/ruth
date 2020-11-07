@@ -79,6 +79,21 @@ public:
     return found_dev;
   };
 
+  DEV *justSaw(DEV &d) {
+    DEV *known_dev = nullptr;
+
+    auto found = find_if(_devices.begin(), _devices.end(),
+                         [d](const DEV *search) { return *search == d; });
+
+    if (found != _devices.end()) {
+      known_dev = *found;
+
+      known_dev->justSeen();
+    }
+
+    return known_dev;
+  }
+
   // justSeenDevice():
   //    looks in known devices for the device.  if found, calls justSeen() on
   //    the device and returns it
@@ -138,21 +153,21 @@ public:
   auto knownDevices() -> typename DeviceMap_t::iterator {
     return _devices.begin();
   }
-  bool endOfDevices(typename DeviceMap_t::iterator it) {
-    return it == _devices.end();
-  };
+  // bool endOfDevices(typename DeviceMap_t::iterator it) {
+  //   return it == _devices.end();
+  // };
 
-  bool moreDevices(typename DeviceMap_t::iterator it) {
-    return it != _devices.end();
-  };
+  // bool moreDevices(typename DeviceMap_t::iterator it) {
+  //   return it != _devices.end();
+  // };
 
   uint32_t numKnownDevices() { return _devices.size(); };
-  bool isDeviceKnown(const string_t &id) {
-    bool rc = false;
-
-    rc = (findDevice(id) == nullptr ? false : true);
-    return rc;
-  };
+  // bool isDeviceKnown(const string_t &id) {
+  //   bool rc = false;
+  //
+  //   rc = (findDevice(id) == nullptr ? false : true);
+  //   return rc;
+  // };
 
 protected:
   virtual void convert(void *data) { doNothing(); };
@@ -382,7 +397,6 @@ protected:
     }
 
     if (new_task) {
-      // ESP_LOGI("ENGINE", "adding task \"%s\"", new_task->name_cstr());
       _cache_task_data[task_type] = new_task;
       _task_map.push_back(new_task);
     }
@@ -414,8 +428,6 @@ protected:
           _cache_task_data[task->type()] = task;
         }
 
-        // ESP_LOGI("ENGINE", "starting \"%s\" stack=%d", task->name_cstr(),
-        //          task->stackSize());
         xTaskCreate(task->taskFunc(), task->name_cstr(), task->stackSize(),
                     this, task->priority(), task->handle_ptr());
       }
@@ -480,15 +492,9 @@ private:
                         });
 
     if (task != _task_map.end()) {
-      ESP_LOGI("ENGINE", "cache miss for \"%s\" task data",
-               (*task)->name_cstr());
-
       _cache_task_data[task_type] = *task;
 
       return *task;
-    } else {
-      ESP_LOGW("ENGINE", "lookupTaskData could not find task_type=%d",
-               task_type);
     }
 
     return nullptr;

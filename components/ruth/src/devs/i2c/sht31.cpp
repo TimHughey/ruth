@@ -18,60 +18,53 @@
     https://www.wisslanding.com
 */
 
-#include <memory>
-#include <string>
-
 #include <driver/i2c.h>
 #include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <sys/time.h>
-#include <time.h>
 
-#include "devs/base/base.hpp"
 #include "devs/i2c/sht31.hpp"
-#include "local/types.hpp"
-#include "net/network.hpp"
 
 namespace ruth {
 
-SHT31::SHT31() : I2cDevice(0x44) {}
+SHT31::SHT31(uint8_t bus, uint8_t addr) : I2cDevice(addr, bus) {}
 
-bool SHT31::crc(const uint8_t *data) {
+SHT31::SHT31(const SHT31_t &rhs, time_t missing_secs)
+    : I2cDevice(rhs.address(), rhs.bus(), missing_secs) {
+  // only make the device ID when a copy is made from a device reference
+  makeID();
+}
+
+// bool SHT31::crc(const uint8_t *data) {
+bool SHT31::crc(const RawData_t &data, size_t index) {
   uint8_t crc = 0xFF;
 
-  for (uint32_t j = 2; j; --j) {
-    crc ^= *data++;
+  for (uint32_t j = 0; j < 2; j++) {
+    // crc ^= *data++;
+    crc ^= data[j + index];
 
     for (uint32_t i = 8; i; --i) {
       crc = (crc & 0x80) ? (crc << 1) ^ 0x31 : (crc << 1);
     }
   }
 
-  // data was ++ in the above loop so it is already pointing at the crc
-  return (crc == *data);
+  return (crc == data[index + 2]);
 }
 
-bool SHT31::detectOnBus() {
+bool SHT31::detect() {
+  auto rc = false;
 
-  _esp_rc_prev = ESP_OK;
+  clearPreviousError();
 
-  _tx = {
-      0x2c, // single-shot measurement, with clock stretching
-      0x06  // high-repeatability measurement (max duration 15ms)
-  };
+  // read out of status register
+  _tx = {0xf3, 0x2d};
 
-  _rx = {
-      0x00, 0x00, // tempC high byte, low byte
-      0x00,       // crc8 of temp
-      0x00, 0x00, // relh high byte, low byte
-      0x00        // crc8 of relh
-  };
+  // byte 0: register MSB
+  // byte 1: register LSB
+  // byte 2: crc
+  _rx = {0x00, 0x00, 0x00};
 
-  if (requestData(1500) == ESP_OK) {
-    return true;
-  }
+  rc = requestData(_tx, _rx);
 
-  return false;
+  return rc;
 }
 
 bool SHT31::read() {
@@ -79,7 +72,7 @@ bool SHT31::read() {
 
   _tx = {
       0x2c, // single-shot measurement, with clock stretching
-      0x06  // high-repeatability measurement (max duration 15ms)
+      0x0d  // medium-repeatability measurement
   };
 
   _rx = {
@@ -89,12 +82,12 @@ bool SHT31::read() {
       0x00        // crc8 of relh
   };
 
-  _esp_rc = requestData();
+  clearPreviousError();
 
-  if (_esp_rc == ESP_OK) {
+  if (requestData(_tx, _rx, 4)) {
     justSeen();
 
-    if (crc(_rx.data()) && crc(&(_rx[3]))) {
+    if (crc(_rx) && crc(_rx, 3)) {
       // conversion from SHT31 datasheet
       uint16_t stc = (_rx[0] << 8) | _rx[1];
       uint16_t srh = (_rx[3] << 8) | _rx[4];
@@ -110,7 +103,7 @@ bool SHT31::read() {
     } else { // crc did not match
       crcMismatch();
     }
-  } else { // esp_rc != ESP_OK
+  } else {
     readFailure();
   }
 

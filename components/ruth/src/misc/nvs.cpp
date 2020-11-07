@@ -23,37 +23,19 @@
 
 namespace ruth {
 static NVS_t *__singleton__ = nullptr;
-static const char TAG[] = "NVS";
 
 NVS::NVS() {
   esp_err_t _esp_rc = ESP_OK;
   _esp_rc = nvs_flash_init();
-
-  ESP_LOGI(TAG, "[%s] nvs_flash_init()", esp_err_to_name(_esp_rc));
-
-  switch (_esp_rc) {
-  case ESP_ERR_NVS_NO_FREE_PAGES:
-    ESP_LOGW(TAG, "nvs no free pages, will erase");
-    break;
-  case ESP_ERR_NVS_NEW_VERSION_FOUND:
-    ESP_LOGW(TAG, "nvs new data version, must erase");
-    break;
-  default:
-    break;
-  }
 
   if ((_esp_rc == ESP_ERR_NVS_NO_FREE_PAGES) ||
       (_esp_rc == ESP_ERR_NVS_NEW_VERSION_FOUND)) {
 
     // erase and attempt initialization again
     _esp_rc = nvs_flash_erase();
-    ESP_LOGW(TAG, "[%s] nvs_flash_erase()", esp_err_to_name(_esp_rc));
 
     if (_esp_rc == ESP_OK) {
       _esp_rc = nvs_flash_init();
-
-      ESP_LOGW(TAG, "[%s] nvs_init() (second attempt)",
-               esp_err_to_name(_esp_rc));
     }
   }
 }
@@ -76,13 +58,5 @@ NVS::~NVS() {
     __singleton__ = nullptr;
   }
 }
-
-// void NVS::publishMsg(const char *key, NVSMessage_t *blob) {
-//   unique_ptr<struct tm> timeinfo(new struct tm);
-//
-//   localtime_r(&(blob->time), timeinfo.get());
-//
-//   Text::rlog(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
-// }
 
 } // namespace ruth

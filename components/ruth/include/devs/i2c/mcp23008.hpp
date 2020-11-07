@@ -1,5 +1,5 @@
 /*
-    mcp23008.hpp - Ruth I2C MCP23008 Device
+    i2c/mcp23008.hpp - Ruth I2C MCP23008 Device
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -24,7 +24,7 @@
 #include <memory>
 #include <string>
 
-#include "devs/i2c/dev.hpp"
+#include "devs/i2c/base.hpp"
 
 namespace ruth {
 
@@ -32,14 +32,18 @@ typedef class MCP23008 MCP23008_t;
 
 class MCP23008 : public I2cDevice {
 public:
-  MCP23008(uint8_t bus = 0);
+  MCP23008(uint8_t bus = 0, uint8_t addr = 0x20);
+  MCP23008(const MCP23008_t &rhs, time_t missing_secs = 60);
 
-  bool detectOnBus();
+  bool detect();
   bool read();
   bool writeState(uint32_t cmd_mask, uint32_t cmd_state);
 
 private:
   bool crc(const uint8_t *data);
+
+  RawData_t _tx;
+  RawData_t _rx;
 };
 
 } // namespace ruth

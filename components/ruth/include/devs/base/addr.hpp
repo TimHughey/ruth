@@ -59,7 +59,7 @@ public:
 
   uint8_t operator[](int i) const;
 
-  bool operator==(const DeviceAddress_t &rhs);
+  bool operator==(const DeviceAddress_t &rhs) const;
 
   const unique_ptr<char[]> debug() const;
 

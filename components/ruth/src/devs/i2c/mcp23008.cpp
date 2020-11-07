@@ -1,5 +1,5 @@
 /*
-    sht31.cpp - Ruth I2C Device MCP23008
+    i2c/mcp23008.cpp - Ruth I2C Device MCP23008
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,46 +18,40 @@
     https://www.wisslanding.com
 */
 
-#include <memory>
-#include <string>
-
 #include <driver/i2c.h>
 #include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <sys/time.h>
-#include <time.h>
 
 #include "devs/base/base.hpp"
 #include "devs/i2c/mcp23008.hpp"
-#include "local/types.hpp"
-#include "net/network.hpp"
 
 namespace ruth {
 
-MCP23008::MCP23008(uint8_t bus) : I2cDevice(0x20, bus) {}
+MCP23008::MCP23008(uint8_t bus, uint8_t addr) : I2cDevice(addr, bus) {}
 
-bool MCP23008::detectOnBus() {
-  auto rc = false;
+MCP23008::MCP23008(const MCP23008_t &rhs, time_t missing_secs)
+    : I2cDevice(rhs.address(), rhs.bus(), missing_secs) {
+  // only make the device ID when a copy is made from a device reference
+  makeID();
+}
 
-  _esp_rc_prev = ESP_OK;
+bool MCP23008::detect() {
+  clearPreviousError();
 
-  _tx = {0x30, 0xa2};
-  _rx.clear();
+  _tx = {0x00}; // IODIR Register (address 0x00)
+  _rx.reserve(11);
 
-  requestData();
+  // at POR the MCP2x008 operates in sequential mode where continued reads
+  // automatically increment the address (register).  we read all registers
+  // (12 bytes) in one shot.
 
-  if (_esp_rc == ESP_OK) {
-    rc = true;
-    detected();
-  }
-
-  return rc;
+  return requestData(_tx, _rx);
 }
 
 bool MCP23008::read() {
   auto rc = false;
   auto positions = 0b00000000;
-  esp_err_t esp_rc;
+
+  clearPreviousError();
 
   _tx = {0x00}; // IODIR Register (address 0x00)
 
@@ -68,18 +62,12 @@ bool MCP23008::read() {
 
   // at POR the MCP2x008 operates in sequential mode where continued reads
   // automatically increment the address (register).  we read all registers
-  // (12 bytes) in one shot.
-  _rx.reserve(12);
-  _rx.assign(12, 0x00);
+  // (11 bytes) in one shot.
+  _rx.reserve(11);
 
-  resetRequestSequence();
-  esp_rc = requestData();
-
-  if (esp_rc == ESP_OK) {
-    // GPIO register is little endian so no conversion is required
+  if (requestData(_tx, _rx)) {
+    // GPIO register is little endian, conversion is required
     positions = _rx[0x0a]; // OLAT register (address 0x0a)
-
-    storeRawData(_rx);
 
     justSeen();
 
@@ -96,8 +84,7 @@ bool MCP23008::read() {
 }
 
 bool MCP23008::writeState(uint32_t cmd_mask, uint32_t cmd_state) {
-
-  resetRequestSequence();
+  clearPreviousError();
 
   // read the device to ensure we have the current state
   // important because setting the new state relies, in part, on the
@@ -108,11 +95,16 @@ bool MCP23008::writeState(uint32_t cmd_mask, uint32_t cmd_state) {
     return false;
   }
 
+  writeStart();
+
   // if register 0x00 (IODIR) is not 0x00 (IODIR isn't output) then
   // set it to output
   if (_rx.at(0) > 0x00) {
     _tx = {0x00, 0x00};
-    if (requestData() != ESP_OK) {
+    _rx.clear();
+
+    if (requestData(_tx, _rx) == false) {
+      writeStop();
       return false;
     }
   }
@@ -130,15 +122,16 @@ bool MCP23008::writeState(uint32_t cmd_mask, uint32_t cmd_state) {
   // a. IODIR (0x00) - setting all GPIOs to output (0b00000000)
   // b. OLAT (0x0a)  - the new state
   _tx = {0x0a, (uint8_t)(new_state & 0xff)};
+  _rx.clear();
 
-  if (requestData() != ESP_OK) {
-    Text::rlog("[%s] device \"%s\" set failed", esp_err_to_name(_esp_rc),
-               debug().get());
-
-    return false;
+  auto rc = false;
+  if ((rc = requestData(_tx, _rx)) == false) {
+    Text::rlog("[%s] device \"%s\" set failed", recentError(), debug().get());
   }
 
-  return true;
+  writeStop();
+
+  return rc;
 }
 
 } // namespace ruth
