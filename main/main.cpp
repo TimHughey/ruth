@@ -20,9 +20,7 @@
 
 #include <cstdlib>
 
-// #include <driver/periph_ctrl.h>
 #include <esp_log.h>
-// #include <esp_spi_flash.h>
 #include <esp_task_wdt.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -45,7 +43,6 @@ void app_main() {
   // since app_main() is the application entry point, we log something
   // so it's obvious where base ESP32 initialization code is complete and
   // our implementation begins
-  ESP_LOGI("app_main", "%s entered", __PRETTY_FUNCTION__);
   float tick_us = 1000.0 / (float)portTICK_PERIOD_MS;
 
   ESP_LOGI("app_main", "portTICK_PERIOD_MS=%u 10ms=%u tick%s tick=%0.2fµs",

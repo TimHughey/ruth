@@ -136,10 +136,10 @@ void Core::bootComplete() {
   // NVS::commitMsg("BOOT", "LAST SUCCESSFUL BOOT");
 
   // lower main task priority since it's really just a watcher now
-  UBaseType_t priority = uxTaskPriorityGet(NULL);
+  UBaseType_t priority = uxTaskPriorityGet(nullptr);
 
   if (priority > priority_) {
-    vTaskPrioritySet(NULL, priority_);
+    vTaskPrioritySet(nullptr, priority_);
   }
 
   UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);

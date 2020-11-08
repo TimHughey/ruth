@@ -119,14 +119,6 @@ void PulseWidth::core(void *task_data) {
 
   Net::waitForNormalOps();
 
-  // NOTE:
-  //   As of 2020-05-18 engines are started after name assignment is complete
-  //   so the following line is not necessary
-  // net_name = Net::waitForName();
-
-  // signal to other tasks the dsEngine task is in it's run loop
-  // this ensures other tasks wait until core setup is complete
-
   saveTaskLastWake(TASK_CORE);
 
   // discovering the pwm devices is ultimately creating and adding them

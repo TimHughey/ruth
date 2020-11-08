@@ -149,7 +149,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   return payload_rc;
 }
 
-void MQTT::_incomingMsg_(esp_mqtt_event_t *event) {
+void MQTT::incomingMsg(esp_mqtt_event_t *event) {
 
   // ensure there is actually a payload to handle
   if (event->total_data_len == 0)
@@ -227,8 +227,9 @@ void MQTT::core(void *data) {
   opts.password = Binder::mqttPasswd();
   opts.client_id = _client_id.c_str();
   opts.reconnect_timeout_ms = 10000;
-  opts.buffer_size = 1024;
-  opts.out_buffer_size = 3072;
+  opts.task_prio = 11;
+  opts.buffer_size = 2048;
+  opts.out_buffer_size = 4096;
   opts.user_context = this;
 
   _connection = esp_mqtt_client_init(&opts);
@@ -240,7 +241,7 @@ void MQTT::core(void *data) {
 
   esp_mqtt_client_register_event(_connection,
                                  (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID,
-                                 _ev_handler, _connection);
+                                 eventHandler, _connection);
   esp_mqtt_client_start(_connection);
 
   // core forever loop
@@ -277,8 +278,17 @@ void MQTT::core(void *data) {
   vTaskDelay(UINT32_MAX);
 }
 
-void MQTT::_subACK_(esp_mqtt_event_handle_t event) {
+void MQTT::subACK(esp_mqtt_event_handle_t event) {
+  UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
+
   if (event->msg_id == _subscribe_msg_id) {
+    auto stack_size = 6 * 1024;
+    auto stack_percent =
+        100.0 - ((float)stack_high_water / (float)stack_size * 100.0);
+
+    ESP_LOGI(ESP_TAG, "stack[%0.1f%%] SUBSCRIBED msg_id[%u]", stack_percent,
+             event->msg_id);
+
     _mqtt_ready = true;
     Net::setTransportReady();
     // NOTE: do not announce startup here.  doing so creates a race condition
@@ -288,7 +298,7 @@ void MQTT::_subACK_(esp_mqtt_event_handle_t event) {
   }
 }
 
-void MQTT::_subscribeFeeds_(esp_mqtt_client_handle_t client) {
+void MQTT::subscribeFeeds(esp_mqtt_client_handle_t client) {
   const char *topic = _feed_host.c_str();
   int qos = 1; // hardcoded QoS
 
@@ -298,37 +308,29 @@ void MQTT::_subscribeFeeds_(esp_mqtt_client_handle_t client) {
 }
 
 // STATIC
-void MQTT::_ev_handler(void *handler_args, esp_event_base_t base,
-                       int32_t event_id, void *event_data) {
+void MQTT::eventHandler(void *handler_args, esp_event_base_t base,
+                        int32_t event_id, void *event_data) {
 
   esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
 
-  _ev_callback(event);
+  eventCallback(event);
 }
 
-esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
+esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
   esp_err_t rc = ESP_OK;
   esp_mqtt_client_handle_t client = event->client;
   esp_mqtt_connect_return_code_t status;
 
   MQTT_t *mqtt = (MQTT_t *)event->user_context;
 
-  UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
-  auto stack_size = 6 * 1024;
-  auto stack_percent =
-      100.0 - ((float)stack_high_water / (float)stack_size * 100.0);
-
   switch (event->event_id) {
   case MQTT_EVENT_BEFORE_CONNECT:
     StatusLED::brighter();
-    ESP_LOGI(ESP_TAG, "stack[%0.1f%%] BEFORE_CONNECT uri[%s]", stack_percent,
-             Binder::mqttUri());
     break;
 
   case MQTT_EVENT_CONNECTED:
     status = event->error_handle->connect_return_code;
-    ESP_LOGI(ESP_TAG, "stack[%0.1f%%] CONNECT msg[%p] err_code[%d]",
-             stack_percent, (void *)event, status);
+    ESP_LOGI(ESP_TAG, "CONNECT msg[%p] err_code[%d]", (void *)event, status);
 
     if (status != MQTT_CONNECTION_ACCEPTED) {
       ESP_LOGW(ESP_TAG, "mqtt connection error[%d]", status);
@@ -336,34 +338,30 @@ esp_err_t MQTT::_ev_callback(esp_mqtt_event_handle_t event) {
     }
 
     StatusLED::off();
-    __singleton__->_subscribeFeeds_(client);
+    mqtt->subscribeFeeds(client);
 
     break;
 
   case MQTT_EVENT_DISCONNECTED:
     StatusLED::dim();
 
-    __singleton__->connectionClosed();
+    mqtt->connectionClosed();
     break;
 
   case MQTT_EVENT_SUBSCRIBED:
-    ESP_LOGI(ESP_TAG, "stack[%0.1f%%] SUBSCRIBED msg_id[%u]", stack_percent,
-             event->msg_id);
-    mqtt->_subACK_(event);
+    mqtt->subACK(event);
     break;
 
   case MQTT_EVENT_DATA:
-    __singleton__->_incomingMsg_(event);
+    mqtt->incomingMsg(event);
     break;
 
   case MQTT_EVENT_PUBLISHED:
-    // ESP_LOGI(TAG, "[%0.1f%%] broker ACK msg_id=%d", stack_percent,
-    //          event->msg_id);
-    __singleton__->_brokerAck_();
+    mqtt->brokerAck();
     break;
 
   case MQTT_EVENT_ERROR:
-    __singleton__->_last_return_code = event->error_handle->connect_return_code;
+    mqtt->_last_return_code = event->error_handle->connect_return_code;
     break;
 
   default:

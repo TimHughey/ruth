@@ -72,20 +72,20 @@ private:
 
   // member functions via static singleton to handle events
   // and expose public API (e.g. publish)
-  void _brokerAck_() { _broker_acks++; }
-  void _incomingMsg_(esp_mqtt_event_t *event);
+  void brokerAck() { _broker_acks++; }
+  void incomingMsg(esp_mqtt_event_t *event);
   void _publish(Reading_t *reading);
   void _publish(Reading_t &reading);
   void _publish(Reading_ptr_t reading);
-  void _subscribeFeeds_(esp_mqtt_client_handle_t client);
-  void _subACK_(esp_mqtt_event_handle_t event);
+  void subscribeFeeds(esp_mqtt_client_handle_t client);
+  void subACK(esp_mqtt_event_handle_t event);
 
   // void (*esp_event_handler_t)(void *event_handler_arg, esp_event_base_t
   // event_base, int32_t event_id, void *event_data)
-  static void _ev_handler(void *handler_args, esp_event_base_t base,
-                          int32_t event_id, void *event_data);
+  static void eventHandler(void *handler_args, esp_event_base_t base,
+                           int32_t event_id, void *event_data);
 
-  static esp_err_t _ev_callback(esp_mqtt_event_handle_t event);
+  static esp_err_t eventCallback(esp_mqtt_event_handle_t event);
 
 private:
   // private member variables
