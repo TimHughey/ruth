@@ -51,15 +51,21 @@ Device::~Device() {
 
 const DeviceAddress_t &Device::address() const { return _addr; }
 
-void Device::justSeen() {
-  auto was_missing = missing();
+bool Device::justSeen(bool rc) {
+  if (rc == true) {
+    auto was_missing = missing();
 
-  _last_seen = time(nullptr);
+    _last_seen = time(nullptr);
 
-  if (was_missing) {
-    Text::rlog("missing device \"%s\" has returned", _id.c_str());
+    if (was_missing) {
+      Text::rlog("missing device \"%s\" has returned", _id.c_str());
+    }
   }
+
+  // return rc unchanged
+  return rc;
 }
+
 void Device::setID(const string_t &new_id) {
   _id = new_id;
   _id.shrink_to_fit();
@@ -102,7 +108,7 @@ uint8_t *Device::addrBytes() { return (uint8_t *)_addr; }
 Reading_t *Device::reading() { return _reading; }
 
 bool Device::valid() const {
-  return (firstAddressByte() != 0x00 ? true : false);
+  return (singleByteAddress() == 0x00 ? false : true);
 }
 
 bool Device::notValid() const { return !valid(); }

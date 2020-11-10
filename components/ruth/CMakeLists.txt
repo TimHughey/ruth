@@ -6,7 +6,7 @@ set(
 
 set(
   RUTH_MISC
-    "src/misc/datetime" "src/misc/restart" "src/misc/nvs" "src/misc/status_led")
+    "src/misc/datetime" "src/misc/restart" "src/misc/status_led")
 
 set(
   RUTH_NET

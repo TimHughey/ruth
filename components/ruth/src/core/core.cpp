@@ -24,7 +24,7 @@
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
 #include "engines/pwm.hpp"
-#include "misc/nvs.hpp"
+// #include "misc/nvs.hpp"
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
 #include "protocols/mqtt.hpp"
@@ -88,7 +88,7 @@ void Core::_start(xTaskHandle app_task) {
   app_task_ = app_task;
 
   // get NVS started, it is needed by Net
-  NVS::init();
+  // NVS::init();
 
   // initialize the StatusLED singleton
   StatusLED::init();

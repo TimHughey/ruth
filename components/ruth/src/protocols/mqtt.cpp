@@ -18,6 +18,7 @@
      https://www.wisslanding.com
  */
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <memory>
@@ -44,9 +45,9 @@
 
 namespace ruth {
 
+using std::max;
 using std::move;
 using std::unique_ptr;
-using std::vector;
 
 using TR = ruth::Text_t;
 
@@ -75,7 +76,7 @@ void MQTT::announceStartup() {
   uint32_t batt_mv = Core::batteryMilliVolt();
   Startup_t startup(batt_mv);
 
-  _publish(&startup);
+  publish(&startup);
   StatusLED::off();
 }
 
@@ -177,32 +178,19 @@ void MQTT::incomingMsg(esp_mqtt_event_t *event) {
   handlePayload(move(payload_ptr));
 }
 
-void MQTT::_publish(Reading_t *reading) {
-  auto *msg = reading->json();
+void MQTT::publishMsg(string_t *msg) {
+  if (_connection) {
 
-  publish_msg(msg);
-}
+    _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(),
+                                      msg->data(), msg->size(), 0, false);
 
-void MQTT::_publish(Reading_t &reading) {
-  auto *msg = reading.json();
+    // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
+    if (_msg_id < 0) {
+      // pass a nullptr for the message so Restart doesn't attempt to publish
+      Restart::restart(nullptr, __PRETTY_FUNCTION__);
+    }
 
-  publish_msg(msg);
-}
-
-void MQTT::_publish(Reading_ptr_t reading) {
-  auto *msg = reading->json();
-
-  publish_msg(msg);
-}
-
-void MQTT::publish_msg(string_t *msg) {
-  _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(), msg->data(),
-                                    msg->size(), 1, false);
-
-  // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
-  if (_msg_id < 0) {
-    // pass a nullptr for the message so Restart doesn't attempt to publish
-    Restart::restart(nullptr, __PRETTY_FUNCTION__);
+    _msg_max_size = max(msg->size(), _msg_max_size);
   }
 
   delete msg;
@@ -226,10 +214,10 @@ void MQTT::core(void *data) {
   opts.username = Binder::mqttUser();
   opts.password = Binder::mqttPasswd();
   opts.client_id = _client_id.c_str();
-  opts.reconnect_timeout_ms = 10000;
+  opts.reconnect_timeout_ms = 3000;
   opts.task_prio = 11;
-  opts.buffer_size = 2048;
-  opts.out_buffer_size = 4096;
+  opts.buffer_size = 1024;
+  opts.out_buffer_size = 5120;
   opts.user_context = this;
 
   _connection = esp_mqtt_client_init(&opts);
@@ -258,21 +246,26 @@ void MQTT::core(void *data) {
                stack_high_water);
     }
 
+    if ((_msg_max_size > _msg_max_size_reported) && Net::waitForName(0)) {
+      _msg_max_size_reported = _msg_max_size;
+      TR::rlog("[MQTT] message size max[%d]", _msg_max_size);
+    }
+
     vTaskDelay(1000);
   }
 
   // if the core task loop ever exits then a shutdown is underway.
 
-  // a. disable auto reconnect
-  // b. force disconnection
-  // c. destroy (free) the client control structure
-  // d. signel mqtt is no longer ready
+  // a. signal mqtt is no longer ready
+  // b. disable auto reconnect
+  // c. force disconnection
+  // d. destroy (free) the client control structure
+  _mqtt_ready = false;
   opts.disable_auto_reconnect = true;
   esp_mqtt_set_config(_connection, &opts);
   esp_mqtt_client_disconnect(_connection);
   esp_mqtt_client_destroy(_connection);
   _connection = nullptr;
-  _mqtt_ready = false;
 
   // wait here forever, vTaskDelete will remove us from the scheduler
   vTaskDelay(UINT32_MAX);
@@ -458,19 +451,19 @@ void MQTT::start() {
 void MQTT::publish(Reading_t *reading) {
   // safety first
   if (_instance_) {
-    _instance_->_publish(reading);
+    _instance_->publishMsg(reading->json());
   };
 }
 
 void MQTT::publish(Reading_t &reading) {
   if (_instance_) {
-    _instance_->_publish(reading);
+    _instance_->publishMsg(reading.json());
   }
 }
 
 void MQTT::publish(unique_ptr<Reading_t> reading) {
   if (_instance_) {
-    _instance_->_publish(move(reading));
+    _instance_->publishMsg(reading->json());
   };
 }
 

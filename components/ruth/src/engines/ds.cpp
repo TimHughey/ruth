@@ -156,13 +156,8 @@ bool DallasSemi::commandExecute(DsDevice_t *dev, uint32_t cmd_mask,
                                 uint32_t cmd_state, bool ack,
                                 const RefID_t &refid,
                                 elapsedMicros &cmd_elapsed) {
-
-  if (dev == nullptr) {
-    return false;
-  }
-
-  if (dev->valid()) {
-    bool set_rc = false;
+  auto set_rc = false;
+  if (dev && dev->valid()) {
 
     needBus();
     takeBus();
@@ -186,10 +181,9 @@ bool DallasSemi::commandExecute(DsDevice_t *dev, uint32_t cmd_mask,
     }
 
     giveBus();
-
-    return true;
   }
-  return false;
+
+  return set_rc;
 }
 
 // SubTasks receive their task config via the void *data
@@ -310,7 +304,6 @@ void DallasSemi::discover(void *data) {
     bool found = false;
     auto device_found = false;
     auto have_temperature_devs = false;
-    bool bus_needed = false;
     OneWireBus_SearchState search_state;
 
     bzero(&search_state, sizeof(OneWireBus_SearchState));
@@ -351,10 +344,8 @@ void DallasSemi::discover(void *data) {
         have_temperature_devs = true;
       }
 
-      bus_needed = isBusNeeded();
-
       // another task needs the bus so break out of the loop
-      if (bus_needed) {
+      if (isBusNeeded()) {
         resetBus();       // abort the search
         hold_bus = false; // signal to break from loop
       } else {
@@ -428,20 +419,17 @@ void DallasSemi::report(void *data) {
 
       if (dev->available()) {
         takeBus();
-        auto rc = readDevice(dev);
 
-        if (rc) {
+        if (readDevice(dev)) {
           publish(dev);
-          dev->justSeen();
         }
-        // hold onto the bus mutex to ensure that the device publih
-        // succeds (another task doesn't change the device just read)
+
         giveBus();
       }
     });
 
     // case b:  wait a preset duration (no temp devices)
-    if (!_temp_devices_present) {
+    if (_temp_devices_present == false) {
       taskDelayUntil(TASK_REPORT, _report_frequency);
     }
   }

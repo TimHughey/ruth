@@ -40,8 +40,7 @@ static const char TAG[] = "Binder";
 
 // inclusive of largest profile document
 static const size_t _doc_capacity =
-    2 * JSON_ARRAY_SIZE(2) + 3 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(3) +
-    JSON_OBJECT_SIZE(4) + 204;
+    3 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(7) + 236;
 
 Binder::Binder() {
   esp_err_t esp_rc = ESP_OK;
@@ -61,14 +60,13 @@ Binder::Binder() {
 }
 
 // STATIC
-Binder_t *Binder::init() { return Binder::_instance_(); }
+Binder_t *Binder::init() { return Binder::_inst_(); }
 
 void Binder::load() {
 
   FILE *f = nullptr;
 
   if ((f = fopen(config_path_, "r")) != nullptr) {
-
     raw_size_ = fread((void *)config_raw_, 1, 512, f);
 
     fclose(f);
@@ -76,8 +74,8 @@ void Binder::load() {
 }
 
 const char *Binder::ntpServer(int index) {
-  if (_instance_()->ntp_servers_[index].size() > 0) {
-    return _instance_()->ntp_servers_[index].c_str();
+  if (_inst_()->ntp_servers_[index].size() > 0) {
+    return _inst_()->ntp_servers_[index].c_str();
   } else {
     return nullptr;
   }
@@ -104,16 +102,20 @@ void Binder::parse() {
     ntp_servers_[1] = doc["ntp"]["1"] | "pool.ntp.org";
 
     JsonObject mqtt = doc["mqtt"];
-    mqtt_uri_ = mqtt["uri"] | "none";
-    mqtt_user_ = mqtt["user"] | "none";
-    mqtt_passwd_ = mqtt["passwd"] | "none";
+    mq_uri_ = mqtt["uri"] | "none";
+    mq_user_ = mqtt["user"] | "none";
+    mq_passwd_ = mqtt["passwd"] | "none";
+    mq_task_prio_ = mqtt["task_priority"] | 11;
+    mq_rx_buffer_ = mqtt["rx_buffer"] | 1024;
+    mq_tx_buffer_ = mqtt["tx_buffer"] | 5124;
+    mq_reconnect_ms_ = mqtt["reconnect_ms"] | 3000;
 
     ESP_LOGI(TAG, "contents dated %s", DateTime(mtime_).get());
   }
 }
 
 // STATIC
-Binder_t *Binder::_instance_() {
+Binder_t *Binder::_inst_() {
   if (__singleton__ == nullptr) {
     __singleton__ = new Binder();
   }

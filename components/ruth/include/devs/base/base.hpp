@@ -57,7 +57,7 @@ public:
   bool notValid() const;
 
   // updaters
-  void justSeen();
+  bool justSeen(bool rc = true);
 
   uint8_t singleByteAddress() const { return _addr.firstByte(); };
   uint8_t firstAddressByte() const { return _addr.firstByte(); };

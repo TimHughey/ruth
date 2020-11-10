@@ -74,9 +74,6 @@ private:
   // and expose public API (e.g. publish)
   void brokerAck() { _broker_acks++; }
   void incomingMsg(esp_mqtt_event_t *event);
-  void _publish(Reading_t *reading);
-  void _publish(Reading_t &reading);
-  void _publish(Reading_ptr_t reading);
   void subscribeFeeds(esp_mqtt_client_handle_t client);
   void subACK(esp_mqtt_event_handle_t event);
 
@@ -110,7 +107,7 @@ private:
                   .data = nullptr,
                   .lastWake = 0,
                   .priority = 1,
-                  .stackSize = 2304};
+                  .stackSize = 4096};
 
   esp_mqtt_client_handle_t _connection = nullptr;
   int32_t _msg_id = esp_random() + 1;
@@ -119,6 +116,8 @@ private:
   esp_mqtt_connect_return_code_t _last_return_code;
 
   uint16_t _subscribe_msg_id;
+  size_t _msg_max_size = 0;
+  size_t _msg_max_size_reported = 0;
 
 private:
   // instance member functions
@@ -128,7 +127,7 @@ private:
   void core(void *data);
   bool handlePayload(MsgPayload_t_ptr payload);
 
-  void publish_msg(string_t *msg);
+  void publishMsg(string_t *msg);
   void connectionClosed();
 
   // Task implementation

@@ -34,24 +34,33 @@ using std::vector;
 typedef class Binder Binder_t;
 
 class Binder {
+
 public:
-  static const char *env() { return _instance_()->env_.c_str(); };
   static Binder_t *init();
-  static const char *mqttPasswd() {
-    return _instance_()->mqtt_passwd_.c_str();
-  };
-  static const char *mqttUri() { return _instance_()->mqtt_uri_.c_str(); };
-  static const char *mqttUser() { return _instance_()->mqtt_user_.c_str(); };
+
+  // Runtime environment
+  static const char *env() { return _inst_()->env_.c_str(); };
+
+  // MQTT
+  static const char *mqttPasswd() { return _inst_()->mq_passwd_.c_str(); };
+  static size_t mqttReconnectMs() { return _inst_()->mq_reconnect_ms_; }
+  static size_t mqttRxBuffer() { return _inst_()->mq_rx_buffer_; }
+  static size_t mqttTxBuffer() { return _inst_()->mq_tx_buffer_; }
+  static uint32_t mqttTaskPriority() { return _inst_()->mq_task_prio_; };
+  static const char *mqttUri() { return _inst_()->mq_uri_.c_str(); };
+  static const char *mqttUser() { return _inst_()->mq_user_.c_str(); };
+
+  // NTP
   static const char *ntpServer(int index);
-  static const char *wifiSsid() { return _instance_()->wifi_ssid_.c_str(); };
-  static const char *wifiPasswd() {
-    return _instance_()->wifi_passwd_.c_str();
-  };
+
+  // WiFi
+  static const char *wifiSsid() { return _inst_()->wifi_ssid_.c_str(); };
+  static const char *wifiPasswd() { return _inst_()->wifi_passwd_.c_str(); };
 
 private:
   Binder();
   ~Binder();
-  static Binder *_instance_();
+  static Binder *_inst_();
 
   void load();
   void parse();
@@ -75,9 +84,13 @@ private:
   string_t wifi_ssid_;
   string_t wifi_passwd_;
 
-  string_t mqtt_uri_;
-  string_t mqtt_user_;
-  string_t mqtt_passwd_;
+  string_t mq_uri_;
+  string_t mq_user_;
+  string_t mq_passwd_;
+  uint32_t mq_task_prio_;
+  size_t mq_rx_buffer_;
+  size_t mq_tx_buffer_;
+  uint32_t mq_reconnect_ms_;
 };
 } // namespace ruth
 
