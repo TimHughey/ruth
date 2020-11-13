@@ -269,8 +269,8 @@ bool Net::_start_() {
   rc = esp_wifi_set_mode(WIFI_MODE_STA);
   checkError(__PRETTY_FUNCTION__, rc);
 
-  // auto powersave = WIFI_PS_NONE;
-  auto powersave = WIFI_PS_MIN_MODEM;
+  auto powersave = WIFI_PS_NONE;
+  // auto powersave = WIFI_PS_MIN_MODEM;
 
   rc = esp_wifi_set_ps(powersave);
   checkError(__PRETTY_FUNCTION__, rc);

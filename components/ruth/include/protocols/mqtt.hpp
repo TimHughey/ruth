@@ -107,7 +107,7 @@ private:
                   .data = nullptr,
                   .lastWake = 0,
                   .priority = 1,
-                  .stackSize = 4096};
+                  .stackSize = 3584};
 
   esp_mqtt_client_handle_t _connection = nullptr;
   int32_t _msg_id = esp_random() + 1;

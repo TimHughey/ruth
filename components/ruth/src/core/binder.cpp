@@ -107,7 +107,7 @@ void Binder::parse() {
     mq_passwd_ = mqtt["passwd"] | "none";
     mq_task_prio_ = mqtt["task_priority"] | 11;
     mq_rx_buffer_ = mqtt["rx_buffer"] | 1024;
-    mq_tx_buffer_ = mqtt["tx_buffer"] | 5124;
+    mq_tx_buffer_ = mqtt["tx_buffer"] | 2048;
     mq_reconnect_ms_ = mqtt["reconnect_ms"] | 3000;
 
     ESP_LOGI(TAG, "contents dated %s", DateTime(mtime_).get());

@@ -54,9 +54,8 @@ I2c::I2c() : Engine(ENGINE_I2C) {
   rst_pin_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
   rst_pin_cfg.intr_type = GPIO_INTR_DISABLE;
 
-  gpio_config(&rst_pin_cfg);
-
   gpio_set_level(RST_PIN, 1); // bring all devices online
+  gpio_config(&rst_pin_cfg);
 }
 
 I2c_t *I2c::_instance_() {
@@ -179,13 +178,13 @@ void I2c::core(void *task_data) {
     delay(1000); // prevent busy loop if i2c driver fails to install
   }
 
-  pinReset();
+  // pinReset();
 
   Net::waitForNormalOps();
 
   saveTaskLastWake(TASK_CORE);
   for (;;) {
-    // signal to other tasks the dsEngine task is in it's run loop
+    // signal to other tasks I2c Core is in it's run loop
     // this ensures all other set-up activities are complete before
     engineRunning();
 
@@ -199,6 +198,7 @@ void I2c::discover(void *data) {
 
   while (waitForEngine()) {
     bool detect_rc = true;
+    auto next_discover = _discover_frequency;
 
     takeBus();
     detectMultiplexer();
@@ -216,13 +216,23 @@ void I2c::discover(void *data) {
     if (numKnownDevices() > 0) {
       // signal to other tasks if there are devices available
       // after delaying a bit (to improve i2c bus stability)
-      delay(500);
+      // delay(500);
       devicesAvailable();
+    } else {
+      // since I2c is enabled we expect at least one device to be present on the
+      // bus.  when zero devices are present use pinReset() to power cycle
+      // devices attached to th4 RST pin then attempt another discover.
+      pinReset();
+
+      // don't wait the entire configured discover frequency since we're
+      // possibly in an error state.
+
+      next_discover = next_discover / 10;
     }
 
     // we want to discover
     saveTaskLastWake(TASK_DISCOVER);
-    taskDelayUntil(TASK_DISCOVER, _discover_frequency);
+    taskDelayUntil(TASK_DISCOVER, next_discover);
   }
 }
 
@@ -365,10 +375,11 @@ bool I2c::installDriver() {
 }
 
 bool I2c::pinReset() {
+  auto rnd_delay = (esp_random() % 2000) + 1000;
   gpio_set_level(RST_PIN, 0); // pull the pin low to reset i2c devices
   delay(250);                 // give plenty of time for all devices to reset
   gpio_set_level(RST_PIN, 1); // bring all devices online
-  delay(1000);                // give time for devices to initialize
+  delay(rnd_delay);           // give time for devices to initialize
 
   return true;
 }
