@@ -39,9 +39,9 @@ public:
     copySafe(str);
   }
 
+  void calcSize() { size_ = strlen_s(buff_); }
   size_t capacity() const { return CAP; }
   void clear() { bzero(buff_, CAP); }
-
   int compare(const char *str) const { return strncmp(buff_, str, CAP); }
 
   const char *c_str() const { return buff_; }

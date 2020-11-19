@@ -39,7 +39,8 @@ void Startup::populateJSON(JsonDocument &doc) {
 
   Remote::populateJSON(doc);
 
-  esp_ota_get_app_elf_sha256(sha256.data(), sha256.capacity());
+  auto size = esp_ota_get_app_elf_sha256(sha256.data(), sha256.capacity());
+  sha256.forceSize(size);
 
   doc["app_elf_sha256"] = sha256.c_str();
   doc["build_time"] = app_desc_->time;

@@ -49,6 +49,7 @@ protected:
 
 private:
   wifi_ap_record_t ap_;
+  TextBuffer<17> bssid_;
   esp_err_t ap_rc_;
   uint32_t batt_mv_;
   uint32_t heap_free_;
