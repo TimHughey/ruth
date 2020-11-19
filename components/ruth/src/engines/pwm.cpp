@@ -101,7 +101,7 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
   }
 
   bool ack = doc["ack"] | true;
-  const string_t refid = doc["refid"];
+  const RefID_t refid = doc["refid"].as<const char *>();
   commandAck(dev, ack, refid, set_rc);
 
   return set_rc;

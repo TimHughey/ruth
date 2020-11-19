@@ -17,6 +17,7 @@
 #include <time.h>
 
 #include "local/types.hpp"
+#include "misc/textbuffer.hpp"
 
 namespace ruth {
 
@@ -31,17 +32,17 @@ public:
 
   // hostname and mac address
   static const char *hostname() { return _instance_()->name_.c_str(); }
-  static const string_t &hostID();
+  static const char *hostID();
   static void setName(const char *name);
-  static const string_t &macAddress();
+  static const char *macAddress();
 
-  static const char *dnsIP() { return _instance_()->dns_str_; };
+  //  static const char *dnsIP() { return _instance_()->dns_str_; };
 
   static const char *ca_start() { return (const char *)_ca_start_; };
   static const uint8_t *ca_end() { return _ca_end_; };
 
-  static void resumeNormalOps();
-  static void suspendNormalOps();
+  // static void resumeNormalOps();
+  // static void suspendNormalOps();
   static bool waitForConnection(uint32_t wait_ms = UINT32_MAX);
   static bool waitForInitialization(uint32_t wait_ms = UINT32_MAX);
   static bool waitForIP(uint32_t wait_ms = 60000);
@@ -99,11 +100,13 @@ private:
   EventGroupHandle_t evg_;
   esp_err_t init_rc_ = ESP_FAIL;
   esp_netif_t *netif_ = nullptr;
-  esp_netif_ip_info_t ip_info_;
-  esp_netif_dns_info_t primary_dns_;
-  char dns_str_[16] = {};
+  // esp_netif_ip_info_t ip_info_;
+  // esp_netif_dns_info_t primary_dns_;
+  // char dns_str_[16] = {};
 
-  string_t name_ = "ruth-";
+  TextBuffer<20> mac_;
+  TextBuffer<25> host_id_;
+  TextBuffer<35> name_;
   bool reconnect_ = true;
 
   static const uint8_t _ca_start_[] asm("_binary_ca_pem_start");

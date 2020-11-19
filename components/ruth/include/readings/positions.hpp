@@ -42,7 +42,7 @@ private:
 
 public:
   // undefined reading
-  Positions(const string_t &id, uint32_t states, uint32_t pios);
+  Positions(const char *id, uint32_t states, uint32_t pios);
   uint32_t state() { return _states; }
 
 protected:

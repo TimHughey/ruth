@@ -34,8 +34,6 @@ using std::vector;
 typedef class DeviceAddress DeviceAddress_t;
 
 class DeviceAddress {
-private:
-  vector<uint8_t> _bytes;
 
 public:
   DeviceAddress(){};
@@ -64,6 +62,7 @@ public:
   const unique_ptr<char[]> debug() const;
 
 private:
+  vector<uint8_t> _bytes;
 };
 } // namespace ruth
 

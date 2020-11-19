@@ -18,21 +18,13 @@
     https://www.wisslanding.com
 */
 
-#include <algorithm>
-#include <memory>
-#include <string>
-
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <sys/time.h>
-#include <time.h>
 
-#include "devs/base/base.hpp"
 #include "devs/pwm/cmds/basic.hpp"
 #include "devs/pwm/cmds/random.hpp"
 #include "devs/pwm/pwm.hpp"
-#include "local/types.hpp"
 #include "net/network.hpp"
 
 using std::move;
@@ -72,16 +64,7 @@ PwmDevice::PwmDevice(DeviceAddress_t &num) : Device(num) {
 };
 
 void PwmDevice::makeID() {
-  vector<char> buffer;
-
-  buffer.reserve(maxIdLen());
-
-  auto length = snprintf(buffer.data(), buffer.capacity(), "pwm/%s.%s",
-                         Net::hostname(), PwmDeviceDesc(firstAddressByte()));
-
-  const string_t id(buffer.data(), length);
-
-  setID(move(id));
+  setID("pwm/%s.%s", Net::hostname(), PwmDeviceDesc(firstAddressByte()));
 }
 
 void PwmDevice::configureChannel() {
@@ -163,7 +146,7 @@ bool PwmDevice::updateDuty(uint32_t new_duty) {
 //
 
 Command_t *PwmDevice::cmdCreate(JsonObject &cmd_obj) {
-  string_t type = cmd_obj["type"];
+  TextBuffer<15> type = cmd_obj["type"].as<const char *>();
   Command_t *cmd = nullptr;
 
   if (type.compare("basic") == 0) {
@@ -242,8 +225,8 @@ const unique_ptr<char[]> PwmDevice::debug() {
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
   snprintf(debug_str.get(), max_len,
-           "PwmDevice(%s duty=%d channel=%d pin=%d last_rc=%s)", id().c_str(),
-           _duty, _ledc_channel.channel, _gpio_pin, esp_err_to_name(_last_rc));
+           "PwmDevice(%s duty=%d channel=%d pin=%d last_rc=%s)", id(), _duty,
+           _ledc_channel.channel, _gpio_pin, esp_err_to_name(_last_rc));
 
   return move(debug_str);
 }

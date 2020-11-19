@@ -35,17 +35,13 @@
 #include <sdkconfig.h>
 
 #include "core/binder.hpp"
+#include "misc/textbuffer.hpp"
 #include "protocols/payload.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {
 
 using namespace reading;
-
-typedef struct {
-  size_t len = 0;
-  string_t *data = nullptr;
-} mqttOutMsg_t;
 
 typedef class MQTT MQTT_t;
 class MQTT {
@@ -87,20 +83,18 @@ private:
 private:
   // private member variables
   esp_mqtt_client_config_t mqtt_cfg;
-  string_t _client_id;
+  TextBuffer<24> _client_id;
 
   // NOTES:
   //   1. final feeds are built in the constructor
   //   2. feeds are always prefixed by the environment
   //   3. should include the actual host ID
   //   4. end with the corresponding suffix
-  string_t _feed_prefix;
+  TextBuffer<4> _feed_prefix;
 
   // NOTE:  _feed_host is replacing _feed_cmd
-  string_t _feed_host_suffix = "/#";
-  string_t _feed_rpt_prefix = "r/";
-  string_t _feed_host;
-  string_t _feed_rpt;
+  TextBuffer<30> _feed_rpt;
+  TextBuffer<30> _feed_host;
 
   bool _run_core = true;
   Task_t _task = {.handle = nullptr,

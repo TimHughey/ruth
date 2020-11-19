@@ -24,6 +24,8 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "textbuffer.hpp"
+
 namespace ruth {
 
 typedef class DateTime DateTime_t;
@@ -31,11 +33,10 @@ typedef class DateTime DateTime_t;
 class DateTime {
 public:
   DateTime(time_t t = 0);
-  const char *get() const { return buffer_; };
+  const char *get() const { return buffer_.c_str(); };
 
 private:
-  static const int buffer_len_ = 34;
-  char buffer_[buffer_len_];
+  TextBuffer<25> buffer_;
 };
 } // namespace ruth
 

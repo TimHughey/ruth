@@ -18,17 +18,7 @@
      https://www.wisslanding.com
  */
 
-#include <cstdlib>
-#include <memory>
-#include <string>
-
-#include <sys/time.h>
-#include <time.h>
-
-#include "devs/base/addr.hpp"
 #include "devs/base/base.hpp"
-#include "local/types.hpp"
-#include "readings/readings.hpp"
 
 namespace ruth {
 
@@ -37,11 +27,6 @@ using std::unique_ptr;
 
 // construct a new Device with only an address
 Device::Device(const DeviceAddress_t &addr) : _addr(addr) {}
-
-Device::Device(const string_t &id, const DeviceAddress_t &addr)
-    : _id(id), _addr(addr) {
-  // copy id and addr objects
-}
 
 // base class will handle deleteing the reading, if needed
 Device::~Device() {
@@ -66,9 +51,12 @@ bool Device::justSeen(bool rc) {
   return rc;
 }
 
-void Device::setID(const string_t &new_id) {
-  _id = new_id;
-  _id.shrink_to_fit();
+void Device::setID(const char *format, ...) {
+  va_list arglist;
+
+  va_start(arglist, format);
+  _id.printf(format, arglist);
+  va_end(arglist);
 }
 
 // updaters
@@ -157,7 +145,7 @@ const unique_ptr<char[]> Device::debug() {
   char *str = debug_str.get();
 
   snprintf(str, max_len, "Device \"%s\" id=\"%s\" desc=\"%s\"",
-           _addr.debug().get(), id().c_str(), description().c_str());
+           _addr.debug().get(), id(), description());
 
   return move(debug_str);
 }

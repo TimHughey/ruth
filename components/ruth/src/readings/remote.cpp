@@ -30,7 +30,6 @@
 namespace ruth {
 namespace reading {
 Remote::Remote(uint32_t batt_mv) : Reading(REMOTE), batt_mv_(batt_mv) {
-
   grabMetrics();
 };
 
@@ -41,12 +40,11 @@ Remote::Remote(ReadingType_t type, uint32_t batt_mv)
 }
 
 void Remote::populateJSON(JsonDocument &doc) {
-  char bssid_str[] = "xx:xx:xx:xx:xx:xx";
-  snprintf(bssid_str, sizeof(bssid_str), "%02x:%02x:%02x:%02x:%02x:%02x",
-           ap_.bssid[0], ap_.bssid[1], ap_.bssid[2], ap_.bssid[3], ap_.bssid[4],
-           ap_.bssid[5]);
+  TextBuffer<17> bssid;
+  bssid.printf("%02x:%02x:%02x:%02x:%02x:%02x", ap_.bssid[0], ap_.bssid[1],
+               ap_.bssid[2], ap_.bssid[3], ap_.bssid[4], ap_.bssid[5]);
 
-  doc["bssid"] = bssid_str;
+  doc["bssid"] = bssid.c_str();
   doc["ap_rssi"] = ap_.rssi;
   doc["ap_pri_chan"] = ap_.primary;
   doc["batt_mv"] = batt_mv_;

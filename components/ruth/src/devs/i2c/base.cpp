@@ -1,5 +1,5 @@
 /*
-    i2c_dev.cpp - Ruth I2C Device
+    devs/i2c/base.cpp - Ruth I2C Device
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,18 +18,11 @@
     https://www.wisslanding.com
 */
 
-#include <memory>
-#include <string>
-
 #include <driver/i2c.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
-#include <sys/time.h>
-#include <time.h>
 
-#include "devs/base/base.hpp"
 #include "devs/i2c/base.hpp"
-#include "local/types.hpp"
 #include "net/network.hpp"
 
 using std::move;
@@ -129,22 +122,14 @@ void I2cDevice::checkForTimeout() {
     _timeouts++;
 
     if (_timeouts > _timeouts_max) {
-      Text::rlog("device \"%s\" timeout, total[%ld]", id().c_str(), _timeouts);
+      Text::rlog("device \"%s\" timeout, total[%ld]", id(), _timeouts);
     }
   }
 }
 
 void I2cDevice::makeID() {
-  vector<char> buffer;
-
-  buffer.reserve(maxIdLen());
-
-  auto length = snprintf(buffer.data(), buffer.capacity(), "i2c/%s.%02x.%s",
-                         Net::hostname(), this->bus(), description());
-
-  const string_t id(buffer.data(), length);
-
-  setID(move(id));
+  // i2c/test-with-devs.00.sht31
+  setID("i2c/%s.%02x.%s", Net::hostname(), this->bus(), description());
 }
 
 // placed in .cpp file due to required esp i2c definitions
@@ -222,8 +207,7 @@ const unique_ptr<char[]> I2cDevice::debug() {
   const auto max_len = 127;
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
-  snprintf(debug_str.get(), max_len, "I2cDevice(%s bus=%d)", id().c_str(),
-           _bus);
+  snprintf(debug_str.get(), max_len, "I2cDevice(%s bus=%d)", id(), _bus);
 
   return move(debug_str);
 }

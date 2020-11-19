@@ -38,8 +38,7 @@ Command::Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj)
 
   // grab a const char * to the name so we can make a local copy.
   // REMINDER we must always make a local copy of data from the JsonDocument
-  const char *name_str = obj["name"];
-  _name.assign(name_str);
+  _name = obj["name"].as<const char *>();
 
   // grab the task handle of the caller to use for later task notifications
   _parent = xTaskGetCurrentTaskHandle();
@@ -84,7 +83,7 @@ void Command::pause(uint32_t ms) {
 
   if (_notify_val > 0) {
     _run = false;
-    Text::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name_cstr(), pin(),
+    Text::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name().c_str(), pin(),
                _notify_val);
   }
 }
@@ -110,10 +109,10 @@ void Command::kill() {
   TaskHandle_t to_delete = _task.handle;
   _task.handle = nullptr;
 
-  auto stack_hw = uxTaskGetStackHighWaterMark(nullptr);
+  auto stack_hw = uxTaskGetStackHighWaterMark(to_delete);
 
-  Text::rlog("killing cmd \"%s\" notify=%ld handle=%p stack_hw=%d", name_cstr(),
-             _notify_val, to_delete, stack_hw);
+  Text::rlog("killing cmd \"%s\" notify=%ld handle=%p stack_hw=%d",
+             name().c_str(), _notify_val, to_delete, stack_hw);
 
   // inform FreeRTOS to remove this task from the scheduler
   vTaskDelete(to_delete);

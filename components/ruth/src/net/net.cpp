@@ -35,12 +35,13 @@ static Net_t *__singleton__ = nullptr;
 Net::Net() { evg_ = xEventGroupCreate(); }
 
 void Net::acquiredIP(void *event_data) {
-  esp_netif_get_ip_info(netif_, &ip_info_);
-  esp_netif_get_dns_info(netif_, ESP_NETIF_DNS_MAIN, &primary_dns_);
-
-  auto *dns_ip = (uint8_t *)&(primary_dns_.ip);
-  snprintf(dns_str_, sizeof(dns_str_), IPSTR, dns_ip[0], dns_ip[1], dns_ip[2],
-           dns_ip[3]);
+  // esp_netif_get_ip_info(netif_, &ip_info_);
+  // esp_netif_get_dns_info(netif_, ESP_NETIF_DNS_MAIN, &primary_dns_);
+  //
+  // auto *dns_ip = (uint8_t *)&(primary_dns_.ip);
+  // snprintf(dns_str_, sizeof(dns_str_), IPSTR, dns_ip[0], dns_ip[1],
+  // dns_ip[2],
+  //          dns_ip[3]);
 
   xEventGroupSetBits(evg_, ipBit());
 }
@@ -106,7 +107,7 @@ void Net::wifi_events(void *ctx, esp_event_base_t base, int32_t id,
 
   switch (id) {
   case WIFI_EVENT_STA_START:
-    esp_netif_set_hostname(_instance_()->netif_, Net::hostID().c_str());
+    esp_netif_set_hostname(_instance_()->netif_, Net::hostID());
     esp_wifi_connect();
     break;
 
@@ -212,42 +213,30 @@ void Net::ensureTimeIsSet() {
   }
 }
 
-const string_t &Net::hostID() {
-  static string_t _host_id;
+const char *Net::hostID() {
+  static TextBuffer<20> _host_id;
 
   if (_host_id.length() == 0) {
-    _host_id = "ruth.";
-    _host_id += macAddress();
+    _host_id.printf("ruth.%s", macAddress());
   }
 
-  return _host_id;
+  return _host_id.c_str();
 }
 
-const string_t &Net::macAddress() {
-  static string_t _mac;
-
+const char *Net::macAddress() {
   // must wait for initialization of wifi before providing mac address
   waitForInitialization();
 
-  if (_mac.length() == 0) {
-    unique_ptr<char[]> buf(new char[24]);
+  if (_instance_()->mac_.empty()) {
     uint8_t mac[6] = {};
 
     esp_wifi_get_mac(WIFI_IF_STA, mac);
 
-    sprintf(buf.get(), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2],
-            mac[3], mac[4], mac[5]);
-
-    // bytes << std::hex << std::setfill('0');
-    // for (int i = 0; i <= 5; i++) {
-    //   bytes << std::setw(sizeof(uint8_t) * 2) <<
-    //   static_cast<unsigned>(mac[i]);
-    // }
-    //
-    _mac = buf.get();
+    _instance_()->mac_.printf("%02x%02x%02x%02x%02x%02x", mac[0], mac[1],
+                              mac[2], mac[3], mac[4], mac[5]);
   }
 
-  return _mac;
+  return _instance_()->mac_.c_str();
 };
 
 void Net::setName(const char *name) {
@@ -295,7 +284,7 @@ bool Net::_start_() {
   xEventGroupSetBits(evg_, initializedBit());
 
   // finish constructing our initial hostname
-  name_.append(macAddress());
+  name_.printf("ruth-%s", macAddress());
 
   esp_wifi_start();
   StatusLED::brighter();
@@ -319,14 +308,6 @@ bool Net::_start_() {
   }
 
   return true;
-}
-
-void Net::resumeNormalOps() {
-  xEventGroupSetBits(_instance_()->eventGroup(), Net::normalOpsBit());
-}
-
-void Net::suspendNormalOps() {
-  xEventGroupClearBits(_instance_()->eventGroup(), Net::normalOpsBit());
 }
 
 // wait_ms defaults to UINT32_MAX

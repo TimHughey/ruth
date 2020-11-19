@@ -18,20 +18,7 @@
     https://www.wisslanding.com
 */
 
-#include <cstdlib>
-#include <cstring>
-#include <string>
-
-#include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <sys/time.h>
-#include <time.h>
-
-#include "devs/base/addr.hpp"
-#include "devs/base/base.hpp"
 #include "devs/ds/dev.hpp"
-#include "drivers/owb.h"
-#include "local/types.hpp"
 
 namespace ruth {
 
@@ -47,33 +34,21 @@ DsDevice::DsDevice(DeviceAddress_t &addr, bool power) : Device(addr) {
 };
 
 void DsDevice::makeID() {
-  vector<char> buffer;
-
-  buffer.reserve(maxIdLen());
-
-  auto addr = address();
-
   //                 00000000001111111
   //       byte num: 01234567890123456
   //     exmaple id: ds/28ffa442711604
   // format of name: ds/famil code + 48-bit serial (without the crc)
   //      total len: 18 bytes (id + string terminator)
-  auto length = snprintf(buffer.data(), buffer.capacity(),
-                         "ds/%02x%02x%02x%02x%02x%02x%02x",
-                         addr[0],                    // byte 0: family code
-                         addr[1], addr[2], addr[3],  // byte 1-3: serial number
-                         addr[4], addr[5], addr[6]); // byte 4-6: serial number
-
-  const string_t id(buffer.data(), length);
-
-  setID(move(id));
+  auto addr = address();
+  setID("ds/%02x%02x%02x%02x%02x%02x%02x", addr[0], // byte 0: family code
+        addr[1], addr[2], addr[3],                  // byte 1-3: serial number
+        addr[4], addr[5], addr[6]);                 // byte 4-6: serial number
 }
 
-uint8_t DsDevice::family() { return firstAddressByte(); };
+uint8_t DsDevice::family() const { return firstAddressByte(); };
 uint8_t DsDevice::crc() { return lastAddressByte(); };
 void DsDevice::copyAddrToCmd(uint8_t *cmd) {
   memcpy((cmd + 1), (uint8_t *)addrBytes(), address().size());
-  // *(cmd + 1) = addr().firstAddressByte();
 }
 
 bool DsDevice::isPowered() { return _power; };
@@ -109,42 +84,32 @@ bool DsDevice::isDS2438() {
 
 bool DsDevice::hasTemperature() { return isDS1820(); }
 
-const string_t &DsDevice::familyDescription() {
+const char *DsDevice::familyDescription() const {
   return familyDescription(family());
 }
 
-const string_t &DsDevice::familyDescription(uint8_t family) {
-  static string_t desc;
-
+const char *DsDevice::familyDescription(uint8_t family) const {
   switch (family) {
   case 0x10:
   case 0x22:
   case 0x28:
-    desc = string_t("ds1820");
-    break;
+    return "ds1820";
 
   case 0x29:
-    desc = string_t("ds2408");
-    break;
+    return "ds2408";
 
   case 0x12:
-    desc = string_t("ds2406");
-    break;
+    return "ds2406";
 
   case 0x3a:
-    desc = string_t("ds2413");
-    break;
+    return "ds2413";
 
   case 0x26:
-    desc = string_t("ds2438");
-    break;
+    return "ds2438";
 
   default:
-    desc = string_t("dsUNDEF");
-    break;
+    return "dsXXXX";
   }
-
-  return desc;
 };
 
 void DsDevice::logPresenceFailed() {}
@@ -154,7 +119,7 @@ const unique_ptr<char[]> DsDevice::debug() {
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
   snprintf(debug_str.get(), max_len, "DsDevice(family=%s %s)",
-           familyDescription().c_str(), address().debug().get());
+           familyDescription(), address().debug().get());
 
   return move(debug_str);
 }

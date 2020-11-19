@@ -48,8 +48,6 @@ typedef struct {
   UBaseType_t stackSize;
 } Task_t;
 
-typedef string_t RefID_t;
-
 typedef std::vector<char> RawMsg_t;
 
 } // namespace ruth

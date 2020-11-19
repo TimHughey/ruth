@@ -26,8 +26,12 @@ DateTime::DateTime(time_t t) {
   time_t mtime = (t == 0) ? time(nullptr) : t;
 
   struct tm timeinfo = {};
-
   localtime_r(&mtime, &timeinfo);
-  strftime(buffer_, buffer_len_, "%c", &timeinfo);
+
+  auto size = strftime(buffer_.data(), buffer_.capacity(), "%c", &timeinfo);
+
+  buffer_.forceSize(size);
+
+  // Thu Nov 19 09:36:04 2020
 }
 } // namespace ruth

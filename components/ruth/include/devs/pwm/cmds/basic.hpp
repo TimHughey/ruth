@@ -53,8 +53,8 @@ private:
   void _loop();
 
 private:
-  vector<Step_t *> _steps = {}; // the actual steps
-  bool _repeat = false;         // should cmd repeat or execute once?
+  vector<Step_t> _steps = {}; // the actual steps
+  bool _repeat = false;       // should cmd repeat or execute once?
 };
 
 } // namespace pwm

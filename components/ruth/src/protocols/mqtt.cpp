@@ -61,10 +61,11 @@ static MQTT *_instance_ = nullptr;
 // SINGLETON! constructor is private
 MQTT::MQTT() {
   // create the report and command feed topics
-  _feed_prefix = Binder::env();
-  _feed_prefix.push_back('/');
-  _feed_rpt = _feed_prefix + _feed_rpt_prefix + Net::hostID();
-  _feed_host = _feed_prefix + Net::hostID() + _feed_host_suffix;
+  // examples:
+  //   a. feed report: prod/r/ruth-xxxxxxxxxxxx
+  //   b. feed host: prod/r/ruth-xxxxxxxxxxxx/#
+  _feed_rpt.printf("%s/r/%s", Binder::env(), Net::hostID());
+  _feed_host.printf("%s/%s/#", Binder::env(), Net::hostID());
 
   ESP_LOGV(TAG, "reporting to feed[%s]", _feed_rpt.c_str());
 }
@@ -178,24 +179,6 @@ void MQTT::incomingMsg(esp_mqtt_event_t *event) {
   handlePayload(move(payload_ptr));
 }
 
-void MQTT::publishMsg(string_t *msg) {
-  if (_connection) {
-
-    _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(),
-                                      msg->data(), msg->size(), 0, false);
-
-    // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
-    if (_msg_id < 0) {
-      // pass a nullptr for the message so Restart doesn't attempt to publish
-      Restart::restart(nullptr, __PRETTY_FUNCTION__);
-    }
-
-    _msg_max_size = max(msg->size(), _msg_max_size);
-  }
-
-  delete msg;
-}
-
 void MQTT::core(void *data) {
   esp_mqtt_client_config_t opts = {};
 
@@ -206,7 +189,7 @@ void MQTT::core(void *data) {
 
   // build the client id once
   if (_client_id.empty()) {
-    _client_id = "ruth-" + Net::macAddress();
+    _client_id.printf("ruth.%s", Net::macAddress());
   }
 
   opts.uri = Binder::mqttUri();
@@ -404,7 +387,7 @@ void MQTT::shutdown() {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
-  // ok, the MQTT task has cleanly closed it's connections
+  // ok, MQTT task has cleanly closed it's connections
 
   // vTaskDelete removes the task from the scheduler.
   // so we must call mg_mgr_free() before
@@ -465,6 +448,24 @@ void MQTT::publish(unique_ptr<Reading_t> reading) {
   if (_instance_) {
     _instance_->publishMsg(reading->json());
   };
+}
+
+void MQTT::publishMsg(string_t *msg) {
+  if (_connection) {
+
+    _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(),
+                                      msg->data(), msg->size(), 0, false);
+
+    // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
+    if (_msg_id < 0) {
+      // pass a nullptr for the message so Restart doesn't attempt to publish
+      Restart::restart(nullptr, __PRETTY_FUNCTION__);
+    }
+
+    _msg_max_size = max(msg->size(), _msg_max_size);
+  }
+
+  delete msg;
 }
 
 TaskHandle_t MQTT::taskHandle() {

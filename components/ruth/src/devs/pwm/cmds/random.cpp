@@ -65,7 +65,7 @@ Random::~Random() {
 
 void Random::_loop() {
 
-  Text::rlog("cmd \"%s\" started on %s handle=%p", name_cstr(), pin(),
+  Text::rlog("cmd \"%s\" started on %s handle=%p", name().c_str(), pin(),
              taskHandle());
 
   // pick a random starting point

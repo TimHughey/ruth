@@ -1,5 +1,6 @@
 /*
-    Device.h - Ruth Common Device for Engines
+    devs/base.hpp
+    Ruth Common Device for Engines
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -22,17 +23,14 @@
 #define _ruth_device_hpp
 
 #include <cstdlib>
-#include <memory>
-#include <string>
-
-// #include <freertos/FreeRTOS.h>
+#include <stdarg.h>
 #include <sys/time.h>
 #include <time.h>
 
 #include "devs/base/addr.hpp"
-#include "external/ArduinoJson.h"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
+#include "misc/textbuffer.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {
@@ -46,8 +44,6 @@ public:
   Device() {} // all values are defaulted in definition of class(es)
 
   Device(const DeviceAddress_t &addr);
-  Device(const string_t &id, const DeviceAddress_t &addr);
-  // Device(const Device_t &dev); // copy constructor
   virtual ~Device(); // base class will handle deleting the reading, if needed
 
   const DeviceAddress_t &address() const;
@@ -65,13 +61,13 @@ public:
 
   static size_t maxIdLen() { return 63; }
   virtual void makeID() = 0;
-  void setID(const string_t &new_id);
-  const string_t &id() const { return _id; };
+  bool matchID(const char *id) const { return _id == id; }
+  void setID(const char *format, ...);
+  const char *id() const { return _id.c_str(); };
 
   // description of device
-  void setDescription(const string_t &desc) { _desc = desc; };
   void setDescription(const char *desc) { _desc = desc; };
-  const string_t &description() const { return _desc; };
+  const char *description() const { return _desc.c_str(); };
 
   void setReading(Reading_t *reading);
   void setReadingCmdAck(uint32_t latency_us, const RefID_t &refid);
@@ -85,9 +81,7 @@ public:
   void writeStart();
   uint64_t writeStop();
 
-  void setMissingSeconds(uint32_t missing_secs) {
-    _missing_secs = missing_secs;
-  };
+  void setMissingSeconds(uint32_t secs) { _missing_secs = secs; };
   bool available() const;
   bool missing() const;
 
@@ -104,9 +98,9 @@ public:
   virtual const unique_ptr<char[]> debug();
 
 private:
-  string_t _id;          // unique identifier of this device
+  TextBuffer<40> _id;    // unique identifier of this device
   DeviceAddress_t _addr; // address of this device
-  string_t _desc;
+  TextBuffer<15> _desc;
 
 protected:
   Reading_t *_reading = nullptr;

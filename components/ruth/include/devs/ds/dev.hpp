@@ -42,8 +42,8 @@ private:
 
   bool _power = false; // is the device powered?
 
-  const string_t &familyDescription(uint8_t family);
-  const string_t &familyDescription();
+  const char *familyDescription(uint8_t family) const;
+  const char *familyDescription() const;
 
 public:
   DsDevice();
@@ -51,7 +51,7 @@ public:
 
   void makeID();
 
-  uint8_t family();
+  uint8_t family() const;
   uint8_t crc();
   void copyAddrToCmd(uint8_t *cmd);
   bool isPowered();

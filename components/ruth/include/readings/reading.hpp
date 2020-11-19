@@ -30,12 +30,15 @@
 
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
+#include "misc/textbuffer.hpp"
 
 namespace ruth {
 namespace reading {
 
 typedef class Reading Reading_t;
 typedef std::unique_ptr<Reading_t> Reading_ptr_t;
+
+typedef TextBuffer<40> RefID_t; // e.g. eaa7c7fa-361a-4d07-a7fc-fe9681636b36
 
 class Reading {
 protected:
@@ -51,7 +54,7 @@ protected:
 
 public:
   Reading(ReadingType_t type) : _type(type){};
-  Reading(const string_t &id, ReadingType_t type) : _id(id), _type(type){};
+  Reading(const char *id, ReadingType_t type) : _id(id), _type(type){};
 
   virtual ~Reading() {
     if (_json != nullptr) {
@@ -69,12 +72,12 @@ public:
     _refid = refid;
   }
 
-  void setCmdAck(uint32_t latency_us, const char *refid) {
-    _cmd_ack = true;
-    _latency_us = latency_us;
-
-    _refid = refid;
-  }
+  // void setCmdAck(uint32_t latency_us, const char *refid) {
+  //   _cmd_ack = true;
+  //   _latency_us = latency_us;
+  //
+  //   _refid = refid;
+  // }
 
   void setCRCMismatches(int crc_mismatches) {
     _crc_mismatches = crc_mismatches;
@@ -95,7 +98,7 @@ public:
 
 private:
   // reading metadata (id, measured time and type)
-  string_t _id;
+  TextBuffer<45> _id;
   time_t _mtime = time(nullptr); // time the reading was measureed
 
   // tracking info

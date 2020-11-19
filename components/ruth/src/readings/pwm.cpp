@@ -28,8 +28,7 @@
 namespace ruth {
 namespace reading {
 
-Pwm::Pwm(const string_t &id, uint32_t duty_max, uint32_t duty_min,
-         uint32_t duty)
+Pwm::Pwm(const char *id, uint32_t duty_max, uint32_t duty_min, uint32_t duty)
     : Reading(id, PWM) {
   duty_max_ = duty_max;
   duty_min_ = duty_min;

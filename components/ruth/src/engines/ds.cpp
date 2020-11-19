@@ -20,8 +20,6 @@
 
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>
-#include <string>
 
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -35,7 +33,6 @@
 namespace ruth {
 
 DallasSemi_t *__singleton__ = nullptr;
-static const string_t engine_name = "DalSemi";
 
 // command document capacity for expected metadata and up to eight pio states
 const size_t _capacity =
@@ -114,17 +111,17 @@ void DallasSemi::command(void *data) {
 
       continue;
     }
-    string_t device = doc["device"] | "missing";
+    const char *device = doc["device"] | "missing";
     DsDevice_t *dev = findDevice(device);
 
     if (dev == nullptr) {
-      Text::rlog("[DalSemi] could not find device \"%s\"", device.c_str());
+      Text::rlog("[DalSemi] could not find device \"%s\"", device);
 
       continue;
     }
 
     bool ack = doc["ack"];
-    const RefID_t refid = doc["refid"];
+    const RefID_t refid = doc["refid"].as<const char *>();
     uint32_t cmd_mask = 0x00;
     uint32_t cmd_state = 0x00;
 
@@ -521,8 +518,7 @@ bool DallasSemi::readDS1820(DsDevice_t *dev, Sensor_t **reading) {
 
   if (owb_s != OWB_STATUS_OK) {
 
-    Text::rlog("device \"%s\" read failure owb_s=\"%d\"", dev->id().c_str(),
-               owb_s);
+    Text::rlog("device \"%s\" read failure owb_s=\"%d\"", dev->id(), owb_s);
 
     return rc;
   }
@@ -555,7 +551,7 @@ bool DallasSemi::readDS1820(DsDevice_t *dev, Sensor_t **reading) {
 
   if (crc8 != 0x00) {
 
-    Text::rlog("device \"%s\" failed crc8=\"0x%02x\"", dev->id().c_str(), crc8);
+    Text::rlog("device \"%s\" failed crc8=\"0x%02x\"", dev->id(), crc8);
 
     return rc;
   }
@@ -590,8 +586,7 @@ bool DallasSemi::readDS2406(DsDevice_t *dev, Positions_t **reading) {
 
   if (owb_s != OWB_STATUS_OK) {
 
-    Text::rlog("device \"%s\" cmd failure owb_s=\"%d\"", dev->id().c_str(),
-               owb_s);
+    Text::rlog("device \"%s\" cmd failure owb_s=\"%d\"", dev->id(), owb_s);
 
     return rc;
   }
@@ -603,8 +598,7 @@ bool DallasSemi::readDS2406(DsDevice_t *dev, Positions_t **reading) {
 
   if (owb_s != OWB_STATUS_OK) {
 
-    Text::rlog("device \"%s\" read failure owb_s=\"%d\"", dev->id().c_str(),
-               owb_s);
+    Text::rlog("device \"%s\" read failure owb_s=\"%d\"", dev->id(), owb_s);
 
     return rc;
   }
@@ -666,7 +660,7 @@ bool DallasSemi::readDS2408(DsDevice_t *dev, Positions_t **reading) {
   if (owb_s != OWB_STATUS_OK) {
 
     Text::rlog("device \"%s\" failed to read cmd result owb_s=\"%d\"",
-               dev->id().c_str(), owb_s);
+               dev->id(), owb_s);
 
     return rc;
   }
@@ -680,8 +674,7 @@ bool DallasSemi::readDS2408(DsDevice_t *dev, Positions_t **reading) {
 
   if (!crc16) {
 
-    Text::rlog("device \"%s\" failed crc16=\"0x%02x\"", dev->id().c_str(),
-               crc16);
+    Text::rlog("device \"%s\" failed crc16=\"0x%02x\"", dev->id(), crc16);
 
     return rc;
   }
@@ -718,8 +711,7 @@ bool DallasSemi::readDS2413(DsDevice_t *dev, Positions_t **reading) {
   if (owb_s != OWB_STATUS_OK) {
     dev->readStop();
 
-    Text::rlog("device \"%s\" cmd failure owb_s=\"%d\"", dev->id().c_str(),
-               owb_s);
+    Text::rlog("device \"%s\" cmd failure owb_s=\"%d\"", dev->id(), owb_s);
 
     return rc;
   }
@@ -740,7 +732,7 @@ bool DallasSemi::readDS2413(DsDevice_t *dev, Positions_t **reading) {
 
     Text::rlog("device \"%s\" state byte0=\"0x%02x\" and byte1=\"0x%02x\" "
                "should match",
-               dev->id().c_str(), buff[0], buff[1]);
+               dev->id(), buff[0], buff[1]);
 
     return rc;
   }
@@ -840,8 +832,8 @@ bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
 
   if (owb_s != OWB_STATUS_OK) {
 
-    Text::rlog("device \"%s\" send read cmd failure owb_s=\"%d\"",
-               dev->id().c_str(), owb_s);
+    Text::rlog("device \"%s\" send read cmd failure owb_s=\"%d\"", dev->id(),
+               owb_s);
 
     return rc;
   }
@@ -853,7 +845,7 @@ bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
   if (owb_s != OWB_STATUS_OK) {
 
     Text::rlog("device \"%s\" failed to read cmd results owb_s=\"%d\"",
-               dev->id().c_str(), owb_s);
+               dev->id(), owb_s);
 
     return rc;
   }
@@ -867,7 +859,7 @@ bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
     if (owb_s != OWB_STATUS_OK) {
 
       Text::rlog("device \"%s\" failed to persist scratchpad owb_s=\"%d\"",
-                 dev->id().c_str(), owb_s);
+                 dev->id(), owb_s);
 
       return rc;
     }
@@ -876,8 +868,7 @@ bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
     rc = true;
   } else {
 
-    Text::rlog("device \"%s\" failed crc16=\"0x%02x\"", dev->id().c_str(),
-               crc16);
+    Text::rlog("device \"%s\" failed crc16=\"0x%02x\"", dev->id(), crc16);
   }
 
   return rc;
@@ -892,7 +883,7 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
   // important because setting the new state relies, in part, on the existing
   // state for the pios not changing
   if (readDevice(dev) == false) {
-    Text::rlog("device \"%s\" read before set failed", dev->id().c_str());
+    Text::rlog("device \"%s\" read before set failed", dev->id());
 
     return rc;
   }
@@ -958,12 +949,12 @@ bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
   } else if (((conf_byte & 0xa0) == 0xa0) || ((conf_byte & 0x0a) == 0x0a)) {
     Text::rlog("device \"%s\" SET OK-PARTIAL conf=\"%02x\" state "
                "req=\"%02x\" dev=\"%02x\"",
-               dev->id().c_str(), conf_byte, new_state, dev_state);
+               dev->id(), conf_byte, new_state, dev_state);
     rc = true;
   } else {
     Text::rlog("device \"%s\" SET FAILED conf=\"%02x\" state req=\"%02x\" "
                "dev=\"%02x\"",
-               dev->id().c_str(), conf_byte, new_state, dev_state);
+               dev->id(), conf_byte, new_state, dev_state);
   }
 
   return rc;
@@ -978,7 +969,7 @@ bool DallasSemi::setDS2413(DsDevice_t *dev, uint32_t cmd_mask,
   // important because setting the new state relies, in part, on the existing
   // state for the pios not changing
   if (readDevice(dev) == false) {
-    Text::rlog("device \"%s\" read before set failed", dev->id().c_str());
+    Text::rlog("device \"%s\" read before set failed", dev->id());
 
     return rc;
   }

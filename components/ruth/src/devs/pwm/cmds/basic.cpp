@@ -41,9 +41,8 @@ Basic::Basic(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd)
     JsonArray steps_obj = basic_obj["steps"];
 
     for (JsonObject step_obj : steps_obj) {
-      Step_t *step = new Step_t(step_obj);
 
-      _steps.push_back(step);
+      _steps.push_back(Step_t(step_obj));
     }
   }
 
@@ -53,23 +52,20 @@ Basic::Basic(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd)
 
 Basic::~Basic() {
   kill(); // kill our process, if we're running
-
-  // free the steps
-  for_each(_steps.begin(), _steps.end(), [this](Step_t *step) { delete step; });
 }
 
 void Basic::_loop() {
 
   do {
-    for_each(_steps.begin(), _steps.end(), [this](Step_t *step) {
+    for_each(_steps.begin(), _steps.end(), [this](const Step_t &step) {
       const ledc_channel_config_t *chan = channel();
 
       const ledc_mode_t mode = chan->speed_mode;
       const ledc_channel_t channel = chan->channel;
 
-      ledc_set_duty_and_update(mode, channel, step->duty(), 0);
+      ledc_set_duty_and_update(mode, channel, step.duty(), 0);
 
-      pause(step->ms());
+      pause(step.ms());
     });
   } while (_repeat && keepRunning());
 }

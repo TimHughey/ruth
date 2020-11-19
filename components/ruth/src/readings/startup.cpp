@@ -35,72 +35,59 @@ Startup::Startup(uint32_t batt_mv) : Remote(BOOT, batt_mv) {
 };
 
 void Startup::populateJSON(JsonDocument &doc) {
-  char sha256[12] = {};
+  TextBuffer<12> sha256;
 
   Remote::populateJSON(doc);
 
-  esp_ota_get_app_elf_sha256(sha256, sizeof(sha256));
+  esp_ota_get_app_elf_sha256(sha256.data(), sha256.capacity());
 
-  doc["app_elf_sha256"] = sha256;
+  doc["app_elf_sha256"] = sha256.c_str();
   doc["build_time"] = app_desc_->time;
   doc["build_date"] = app_desc_->date;
   doc["firmware_vsn"] = app_desc_->version;
   doc["idf_vsn"] = app_desc_->idf_ver;
-  doc["reset_reason"] = reset_reason_.c_str();
+  doc["reset_reason"] = reset_reason_;
 };
 
-const string_t &Startup::decodeResetReason(esp_reset_reason_t reason) {
-  static string_t _reason;
+const char *Startup::decodeResetReason(esp_reset_reason_t reason) {
 
   switch (reason) {
   case ESP_RST_UNKNOWN:
-    _reason = "unknown";
-    break;
+    return "unknown";
 
   case ESP_RST_POWERON:
-    _reason = "power on";
-    break;
+    return "power on";
 
   case ESP_RST_EXT:
-    _reason = "external pin";
-    break;
+    return "external pin";
+
   case ESP_RST_SW:
-    _reason = "esp_restart";
-    break;
+    return "esp_restart";
 
   case ESP_RST_PANIC:
-    _reason = "software panic";
-    break;
+    return "software panic";
 
   case ESP_RST_INT_WDT:
-    _reason = "interrupt watchdog";
-    break;
+    return "interrupt watchdog";
 
   case ESP_RST_TASK_WDT:
-    _reason = "task watchdog";
-    break;
+    return "task watchdog";
 
   case ESP_RST_WDT:
-    _reason = "other watchdog";
-    break;
+    return "other watchdog";
 
   case ESP_RST_DEEPSLEEP:
-    _reason = "exit deep sleep";
-    break;
+    return "exit deep sleep";
 
   case ESP_RST_BROWNOUT:
-    _reason = "brownout";
-    break;
+    return "brownout";
 
   case ESP_RST_SDIO:
-    _reason = "SDIO";
-    break;
+    return "SDIO";
 
   default:
-    _reason = "unknown";
+    return "unknown";
   }
-
-  return _reason;
 }
 } // namespace reading
 } // namespace ruth

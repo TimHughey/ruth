@@ -41,13 +41,13 @@ void Reading::commonJSON(JsonDocument &doc) {
   doc["type"] = typeString(_type);
 
   if (_id.length() > 0) {
-    doc["device"] = _id;
+    doc["device"] = _id.c_str();
   }
 
   if (_cmd_ack) {
     doc["cmdack"] = _cmd_ack;
     doc["latency_us"] = _latency_us;
-    doc["refid"] = _refid;
+    doc["refid"] = _refid.c_str();
   }
 
   if (_log_reading) {
@@ -83,7 +83,7 @@ string_t *Reading::json(char *buffer, size_t len) {
   string_t *json_string = new string_t;
   json_string->reserve(2048);
 
-  DynamicJsonDocument doc(2048);
+  StaticJsonDocument<1024> doc;
 
   commonJSON(doc);
   populateJSON(doc);

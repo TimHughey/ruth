@@ -34,7 +34,6 @@
 #include "engines/task.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
-// #include "misc/nvs.hpp"
 #include "misc/restart.hpp"
 #include "net/network.hpp"
 #include "net/profile/profile.hpp"
@@ -115,8 +114,7 @@ public:
 
     if (numKnownDevices() > maxDevices()) {
 
-      Text::rlog("adding device \"%s\" would exceed max devices",
-                 dev->id().c_str());
+      Text::rlog("adding device \"%s\" would exceed max devices", dev->id());
 
       return rc;
     }
@@ -129,13 +127,13 @@ public:
     return (found == nullptr) ? true : false;
   };
 
-  DEV *findDevice(const string_t &dev) {
+  DEV *findDevice(const char *dev) {
     using std::find_if;
 
     // my first lambda in C++, wow this languge has really evolved
     // since I used it 15+ years ago
     auto found = find_if(_devices.begin(), _devices.end(),
-                         [dev](DEV *search) { return search->id() == dev; });
+                         [dev](DEV *search) { return search->matchID(dev); });
 
     if (found != _devices.end()) {
       return *found;
@@ -153,21 +151,8 @@ public:
   auto knownDevices() -> typename DeviceMap_t::iterator {
     return _devices.begin();
   }
-  // bool endOfDevices(typename DeviceMap_t::iterator it) {
-  //   return it == _devices.end();
-  // };
-
-  // bool moreDevices(typename DeviceMap_t::iterator it) {
-  //   return it != _devices.end();
-  // };
 
   uint32_t numKnownDevices() { return _devices.size(); };
-  // bool isDeviceKnown(const string_t &id) {
-  //   bool rc = false;
-  //
-  //   rc = (findDevice(id) == nullptr ? false : true);
-  //   return rc;
-  // };
 
 protected:
   virtual void convert(void *data) { doNothing(); };
@@ -305,7 +290,7 @@ protected:
   elapsedMicros _cmd_elapsed;
   elapsedMicros _latency_us;
 
-  bool commandAck(DEV *dev, bool ack, const string_t &refid,
+  bool commandAck(DEV *dev, bool ack, const RefID_t &refid,
                   bool set_rc = true) {
     bool rc = false;
 
@@ -449,7 +434,6 @@ private:
   //////
 
 private:
-  string_t _engine_name;
   EngineTypes_t _engine_type;
   TaskMap_t _task_map;
   DeviceMap_t _devices;

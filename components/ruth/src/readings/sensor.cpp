@@ -28,18 +28,18 @@
 namespace ruth {
 namespace reading {
 
-Sensor::Sensor(const string_t &id, float celsius) : Reading(id, SENSOR) {
+Sensor::Sensor(const char *id, float celsius) : Reading(id, SENSOR) {
 
   captureData(celsius);
 };
 
-Sensor::Sensor(const string_t &id, float celsius, float relhum)
+Sensor::Sensor(const char *id, float celsius, float relhum)
     : Reading(id, SENSOR) {
 
   captureData(celsius, relhum);
 };
 
-Sensor::Sensor(const string_t &id, float celsius, int capacitance)
+Sensor::Sensor(const char *id, float celsius, int capacitance)
     : Reading(id, SENSOR) {
 
   captureData(celsius, capacitance);

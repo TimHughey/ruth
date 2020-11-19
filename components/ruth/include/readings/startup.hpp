@@ -37,11 +37,11 @@ typedef class Startup Startup_t;
 class Startup : public Remote {
 private:
   const esp_app_desc_t *app_desc_;
-  string_t reset_reason_;
+  const char *reset_reason_;
 
 public:
   Startup(uint32_t batt_mv);
-  static const string_t &decodeResetReason(esp_reset_reason_t reason);
+  static const char *decodeResetReason(esp_reset_reason_t reason);
 
 protected:
   virtual void populateJSON(JsonDocument &doc);

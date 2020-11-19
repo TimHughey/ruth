@@ -27,7 +27,7 @@
 
 namespace ruth {
 namespace reading {
-Positions::Positions(const string_t &id, uint32_t states, uint32_t pios)
+Positions::Positions(const char *id, uint32_t states, uint32_t pios)
     : Reading(id, SWITCH) {
 
   if (pios <= _max_pios) {

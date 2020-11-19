@@ -40,6 +40,9 @@ typedef class Command Command_t;
 
 class Command {
 public:
+  typedef TextBuffer<25> CmdName_t;
+
+public:
   Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj);
   virtual ~Command();
 
@@ -48,8 +51,7 @@ public:
 
   // member access
   const ledc_channel_config_t *channel() const { return _channel; }
-  const string_t &name() { return _name; }
-  const char *name_cstr() const { return _name.c_str(); }
+  const CmdName_t &name() { return _name; }
 
   const char *pin() const { return _pin; }
 
@@ -72,7 +74,7 @@ protected:
   void useLoopFunction(TaskFunc_t *func) { _loop_func = func; }
 
 private:
-  string_t _name;      // name of this cmd
+  CmdName_t _name;     // name of this cmd
   const char *_pin;    // pwm pin description
   xTaskHandle _parent; // task handle of parent for notification purposes
   ledc_channel_config_t *_channel; // ledc channel to control
@@ -89,7 +91,7 @@ private:
                   .data = nullptr,
                   .lastWake = 0,
                   .priority = 13,
-                  .stackSize = 4096};
+                  .stackSize = 3072};
 
 private:
   void _start_(void *task_data = nullptr) {
@@ -100,8 +102,8 @@ private:
     }
 
     // create the task name
-    string_t task_name = "pwm-";
-    task_name.append(_pin);
+    TextBuffer<25> task_name;
+    task_name.printf("pwm-%s", _pin);
 
     // this (object) is passed as the data to the task creation and is
     // used by the static runEngine method to call the run method

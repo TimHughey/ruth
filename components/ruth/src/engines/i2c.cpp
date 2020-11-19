@@ -18,10 +18,7 @@
       https://www.wisslanding.com
   */
 
-// #define VERBOSE 1
-
 #include <cstdlib>
-#include <string>
 
 #include <driver/i2c.h>
 #include <driver/periph_ctrl.h>
@@ -109,16 +106,16 @@ void I2c::command(void *data) {
       continue;
     }
 
-    string_t device = doc["device"] | "missing";
+    const char *device = doc["device"] | "missing";
     I2cDevice_t *dev = findDevice(device);
 
     if (dev == nullptr) {
-      Text::rlog("[i2c] could not locate device \"%s\"", device.c_str());
+      Text::rlog("[i2c] could not locate device \"%s\"", device);
       continue;
     }
 
     bool ack = doc["ack"];
-    RefID_t refid = doc["refid"];
+    RefID_t refid = doc["refid"].as<const char *>();
     uint32_t cmd_mask = 0x00;
     uint32_t cmd_state = 0x00;
 
@@ -261,7 +258,7 @@ void I2c::report(void *data) {
 
       } else {
         if (dev->missing()) {
-          Text::rlog("device \"%s\" is missing", dev->id().c_str());
+          Text::rlog("device \"%s\" is missing", dev->id());
         }
       }
     });

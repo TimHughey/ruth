@@ -48,9 +48,9 @@ private:
   bool _hasValue[3] = {};
 
 public:
-  Sensor(const string_t &id, float celsius);
-  Sensor(const string_t &id, float celsius, float rel_hum);
-  Sensor(const string_t &id, float celsius, int capacitance);
+  Sensor(const char *id, float celsius);
+  Sensor(const char *id, float celsius, float rel_hum);
+  Sensor(const char *id, float celsius, int capacitance);
 
 protected:
   void populateJSON(JsonDocument &doc);
