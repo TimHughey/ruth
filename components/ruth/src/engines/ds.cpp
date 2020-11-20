@@ -96,7 +96,7 @@ void DallasSemi::command(void *data) {
 
     elapsedMicros parse_elapsed;
     // deserialize the msgpack data
-    DynamicJsonDocument doc(1024);
+    StaticJsonDocument<_capacity> doc;
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
     // we're done with the original payload at this point
