@@ -26,7 +26,6 @@
 
 #include <driver/ledc.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 
 #include "devs/pwm/cmds/step.hpp"
 #include "readings/text.hpp"
@@ -41,6 +40,7 @@ typedef class Command Command_t;
 class Command {
 public:
   typedef TextBuffer<25> CmdName_t;
+  typedef TextBuffer<12> TaskName_t;
 
 public:
   Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj);
@@ -74,7 +74,8 @@ protected:
   void useLoopFunction(TaskFunc_t *func) { _loop_func = func; }
 
 private:
-  CmdName_t _name;     // name of this cmd
+  CmdName_t _name; // name of this cmd
+  TaskName_t _task_name;
   const char *_pin;    // pwm pin description
   xTaskHandle _parent; // task handle of parent for notification purposes
   ledc_channel_config_t *_channel; // ledc channel to control
@@ -90,8 +91,8 @@ private:
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .lastWake = 0,
-                  .priority = 13,
-                  .stackSize = 3072};
+                  .priority = 15,
+                  .stackSize = 2560};
 
 private:
   void _start_(void *task_data = nullptr) {
@@ -102,12 +103,12 @@ private:
     }
 
     // create the task name
-    TextBuffer<25> task_name;
-    task_name.printf("pwm-%s", _pin);
+
+    _task_name.printf("pwm-%s", _pin);
 
     // this (object) is passed as the data to the task creation and is
     // used by the static runEngine method to call the run method
-    xTaskCreate(&runTask, task_name.c_str(), _task.stackSize, _task.data,
+    xTaskCreate(&runTask, _task_name.c_str(), _task.stackSize, _task.data,
                 _task.priority, &_task.handle);
 
     // Text::rlog("cmd \"%s\" started on %s handle=%p", name_cstr(), pin(),

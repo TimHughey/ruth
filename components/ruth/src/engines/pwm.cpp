@@ -38,10 +38,8 @@ static const string_t engine_name = "PWM";
 //        {"duty":2048,"ms":750},{"duty":0,"ms":1500},
 //        {"duty":1024,"ms":750},{"duty":0,"ms":1500}]}}
 
-// const size_t _capacity = JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) +
-//                          JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
-
-const size_t _capacity = 5 * 1024;
+const size_t _capacity = JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) +
+                         JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
 
 PulseWidth::PulseWidth() : Engine(ENGINE_PWM) {
   PwmDevice::allOff(); // ensure all pins are off at initialization
@@ -61,7 +59,7 @@ void PulseWidth::commandLocal(MsgPayload_t_ptr payload) {
   _cmd_elapsed.reset();
 
   // deserialize the msgpack data
-  DynamicJsonDocument doc(_capacity);
+  StaticJsonDocument<_capacity> doc;
   DeserializationError err = deserializeMsgPack(doc, payload.get()->payload());
 
   // NOTE
@@ -187,7 +185,6 @@ void PulseWidth::report(void *data) {
       PwmDevice_t *dev = item;
 
       if (dev->available()) {
-
         if (readDevice(dev)) {
           publish(dev);
         }

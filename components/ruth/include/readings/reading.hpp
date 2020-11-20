@@ -72,13 +72,6 @@ public:
     _refid = refid;
   }
 
-  // void setCmdAck(uint32_t latency_us, const char *refid) {
-  //   _cmd_ack = true;
-  //   _latency_us = latency_us;
-  //
-  //   _refid = refid;
-  // }
-
   void setCRCMismatches(int crc_mismatches) {
     _crc_mismatches = crc_mismatches;
   }

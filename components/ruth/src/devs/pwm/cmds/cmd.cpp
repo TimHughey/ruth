@@ -23,6 +23,8 @@
 #include <algorithm>
 
 #include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include "devs/pwm/cmds/cmd.hpp"
 #include "readings/text.hpp"
@@ -109,10 +111,11 @@ void Command::kill() {
   TaskHandle_t to_delete = _task.handle;
   _task.handle = nullptr;
 
+  auto task_name = pcTaskGetTaskName(to_delete);
   auto stack_hw = uxTaskGetStackHighWaterMark(to_delete);
 
-  Text::rlog("killing cmd \"%s\" notify=%ld handle=%p stack_hw=%d",
-             name().c_str(), _notify_val, to_delete, stack_hw);
+  Text::rlog("cmd \"%s\" killed, task[%s] notify[%ld] handle[%p] stack_hw[%d]",
+             name().c_str(), task_name, _notify_val, to_delete, stack_hw);
 
   // inform FreeRTOS to remove this task from the scheduler
   vTaskDelete(to_delete);

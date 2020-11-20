@@ -594,3 +594,14 @@ Used static IRAM:   89959 bytes (  41113 available, 68.6% used)
     Flash rodata:  130084 bytes
 Total image size:~ 858798 bytes (.bin may be padded larger)
 <<<
+>>>
+7dc7f7913b01d0a396fb7d5d3a09727681c45be5 Fix for Remote BSSID message
+Total sizes:
+ DRAM .data size:   13980 bytes
+ DRAM .bss  size:   18904 bytes
+Used static DRAM:   32884 bytes ( 147852 available, 18.2% used)
+Used static IRAM:   90019 bytes (  41053 available, 68.7% used)
+      Flash code:  622507 bytes
+    Flash rodata:  129448 bytes
+Total image size:~ 874858 bytes (.bin may be padded larger)
+<<<
