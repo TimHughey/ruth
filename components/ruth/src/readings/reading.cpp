@@ -76,6 +76,16 @@ void Reading::commonJSON(JsonDocument &doc) {
   }
 }
 
+void Reading::msgPack(MsgPackPayload_t &payload) {
+  StaticJsonDocument<1024> doc;
+
+  commonJSON(doc);
+  populateJSON(doc);
+
+  auto size = serializeMsgPack(doc, payload.data(), payload.capacity());
+  payload.forceSize(size);
+}
+
 string_t *Reading::json(char *buffer, size_t len) {
   // FUTURE IMPROVEMENT
   // std::unique_ptr<string_t> json_S(new string_t());

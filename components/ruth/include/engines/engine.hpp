@@ -52,7 +52,7 @@ protected:
 
   // subclasses are permitted to use a read only reference to the
   // the device map managed by Engine
-  const DeviceMap_t &deviceMap() const { return _devices; }
+  inline const DeviceMap_t &deviceMap() const { return _devices; }
 
 public:
   Engine(EngineTypes_t engine_type) : _engine_type(engine_type) {
@@ -62,7 +62,7 @@ public:
 
   virtual ~Engine(){};
 
-  static uint32_t maxDevices() { return 100; };
+  static uint32_t maxDevices() { return 35; };
 
   // justSeenDevice():
   //    looks in known devices for the device.  if found, calls justSeen() on
@@ -113,7 +113,6 @@ public:
     DEV *found = nullptr;
 
     if (numKnownDevices() > maxDevices()) {
-
       Text::rlog("adding device \"%s\" would exceed max devices", dev->id());
 
       return rc;
@@ -242,16 +241,6 @@ protected:
     return false;
   }
 
-  bool publish(const string_t &dev_id) {
-    DEV *search = findDevice(dev_id);
-
-    if (search != nullptr) {
-      return publish(search);
-    }
-
-    return false;
-  };
-
   bool publish(DEV *dev) {
     bool rc = true;
 
@@ -276,7 +265,8 @@ protected:
     return rc;
   };
 
-  virtual bool resetBus(bool *additional_status = nullptr) { return true; }
+  virtual bool resetBus() { return true; }
+  virtual bool resetBus(bool &additional_status) { return true; }
 
   //////
   //
@@ -307,7 +297,7 @@ protected:
   }
 
   virtual bool commandExecute(DEV *dev, uint32_t cmd_mask, uint32_t cmd_state,
-                              bool ack, const string_t &refif,
+                              bool ack, const RefID_t &refid,
                               elapsedMicros &cmd_elapsed) {
     return false;
   }
@@ -418,14 +408,6 @@ protected:
       }
     });
   }
-
-  //////
-  //
-  // Private Engine Task Functions
-  //
-  //////
-private:
-  void buildTaskName(EngineTaskTypes_t task_type, string_t &task_name);
 
   //////
   //

@@ -56,7 +56,7 @@ public:
   // or has been shutdown
   static void publish(Reading_t *reading);
   static void publish(Reading_t &reading);
-  static void publish(unique_ptr<Reading_t> reading);
+  // static void publish(unique_ptr<Reading_t> reading);
 
   // close MQTT connections and delete the task
   static void shutdown();
@@ -101,7 +101,7 @@ private:
                   .data = nullptr,
                   .lastWake = 0,
                   .priority = 1,
-                  .stackSize = 3584};
+                  .stackSize = 4096};
 
   esp_mqtt_client_handle_t _connection = nullptr;
   int32_t _msg_id = esp_random() + 1;
@@ -122,6 +122,7 @@ private:
   bool handlePayload(MsgPayload_t_ptr payload);
 
   void publishMsg(string_t *msg);
+  void publishMsg(MsgPackPayload_t &payload);
   void connectionClosed();
 
   // Task implementation

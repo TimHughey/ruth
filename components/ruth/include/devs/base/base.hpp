@@ -38,7 +38,13 @@ namespace ruth {
 using std::unique_ptr;
 using namespace reading;
 
+#define RUTH_DEV_ID_MAX 45
+#define RUTH_DEV_DESC_MAX 15
+
+typedef class TextBuffer<RUTH_DEV_ID_MAX> DeviceId_t;
+typedef class TextBuffer<RUTH_DEV_DESC_MAX> DeviceDescription_t;
 typedef class Device Device_t;
+
 class Device {
 public:
   Device() {} // all values are defaulted in definition of class(es)
@@ -59,7 +65,7 @@ public:
   uint8_t firstAddressByte() const { return _addr.firstByte(); };
   uint8_t lastAddressByte() const { return _addr.lastByte(); };
 
-  static size_t maxIdLen() { return 63; }
+  static size_t maxIdLen() { return RUTH_DEV_ID_MAX; }
   virtual void makeID() = 0;
   bool matchID(const char *id) const { return _id == id; }
   void setID(const char *format, ...);
@@ -98,9 +104,9 @@ public:
   virtual const unique_ptr<char[]> debug();
 
 private:
-  TextBuffer<40> _id;    // unique identifier of this device
+  DeviceId_t _id;        // unique identifier of this device
   DeviceAddress_t _addr; // address of this device
-  TextBuffer<15> _desc;
+  DeviceDescription_t _desc;
 
 protected:
   Reading_t *_reading = nullptr;
@@ -115,7 +121,7 @@ protected:
   int _crc_mismatches = 0;
   int _read_errors = 0;
   int _write_errors = 0;
-  int _missing_secs = 45;
+  int _missing_secs = 21;
 };
 } // namespace ruth
 

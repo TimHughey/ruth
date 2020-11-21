@@ -51,7 +51,7 @@ private:
 public:
   // construct a new I2cDevice with a known address and compute the id
   I2cDevice(const DeviceAddress_t &addr, uint8_t bus = 0,
-            time_t missing_secs = 600);
+            time_t missing_secs = 21);
 
   bool operator==(const I2cDevice_t &rhs) const;
 

@@ -432,23 +432,30 @@ void MQTT::start() {
 // the wrapper prevents calls to the instance before it is created
 
 void MQTT::publish(Reading_t *reading) {
-  // safety first
   if (_instance_) {
-    _instance_->publishMsg(reading->json());
+    // _instance_->publishMsg(reading->json());
+
+    MsgPackPayload_t payload;
+    reading->msgPack(payload);
+
+    _instance_->publishMsg(payload);
   };
 }
 
 void MQTT::publish(Reading_t &reading) {
   if (_instance_) {
-    _instance_->publishMsg(reading.json());
+    MsgPackPayload_t payload;
+    reading.msgPack(payload);
+
+    _instance_->publishMsg(payload);
   }
 }
 
-void MQTT::publish(unique_ptr<Reading_t> reading) {
-  if (_instance_) {
-    _instance_->publishMsg(reading->json());
-  };
-}
+// void MQTT::publish(unique_ptr<Reading_t> reading) {
+//   if (_instance_) {
+//     _instance_->publishMsg(reading->json());
+//   };
+// }
 
 void MQTT::publishMsg(string_t *msg) {
   if (_connection) {
@@ -466,6 +473,22 @@ void MQTT::publishMsg(string_t *msg) {
   }
 
   delete msg;
+}
+
+void MQTT::publishMsg(MsgPackPayload_t &payload) {
+  if (_connection) {
+
+    _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(),
+                                      payload.data(), payload.size(), 0, false);
+
+    // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
+    if (_msg_id < 0) {
+      // pass a nullptr for the message so Restart doesn't attempt to publish
+      Restart::restart(nullptr, __PRETTY_FUNCTION__);
+    }
+
+    _msg_max_size = max(payload.size(), _msg_max_size);
+  }
 }
 
 TaskHandle_t MQTT::taskHandle() {

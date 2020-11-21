@@ -74,7 +74,8 @@ public:
   void stop();
 
 protected:
-  bool resetBus(bool *present = nullptr);
+  bool resetBus();
+  bool resetBus(bool &present);
 
 private:
   uint8_t _pin = 14;

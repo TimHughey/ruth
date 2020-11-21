@@ -226,8 +226,9 @@ void Core::trackHeap() {
   }
 
   if (Net::waitForReady(0) == true) {
-    Remote_ptr_t remote(new Remote(batt_mv));
-    remote->publish();
+    Remote reading(batt_mv);
+
+    reading.publish();
   }
 
   heap_track_elapsed_.reset();

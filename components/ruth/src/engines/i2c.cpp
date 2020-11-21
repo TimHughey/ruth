@@ -167,15 +167,12 @@ bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
 }
 
 void I2c::core(void *task_data) {
-
   bool driver_ready = false;
 
   while (!driver_ready) {
     driver_ready = installDriver();
     delay(1000); // prevent busy loop if i2c driver fails to install
   }
-
-  // pinReset();
 
   Net::waitForNormalOps();
 
@@ -244,9 +241,7 @@ void I2c::report(void *data) {
 
     Net::waitForNormalOps();
 
-    for_each(beginDevices(), endDevices(), [this](I2cDevice_t *item) {
-      I2cDevice_t *dev = item;
-
+    for_each(deviceMap().begin(), deviceMap().end(), [this](I2cDevice_t *dev) {
       if (dev->available()) {
         takeBus();
 
@@ -313,9 +308,7 @@ bool I2c::detectDevicesOnBus(int bus) {
     rc = true;
 
     if (justSaw(sht31) == nullptr) {
-
-      SHT31_t *new_dev = new SHT31(sht31, _dev_missing_secs);
-      new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
+      SHT31_t *new_dev = new SHT31(sht31);
       addDevice(new_dev);
     }
   }
@@ -324,8 +317,7 @@ bool I2c::detectDevicesOnBus(int bus) {
     rc = true;
 
     if (justSaw(mcp23008) == nullptr) {
-      MCP23008_t *new_dev = new MCP23008(mcp23008, _dev_missing_secs);
-      new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
+      MCP23008_t *new_dev = new MCP23008(mcp23008);
       addDevice(new_dev);
     }
   }

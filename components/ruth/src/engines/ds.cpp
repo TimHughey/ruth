@@ -213,7 +213,7 @@ void DallasSemi::convert(void *data) {
 
     takeBus();
 
-    if (resetBus(&present) && (present == false)) {
+    if (resetBus(present) && (present == false)) {
       giveBus();
       taskDelayUntil(TASK_CONVERT, _convert_frequency);
       continue;
@@ -310,7 +310,7 @@ void DallasSemi::discover(void *data) {
     takeBus();
 
     bool present = false;
-    if (resetBus(&present) && (present == false)) {
+    if (resetBus(present) && (present == false)) {
       giveBus();
       taskDelayUntil(TASK_DISCOVER, _discover_frequency);
       continue;
@@ -761,15 +761,18 @@ bool DallasSemi::readDS2413(DsDevice_t *dev, Positions_t **reading) {
   return rc;
 }
 
-bool DallasSemi::resetBus(bool *present) {
+bool DallasSemi::resetBus() {
+  auto present = false;
+  return resetBus(present);
+}
+
+bool DallasSemi::resetBus(bool &present) {
   auto __present = false;
   owb_status owb_s;
 
   owb_s = owb_reset(_ds, &__present);
 
-  if (present != nullptr) {
-    *present = __present;
-  }
+  present = __present;
 
   if (owb_s == OWB_STATUS_OK) {
     return true;
