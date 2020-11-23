@@ -22,13 +22,10 @@
 #define _ruth_dev_addr_hpp
 
 #include <memory>
-#include <vector>
 
 using std::unique_ptr;
 
 namespace ruth {
-
-using std::vector;
 
 typedef class DeviceAddress DeviceAddress_t;
 
@@ -36,7 +33,6 @@ class DeviceAddress {
 
 public:
   DeviceAddress(){};
-  DeviceAddress(const DeviceAddress &rhs); // vopy constructor
   // construct a very simple device address of only one byte
   DeviceAddress(uint8_t addr);
   // construct a slightly more complex device of a multi byte address
@@ -61,7 +57,9 @@ public:
   const unique_ptr<char[]> debug() const;
 
 private:
-  vector<uint8_t> _bytes;
+  static const size_t _capacity = 10;
+  uint8_t _bytes[_capacity] = {};
+  size_t _size = 0;
 };
 } // namespace ruth
 
