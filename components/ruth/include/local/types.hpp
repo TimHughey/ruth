@@ -31,9 +31,9 @@
 
 namespace ruth {
 
-typedef class TextBuffer<20> Hostname_t;
-
-typedef std::unique_ptr<char[]> MsgBuff_t;
+typedef TextBuffer<20> Hostname_t;
+typedef TextBuffer<128> OtaUri_t;
+typedef TextBuffer<CONFIG_FREERTOS_MAX_TASK_NAME_LEN> TaskName_t;
 
 // type passed to xTaskCreate as the function to run as a task
 typedef void(TaskFunc_t)(void *);
@@ -41,7 +41,6 @@ typedef void(TaskFunc_t)(void *);
 typedef struct {
   TaskHandle_t handle;
   void *data;
-  TickType_t lastWake;
   UBaseType_t priority;
   UBaseType_t stackSize;
 } Task_t;

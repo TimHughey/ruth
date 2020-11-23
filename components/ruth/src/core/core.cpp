@@ -24,7 +24,6 @@
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
 #include "engines/pwm.hpp"
-// #include "misc/nvs.hpp"
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
 #include "protocols/mqtt.hpp"
@@ -33,7 +32,7 @@ namespace ruth {
 
 static const char *TAG = "Core";
 
-static Core_t *__singleton__ = nullptr;
+static Core_t __singleton__;
 
 using std::max;
 using std::min;
@@ -230,12 +229,6 @@ void Core::trackHeap() {
 }
 
 // STATIC!
-Core_t *Core::_instance_() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new Core();
-  }
-
-  return __singleton__;
-}
+Core_t *Core::_instance_() { return &__singleton__; }
 
 } // namespace ruth

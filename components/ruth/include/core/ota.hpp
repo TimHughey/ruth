@@ -34,7 +34,7 @@
 namespace ruth {
 
 typedef class OTA OTA_t;
-typedef class TextBuffer<128> OtaUri_t;
+
 class OTA {
 public:
   // start a new task to pocess the OTA update
@@ -88,7 +88,6 @@ private:
 private:
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
-                  .lastWake = 0,
                   .priority = 1, // allow reporting to continue
                   .stackSize = (5 * 1024)};
 

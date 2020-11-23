@@ -38,7 +38,7 @@ DallasSemi_t *__singleton__ = nullptr;
 const size_t _capacity =
     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
 
-DallasSemi::DallasSemi() : Engine(ENGINE_DALSEMI) {
+DallasSemi::DallasSemi() : Engine() {
   addTask(TASK_CORE);
   addTask(TASK_DISCOVER);
   addTask(TASK_CONVERT);

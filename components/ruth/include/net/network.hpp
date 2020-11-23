@@ -21,7 +21,9 @@ namespace ruth {
 typedef class Net Net_t;
 class Net {
 public:
+  Net(); // SINGLETON
   void ensureTimeIsSet();
+  static void earlyInit() { _instance_()->evg_ = xEventGroupCreate(); }
   static bool start() { return _instance_()->_start_(); };
 
   static void stop();
@@ -70,7 +72,6 @@ public:
   static const char *tagEngine() { return (const char *)"Net"; };
 
 private: // member functions
-  Net(); // SINGLETON!  constructor is private
   void acquiredIP(void *event_data);
 
   static void checkError(const char *func, esp_err_t err);

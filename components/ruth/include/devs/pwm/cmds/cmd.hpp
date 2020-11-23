@@ -85,11 +85,8 @@ private:
 
   bool _run = true;
 
-  Task_t _task = {.handle = nullptr,
-                  .data = nullptr,
-                  .lastWake = 0,
-                  .priority = 15,
-                  .stackSize = 2560};
+  Task_t _task = {
+      .handle = nullptr, .data = nullptr, .priority = 15, .stackSize = 2560};
 
 private:
   void _start_(void *task_data = nullptr) {

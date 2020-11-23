@@ -40,7 +40,7 @@ static PulseWidth_t *__singleton__ = nullptr;
 const size_t _capacity = JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) +
                          JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
 
-PulseWidth::PulseWidth() : Engine(ENGINE_PWM) {
+PulseWidth::PulseWidth() : Engine() {
   // create the command queue
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 

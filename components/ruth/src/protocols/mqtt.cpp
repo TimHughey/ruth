@@ -51,19 +51,12 @@ using TR = ruth::Text_t;
 static const char *TAG = "MQTT";
 static const char *ESP_TAG = "ESP-MQTT";
 // __singleton__ is used by private MQTT static functions
-static MQTT *__singleton__ = nullptr;
+static MQTT __singleton__;
 // _instance_ is used for public API
 static MQTT *_instance_ = nullptr;
 
 // SINGLETON! constructor is private
-MQTT::MQTT() {
-  // create the report and command feed topics
-  // examples:
-  //   a. feed report: prod/r/ruth-xxxxxxxxxxxx
-  //   b. feed host: prod/r/ruth-xxxxxxxxxxxx/#
-  _feed_rpt.printf("%s/r/%s", Binder::env(), Net::hostID());
-  _feed_host.printf("%s/%s/#", Binder::env(), Net::hostID());
-}
+MQTT::MQTT() {}
 
 MQTT::~MQTT() { // memory clean up handled by shutdown
 }
@@ -356,8 +349,8 @@ esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
 }
 
 void MQTT::coreTask(void *task_instance) {
-  MQTT_t *mqtt = __singleton__;
-  Task_t *task = &(__singleton__->_task);
+  MQTT_t *mqtt = &__singleton__;
+  Task_t *task = &(mqtt->_task);
 
   mqtt->core(task->data);
 
@@ -373,7 +366,7 @@ void MQTT::coreTask(void *task_instance) {
 //
 void MQTT::shutdown() {
   // make a copy of the instance pointer to delete
-  MQTT_t *mqtt = __singleton__;
+  MQTT_t *mqtt = &__singleton__;
 
   // grab the task handle for the vTaskDelete after initial shutdown steps
   TaskHandle_t handle = mqtt->_task.handle;
@@ -404,32 +397,28 @@ void MQTT::shutdown() {
   // the memory allocated by the MQTT instance must be freed in it's
   // destructor.
   vTaskDelete(handle);
-
-  // now that FreeRTOS will no longer schedule the MQTT task set singleton to
-  // nullptr and delete the MQTT object
-
-  __singleton__ = nullptr;
-  delete mqtt;
 }
 
 void MQTT::start() {
-  MQTT_t *mqtt = nullptr;
-  Task_t *task = nullptr;
-
-  if (__singleton__ == nullptr) {
-    __singleton__ = new MQTT();
-    _instance_ = __singleton__;
-    mqtt = __singleton__;
-    task = &(mqtt->_task);
-  }
+  MQTT_t *mqtt = &__singleton__;
+  Task_t *task = &(mqtt->_task);
 
   if (mqtt->_task.handle != nullptr) {
     return;
   }
 
+  // create the report and command feed topics
+  // examples:
+  //   a. feed report: prod/r/ruth-xxxxxxxxxxxx
+  //   b. feed host: prod/r/ruth-xxxxxxxxxxxx/#
+  mqtt->_feed_rpt.printf("%s/r/%s", Binder::env(), Net::hostID());
+  mqtt->_feed_host.printf("%s/%s/#", Binder::env(), Net::hostID());
+
+  _instance_ = mqtt;
+
   // this (object) is passed as the data to the task creation and is
   // used by the static runEngine method to call the run method
-  ::xTaskCreate(&coreTask, TAG, task->stackSize, __singleton__, task->priority,
+  ::xTaskCreate(&coreTask, TAG, task->stackSize, mqtt, task->priority,
                 &(task->handle));
 }
 
@@ -474,8 +463,6 @@ void MQTT::publishMsg(MsgPackPayload_t &payload) {
   }
 }
 
-TaskHandle_t MQTT::taskHandle() {
-  return (__singleton__) ? __singleton__->_task.handle : nullptr;
-}
+TaskHandle_t MQTT::taskHandle() { return __singleton__._task.handle; }
 
 } // namespace ruth

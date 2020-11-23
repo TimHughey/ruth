@@ -38,13 +38,6 @@
 
 namespace ruth {
 
-typedef struct {
-  TickType_t engine;
-  TickType_t convert;
-  TickType_t discover;
-  TickType_t report;
-} i2cLastWakeTime_t;
-
 #define SDA_PIN ((gpio_num_t)18)
 #define SCL_PIN ((gpio_num_t)19)
 
@@ -52,7 +45,7 @@ typedef struct {
 #define RST_PIN_SEL GPIO_SEL_21
 
 typedef class I2c I2c_t;
-class I2c : public Engine<I2cDevice_t> {
+class I2c : public Engine<I2cDevice_t, ENGINE_I2C> {
 
 private:
   I2c();
@@ -103,7 +96,6 @@ private:
       ((_report_frequency * 1.5) / portTICK_PERIOD_MS) * 1000 * 60;
 
   bool _use_multiplexer = false;
-  i2cLastWakeTime_t _last_wake;
 
   const TickType_t _cmd_timeout = pdMS_TO_TICKS(1000);
 

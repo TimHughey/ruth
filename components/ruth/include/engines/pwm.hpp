@@ -39,7 +39,7 @@ using std::move;
 using namespace reading;
 
 typedef class PulseWidth PulseWidth_t;
-class PulseWidth : public Engine<PwmDevice_t> {
+class PulseWidth : public Engine<PwmDevice_t, ENGINE_PWM> {
 
 private:
   PulseWidth();
@@ -79,8 +79,6 @@ private:
 
   const TickType_t _report_frequency =
       Profile::engineTaskIntervalTicks(ENGINE_PWM, TASK_REPORT);
-
-  EngineTask_t _tasks[3];
 
 private:
   static PulseWidth_t *_instance_();

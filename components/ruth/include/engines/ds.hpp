@@ -37,7 +37,7 @@
 namespace ruth {
 
 typedef class DallasSemi DallasSemi_t;
-class DallasSemi : public Engine<DsDevice_t> {
+class DallasSemi : public Engine<DsDevice_t, ENGINE_DALSEMI> {
 
 private:
   DallasSemi();

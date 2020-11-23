@@ -32,6 +32,7 @@
 #include "devs/base/base.hpp"
 #include "engines/event_bits.hpp"
 #include "engines/task.hpp"
+#include "engines/task_map.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
 #include "misc/restart.hpp"
@@ -44,7 +45,7 @@ namespace ruth {
 using std::vector;
 using namespace reading;
 
-template <class DEV> class Engine {
+template <class DEV, EngineTypes_t ENGINE_TYPE> class Engine {
 
 protected:
   // Device Map
@@ -55,7 +56,8 @@ protected:
   inline const DeviceMap_t &deviceMap() const { return _devices; }
 
 public:
-  Engine(EngineTypes_t engine_type) : _engine_type(engine_type) {
+  Engine() {
+    _engine_type = ENGINE_TYPE;
     _evg = xEventGroupCreate();
     _bus_mutex = xSemaphoreCreateMutex();
   };
@@ -275,7 +277,7 @@ protected:
   //////
 
 protected:
-  const int _max_queue_depth = 30;
+  const int _max_queue_depth = 6;
   QueueHandle_t _cmd_q = nullptr;
   elapsedMicros _cmd_elapsed;
   elapsedMicros _latency_us;
@@ -344,45 +346,37 @@ protected:
 
 protected:
   void addTask(const EngineTaskTypes_t task_type) {
-    EngineTask_t *new_task = nullptr;
+    TaskFunc_t *task_func = nullptr;
 
     switch (task_type) {
     case TASK_CORE:
-      new_task = new EngineTask(_engine_type, task_type, &runCore);
+      task_func = &runCore;
       break;
 
     case TASK_COMMAND:
-      new_task = new EngineTask(_engine_type, task_type, &runCommand);
+      task_func = &runCommand;
       break;
 
     case TASK_DISCOVER:
-      new_task = new EngineTask(_engine_type, task_type, &runDiscover);
+      task_func = &runDiscover;
       break;
 
     case TASK_REPORT:
-      new_task = new EngineTask(_engine_type, task_type, &runReport);
+      task_func = &runReport;
       break;
 
     case TASK_CONVERT:
-      new_task = new EngineTask(_engine_type, task_type, &runConvert);
+      task_func = &runConvert;
       break;
 
-    case TASK_END_OF_LIST:
-      break;
+    default:
+      task_func = nullptr;
     }
 
-    if (new_task) {
-      _cache_task_data[task_type] = new_task;
-      _task_map.push_back(new_task);
+    if (task_func) {
+      _task_map.add(EngineTask(_engine_type, task_type, task_func));
     }
   }
-
-  // void saveLastWake(EngineTaskTypes_t tt) {
-  //   EngineTask_t *task = lookupTaskData(tt);
-  //   TickType_t *last_wake = task->lastWake_ptr();
-  //
-  //   *last_wake = xTaskGetTickCount();
-  // }
 
   void saveLastWake(TickType_t &last_wake) { last_wake = xTaskGetTickCount(); }
 
@@ -396,17 +390,12 @@ protected:
 
   void start(void *task_data = nullptr) {
 
-    // now start any sub-tasks added
-    for_each(_task_map.begin(), _task_map.end(), [this](EngineTask_t *task) {
-      if (task && task->handleNull()) {
-        if (_cache_task_data[task->type()] == nullptr) {
-          _cache_task_data[task->type()] = task;
-        }
+    for (int type = TASK_CORE; type < TASK_END_OF_LIST; type++) {
+      EngineTask_t &task = _task_map.get(type);
 
-        xTaskCreate(task->taskFunc(), task->name(), task->stackSize(), this,
-                    task->priority(), task->handle_ptr());
-      }
-    });
+      xTaskCreate(task.taskFunc(), task.name(), task.stackSize(), this,
+                  task.priority(), task.handle_ptr());
+    }
   }
 
   //////
@@ -417,9 +406,8 @@ protected:
 
 private:
   EngineTypes_t _engine_type;
-  TaskMap_t _task_map;
+  EngineTaskMap_t _task_map;
   DeviceMap_t _devices;
-  EngineTask_t *_cache_task_data[TASK_END_OF_LIST] = {nullptr};
 
   //////
   //
@@ -437,33 +425,8 @@ private:
                                    .temp_available = BIT3,
                                    .temp_sensors_available = BIT4};
 
-  EngineTask_t *lookupTaskData(EngineTaskTypes_t task_type) {
-    using std::find_if;
-
-    EngineTask_t *cached_task = _cache_task_data[task_type];
-
-    // avoid the search for_each if we already know the EngineTask_t
-    // saving cpu cycles and stack size
-    if (cached_task) {
-      return cached_task;
-    }
-
-    // if not in cache, look it up
-
-    // my first lambda in C++, wow this languge has really evolved
-    // since I used it 15+ years ago
-    auto task = find_if(_task_map.begin(), _task_map.end(),
-                        [task_type](EngineTask_t *search) {
-                          return (search) && (search->type() == task_type);
-                        });
-
-    if (task != _task_map.end()) {
-      _cache_task_data[task_type] = *task;
-
-      return *task;
-    }
-
-    return nullptr;
+  const EngineTask_t &lookupTaskData(EngineTaskTypes_t task_type) {
+    return _task_map.get(task_type);
   }
 
   //
@@ -476,49 +439,51 @@ private:
   //
   static void runCore(void *instance) {
     Engine *task_instance = (Engine *)instance;
-    auto *task = task_instance->lookupTaskData(TASK_CORE);
 
-    if (task_instance && task) {
-      task_instance->core(task->data());
+    if (task_instance) {
+      auto task = task_instance->lookupTaskData(TASK_CORE);
+      task_instance->core(task.data());
     }
   }
+
+  TaskFunc_t const *coreFunction() { return &runCore; }
 
   //
   // Engine Sub Tasks
   //
   static void runConvert(void *instance) {
     Engine *task_instance = (Engine *)instance;
-    auto *task = task_instance->lookupTaskData(TASK_CONVERT);
 
-    if (task_instance && task) {
-      task_instance->convert(task->data());
+    if (task_instance) {
+      auto task = task_instance->lookupTaskData(TASK_CONVERT);
+      task_instance->convert(task.data());
     }
   }
 
   static void runDiscover(void *instance) {
     Engine *task_instance = (Engine *)instance;
-    auto *task = task_instance->lookupTaskData(TASK_DISCOVER);
 
-    if (task_instance && task) {
-      task_instance->discover(task->data());
+    if (task_instance) {
+      auto task = task_instance->lookupTaskData(TASK_DISCOVER);
+      task_instance->discover(task.data());
     }
   }
 
   static void runReport(void *instance) {
     Engine *task_instance = (Engine *)instance;
-    auto *task = task_instance->lookupTaskData(TASK_REPORT);
 
-    if (task_instance && task) {
-      task_instance->report(task->data());
+    if (task_instance) {
+      auto task = task_instance->lookupTaskData(TASK_REPORT);
+      task_instance->report(task.data());
     }
   }
 
   static void runCommand(void *instance) {
     Engine *task_instance = (Engine *)instance;
-    auto *task = task_instance->lookupTaskData(TASK_COMMAND);
 
-    if (task_instance && task) {
-      task_instance->command(task->data());
+    if (task_instance) {
+      auto task = task_instance->lookupTaskData(TASK_COMMAND);
+      task_instance->command(task.data());
     }
   }
 

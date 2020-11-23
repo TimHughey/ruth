@@ -47,7 +47,7 @@ typedef class TextBuffer<30> Feed_t;
 
 class MQTT {
 public:
-  // allocate the singleton and start MQTT task
+  MQTT(); // singleton
   static void start();
 
   ~MQTT();
@@ -65,8 +65,6 @@ public:
   static TaskHandle_t taskHandle();
 
 private:
-  MQTT(); // singleton, constructor is private
-
   // member functions via static singleton to handle events
   // and expose public API (e.g. publish)
   void brokerAck() { _broker_acks++; }
@@ -97,11 +95,8 @@ private:
   Feed_t _feed_host;
 
   bool _run_core = true;
-  Task_t _task = {.handle = nullptr,
-                  .data = nullptr,
-                  .lastWake = 0,
-                  .priority = 1,
-                  .stackSize = 4096};
+  Task_t _task = {
+      .handle = nullptr, .data = nullptr, .priority = 1, .stackSize = 4096};
 
   esp_mqtt_client_handle_t _connection = nullptr;
   int32_t _msg_id = esp_random() + 1;

@@ -38,9 +38,8 @@ class EngineTaskMap {
 public:
   EngineTaskMap() {}
 
-  void addTask(EngineTaskTypes_t task_type, const EngineTask_t &task) {
-    _tasks[task_type] = task;
-  }
+  void add(const EngineTask_t &task) { _tasks[task.type()] = task; }
+  EngineTask_t &get(int type) { return _tasks[type]; }
 
 private:
   EngineTask_t _tasks[EngineTaskTypes_t::TASK_END_OF_LIST];

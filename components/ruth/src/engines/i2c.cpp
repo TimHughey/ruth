@@ -37,7 +37,7 @@ static I2c_t *__singleton__ = nullptr;
 const size_t _capacity =
     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
 
-I2c::I2c() : Engine(ENGINE_I2C) {
+I2c::I2c() : Engine() {
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   addTask(TASK_CORE);

@@ -28,21 +28,13 @@ using std::unique_ptr;
 
 namespace ruth {
 
-static Net_t *__singleton__ = nullptr;
+static Net_t __singleton__;
 
-Net::Net() { evg_ = xEventGroupCreate(); }
+Net_t *Net::_instance_() { return &__singleton__; }
 
-void Net::acquiredIP(void *event_data) {
-  // esp_netif_get_ip_info(netif_, &ip_info_);
-  // esp_netif_get_dns_info(netif_, ESP_NETIF_DNS_MAIN, &primary_dns_);
-  //
-  // auto *dns_ip = (uint8_t *)&(primary_dns_.ip);
-  // snprintf(dns_str_, sizeof(dns_str_), IPSTR, dns_ip[0], dns_ip[1],
-  // dns_ip[2],
-  //          dns_ip[3]);
+Net::Net() {}
 
-  xEventGroupSetBits(evg_, ipBit());
-}
+void Net::acquiredIP(void *event_data) { xEventGroupSetBits(evg_, ipBit()); }
 
 // STATIC!!
 void Net::checkError(const char *func, esp_err_t err) {
@@ -134,19 +126,13 @@ void Net::stop() {
 
 EventGroupHandle_t Net::eventGroup() { return _instance_()->evg_; }
 
-Net_t *Net::_instance_() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new Net();
-  }
-
-  return __singleton__;
-}
-
 void Net::init() {
   esp_err_t rc = ESP_OK;
 
-  if (init_rc_ == ESP_OK)
+  if (init_rc_ == ESP_OK) // prevent multiple initializations
     return;
+
+  evg_ = xEventGroupCreate();
 
   esp_netif_init();
 

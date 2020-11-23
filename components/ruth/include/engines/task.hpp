@@ -22,7 +22,6 @@
 #define _ruth_engine_task_hpp
 
 #include <algorithm>
-#include <vector>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -33,20 +32,10 @@
 
 namespace ruth {
 
-using std::vector;
-
 typedef class EngineTask EngineTask_t;
-typedef EngineTask_t *EngineTask_ptr_t;
-
-typedef vector<EngineTask_t *> TaskMap_t;
-
-typedef TaskMap_t *TaskMap_ptr_t;
-
-typedef TextBuffer<CONFIG_FREERTOS_MAX_TASK_NAME_LEN> TaskName_t;
 
 class EngineTask {
 public:
-  // create a new EngineTask with settings from Profile
   EngineTask() {}
   EngineTask(EngineTypes_t engine_type, EngineTaskTypes_t task_type,
              TaskFunc_t *task_func, void *data = nullptr)
@@ -67,23 +56,24 @@ public:
   TaskHandle_t *handle_ptr() { return &_handle; }
   const char *name() const { return _name.c_str(); }
   size_t nameMaxLength() const { return (CONFIG_FREERTOS_MAX_TASK_NAME_LEN); }
+  UBaseType_t priority() const { return _priority; }
   UBaseType_t stackSize() const { return _stack_size; }
   TaskFunc_t const *taskFunc() const { return _task_func; }
-  UBaseType_t priority() const { return _priority; }
-  EngineTaskTypes_t type() { return _task_type; }
+  EngineTaskTypes_t type() const { return _task_type; }
+  bool valid() const { return (_task_func == nullptr) ? false : true; }
 
 private:
   void assembleName();
 
 private:
-  EngineTypes_t _engine_type;
-  EngineTaskTypes_t _task_type;
+  EngineTypes_t _engine_type = ENGINE_END_OF_LIST;
+  EngineTaskTypes_t _task_type = TASK_END_OF_LIST;
   TaskHandle_t _handle = nullptr;
   TaskFunc_t *_task_func = nullptr;
   UBaseType_t _stack_size = 0;
   UBaseType_t _priority = 0;
   TaskName_t _name;
-  void *_data;
+  void *_data = nullptr;
 };
 
 } // namespace ruth

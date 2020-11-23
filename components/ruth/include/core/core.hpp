@@ -45,6 +45,7 @@ typedef class Core Core_t;
 
 class Core {
 public:
+  Core(); // SINGLETON
   static void start(TaskHandle_t app_task) { _instance_()->_start(app_task); };
   static void loop() { _instance_()->_loop(); };
 
@@ -56,8 +57,6 @@ public:
   static bool restartRequest() { return _instance_()->_restartRequest(); };
 
 private:
-  // constructor is private, this is a singleton
-  Core();
   // private methods for singleton
   static Core_t *_instance_();
   void _loop();
