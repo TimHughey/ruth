@@ -18,8 +18,6 @@
     https://www.wisslanding.com
 */
 
-#include <string>
-
 #include <sys/time.h>
 #include <time.h>
 
@@ -35,7 +33,7 @@ Pwm::Pwm(const char *id, uint32_t duty_max, uint32_t duty_min, uint32_t duty)
   duty_ = duty;
 }
 
-void Pwm::populateJSON(JsonDocument &doc) {
+void Pwm::populateMessage(JsonDocument &doc) {
   doc["duty"] = duty_;
   doc["duty_max"] = duty_max_;
   doc["duty_min"] = duty_min_;

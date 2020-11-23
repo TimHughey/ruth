@@ -30,7 +30,6 @@
 #include "devs/base/addr.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
-#include "misc/textbuffer.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {

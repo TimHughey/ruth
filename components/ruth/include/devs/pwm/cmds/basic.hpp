@@ -21,8 +21,6 @@
 #ifndef _ruth_pwm_cmd_basic_hpp
 #define _ruth_pwm_cmd_basic_hpp
 
-#include <memory>
-#include <string>
 #include <vector>
 
 #include "external/ArduinoJson.h"

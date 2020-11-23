@@ -25,7 +25,6 @@ using std::unique_ptr;
 using namespace reading;
 
 static PulseWidth_t *__singleton__ = nullptr;
-static const string_t engine_name = "PWM";
 
 // document example:
 // {"ack":true,
@@ -42,6 +41,11 @@ const size_t _capacity = JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) +
                          JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
 
 PulseWidth::PulseWidth() : Engine(ENGINE_PWM) {
+  // create the command queue
+  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
+
+  configureTimer();
+
   PwmDevice::allOff(); // ensure all pins are off at initialization
 
   addTask(TASK_CORE);
@@ -56,8 +60,6 @@ bool PulseWidth::engineEnabled() { return (__singleton__) ? true : false; }
 //
 
 void PulseWidth::commandLocal(MsgPayload_t_ptr payload) {
-  _cmd_elapsed.reset();
-
   // deserialize the msgpack data
   StaticJsonDocument<_capacity> doc;
   DeserializationError err = deserializeMsgPack(doc, payload.get()->payload());
@@ -73,34 +75,27 @@ void PulseWidth::commandLocal(MsgPayload_t_ptr payload) {
   }
 
   commandExecute(doc);
-  _cmd_elapsed.freeze();
 }
 
 bool PulseWidth::commandExecute(JsonDocument &doc) {
   PwmDevice_t *dev = findDevice(doc["device"]);
   auto set_rc = false;
 
-  if (dev == nullptr) {
-    return false;
+  if (dev && dev->valid()) {
+    const uint32_t pwm_cmd = doc["pwm_cmd"] | 0x00;
+
+    if (pwm_cmd < 0x1000) {
+      // this command is device specific, send it there for processing
+      set_rc = dev->cmd(pwm_cmd, doc);
+    } else {
+      // this command is for the engine
+      set_rc = true;
+    }
+
+    bool ack = doc["ack"] | true;
+    const RefID_t refid = doc["refid"].as<const char *>();
+    commandAck(dev, ack, refid, set_rc);
   }
-
-  if (dev->notValid()) {
-    return false;
-  }
-
-  const uint32_t pwm_cmd = doc["pwm_cmd"] | 0x00;
-
-  if (pwm_cmd < 0x1000) {
-    // this command is device specific, send it there for processing
-    set_rc = dev->cmd(pwm_cmd, doc);
-  } else {
-    // this command is for the engine
-    set_rc = true;
-  }
-
-  bool ack = doc["ack"] | true;
-  const RefID_t refid = doc["refid"].as<const char *>();
-  commandAck(dev, ack, refid, set_rc);
 
   return set_rc;
 }
@@ -110,14 +105,7 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
 //
 
 void PulseWidth::core(void *task_data) {
-  configureTimer();
-
-  // create the command queue
-  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
-
   Net::waitForNormalOps();
-
-  saveTaskLastWake(TASK_CORE);
 
   // discovering the pwm devices is ultimately creating and adding them
   // to the known device list since they are onboard hardware.
@@ -171,19 +159,19 @@ void PulseWidth::core(void *task_data) {
 }
 
 void PulseWidth::report(void *data) {
-  saveTaskLastWake(TASK_REPORT);
+  static TickType_t last_wake;
+
+  saveLastWake(last_wake);
 
   while (waitFor(devicesAvailableBit())) {
     if (numKnownDevices() == 0) {
-      taskDelayUntil(TASK_REPORT, _report_frequency);
+      delayUntil(last_wake, _report_frequency);
       continue;
     }
 
     Net::waitForNormalOps();
 
-    for_each(beginDevices(), endDevices(), [this](PwmDevice_t *item) {
-      PwmDevice_t *dev = item;
-
+    for_each(deviceMap().begin(), deviceMap().end(), [this](PwmDevice_t *dev) {
       if (dev->available()) {
         if (readDevice(dev)) {
           publish(dev);
@@ -191,7 +179,7 @@ void PulseWidth::report(void *data) {
       }
     });
 
-    taskDelayUntil(TASK_REPORT, _report_frequency);
+    delayUntil(last_wake, _report_frequency);
   }
 }
 

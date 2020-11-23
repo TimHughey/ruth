@@ -22,7 +22,6 @@
 #define _ruth_i2c_engine_hpp
 
 #include <cstdlib>
-#include <string>
 
 #include <driver/gpio.h>
 #include <driver/i2c.h>

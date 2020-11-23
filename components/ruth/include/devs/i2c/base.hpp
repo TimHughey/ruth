@@ -21,9 +21,6 @@
 #ifndef _ruth_i2c_device_base_hpp
 #define _ruth_i2c_device_base_hpp
 
-#include <memory>
-#include <string>
-
 #include "devs/base/base.hpp"
 #include "devs/i2c/rawdata.hpp"
 

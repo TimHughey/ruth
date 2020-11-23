@@ -18,7 +18,7 @@
      https://www.wisslanding.com
  */
 
-#ifndef _ruth_ngine_task_hpp
+#ifndef _ruth_engine_task_hpp
 #define _ruth_engine_task_hpp
 
 #include <algorithm>
@@ -42,9 +42,12 @@ typedef vector<EngineTask_t *> TaskMap_t;
 
 typedef TaskMap_t *TaskMap_ptr_t;
 
+typedef TextBuffer<CONFIG_FREERTOS_MAX_TASK_NAME_LEN> TaskName_t;
+
 class EngineTask {
 public:
   // create a new EngineTask with settings from Profile
+  EngineTask() {}
   EngineTask(EngineTypes_t engine_type, EngineTaskTypes_t task_type,
              TaskFunc_t *task_func, void *data = nullptr)
       : _engine_type(engine_type), _task_type(task_type) {
@@ -62,10 +65,8 @@ public:
   TaskHandle_t &handle() { return _handle; }
   bool handleNull() { return (_handle == nullptr) ? true : false; }
   TaskHandle_t *handle_ptr() { return &_handle; }
-  TickType_t &lastWake() { return _last_wake; }
-  TickType_t *lastWake_ptr() { return &_last_wake; }
-  const char *name_cstr() const { return _name.c_str(); }
-  const string_t &name() const { return _name; }
+  const char *name() const { return _name.c_str(); }
+  size_t nameMaxLength() const { return (CONFIG_FREERTOS_MAX_TASK_NAME_LEN); }
   UBaseType_t stackSize() const { return _stack_size; }
   TaskFunc_t const *taskFunc() const { return _task_func; }
   UBaseType_t priority() const { return _priority; }
@@ -79,10 +80,9 @@ private:
   EngineTaskTypes_t _task_type;
   TaskHandle_t _handle = nullptr;
   TaskFunc_t *_task_func = nullptr;
-  TickType_t _last_wake = 0;
   UBaseType_t _stack_size = 0;
   UBaseType_t _priority = 0;
-  string_t _name = "unamed";
+  TaskName_t _name;
   void *_data;
 };
 

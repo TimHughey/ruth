@@ -21,8 +21,6 @@
 #ifndef _ruth_reading_text_hpp
 #define _ruth_reading_text_hpp
 
-#include <string>
-
 #include <esp_log.h>
 #include <stdarg.h>
 #include <sys/time.h>
@@ -79,7 +77,7 @@ private:
   uint32_t _remaining_bytes = _max_len;
 
 protected:
-  virtual void populateJSON(JsonDocument &doc);
+  virtual void populateMessage(JsonDocument &doc);
 };
 } // namespace reading
 } // namespace ruth

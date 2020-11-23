@@ -38,6 +38,8 @@ const size_t _capacity =
     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
 
 I2c::I2c() : Engine(ENGINE_I2C) {
+  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
+
   addTask(TASK_CORE);
   addTask(TASK_DISCOVER);
   addTask(TASK_REPORT);
@@ -71,7 +73,6 @@ bool I2c::engineEnabled() { return (__singleton__) ? true : false; }
 //
 
 void I2c::command(void *data) {
-  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   while (true) {
     BaseType_t queue_rc = pdFALSE;
@@ -168,6 +169,7 @@ bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
 
 void I2c::core(void *task_data) {
   bool driver_ready = false;
+  static TickType_t last_wake;
 
   while (!driver_ready) {
     driver_ready = installDriver();
@@ -176,19 +178,21 @@ void I2c::core(void *task_data) {
 
   Net::waitForNormalOps();
 
-  saveTaskLastWake(TASK_CORE);
+  saveLastWake(last_wake);
   for (;;) {
     // signal to other tasks I2c Core is in it's run loop
     // this ensures all other set-up activities are complete before
     engineRunning();
 
     // do high-level engine actions here (e.g. general housekeeping)
-    taskDelayUntil(TASK_CORE, _loop_frequency);
+    delayUntil(last_wake, _loop_frequency);
   }
 }
 
 void I2c::discover(void *data) {
-  saveTaskLastWake(TASK_DISCOVER);
+  static TickType_t last_wake;
+
+  saveLastWake(last_wake);
 
   while (waitForEngine()) {
     bool detect_rc = true;
@@ -225,17 +229,18 @@ void I2c::discover(void *data) {
     }
 
     // we want to discover
-    saveTaskLastWake(TASK_DISCOVER);
-    taskDelayUntil(TASK_DISCOVER, next_discover);
+    saveLastWake(last_wake);
+    delayUntil(last_wake, next_discover);
   }
 }
 
 void I2c::report(void *data) {
-  saveTaskLastWake(TASK_REPORT);
+  static TickType_t last_wake;
+  saveLastWake(last_wake);
 
   while (waitFor(devicesAvailableBit())) {
     if (numKnownDevices() == 0) {
-      taskDelayUntil(TASK_REPORT, _report_frequency);
+      delayUntil(last_wake, _report_frequency);
       continue;
     }
 
@@ -258,7 +263,7 @@ void I2c::report(void *data) {
       }
     });
 
-    taskDelayUntil(TASK_REPORT, _report_frequency);
+    delayUntil(last_wake, _report_frequency);
   }
 }
 

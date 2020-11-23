@@ -22,8 +22,6 @@
 #define _ruth_mqtt_hpp
 
 #include <cstdlib>
-#include <memory>
-#include <string>
 
 #include <esp_event.h>
 #include <esp_log.h>
@@ -35,7 +33,6 @@
 #include <sdkconfig.h>
 
 #include "core/binder.hpp"
-#include "misc/textbuffer.hpp"
 #include "protocols/payload.hpp"
 #include "readings/readings.hpp"
 
@@ -44,6 +41,10 @@ namespace ruth {
 using namespace reading;
 
 typedef class MQTT MQTT_t;
+typedef class TextBuffer<24> MqttClientId_t;
+typedef class TextBuffer<4> FeedPrefix_t;
+typedef class TextBuffer<30> Feed_t;
+
 class MQTT {
 public:
   // allocate the singleton and start MQTT task
@@ -83,18 +84,17 @@ private:
 private:
   // private member variables
   esp_mqtt_client_config_t mqtt_cfg;
-  TextBuffer<24> _client_id;
+  MqttClientId_t _client_id;
 
   // NOTES:
   //   1. final feeds are built in the constructor
   //   2. feeds are always prefixed by the environment
   //   3. should include the actual host ID
   //   4. end with the corresponding suffix
-  TextBuffer<4> _feed_prefix;
+  FeedPrefix_t _feed_prefix;
 
-  // NOTE:  _feed_host is replacing _feed_cmd
-  TextBuffer<30> _feed_rpt;
-  TextBuffer<30> _feed_host;
+  Feed_t _feed_rpt;
+  Feed_t _feed_host;
 
   bool _run_core = true;
   Task_t _task = {.handle = nullptr,
@@ -121,7 +121,6 @@ private:
   void core(void *data);
   bool handlePayload(MsgPayload_t_ptr payload);
 
-  void publishMsg(string_t *msg);
   void publishMsg(MsgPackPayload_t &payload);
   void connectionClosed();
 

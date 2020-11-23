@@ -39,7 +39,7 @@ Remote::Remote(ReadingType_t type, uint32_t batt_mv)
   grabMetrics();
 }
 
-void Remote::populateJSON(JsonDocument &doc) {
+void Remote::populateMessage(JsonDocument &doc) {
   bssid_.printf("%02x:%02x:%02x:%02x:%02x:%02x", ap_.bssid[0], ap_.bssid[1],
                 ap_.bssid[2], ap_.bssid[3], ap_.bssid[4], ap_.bssid[5]);
 

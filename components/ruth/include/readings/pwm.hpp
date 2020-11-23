@@ -41,7 +41,7 @@ public:
   Pwm(const char *id, uint32_t duty_max, uint32_t duty_min, uint32_t duty);
 
 protected:
-  virtual void populateJSON(JsonDocument &doc);
+  virtual void populateMessage(JsonDocument &doc);
 };
 } // namespace reading
 } // namespace ruth

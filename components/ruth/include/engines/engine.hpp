@@ -377,17 +377,17 @@ protected:
     }
   }
 
-  void saveTaskLastWake(EngineTaskTypes_t tt) {
-    EngineTask_t *task = lookupTaskData(tt);
-    TickType_t *last_wake = task->lastWake_ptr();
+  // void saveLastWake(EngineTaskTypes_t tt) {
+  //   EngineTask_t *task = lookupTaskData(tt);
+  //   TickType_t *last_wake = task->lastWake_ptr();
+  //
+  //   *last_wake = xTaskGetTickCount();
+  // }
 
-    *last_wake = xTaskGetTickCount();
-  }
+  void saveLastWake(TickType_t &last_wake) { last_wake = xTaskGetTickCount(); }
 
-  void taskDelayUntil(EngineTaskTypes_t tt, TickType_t ticks) {
-    auto task = lookupTaskData(tt);
-
-    vTaskDelayUntil(task->lastWake_ptr(), ticks);
+  void delayUntil(TickType_t &last_wake, TickType_t ticks) {
+    vTaskDelayUntil(&last_wake, ticks);
   }
 
   void delay(int ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
@@ -403,8 +403,8 @@ protected:
           _cache_task_data[task->type()] = task;
         }
 
-        xTaskCreate(task->taskFunc(), task->name_cstr(), task->stackSize(),
-                    this, task->priority(), task->handle_ptr());
+        xTaskCreate(task->taskFunc(), task->name(), task->stackSize(), this,
+                    task->priority(), task->handle_ptr());
       }
     });
   }

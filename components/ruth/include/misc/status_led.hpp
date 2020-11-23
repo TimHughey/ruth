@@ -36,8 +36,9 @@ typedef class StatusLED StatusLED_t;
 
 class StatusLED {
 public:
+  StatusLED(){}; // SINGLETON
   // initialize the singleton
-  static void init() { _instance_(); };
+  static void init() { _instance_()->_init(); };
 
   // control the brightness of the status led
   static void bright() { _instance_()->_bright_(); };
@@ -49,8 +50,8 @@ public:
   static void off() { _instance_()->_off_(); };
 
 private:
-  StatusLED(); // SINGLETON!  constructor is private
   static StatusLED_t *_instance_();
+  void _init();
 
   void activate_duty();
 

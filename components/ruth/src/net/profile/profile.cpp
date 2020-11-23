@@ -29,7 +29,7 @@ using ArduinoJson::DynamicJsonDocument;
 using PET = ProfileEngineTask;
 using PET_t = ProfileEngineTask_t;
 
-static Profile_t *__singleton__ = nullptr;
+static Profile_t singleton;
 
 // inclusive of largest profile document
 static const size_t _doc_capacity =
@@ -38,13 +38,47 @@ static const size_t _doc_capacity =
 
 static const bool _unset_bool = false;
 
-Profile::Profile(MsgPayload_t *payload) {
-  const char *c_str = nullptr;
+// static
+TickType_t Profile::engineTaskIntervalTicks(EngineTypes_t engine_type,
+                                            EngineTaskTypes_t task_type) {
 
+  const PET_t &pet = _instance_()._engine_tasks[engine_type][task_type];
+
+  return pdMS_TO_TICKS(pet.intervalMS());
+}
+
+// static
+uint32_t Profile::engineTaskPriority(EngineTypes_t engine_type,
+                                     EngineTaskTypes_t task_type) {
+
+  const PET_t &pet = _instance_()._engine_tasks[engine_type][task_type];
+
+  return pet.priority();
+}
+
+// static
+uint32_t Profile::engineTaskStack(EngineTypes_t engine_type,
+                                  EngineTaskTypes_t task_type) {
+
+  const PET_t &pet = _instance_()._engine_tasks[engine_type][task_type];
+
+  return pet.stackSize();
+}
+
+//
+// PRIVATE
+//
+
+bool Profile::_postParseActions() {
+  Net::setName(_assigned_name.c_str());
+  return true;
+}
+
+void Profile::_fromRaw(MsgPayload_t *payload) {
   StaticJsonDocument<_doc_capacity> root;
 
   _parse_elapsed.reset();
-  _parse_err = deserializeMsgPack(root, payload->payload());
+  _parse_err = deserializeMsgPack(root, payload->payload(), payload->length());
   _parse_elapsed.freeze();
 
   if (_parse_err) {
@@ -63,16 +97,13 @@ Profile::Profile(MsgPayload_t *payload) {
   const JsonObject core = root["core"];
   const JsonObject misc = root["misc"];
 
-  c_str = root["assigned_name"] | "none";
-  _assigned_name = c_str;
+  _assigned_name = root["assigned_name"] | "none";
 
   _mtime = root["mtime"] | _mtime;
 
-  c_str = meta["profile_name"] | "none";
-  _profile_name = c_str;
+  _profile_name = meta["profile_name"] | "none";
 
-  c_str = meta["version"] | "none";
-  _version = c_str;
+  _version = meta["version"] | "none";
 
   _watch_stacks = misc["watch_stacks"] | _watch_stacks;
   _core_loop_ms = core["loop_ms"] | _core_loop_ms;
@@ -80,8 +111,8 @@ Profile::Profile(MsgPayload_t *payload) {
 
   _i2c_mplex = misc["i2c_mplex"] | _i2c_mplex;
 
-  // the two loops will create and place in a vector a PET
-  // for all combinations of Engines and Engine Tasks.  NOTE:  this is a
+  // the two loops will create and copy a PET into the 2D array containing
+  // all combinations of Engines and Engine Tasks.  NOTE:  this is a
   // flat list so finding the proper entry requires comparing EngineType and
   // EngineTaskType
 
@@ -100,84 +131,14 @@ Profile::Profile(MsgPayload_t *payload) {
 
       if (engine_doc.containsKey(task_key)) {
 
-        PET_t *task =
-            new PET((EngineTypes_t)e, (EngineTaskTypes_t)et, engine_doc);
+        PET_t task((EngineTypes_t)e, (EngineTaskTypes_t)et, engine_doc);
 
-        _engine_tasks.push_back(task);
+        _engine_tasks[e][et] = task;
       }
     }
   }
 }
 
-// static
-TickType_t Profile::engineTaskIntervalTicks(EngineTypes_t engine_type,
-                                            EngineTaskTypes_t task_type) {
-  const Profile *i = _instance_();
-  const vector<PET_t *> &engine_tasks = i->_engine_tasks;
-
-  auto pet = find_if(engine_tasks.begin(), engine_tasks.end(),
-                     [engine_type, task_type](PET *search) {
-                       return (search->engineType() == engine_type &&
-                               search->taskType() == task_type);
-                     });
-  if (pet != engine_tasks.end()) {
-    return pdMS_TO_TICKS((*pet)->intervalMS());
-  }
-
-  return UINT32_MAX;
-}
-
-// static
-uint32_t Profile::engineTaskPriority(EngineTypes_t engine_type,
-                                     EngineTaskTypes_t task_type) {
-  const Profile *i = _instance_();
-  const vector<PET_t *> &engine_tasks = i->_engine_tasks;
-
-  auto pet = find_if(engine_tasks.begin(), engine_tasks.end(),
-                     [engine_type, task_type](PET *search) {
-                       return (search->engineType() == engine_type &&
-                               search->taskType() == task_type);
-                     });
-  if (pet != engine_tasks.end()) {
-    return (*pet)->priority();
-  }
-
-  return UINT32_MAX;
-}
-
-// static
-uint32_t Profile::engineTaskStack(EngineTypes_t engine_type,
-                                  EngineTaskTypes_t task_type) {
-  const Profile *i = _instance_();
-  const vector<PET_t *> &engine_tasks = i->_engine_tasks;
-
-  auto pet = find_if(engine_tasks.begin(), engine_tasks.end(),
-                     [engine_type, task_type](PET *search) {
-                       return (search->engineType() == engine_type &&
-                               search->taskType() == task_type);
-                     });
-  if (pet != engine_tasks.end()) {
-    return (*pet)->stackSize();
-  }
-
-  return UINT32_MAX;
-}
-
-//
-// PRIVATE
-//
-
-bool Profile::_postParseActions() {
-  Net::setName(_assigned_name.c_str());
-  return true;
-}
-
-void Profile::_fromRaw(MsgPayload_t *payload) {
-  if (payload) {
-    __singleton__ = new Profile(payload);
-  }
-}
-
 // STATIC
-Profile_t *Profile::_instance_() { return __singleton__; }
+Profile_t &Profile::_instance_() { return singleton; }
 } // namespace ruth

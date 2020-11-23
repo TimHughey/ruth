@@ -87,14 +87,9 @@ void Core::_loop() {
 void Core::_start(xTaskHandle app_task) {
   app_task_ = app_task;
 
-  // get NVS started, it is needed by Net
-  // NVS::init();
-
-  // initialize the StatusLED singleton
   StatusLED::init();
-
-  // initialized the Binder singleton
   Binder::init();
+
   StatusLED::brighter();
 
   // get the Network up and running as soon as possible
@@ -244,58 +239,3 @@ Core_t *Core::_instance_() {
 }
 
 } // namespace ruth
-
-// void TimestampTask::reportTaskStacks() {
-//   if (_task_map.size() == 0)
-//     return;
-//
-//   Text *rlog = new Text();
-//   Text_ptr_t rlog_ptr(rlog);
-//
-//   for_each(_task_map.begin(), _task_map.end(), [rlog](TaskMapItem_t item) {
-//     string_t name = item.first;
-//     TaskStat_ptr_t stat = item.second;
-//
-//     if (stat->stack_high_water > 0) {
-//       rlog->printf("%s=%d,", name.c_str(), stat->stack_high_water);
-//     }
-//   });
-//
-//   rlog->consoleInfo(tTAG);
-//   rlog->publish();
-//
-//   updateTaskData();
-// }
-//
-// void TimestampTask::updateTaskData() {
-//   for_each(_task_map.begin(), _task_map.end(), [this](TaskMapItem_t item) {
-//     auto stat = item.second;
-//
-//     stat->stack_high_water = uxTaskGetStackHighWaterMark(stat->handle);
-//   });
-// }
-//
-// void TimestampTask::watchTaskStacks() {
-//   uint32_t num_tasks = uxTaskGetNumberOfTasks();
-//   _task_map.reserve(num_tasks);
-//
-//   TaskStatus_t *buff = new TaskStatus_t[num_tasks];
-//   unique_ptr<TaskStatus_t> buff_ptr(buff);
-//   uint32_t run_time;
-//
-//   uxTaskGetSystemState(buff, num_tasks, &run_time);
-//
-//   for (uint32_t i = 0; i < num_tasks; i++) {
-//     TaskStatus_t task = buff[i];
-//
-//     if (task.pcTaskName != nullptr) {
-//       string_t name = task.pcTaskName;
-//
-//       TaskStat_ptr_t stat = new TaskStat_t;
-//
-//       stat->handle = task.xHandle;
-//       stat->stack_high_water = task.usStackHighWaterMark;
-//
-//       _task_map[name] = stat;
-//     }
-//   }

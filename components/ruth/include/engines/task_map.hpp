@@ -1,6 +1,6 @@
 /*
-     engines/task.cpp - Ruth Engine Task Info
-     Copyright (C) 2017  Tim Hughey
+     engines/task_map.hpp - Ruth Engine Task Tracking Map
+     Copyright (C) 2020  Tim Hughey
 
      This program is free software: you can redistribute it and/or modify
      it under the terms of the GNU General Public License as published by
@@ -18,38 +18,34 @@
      https://www.wisslanding.com
  */
 
+#ifndef _ruth_engine_task_map_hpp
+#define _ruth_engine_task_map_hpp
+
+#include <algorithm>
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include "engines/task.hpp"
+#include "local/types.hpp"
+#include "misc/elapsed.hpp"
+#include "net/profile/profile.hpp"
 
 namespace ruth {
 
-void EngineTask::assembleName() {
-  static const char *base[ENGINE_END_OF_LIST] = {"DLS", "I2C", "PWM"};
+typedef class EngineTaskMap EngineTaskMap_t;
+class EngineTaskMap {
+public:
+  EngineTaskMap() {}
 
-  switch (_task_type) {
-  case TASK_CORE:
-    _name = base[_engine_type];
-    break;
-
-  case TASK_CONVERT:
-    _name.printf("%s-cvt", base[_engine_type]);
-    break;
-
-  case TASK_DISCOVER:
-
-    _name.printf("%s-dsc", base[_engine_type]);
-    break;
-
-  case TASK_REPORT:
-    _name.printf("%s-rpt", base[_engine_type]);
-    break;
-
-  case TASK_COMMAND:
-    _name.printf("%s-cmd", base[_engine_type]);
-    break;
-
-  case TASK_END_OF_LIST:
-    break;
+  void addTask(EngineTaskTypes_t task_type, const EngineTask_t &task) {
+    _tasks[task_type] = task;
   }
-}
+
+private:
+  EngineTask_t _tasks[EngineTaskTypes_t::TASK_END_OF_LIST];
+};
 
 } // namespace ruth
+
+#endif

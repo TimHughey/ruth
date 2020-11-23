@@ -38,7 +38,7 @@ void DsDevice::makeID() {
   //       byte num: 01234567890123456
   //     exmaple id: ds/28ffa442711604
   // format of name: ds/famil code + 48-bit serial (without the crc)
-  //      total len: 18 bytes (id + string terminator)
+  //      total len: 18 bytes (id + 0x00 terminator)
   auto addr = address();
   setID("ds/%02x%02x%02x%02x%02x%02x%02x", addr[0], // byte 0: family code
         addr[1], addr[2], addr[3],                  // byte 1-3: serial number

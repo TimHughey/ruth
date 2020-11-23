@@ -21,9 +21,6 @@
 #ifndef _ruth_i2c_dev_mplex_hpp
 #define _ruth_i2c_dev_mplex_hpp
 
-#include <memory>
-#include <string>
-
 #include "devs/i2c/base.hpp"
 
 namespace ruth {

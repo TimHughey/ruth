@@ -18,8 +18,6 @@
     https://www.wisslanding.com
 */
 
-#include <string>
-
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <sys/time.h>
@@ -34,7 +32,7 @@ namespace reading {
 
 using ruth::MQTT;
 
-void Reading::commonJSON(JsonDocument &doc) {
+void Reading::commonMessage(JsonDocument &doc) {
   doc["host"] = Net::hostID();
   doc["name"] = Net::hostname();
   doc["mtime"] = _mtime;
@@ -79,28 +77,11 @@ void Reading::commonJSON(JsonDocument &doc) {
 void Reading::msgPack(MsgPackPayload_t &payload) {
   StaticJsonDocument<1024> doc;
 
-  commonJSON(doc);
-  populateJSON(doc);
+  commonMessage(doc);
+  populateMessage(doc);
 
   auto size = serializeMsgPack(doc, payload.data(), payload.capacity());
   payload.forceSize(size);
-}
-
-string_t *Reading::json(char *buffer, size_t len) {
-  // FUTURE IMPROVEMENT
-  // std::unique_ptr<string_t> json_S(new string_t());
-  // json_S.get()->reserve(1024);
-  string_t *json_string = new string_t;
-  json_string->reserve(2048);
-
-  StaticJsonDocument<1024> doc;
-
-  commonJSON(doc);
-  populateJSON(doc);
-
-  serializeMsgPack(doc, *json_string);
-
-  return json_string;
 }
 
 void Reading::publish() { MQTT::publish(this); }

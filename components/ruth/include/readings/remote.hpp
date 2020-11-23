@@ -21,8 +21,6 @@
 #ifndef _ruth_reading_remote_hpp
 #define _ruth_reading_remote_hpp
 
-#include <string>
-
 #include <esp_system.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
@@ -45,7 +43,7 @@ public:
   Remote(ReadingType_t type, uint32_t battZ_mv);
 
 protected:
-  virtual void populateJSON(JsonDocument &doc);
+  virtual void populateMessage(JsonDocument &doc);
 
 private:
   wifi_ap_record_t ap_;

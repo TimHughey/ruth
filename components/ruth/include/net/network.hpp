@@ -11,13 +11,10 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
-#include <nvs_flash.h>
-#include <string.h>
 #include <sys/time.h>
 #include <time.h>
 
 #include "local/types.hpp"
-#include "misc/textbuffer.hpp"
 
 namespace ruth {
 

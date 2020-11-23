@@ -22,8 +22,6 @@
 #define ruth_core_hpp
 
 #include <cstdlib>
-#include <memory>
-#include <string>
 
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
@@ -149,32 +147,4 @@ private:
 
 } // namespace ruth
 
-// class TimestampTask {
-//
-// public:
-//   void watchTaskStacks();
-//
-// private:
-//   TickType_t _last_wake;
-//   const TickType_t _loop_frequency = pdMS_TO_TICKS(3000);
-//   time_t _timestamp_freq_secs = (12 * 60 * 60); // twelve (12) hours
-//
-//   typedef struct {
-//     xTaskHandle handle;
-//     uint32_t stack_high_water;
-//     uint32_t stack_depth = 0;
-//     bool task = false;
-//   } TaskStat_t;
-//
-//   typedef TaskStat_t *TaskStat_ptr_t;
-//
-//   typedef std::pair<string_t, TaskStat_ptr_t> TaskMapItem_t;
-//
-//   // key(task name) entry(task stack high water)
-//   unordered_map<string_t, TaskStat_ptr_t> _task_map;
-//   bool _tasks_ongoing_report = false;
-//
-//   void reportTaskStacks();
-//   void updateTaskData();
-// };
 #endif

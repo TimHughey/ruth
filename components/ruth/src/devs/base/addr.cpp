@@ -19,7 +19,6 @@
 */
 #include <algorithm>
 #include <cstdlib>
-#include <cstring>
 
 #include <esp_log.h>
 #include <sys/time.h>
@@ -77,7 +76,7 @@ const std::unique_ptr<char[]> DeviceAddress::debug() const {
   auto const max_len = 63;
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
   char *str = debug_str.get();
-  str[0] = 0x00; // terminate the char array for string use
+  str[0] = 0x00; // terminate the char array
   auto curr_len = strlen(str);
 
   snprintf(str, max_len, "DeviceAddress(0x");
@@ -92,7 +91,7 @@ const std::unique_ptr<char[]> DeviceAddress::debug() const {
   curr_len = strlen(str);
   snprintf(str + curr_len, (max_len - curr_len), ")");
 
-  // move (return) the newly created string to the caller
+  // move (return) the newly created char array to the caller
   return move(debug_str);
 }
 

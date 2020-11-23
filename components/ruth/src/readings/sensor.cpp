@@ -18,8 +18,6 @@
     https://www.wisslanding.com
 */
 
-#include <string>
-
 #include <sys/time.h>
 #include <time.h>
 
@@ -45,7 +43,7 @@ Sensor::Sensor(const char *id, float celsius, int capacitance)
   captureData(celsius, capacitance);
 };
 
-void Sensor::populateJSON(JsonDocument &doc) {
+void Sensor::populateMessage(JsonDocument &doc) {
 
   if (_hasValue[TEMP]) {
     doc["temp_c"] = _celsius;

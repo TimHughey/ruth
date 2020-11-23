@@ -21,8 +21,6 @@
 #ifndef _ruth_reading_positions_hpp
 #define _ruth_reading_positions_hpp
 
-#include <string>
-
 #include <freertos/FreeRTOS.h>
 #include <sys/time.h>
 #include <time.h>
@@ -46,7 +44,7 @@ public:
   uint32_t state() { return _states; }
 
 protected:
-  virtual void populateJSON(JsonDocument &doc);
+  virtual void populateMessage(JsonDocument &doc);
 };
 } // namespace reading
 } // namespace ruth

@@ -22,7 +22,6 @@
 #define _ruth_ds_dev_hpp
 
 #include <memory>
-#include <string>
 
 #include "devs/base/base.hpp"
 

@@ -22,17 +22,16 @@
 #define _ruth_mqtt_payload_hpp
 
 #include <cstdlib>
-#include <memory>
 #include <mqtt_client.h>
-#include <string>
-#include <vector>
 
 #include "net/network.hpp"
 
 namespace ruth {
 using std::unique_ptr;
-using std::vector;
 
+typedef class TextBuffer<25> Topic_t;
+typedef class TextBuffer<64> TopicErrMsg_t;
+typedef class TextBuffer<768> RawPayload_t;
 typedef class MsgPayload MsgPayload_t;
 
 typedef unique_ptr<MsgPayload_t> MsgPayload_t_ptr;
@@ -56,20 +55,20 @@ public:
   const char *errorTopic() const;
 
   // payload data functionality
-  const vector<char> &data() const;
   const char *payload() const;
   bool emptyPayload() const;
 
   // topic host functionality
   bool forThisHost() const;
-  const string_t &host() const;
+  const char *host() const;
 
   // subtopic functionality
   bool hasSubtopic();
   bool matchSubtopic(const char *match) const;
 
-  const string_t &subtopic() const;
-  const char *subtopic_c() const;
+  size_t length() const { return _data.size(); }
+
+  const char *subtopic() const;
 
   // topic mtime functionality
   bool current();
@@ -86,12 +85,12 @@ private:
   bool _has_part[PART_END_OF_LIST] = {};
   time_t _mtime = 0;
 
-  vector<char> _data = {};
+  RawPayload_t _data;
 
-  static const size_t _max_parts = 6;
-  vector<const string_t *> _topic_parts = {};
+  static const size_t _max_parts = PART_END_OF_LIST;
+  Topic_t _topic_parts[_max_parts];
 
-  string_t _err_topic;
+  TopicErrMsg_t _err_topic;
 
   // parse out subtopics using slashes in topic
   void parseTopic(esp_mqtt_event_t *event);

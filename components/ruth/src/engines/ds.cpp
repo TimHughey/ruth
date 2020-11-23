@@ -185,6 +185,8 @@ bool DallasSemi::commandExecute(DsDevice_t *dev, uint32_t cmd_mask,
 
 // SubTasks receive their task config via the void *data
 void DallasSemi::convert(void *data) {
+  static TickType_t last_wake;
+
   uint8_t temp_convert_cmd[] = {0xcc, 0x44};
 
   // ensure the temp available bit is cleared at task startup
@@ -200,14 +202,14 @@ void DallasSemi::convert(void *data) {
 
     // now that the wait has been satisified record the last wake time
     // this is important to avoid performing the convert too frequently
-    saveTaskLastWake(TASK_CONVERT);
+    saveLastWake(last_wake);
 
     // use event bits to signal when there are temperatures available
     // start by clearing the bit to signal there isn't a temperature available
     tempUnavailable();
 
     if (!devicesPowered() && !tempDevicesPresent()) {
-      taskDelayUntil(TASK_CONVERT, _convert_frequency);
+      delayUntil(last_wake, _convert_frequency);
       continue;
     }
 
@@ -215,7 +217,7 @@ void DallasSemi::convert(void *data) {
 
     if (resetBus(present) && (present == false)) {
       giveBus();
-      taskDelayUntil(TASK_CONVERT, _convert_frequency);
+      delayUntil(last_wake, _convert_frequency);
       continue;
     }
 
@@ -229,7 +231,7 @@ void DallasSemi::convert(void *data) {
     // devices will hold the bus low during the convert
     if ((owb_s != OWB_STATUS_OK) || (data != 0x00)) {
       giveBus();
-      taskDelayUntil(TASK_CONVERT, _convert_frequency);
+      delayUntil(last_wake, _convert_frequency);
       continue;
     }
 
@@ -288,12 +290,13 @@ void DallasSemi::convert(void *data) {
       tempAvailable();
     }
 
-    taskDelayUntil(TASK_CONVERT, _convert_frequency);
+    delayUntil(last_wake, _convert_frequency);
   }
 }
 
 void DallasSemi::discover(void *data) {
-  saveTaskLastWake(TASK_DISCOVER);
+  static TickType_t last_wake;
+  saveLastWake(last_wake);
 
   while (waitForEngine()) {
     owb_status owb_s;
@@ -312,7 +315,7 @@ void DallasSemi::discover(void *data) {
     bool present = false;
     if (resetBus(present) && (present == false)) {
       giveBus();
-      taskDelayUntil(TASK_DISCOVER, _discover_frequency);
+      delayUntil(last_wake, _discover_frequency);
       continue;
     }
 
@@ -320,7 +323,7 @@ void DallasSemi::discover(void *data) {
 
     if (owb_s != OWB_STATUS_OK) {
       giveBus();
-      taskDelayUntil(TASK_DISCOVER, _discover_frequency);
+      delayUntil(last_wake, _discover_frequency);
       continue;
     }
 
@@ -374,8 +377,8 @@ void DallasSemi::discover(void *data) {
     devicesAvailable(device_found);
 
     // to avoid including the execution time of the discover phase
-    saveTaskLastWake(TASK_DISCOVER);
-    taskDelayUntil(TASK_DISCOVER, _discover_frequency);
+    saveLastWake(last_wake);
+    delayUntil(last_wake, _discover_frequency);
   }
 }
 
@@ -388,6 +391,7 @@ DallasSemi_t *DallasSemi::_instance_() {
 }
 
 void DallasSemi::report(void *data) {
+  static TickType_t last_wake;
   Net::waitForNormalOps();
 
   // let's wait here for the signal devices are available
@@ -409,7 +413,7 @@ void DallasSemi::report(void *data) {
     }
 
     // last wake is after the event group has been satisified
-    saveTaskLastWake(TASK_REPORT);
+    saveLastWake(last_wake);
 
     for_each(beginDevices(), endDevices(), [this](DsDevice_t *item) {
       DsDevice_t *dev = item;
@@ -427,7 +431,7 @@ void DallasSemi::report(void *data) {
 
     // case b:  wait a preset duration (no temp devices)
     if (_temp_devices_present == false) {
-      taskDelayUntil(TASK_REPORT, _report_frequency);
+      delayUntil(last_wake, _report_frequency);
     }
   }
 }
@@ -782,14 +786,16 @@ bool DallasSemi::resetBus(bool &present) {
 }
 
 void DallasSemi::core(void *data) {
-  owb_rmt_driver_info *rmt_driver = new owb_rmt_driver_info;
-  _ds = owb_rmt_initialize(rmt_driver, _pin, RMT_CHANNEL_0, RMT_CHANNEL_1);
+  static TickType_t last_wake;
+
+  owb_rmt_driver_info rmt_driver;
+  _ds = owb_rmt_initialize(&rmt_driver, _pin, RMT_CHANNEL_0, RMT_CHANNEL_1);
 
   owb_use_crc(_ds, true);
 
   Net::waitForNormalOps();
 
-  saveTaskLastWake(TASK_CORE);
+  saveLastWake(last_wake);
 
   for (;;) {
     // signal to other tasks the dsEngine task is in it's run loop
@@ -797,7 +803,7 @@ void DallasSemi::core(void *data) {
     engineRunning();
 
     // do high-level engine actions here (e.g. general housekeeping)
-    taskDelayUntil(TASK_CORE, _loop_frequency);
+    delayUntil(last_wake, _loop_frequency);
   }
 }
 

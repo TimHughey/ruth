@@ -22,7 +22,6 @@
 #define _ruth_dev_addr_hpp
 
 #include <memory>
-#include <string>
 #include <vector>
 
 using std::unique_ptr;

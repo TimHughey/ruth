@@ -18,8 +18,6 @@
     https://www.wisslanding.com
 */
 
-#include <string>
-
 #include <sys/time.h>
 #include <time.h>
 
@@ -36,7 +34,7 @@ Positions::Positions(const char *id, uint32_t states, uint32_t pios)
   }
 }
 
-void Positions::populateJSON(JsonDocument &doc) {
+void Positions::populateMessage(JsonDocument &doc) {
   doc["pio_count"] = _pios;
 
   JsonArray states = doc.createNestedArray("states");

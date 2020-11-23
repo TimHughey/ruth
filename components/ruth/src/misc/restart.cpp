@@ -18,8 +18,6 @@
     https://www.wisslanding.com
 */
 
-#include <string>
-
 #include <sys/time.h>
 #include <time.h>
 
@@ -62,7 +60,7 @@ void Restart::restart(const char *text, const char *func,
   }
 
   Text::rlog("restart, reason=\"%s\"%s", (text == nullptr) ? NONE : text,
-                    func_buf.get());
+             func_buf.get());
 
   // gracefully shutdown MQTT
   MQTT::shutdown();

@@ -25,23 +25,34 @@
 #include <cstdlib>
 #include <stdarg.h>
 #include <string.h>
-#include <string>
 
 namespace ruth {
-
-using std::string;
 
 template <size_t CAP = 15> class TextBuffer {
 public:
   TextBuffer(){};
   TextBuffer(const char *str) {
     size_ = strnlen_s(str);
-    copySafe(str);
+    strncpy(buff_, str, CAP);
+  }
+
+  TextBuffer(const char *str, size_t len) {
+    size_ = (len < CAP) ? len : CAP;
+    memcpy(buff_, str, size_);
+  }
+
+  void assign(const char *str, size_t len) {
+    size_ = (len < CAP) ? len : CAP;
+    memcpy(buff_, str, size_);
   }
 
   void calcSize() { size_ = strlen_s(buff_); }
   size_t capacity() const { return CAP; }
-  void clear() { bzero(buff_, CAP); }
+  void clear() {
+    size_ = 0;
+    bzero(buff_, CAP);
+  }
+
   int compare(const char *str) const { return strncmp(buff_, str, CAP); }
 
   const char *c_str() const { return buff_; }
@@ -49,6 +60,9 @@ public:
   bool empty() const { return ((size_ == 0) ? true : false); }
   void forceSize(size_t size) { size_ = (size > CAP) ? CAP : size; }
   size_t length() const { return size_; }
+  bool match(const char *str) const {
+    return (compare(str) == 0) ? true : false;
+  }
 
   void printf(const char *format, ...) {
     va_list arglist;
@@ -67,13 +81,6 @@ public:
   TextBuffer &operator=(const char *rhs) {
     size_ = strnlen_s(rhs);
     copySafe(rhs);
-
-    return *this;
-  }
-
-  TextBuffer &operator=(const string &rhs) {
-    size_ = rhs.length();
-    copySafe(rhs.c_str());
 
     return *this;
   }
@@ -106,7 +113,7 @@ private:
   }
 
 private:
-  char buff_[CAP] = {};
+  char buff_[CAP + 1] = {};
   size_t size_ = 0;
 };
 

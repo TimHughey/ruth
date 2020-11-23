@@ -35,14 +35,14 @@
 #include "misc/datetime.hpp"
 
 namespace ruth {
-static Binder_t *__singleton__ = nullptr;
+static Binder_t __singleton__;
 static const char TAG[] = "Binder";
 
 // inclusive of largest profile document
 static const size_t _doc_capacity =
     3 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(7) + 236;
 
-Binder::Binder() {
+void Binder::_init_() {
   esp_err_t esp_rc = ESP_OK;
 
   // register ruthfs spiffs
@@ -59,15 +59,13 @@ Binder::Binder() {
   }
 }
 
-// STATIC
-Binder_t *Binder::init() { return Binder::_inst_(); }
-
 void Binder::load() {
 
   FILE *f = nullptr;
 
   if ((f = fopen(config_path_, "r")) != nullptr) {
-    raw_size_ = fread((void *)config_raw_, 1, 512, f);
+    raw_size_ = fread(raw_.data(), 1, raw_.capacity(), f);
+    raw_.forceSize(raw_size_);
 
     fclose(f);
   }
@@ -83,7 +81,7 @@ const char *Binder::ntpServer(int index) {
 
 void Binder::parse() {
   StaticJsonDocument<_doc_capacity> doc;
-  DeserializationError err = deserializeJson(doc, config_raw_);
+  DeserializationError err = deserializeJson(doc, raw_.data(), raw_.size());
 
   if ((raw_size_ > 0) && !err) {
     // auto used = doc.memoryUsage();
@@ -115,27 +113,6 @@ void Binder::parse() {
 }
 
 // STATIC
-Binder_t *Binder::_inst_() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new Binder();
-  }
-  return __singleton__;
-}
-
-Binder::~Binder() {
-  if (__singleton__) {
-
-    delete __singleton__;
-    __singleton__ = nullptr;
-  }
-}
-
-// void Binder::publishMsg(const char *key, BinderMessage_t *blob) {
-//   unique_ptr<struct tm> timeinfo(new struct tm);
-//
-//   localtime_r(&(blob->time), timeinfo.get());
-//
-//   Text::rlog(timeinfo.get(), "key(%s) msg(%s)", key, blob->msg);
-// }
+Binder_t *Binder::_inst_() { return &__singleton__; }
 
 } // namespace ruth

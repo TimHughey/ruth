@@ -21,8 +21,6 @@
 #ifndef _ruth_reading_startup_hpp
 #define _ruth_reading_startup_hpp
 
-#include <string>
-
 #include <esp_ota_ops.h>
 #include <esp_system.h>
 #include <sys/time.h>
@@ -44,7 +42,7 @@ public:
   static const char *decodeResetReason(esp_reset_reason_t reason);
 
 protected:
-  virtual void populateJSON(JsonDocument &doc);
+  virtual void populateMessage(JsonDocument &doc);
 };
 } // namespace reading
 } // namespace ruth

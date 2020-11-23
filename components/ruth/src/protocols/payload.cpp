@@ -27,20 +27,14 @@ MsgPayload::MsgPayload(esp_mqtt_event_t *event) {
   parseTopic(event);
   validateSubtopics();
 
-  // _data.reserve(in_payload->len + 2);
-  _data.assign(event->data, (event->data + event->data_len));
-  // _data.push_back(0x00); // ensure null termination
+  _data.assign(event->data, event->data_len);
 
   if (invalid() && _err_topic.empty()) {
     _err_topic.assign(event->data, event->data_len);
   }
 }
 
-MsgPayload::~MsgPayload() {
-  for (auto i = 0; i < _topic_parts.size(); i++) {
-    delete _topic_parts.at(i);
-  }
-}
+MsgPayload::~MsgPayload() {}
 
 //
 // NOTE:
@@ -54,19 +48,15 @@ bool MsgPayload::invalid() { return !valid(); }
 const char *MsgPayload::errorTopic() const { return _err_topic.c_str(); }
 
 // payload data functionality
-const vector<char> &MsgPayload::data() const { return _data; }
-const char *MsgPayload::payload() const { return _data.data(); }
+const char *MsgPayload::payload() const { return _data.c_str(); }
 bool MsgPayload::emptyPayload() const { return _data.empty(); }
 
 // topic host functionality
 bool MsgPayload::forThisHost() const {
-  return (_topic_parts.at(PART_HOST)->compare(Net::hostID()) == 0 ? true
-                                                                  : false);
+  return _topic_parts[PART_HOST].match(Net::hostID());
 }
 
-const string_t &MsgPayload::host() const {
-  return *(_topic_parts.at(PART_HOST));
-}
+const char *MsgPayload::host() const { return _topic_parts[PART_HOST].c_str(); }
 
 // subtopic functionality
 bool MsgPayload::hasSubtopic() {
@@ -75,24 +65,17 @@ bool MsgPayload::hasSubtopic() {
   if (has_subtopic)
     return true;
 
-  auto max_len = 64;
-  unique_ptr<char[]> buf(new char[max_len + 1]);
-
-  snprintf(buf.get(), max_len, "payload topic does not have a subtopic");
-  _err_topic = buf.get();
+  _err_topic = "payload topic does not have a subtopic";
 
   return false;
 }
 
-bool MsgPayload::matchSubtopic(const char *match) const {
-  return (_topic_parts.at(PART_SUBTOPIC)->compare(match) == 0 ? true : false);
+bool MsgPayload::matchSubtopic(const char *topic) const {
+  return _topic_parts[PART_SUBTOPIC].match(topic);
 }
 
-const string_t &MsgPayload::subtopic() const {
-  return *_topic_parts.at(PART_SUBTOPIC);
-}
-const char *MsgPayload::subtopic_c() const {
-  return _topic_parts.at(PART_SUBTOPIC)->c_str();
+const char *MsgPayload::subtopic() const {
+  return _topic_parts[PART_SUBTOPIC].c_str();
 }
 
 // topic mtime functionality
@@ -104,23 +87,16 @@ bool MsgPayload::current() {
   if (recent)
     return true;
 
-  auto max_len = 256;
-  unique_ptr<char[]> buf(new char[max_len + 1]);
-
-  auto diff = now - _mtime;
-
-  snprintf(buf.get(), max_len, "payload mtime failure, diff=%ld", diff);
-
-  _err_topic = buf.get();
+  _err_topic.printf("mtime variance[%ld]", (now - _mtime));
 
   return false;
 }
 
 // use the slashes in the topic to parse out the subtopics
 void MsgPayload::parseTopic(esp_mqtt_event_t *event) {
-  static const size_t max_parts = sizeof(_topic_parts);
+  auto found_parts = 0;
 
-  // i is the index into the topic vector
+  // i is the index into the topic array
   // spos is the starting position of the part found (starting at zero)
   for (size_t i = 0, spos = 0; i <= event->topic_len; i++) {
     // part is found when either:
@@ -136,15 +112,15 @@ void MsgPayload::parseTopic(esp_mqtt_event_t *event) {
 
       // construct the string from the starting position (spos) and length
       const size_t len = i - spos;
-      const string_t *part = new string_t(&(event->topic[spos]), len);
+      const Topic_t part(&(event->topic[spos]), len);
 
-      _topic_parts.push_back(part);
+      _topic_parts[found_parts++] = part;
 
       spos += len + 1; // the next starting position skips the slash
     }
 
     // limit the number of parts to find
-    if (_topic_parts.size() >= max_parts) {
+    if (found_parts == _max_parts) {
       break;
     }
   }
@@ -156,16 +132,16 @@ void MsgPayload::validateSubtopics() {
   // exmaple:
   //  index: 0....1......2..........3......
   //  topic: prod/<host>/<subtopic>/<mtime>
-  for (uint32_t i = 0; i < _topic_parts.size(); i++) {
-    const string_t *part = _topic_parts.at(i);
+  for (uint32_t i = 0; i < _max_parts; i++) {
+    const Topic_t &part = _topic_parts[i];
 
     if ((TopicParts_t)i < PART_END_OF_LIST) {
-      _has_part[i] = (part->empty()) ? false : true;
+      _has_part[i] = (part.empty()) ? false : true;
     }
   }
 
   if (_has_part[PART_MTIME]) {
-    _mtime = atoll(_topic_parts.at(PART_MTIME)->c_str());
+    _mtime = atoll(_topic_parts[PART_MTIME].c_str());
   }
 }
 

@@ -21,16 +21,12 @@
 #ifndef _ruth_reading_hpp
 #define _ruth_reading_hpp
 
-// #include <memory>
-#include <string>
-
 #include <external/ArduinoJson.h>
 #include <sys/time.h>
 #include <time.h>
 
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
-#include "misc/textbuffer.hpp"
 
 namespace ruth {
 namespace reading {
@@ -57,14 +53,9 @@ public:
   Reading(ReadingType_t type) : _type(type){};
   Reading(const char *id, ReadingType_t type) : _id(id), _type(type){};
 
-  virtual ~Reading() {
-    if (_json != nullptr) {
-      delete _json;
-    }
-  };
+  virtual ~Reading() {}
 
   void msgPack(MsgPackPayload_t &payload);
-  string_t *json(char *buffer = nullptr, size_t len = 0);
   virtual void publish();
   virtual void refresh() { time(&_mtime); }
   void setCmdAck(uint32_t latency_us, const RefID_t &refid) {
@@ -99,7 +90,6 @@ private:
   // tracking info
   RefID_t _refid;
   bool _cmd_ack = false;
-  string_t _cmd_err;
   uint32_t _latency_us = 0;
 
   bool _log_reading = false;
@@ -110,12 +100,10 @@ private:
   int _read_errors = 0;
   int _write_errors = 0;
 
-  char *_json = nullptr;
-
   ReadingType_t _type = BASE;
 
-  void commonJSON(JsonDocument &doc);
-  virtual void populateJSON(JsonDocument &doc){};
+  void commonMessage(JsonDocument &doc);
+  virtual void populateMessage(JsonDocument &doc){};
 };
 } // namespace reading
 } // namespace ruth

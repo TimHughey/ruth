@@ -22,10 +22,7 @@
 #define _ruth_ds_engine_hpp
 
 #include <cstdlib>
-#include <map>
-#include <string>
 
-#include <driver/gpio.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>

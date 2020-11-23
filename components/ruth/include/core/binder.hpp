@@ -21,22 +21,24 @@
 #ifndef _ruth_binder_hpp
 #define _ruth_binder_hpp
 
-#include <vector>
-
 #include <esp_spiffs.h>
 
 #include "local/types.hpp"
 
 namespace ruth {
 
-using std::vector;
-
 typedef class Binder Binder_t;
+typedef class TextBuffer<512> BinderRaw_t;
+typedef class TextBuffer<10> RuntimeEnv_t;
+typedef class TextBuffer<50> NtpServer_t;
+typedef class TextBuffer<45> WifiConfigInfo_t;
+typedef class TextBuffer<45> MqttConfigInfo_t;
 
 class Binder {
 
 public:
-  static Binder_t *init();
+  Binder(){}; // SINGLETON
+  static void init() { _inst_()->_init_(); }
 
   // Runtime environment
   static const char *env() { return _inst_()->env_.c_str(); };
@@ -58,8 +60,7 @@ public:
   static const char *wifiPasswd() { return _inst_()->wifi_passwd_.c_str(); };
 
 private:
-  Binder();
-  ~Binder();
+  void _init_();
   static Binder *_inst_();
 
   void load();
@@ -73,20 +74,20 @@ private:
 
   const char *config_path_ = "/ruthfs/config_0.json";
 
-  char config_raw_[512];
+  BinderRaw_t raw_;
   size_t raw_size_ = 0;
 
-  string_t env_;
+  RuntimeEnv_t env_;
   time_t mtime_;
   bool active_;
 
-  string_t ntp_servers_[2];
-  string_t wifi_ssid_;
-  string_t wifi_passwd_;
+  NtpServer_t ntp_servers_[2];
+  WifiConfigInfo_t wifi_ssid_;
+  WifiConfigInfo_t wifi_passwd_;
 
-  string_t mq_uri_;
-  string_t mq_user_;
-  string_t mq_passwd_;
+  MqttConfigInfo_t mq_uri_;
+  MqttConfigInfo_t mq_user_;
+  MqttConfigInfo_t mq_passwd_;
   uint32_t mq_task_prio_;
   size_t mq_rx_buffer_;
   size_t mq_tx_buffer_;

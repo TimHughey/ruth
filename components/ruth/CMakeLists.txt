@@ -65,5 +65,4 @@ idf_component_register(
 
 spiffs_create_partition_image(ruthfs ../../extra/ruthfs/image FLASH_IN_PROJECT)
 
-target_compile_definitions(${COMPONENT_LIB} PRIVATE
-  ARDUINOJSON_ENABLE_STD_STREAM ARDUINOJSON_USE_LONG_LONG)
+target_compile_definitions(${COMPONENT_LIB} PRIVATE ARDUINOJSON_USE_LONG_LONG)

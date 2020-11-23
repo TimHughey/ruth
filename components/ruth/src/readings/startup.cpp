@@ -34,10 +34,10 @@ Startup::Startup(uint32_t batt_mv) : Remote(BOOT, batt_mv) {
   reset_reason_ = decodeResetReason(esp_reset_reason());
 };
 
-void Startup::populateJSON(JsonDocument &doc) {
+void Startup::populateMessage(JsonDocument &doc) {
   TextBuffer<12> sha256;
 
-  Remote::populateJSON(doc);
+  Remote::populateMessage(doc);
 
   auto size = esp_ota_get_app_elf_sha256(sha256.data(), sha256.capacity());
   sha256.forceSize(size);

@@ -23,7 +23,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <vector>
 
 #include <sys/time.h>
 #include <time.h>
@@ -38,31 +37,32 @@ namespace ruth {
 
 using std::find_if;
 using std::unique_ptr;
-using std::vector;
 
 typedef class Profile Profile_t;
+typedef class TextBuffer<40> Version_t;
+typedef class TextBuffer<20> ProfileName_t;
 
 class Profile {
 public:
-  static bool postParseActions() { return _instance_()->_postParseActions(); };
+  Profile(){};
+
+  static bool postParseActions() { return _instance_()._postParseActions(); };
 
   static const char *assignedName() {
-    return _instance_()->_assigned_name.c_str();
+    return _instance_()._assigned_name.c_str();
   };
 
   static uint32_t coreLoopTicks() {
-
-    return (_instance_()) ? pdMS_TO_TICKS(_instance_()->_core_loop_ms)
-                          : pdMS_TO_TICKS(1000);
+    return pdMS_TO_TICKS(_instance_()._core_loop_ms);
   }
 
   // was the Profile received within the previous 60 seconds
   static bool current() {
-    return (_instance_()->_mtime > (time(nullptr) - 60)) ? true : false;
+    return (_instance_()._mtime > (time(nullptr) - 60)) ? true : false;
   }
 
   static bool engineEnabled(EngineTypes_t engine_type) {
-    return _instance_()->_engine_enabled[engine_type];
+    return _instance_()._engine_enabled[engine_type];
   }
 
   static TickType_t engineTaskIntervalTicks(EngineTypes_t engine_type,
@@ -74,26 +74,28 @@ public:
   static uint32_t engineTaskStack(EngineTypes_t engine_type,
                                   EngineTaskTypes_t task_type);
 
-  static void fromRaw(MsgPayload_t *payload) { Profile::_fromRaw(payload); };
-
-  // MISC
-  static bool i2cMultiplexer() { return _instance_()->_i2c_mplex; };
-
-  static const char *profileName() {
-    return _instance_()->_profile_name.c_str();
+  static void fromRaw(MsgPayload_t *payload) {
+    _instance_()._fromRaw(payload);
   };
 
-  static uint64_t timestampMS() { return _instance_()->_core_timestamp_ms; }
+  // MISC
+  static bool i2cMultiplexer() { return _instance_()._i2c_mplex; };
 
-  static bool valid() { return (_instance_()) ? _instance_()->_valid : false; }
+  static const char *profileName() {
+    return _instance_()._profile_name.c_str();
+  };
 
-  static const char *version() { return _instance_()->_version.c_str(); };
+  static uint64_t timestampMS() { return _instance_()._core_timestamp_ms; }
+
+  static bool valid() { return _instance_()._valid; }
+
+  static const char *version() { return _instance_()._version.c_str(); };
 
 private:
   Profile(MsgPayload_t *payload); // SINGLETON!  constructor is private
 
-  static void _fromRaw(MsgPayload_t *payload);
-  static Profile_t *_instance_();
+  void _fromRaw(MsgPayload_t *payload);
+  static Profile_t &_instance_();
 
   bool _postParseActions();
 
@@ -103,12 +105,13 @@ private:
   bool _valid = false;
 
   // root data
-  string_t _assigned_name;
+  Hostname_t _assigned_name;
   time_t _mtime = 0;
 
   // metadata
-  string_t _version;
-  string_t _profile_name;
+  // 00.00.10-12-ge435da3f-dirty
+  Version_t _version;
+  ProfileName_t _profile_name;
 
   // core task
   bool _watch_stacks = false;
@@ -121,8 +124,9 @@ private:
   // array of engine enabled
   bool _engine_enabled[ENGINE_END_OF_LIST];
 
-  // vector of specific engines profile info
-  vector<ProfileEngineTask_t *> _engine_tasks;
+  // 2D array of engine tasks
+  ProfileEngineTask_t _engine_tasks[EngineTypes_t::ENGINE_END_OF_LIST]
+                                   [EngineTaskTypes_t::TASK_END_OF_LIST];
 };
 
 } // namespace ruth

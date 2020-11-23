@@ -17,7 +17,6 @@
 
     https://www.wisslanding.com
 */
-#include <string>
 
 #include <sys/time.h>
 #include <time.h>
@@ -48,7 +47,7 @@ void Text::consoleWarn(const char *tag) {
     ESP_LOGW(tag, "%s", _actual);
 }
 
-void Text::populateJSON(JsonDocument &doc) {
+void Text::populateMessage(JsonDocument &doc) {
   doc["text"] = _actual;
   doc["log"] = true;
 }

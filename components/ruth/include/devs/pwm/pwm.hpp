@@ -22,8 +22,6 @@
 #define _ruth_pwm_dev_hpp
 
 #include <cstdlib>
-#include <memory>
-#include <string>
 
 #include <driver/gpio.h>
 #include <driver/ledc.h>

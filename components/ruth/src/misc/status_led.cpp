@@ -22,9 +22,9 @@
 
 namespace ruth {
 // static const char *TAG = "StatusLED";
-static StatusLED_t *__singleton__ = nullptr;
+static StatusLED_t __singleton__;
 
-StatusLED::StatusLED() {
+void StatusLED::_init() {
   auto timer_rc = ESP_FAIL;
   auto config_rc = ESP_FAIL;
   auto fade_func_rc = ESP_FAIL;
@@ -100,11 +100,5 @@ void StatusLED::_duty_(uint32_t new_duty) {
 }
 
 // STATIC
-StatusLED_t *StatusLED::_instance_() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new StatusLED();
-  }
-
-  return __singleton__;
-}
+StatusLED_t *StatusLED::_instance_() { return &__singleton__; }
 } // namespace ruth

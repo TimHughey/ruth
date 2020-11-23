@@ -53,7 +53,7 @@ public:
   Sensor(const char *id, float celsius, int capacitance);
 
 protected:
-  void populateJSON(JsonDocument &doc);
+  void populateMessage(JsonDocument &doc);
 
 private:
   void captureData(float celsius); // temperature only sensors

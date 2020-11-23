@@ -21,9 +21,6 @@
 #ifndef _ruth_pwm_cmd_hpp
 #define _ruth_pwm_cmd_hpp
 
-#include <memory>
-#include <string>
-
 #include <driver/ledc.h>
 #include <freertos/FreeRTOS.h>
 
@@ -32,7 +29,7 @@
 
 namespace ruth {
 namespace pwm {
-using std::vector;
+
 using namespace reading;
 
 typedef class Command Command_t;

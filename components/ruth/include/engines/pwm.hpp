@@ -22,7 +22,6 @@
 #define _ruth_pwm_engine_hpp
 
 #include <cstdlib>
-#include <string>
 
 #include <driver/gpio.h>
 #include <driver/ledc.h>
@@ -80,6 +79,8 @@ private:
 
   const TickType_t _report_frequency =
       Profile::engineTaskIntervalTicks(ENGINE_PWM, TASK_REPORT);
+
+  EngineTask_t _tasks[3];
 
 private:
   static PulseWidth_t *_instance_();

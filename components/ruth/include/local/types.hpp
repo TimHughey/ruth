@@ -22,18 +22,16 @@
 #define _ruth_local_types_hpp
 
 #include <memory>
-#include <string>
-#include <vector>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/task.h>
 
+#include "misc/textbuffer.hpp"
+
 namespace ruth {
 
-// just in case we ever want to change
-// TODO:  roll this out across the entire project
-using string_t = std::string;
+typedef class TextBuffer<20> Hostname_t;
 
 typedef std::unique_ptr<char[]> MsgBuff_t;
 
@@ -47,8 +45,6 @@ typedef struct {
   UBaseType_t priority;
   UBaseType_t stackSize;
 } Task_t;
-
-typedef std::vector<char> RawMsg_t;
 
 } // namespace ruth
 #endif // ruth_type_hpp

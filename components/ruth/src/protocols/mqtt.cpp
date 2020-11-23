@@ -19,10 +19,7 @@
  */
 
 #include <algorithm>
-#include <array>
 #include <cstdlib>
-#include <memory>
-#include <string>
 
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
@@ -66,8 +63,6 @@ MQTT::MQTT() {
   //   b. feed host: prod/r/ruth-xxxxxxxxxxxx/#
   _feed_rpt.printf("%s/r/%s", Binder::env(), Net::hostID());
   _feed_host.printf("%s/%s/#", Binder::env(), Net::hostID());
-
-  ESP_LOGV(TAG, "reporting to feed[%s]", _feed_rpt.c_str());
 }
 
 MQTT::~MQTT() { // memory clean up handled by shutdown
@@ -90,14 +85,13 @@ void MQTT::connectionClosed() {
 }
 
 bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
+  auto matched = false;
   auto payload_rc = false;
   auto payload = payload_ptr.get();
-  // save a copy of the subtopic in case we need to report a failure
-  // and the original payload has been moved and possibly freed
-  string_t subtopic(payload->subtopic());
 
   if (payload->invalid()) {
     TR::rlog("[MQTT] invalid topic[%s]", payload->errorTopic());
+    return payload_rc;
   }
 
   // NOTE:
@@ -110,12 +104,15 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   // only handle Engine commands if the Engines have been started
   if (Core::enginesStarted()) {
     if (payload->matchSubtopic("pwm")) {
+      matched = true;
       payload_rc = PulseWidth::queuePayload(move(payload_ptr));
 
     } else if (payload->matchSubtopic("i2c")) {
+      matched = true;
       payload_rc = I2c::queuePayload(move(payload_ptr));
 
     } else if (payload->matchSubtopic("ds")) {
+      matched = true;
       payload_rc = DallasSemi::queuePayload(move(payload_ptr));
     }
   }
@@ -130,22 +127,31 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   // the Profile which can not be processed and must be ignored.
 
   // we can also process OTA and restart commands
-  if (payload->matchSubtopic("profile")) {
-    Profile::fromRaw(payload);
+  if (!matched) {
+    if (payload->matchSubtopic("profile")) {
+      matched = true;
+      Profile::fromRaw(payload);
 
-    if (Profile::valid()) {
-      payload_rc = Profile::postParseActions();
+      if (Profile::valid()) {
+        payload_rc = Profile::postParseActions();
+      }
+    } else if (payload->matchSubtopic("ota")) {
+      matched = true;
+      OTA *ota = OTA::payload(move(payload_ptr));
+      payload_rc = Core::otaRequest(ota);
+
+    } else if (payload->matchSubtopic("restart")) {
+      matched = true;
+      payload_rc = Core::restartRequest();
     }
-  } else if (payload->matchSubtopic("ota")) {
-    OTA *ota = OTA::payload(move(payload_ptr));
-    payload_rc = Core::otaRequest(ota);
-
-  } else if (payload->matchSubtopic("restart")) {
-    payload_rc = Core::restartRequest();
   }
 
-  if (payload_rc == false) {
-    TR::rlog("[MQTT] subtopic[%s] failed", subtopic.c_str());
+  if (matched && !payload_rc) {
+    TR::rlog("[MQTT] failed handling subtopic[%s]", payload->subtopic());
+  }
+
+  if (!matched) {
+    TR::rlog("[MQTT] unknown subtopic[%s]", payload->subtopic());
   }
 
   return payload_rc;
@@ -225,6 +231,7 @@ void MQTT::core(void *data) {
       auto stack_percent =
           100.0 - ((float)stack_high_water / (float)_task.stackSize * 100.0);
 
+      ESP_LOGV(TAG, "reporting to feed[%s]", _feed_rpt.c_str());
       ESP_LOGI(TAG, "after announce stack used[%0.1f%%] hw[%u]", stack_percent,
                stack_high_water);
     }
@@ -449,30 +456,6 @@ void MQTT::publish(Reading_t &reading) {
 
     _instance_->publishMsg(payload);
   }
-}
-
-// void MQTT::publish(unique_ptr<Reading_t> reading) {
-//   if (_instance_) {
-//     _instance_->publishMsg(reading->json());
-//   };
-// }
-
-void MQTT::publishMsg(string_t *msg) {
-  if (_connection) {
-
-    _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(),
-                                      msg->data(), msg->size(), 0, false);
-
-    // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
-    if (_msg_id < 0) {
-      // pass a nullptr for the message so Restart doesn't attempt to publish
-      Restart::restart(nullptr, __PRETTY_FUNCTION__);
-    }
-
-    _msg_max_size = max(msg->size(), _msg_max_size);
-  }
-
-  delete msg;
 }
 
 void MQTT::publishMsg(MsgPackPayload_t &payload) {

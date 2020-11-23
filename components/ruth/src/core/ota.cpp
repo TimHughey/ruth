@@ -48,7 +48,7 @@ OTA_t *OTA::_instance_(MsgPayload_t_ptr payload_ptr) {
 static const size_t _capacity = JSON_OBJECT_SIZE(3) + 336;
 
 OTA::OTA(MsgPayload_t_ptr payload_ptr) {
-  DynamicJsonDocument doc(_capacity);
+  StaticJsonDocument<_capacity> doc;
 
   elapsedMicros parse_elapsed;
   // deserialize the msgpack data

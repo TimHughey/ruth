@@ -1,6 +1,4 @@
 #include <cstdlib>
-#include <memory>
-#include <string>
 
 #include <esp_attr.h>
 #include <esp_event.h>

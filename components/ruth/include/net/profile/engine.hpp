@@ -23,7 +23,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <vector>
 
 #include <esp_log.h>
 
@@ -33,16 +32,21 @@
 
 namespace ruth {
 
-using std::vector;
-
 typedef class ProfileEngineTask ProfileEngineTask_t;
 
 class ProfileEngineTask {
 public:
+  ProfileEngineTask() {
+    static const char *none = "none";
+    _engine_key = none;
+    _task_key = none;
+  }
+
   ProfileEngineTask(EngineTypes_t engine_type, EngineTaskTypes_t task_type,
                     const JsonObject engine_doc)
       : _engine_type(engine_type), _task_type(task_type) {
 
+    _initialized = true;
     _engine_key = lookupEngineKey(_engine_type);
     _task_key = lookupTaskKey(task_type);
 
@@ -56,8 +60,6 @@ public:
       _interval_ms = task_doc["interval_ms"] | UINT32_MAX;
     }
   }
-
-  // DEFAULT DESTRUCTOR
 
   uint32_t intervalMS() const { return _interval_ms; }
   uint32_t priority() const { return _priority; }
@@ -79,6 +81,7 @@ public:
   }
 
 private:
+  bool _initialized = false;
   EngineTypes_t _engine_type;
   EngineTaskTypes_t _task_type;
   const char *_engine_key;
