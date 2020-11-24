@@ -90,7 +90,7 @@ bool MCP23008::writeState(uint32_t cmd_mask, uint32_t cmd_state) {
   // important because setting the new state relies, in part, on the
   // existing state for the pios not changing
   if (read() == false) {
-    Text::rlog("device \"%s\" read before set failed", debug().get());
+    Text::rlog("device \"%s\" read before set failed", id());
 
     return false;
   }
@@ -126,7 +126,7 @@ bool MCP23008::writeState(uint32_t cmd_mask, uint32_t cmd_state) {
 
   auto rc = false;
   if ((rc = requestData(_tx, _rx)) == false) {
-    Text::rlog("[%s] device \"%s\" set failed", recentError(), debug().get());
+    Text::rlog("[%s] device \"%s\" set failed", recentError(), id());
   }
 
   writeStop();
