@@ -56,6 +56,8 @@ public:
   TaskHandle_t *handle_ptr() { return &_handle; }
   const char *name() const { return _name.c_str(); }
   size_t nameMaxLength() const { return (CONFIG_FREERTOS_MAX_TASK_NAME_LEN); }
+  void notify() const;
+  void notifyClear() const;
   UBaseType_t priority() const { return _priority; }
   UBaseType_t stackSize() const { return _stack_size; }
   TaskFunc_t const *taskFunc() const { return _task_func; }

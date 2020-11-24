@@ -73,7 +73,7 @@ public:
   //
   void command(void *data);
   void core(void *data);
-  void discover(void *data);
+
   void report(void *data);
 
   void stop();
@@ -83,17 +83,6 @@ public:
 
 private:
   i2c_config_t _conf;
-  const TickType_t _loop_frequency =
-      Profile::engineTaskIntervalTicks(ENGINE_I2C, TASK_CORE);
-
-  const TickType_t _discover_frequency =
-      Profile::engineTaskIntervalTicks(ENGINE_I2C, TASK_DISCOVER);
-
-  const TickType_t _report_frequency =
-      Profile::engineTaskIntervalTicks(ENGINE_I2C, TASK_REPORT);
-
-  const time_t _dev_missing_secs =
-      ((_report_frequency * 1.5) / portTICK_PERIOD_MS) * 1000 * 60;
 
   bool _use_multiplexer = false;
 
@@ -115,6 +104,7 @@ private:
   bool detectDevicesOnBus(int bus);
 
   bool detectMultiplexer();
+  bool discover();
   bool pinReset();
   bool hardReset();
   bool installDriver();

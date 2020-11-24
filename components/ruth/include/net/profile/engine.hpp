@@ -74,8 +74,7 @@ public:
   }
 
   static const char *lookupTaskKey(EngineTaskTypes_t task_type) {
-    static const char *tasks[TASK_END_OF_LIST] = {"core", "convert", "discover",
-                                                  "report", "command"};
+    static const char *tasks[TASK_END_OF_LIST] = {"core", "report", "command"};
 
     return tasks[task_type];
   }

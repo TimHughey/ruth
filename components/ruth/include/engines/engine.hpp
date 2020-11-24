@@ -58,7 +58,6 @@ protected:
 public:
   Engine() {
     _engine_type = ENGINE_TYPE;
-    _evg = xEventGroupCreate();
     _bus_mutex = xSemaphoreCreateMutex();
   };
 
@@ -156,75 +155,47 @@ public:
   uint32_t numKnownDevices() { return _devices.size(); };
 
 protected:
-  virtual void convert(void *data) { doNothing(); };
   virtual void command(void *data) { doNothing(); };
-  virtual void discover(void *data) { doNothing(); };
   virtual void report(void *data) { doNothing(); };
-
   virtual bool readDevice(DEV *dev) = 0;
 
-  // event group bits
-  EventBits_t engineBit() { return _event_bits.engine_running; }
-  EventBits_t needBusBit() { return _event_bits.need_bus; }
-  EventBits_t devicesAvailableBit() { return _event_bits.devices_available; }
-  EventBits_t devicesOrTempSensorsBit() {
-    return (_event_bits.devices_available | _event_bits.temp_sensors_available);
-  }
-  EventBits_t tempSensorsAvailableBit() {
-    return _event_bits.temp_sensors_available;
-  }
-  EventBits_t temperatureAvailableBit() { return _event_bits.temp_available; }
+  void notifyDevicesAvailable() {
+    // only notify other tasks once
+    static bool need_notification = true;
 
-  // event group
-  void devicesAvailable(bool available = true) {
-    if (available) {
-      xEventGroupSetBits(_evg, _event_bits.devices_available);
-    } else {
-      xEventGroupClearBits(_evg, _event_bits.devices_available);
-    }
-  }
-  void devicesUnavailable() {
-    xEventGroupClearBits(_evg, _event_bits.devices_available);
-  }
-
-  void engineRunning() { xEventGroupSetBits(_evg, _event_bits.engine_running); }
-  bool isBusNeeded() { return (xEventGroupGetBits(_evg) & needBusBit()); }
-
-  void needBus() { xEventGroupSetBits(_evg, needBusBit()); }
-  void clearNeedBus() { xEventGroupClearBits(_evg, needBusBit()); }
-  void tempAvailable() { xEventGroupSetBits(_evg, _event_bits.temp_available); }
-  void tempUnavailable() {
-    xEventGroupClearBits(_evg, _event_bits.temp_available);
-  }
-  void temperatureSensors(bool available) {
-    if (available) {
-      xEventGroupSetBits(_evg, _event_bits.temp_sensors_available);
-    } else {
-      xEventGroupClearBits(_evg, _event_bits.temp_sensors_available);
+    if ((numKnownDevices() > 0) && need_notification) {
+      need_notification = false;
+      _task_map.notify(TASK_COMMAND);
+      _task_map.notify(TASK_REPORT);
     }
   }
 
-  EventBits_t waitFor(EventBits_t bits, TickType_t wait_ticks = portMAX_DELAY,
-                      bool clear_bits = false) {
-    EventBits_t set_bits = xEventGroupWaitBits(
-        _evg, bits,
-        (clear_bits ? pdTRUE : pdFALSE), // clear bits (if set while waiting)
-        pdTRUE, // wait for all bits, not really needed here
-        wait_ticks);
+  bool isBusNeeded(uint32_t wait_ms = 0) {
+    // BaseType_t xTaskNotifyWait(uint32_t ulBitsToClearOnEntry, uint32_t
+    // ulBitsToClearOnExit, uint32_t *pulNotificationValue, TickType_t
+    // xTicksToWait)
+    //
+    // uint32_t ulTaskNotifyTake(BaseType_t xClearCountOnExit, TickType_t
+    // xTicksToWait)
 
-    return (set_bits);
+    // when the bus is needed there will be a notification waiting for the task
+    return ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(wait_ms) > 0) ? true : false;
   }
 
-  bool waitForEngine() {
-    EventBits_t b = engineBit();
-    EventBits_t sb;
+  void needBus() {
+    _task_map.notify(TASK_CORE);
+    _task_map.notify(TASK_REPORT);
+  }
 
-    sb = xEventGroupWaitBits(_evg, b, // bit to wait for
-                             pdFALSE, // don't clear bit
-                             pdTRUE,  // wait for all bits
-                             portMAX_DELAY);
+  void holdForDevicesAvailable() {
+    // wait indefinitely for devices to become available, when notified clear
+    // the notification value as direct to task notifications are reused for
+    // forcibly taking the bus mutex
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+  }
 
-    return (sb & b);
+  bool acquireBus(TickType_t wait_ticks = portMAX_DELAY) {
+    return (xSemaphoreTake(_bus_mutex, wait_ticks) == pdTRUE) ? true : false;
   }
 
   // semaphore
@@ -232,7 +203,9 @@ protected:
     xSemaphoreGive(_bus_mutex);
     return true;
   }
+
   bool takeBus(TickType_t wait_ticks = portMAX_DELAY) {
+    needBus();
     // the bus will be in an indeterminate state if we do acquire it so
     // call resetBus(). said differently, we could have taken the bus
     // in the middle of some other operation (e.g. discover, device read)
@@ -241,6 +214,13 @@ protected:
     }
 
     return false;
+  }
+
+  void releaseBus() {
+    _task_map.notifyClear(TASK_CORE);
+    _task_map.notifyClear(TASK_REPORT);
+
+    giveBus();
   }
 
   bool publish(DEV *dev) {
@@ -269,6 +249,21 @@ protected:
 
   virtual bool resetBus() { return true; }
   virtual bool resetBus(bool &additional_status) { return true; }
+
+  //////
+  //
+  // Task / Action Frequencies
+  //
+  //////
+
+  // delay times
+  inline TickType_t coreFrequency() {
+    return Profile::engineTaskIntervalTicks(ENGINE_TYPE, TASK_CORE);
+  }
+
+  inline TickType_t reportFrequency() {
+    return Profile::engineTaskIntervalTicks(ENGINE_TYPE, TASK_REPORT);
+  }
 
   //////
   //
@@ -357,16 +352,8 @@ protected:
       task_func = &runCommand;
       break;
 
-    case TASK_DISCOVER:
-      task_func = &runDiscover;
-      break;
-
     case TASK_REPORT:
       task_func = &runReport;
-      break;
-
-    case TASK_CONVERT:
-      task_func = &runConvert;
       break;
 
     default:
@@ -416,7 +403,6 @@ private:
   //////
 
 private:
-  EventGroupHandle_t _evg;
   SemaphoreHandle_t _bus_mutex = nullptr;
 
   engineEventBits_t _event_bits = {.need_bus = BIT0,
@@ -451,23 +437,6 @@ private:
   //
   // Engine Sub Tasks
   //
-  static void runConvert(void *instance) {
-    Engine *task_instance = (Engine *)instance;
-
-    if (task_instance) {
-      auto task = task_instance->lookupTaskData(TASK_CONVERT);
-      task_instance->convert(task.data());
-    }
-  }
-
-  static void runDiscover(void *instance) {
-    Engine *task_instance = (Engine *)instance;
-
-    if (task_instance) {
-      auto task = task_instance->lookupTaskData(TASK_DISCOVER);
-      task_instance->discover(task.data());
-    }
-  }
 
   static void runReport(void *instance) {
     Engine *task_instance = (Engine *)instance;

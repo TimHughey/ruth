@@ -116,7 +116,6 @@ void PulseWidth::core(void *task_data) {
     PwmDevice *new_dev = new PwmDevice(dev);
     unique_ptr<PwmDevice> new_dev_ptr(new_dev);
 
-    new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
     new_dev->configureChannel();
 
     if (new_dev->lastRC() == ESP_OK) {
@@ -126,11 +125,7 @@ void PulseWidth::core(void *task_data) {
     }
   }
 
-  engineRunning();
-
-  if (numKnownDevices() > 0) {
-    devicesAvailable();
-  }
+  notifyDevicesAvailable();
 
   // core task run loop
   //  1.  acts on task notifications
@@ -161,15 +156,15 @@ void PulseWidth::core(void *task_data) {
 void PulseWidth::report(void *data) {
   static TickType_t last_wake;
 
-  saveLastWake(last_wake);
+  for (;;) {
+    holdForDevicesAvailable();
+    Net::waitForNormalOps();
+    saveLastWake(last_wake);
 
-  while (waitFor(devicesAvailableBit())) {
     if (numKnownDevices() == 0) {
-      delayUntil(last_wake, _report_frequency);
+      delayUntil(last_wake, reportFrequency());
       continue;
     }
-
-    Net::waitForNormalOps();
 
     for_each(deviceMap().begin(), deviceMap().end(), [this](PwmDevice_t *dev) {
       if (dev->available()) {
@@ -179,7 +174,7 @@ void PulseWidth::report(void *data) {
       }
     });
 
-    delayUntil(last_wake, _report_frequency);
+    delayUntil(last_wake, reportFrequency());
   }
 }
 

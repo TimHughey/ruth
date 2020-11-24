@@ -34,8 +34,6 @@ typedef enum {
 // defines the Engine Tasks available in the profile
 typedef enum {
   TASK_CORE = 0,
-  TASK_CONVERT,
-  TASK_DISCOVER,
   TASK_REPORT,
   TASK_COMMAND,
   TASK_END_OF_LIST

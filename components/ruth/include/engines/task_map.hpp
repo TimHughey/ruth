@@ -39,6 +39,10 @@ public:
   EngineTaskMap() {}
 
   void add(const EngineTask_t &task) { _tasks[task.type()] = task; }
+  void notify(EngineTaskTypes_t engine_type) { _tasks[engine_type].notify(); }
+  void notifyClear(EngineTaskTypes_t engine_type) {
+    _tasks[engine_type].notifyClear();
+  }
   EngineTask_t &get(int type) { return _tasks[type]; }
 
 private:

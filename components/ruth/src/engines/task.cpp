@@ -30,15 +30,6 @@ void EngineTask::assembleName() {
     _name = base[_engine_type];
     break;
 
-  case TASK_CONVERT:
-    _name.printf("%s-cvt", base[_engine_type]);
-    break;
-
-  case TASK_DISCOVER:
-
-    _name.printf("%s-dsc", base[_engine_type]);
-    break;
-
   case TASK_REPORT:
     _name.printf("%s-rpt", base[_engine_type]);
     break;
@@ -49,6 +40,18 @@ void EngineTask::assembleName() {
 
   case TASK_END_OF_LIST:
     break;
+  }
+}
+
+void EngineTask::notify() const {
+  if (_handle) {
+    xTaskNotify(_handle, 0, eIncrement);
+  }
+}
+
+void EngineTask::notifyClear() const {
+  if (_handle) {
+    xTaskNotify(_handle, 0, eSetValueWithOverwrite);
   }
 }
 

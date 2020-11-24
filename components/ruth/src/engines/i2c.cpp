@@ -41,7 +41,6 @@ I2c::I2c() : Engine() {
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   addTask(TASK_CORE);
-  addTask(TASK_DISCOVER);
   addTask(TASK_REPORT);
   addTask(TASK_COMMAND);
 
@@ -152,7 +151,6 @@ bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
 
   if (dev->valid()) {
 
-    needBus();
     takeBus();
 
     set_rc = dev->writeState(cmd_mask, cmd_state);
@@ -161,8 +159,7 @@ bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
       commandAck(dev, ack, refid);
     }
 
-    clearNeedBus();
-    giveBus();
+    releaseBus();
   }
   return set_rc;
 }
@@ -180,75 +177,57 @@ void I2c::core(void *task_data) {
 
   saveLastWake(last_wake);
   for (;;) {
-    // signal to other tasks I2c Core is in it's run loop
-    // this ensures all other set-up activities are complete before
-    engineRunning();
+    discover();
 
-    // do high-level engine actions here (e.g. general housekeeping)
-    delayUntil(last_wake, _loop_frequency);
+    delayUntil(last_wake, coreFrequency());
   }
 }
 
-void I2c::discover(void *data) {
-  static TickType_t last_wake;
+bool I2c::discover() {
+  bool detect_rc = true;
 
-  saveLastWake(last_wake);
+  acquireBus();
+  detectMultiplexer();
 
-  while (waitForEngine()) {
-    bool detect_rc = true;
-    auto next_discover = _discover_frequency;
-
-    takeBus();
-    detectMultiplexer();
-
-    if (useMultiplexer()) {
-      for (uint32_t bus = 0; (detect_rc && (bus < _mplex.maxBuses())); bus++) {
-        detect_rc = detectDevicesOnBus(bus);
-      }
-    } else { // multiplexer not available, just search bus 0
-      detect_rc = detectDevicesOnBus(0x00);
+  if (useMultiplexer()) {
+    for (uint32_t bus = 0; (detect_rc && (bus < _mplex.maxBuses())); bus++) {
+      detect_rc = detectDevicesOnBus(bus);
     }
-
-    giveBus();
-
-    if (numKnownDevices() > 0) {
-      // signal to other tasks if there are devices available
-      // after delaying a bit (to improve i2c bus stability)
-      // delay(500);
-      devicesAvailable();
-    } else {
-      // since I2c is enabled we expect at least one device to be present on the
-      // bus.  when zero devices are present use pinReset() to power cycle
-      // devices attached to th4 RST pin then attempt another discover.
-      pinReset();
-
-      // don't wait the entire configured discover frequency since we're
-      // possibly in an error state.
-
-      next_discover = next_discover / 10;
-    }
-
-    // we want to discover
-    saveLastWake(last_wake);
-    delayUntil(last_wake, next_discover);
+  } else { // multiplexer not available, just search bus 0
+    detect_rc = detectDevicesOnBus(0x00);
   }
+
+  giveBus();
+
+  if (numKnownDevices() == 0) {
+    // since I2c is enabled we expect at least one device to be present on the
+    // bus.  when zero devices are present use pinReset() to power cycle
+    // devices attached to th4 RST pin then attempt another discover.
+    pinReset();
+  }
+
+  notifyDevicesAvailable();
+
+  return detect_rc;
 }
 
 void I2c::report(void *data) {
   static TickType_t last_wake;
+
+  holdForDevicesAvailable();
   saveLastWake(last_wake);
 
-  while (waitFor(devicesAvailableBit())) {
+  for (;;) {
+    Net::waitForNormalOps();
+
     if (numKnownDevices() == 0) {
-      delayUntil(last_wake, _report_frequency);
+      delayUntil(last_wake, reportFrequency());
       continue;
     }
 
-    Net::waitForNormalOps();
-
     for_each(deviceMap().begin(), deviceMap().end(), [this](I2cDevice_t *dev) {
       if (dev->available()) {
-        takeBus();
+        acquireBus();
 
         if (selectBus(dev->bus()) && dev->read()) {
           publish(dev);
@@ -263,7 +242,7 @@ void I2c::report(void *data) {
       }
     });
 
-    delayUntil(last_wake, _report_frequency);
+    delayUntil(last_wake, reportFrequency());
   }
 }
 

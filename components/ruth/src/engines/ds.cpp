@@ -40,8 +40,6 @@ const size_t _capacity =
 
 DallasSemi::DallasSemi() : Engine() {
   addTask(TASK_CORE);
-  addTask(TASK_DISCOVER);
-  addTask(TASK_CONVERT);
   addTask(TASK_REPORT);
   addTask(TASK_COMMAND);
 }
@@ -74,16 +72,14 @@ bool DallasSemi::checkDevicesPowered() {
 void DallasSemi::command(void *data) {
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
-  // no setup required before jumping into task loop
-
   while (true) {
     BaseType_t queue_rc = pdFALSE;
     MsgPayload_t *payload = nullptr;
     elapsedMicros cmd_elapsed;
 
     _cmd_elapsed.reset();
+    releaseBus(); // ensure this task isn't holding the bus
 
-    clearNeedBus();
     queue_rc = xQueueReceive(_cmd_q, &payload, portMAX_DELAY);
     // wrap in a unique_ptr so it is freed when out of scope
     unique_ptr<MsgPayload_t> payload_ptr(payload);
@@ -98,9 +94,6 @@ void DallasSemi::command(void *data) {
     // deserialize the msgpack data
     StaticJsonDocument<_capacity> doc;
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
-
-    // we're done with the original payload at this point
-    // payload_ptr.reset();
 
     // parsing complete, freeze the elapsed timer
     parse_elapsed.freeze();
@@ -155,8 +148,6 @@ bool DallasSemi::commandExecute(DsDevice_t *dev, uint32_t cmd_mask,
                                 elapsedMicros &cmd_elapsed) {
   auto set_rc = false;
   if (dev && dev->valid()) {
-
-    needBus();
     takeBus();
 
     // the device write time is the total duration of all processing
@@ -177,209 +168,154 @@ bool DallasSemi::commandExecute(DsDevice_t *dev, uint32_t cmd_mask,
       commandAck(dev, ack, refid);
     }
 
-    giveBus();
+    releaseBus();
   }
 
   return set_rc;
 }
 
-// SubTasks receive their task config via the void *data
-void DallasSemi::convert(void *data) {
-  static TickType_t last_wake;
+bool DallasSemi::temperatureConvert() {
+  static uint8_t temp_convert_cmd[] = {0xcc, 0x44};
+  auto convert_rc = false;
 
-  uint8_t temp_convert_cmd[] = {0xcc, 0x44};
+  // when temperature devices aren't present return success effectively
+  // rendering this function  no op
+  if (!tempDevicesPresent()) {
+    return true;
+  }
 
-  // ensure the temp available bit is cleared at task startup
-  tempUnavailable();
+  // it's a error if devices aren't powered
+  if (!devicesPowered()) {
+    return convert_rc;
+  }
 
-  for (;;) {
-    bool present = false;
-    uint8_t data = 0x00;
-    owb_status owb_s;
+  uint8_t data = 0x00;
+  owb_status owb_s;
 
-    // wait here for devices available bit
-    waitFor(devicesOrTempSensorsBit());
+  acquireBus();
 
-    // now that the wait has been satisified record the last wake time
-    // this is important to avoid performing the convert too frequently
-    saveLastWake(last_wake);
+  if (resetBus() == false) {
+    giveBus();
+    return convert_rc;
+  }
 
-    // use event bits to signal when there are temperatures available
-    // start by clearing the bit to signal there isn't a temperature available
-    tempUnavailable();
+  owb_s = owb_write_bytes(_ds, temp_convert_cmd, sizeof(temp_convert_cmd));
+  owb_s = owb_read_byte(_ds, &data);
 
-    if (!devicesPowered() && !tempDevicesPresent()) {
-      delayUntil(last_wake, _convert_frequency);
-      continue;
-    }
+  // before dropping into waiting for the temperature conversion to
+  // complete let's double check there weren't any errors after initiating
+  // the convert.  additionally, we should see zeroes on the bus since
+  // devices will hold the bus low during the convert
+  if ((owb_s != OWB_STATUS_OK) || (data != 0x00)) {
+    giveBus();
+    return convert_rc;
+  }
 
-    takeBus();
+  bool in_progress = true;
+  elapsedMillis convert_elapsed;
 
-    if (resetBus(present) && (present == false)) {
-      giveBus();
-      delayUntil(last_wake, _convert_frequency);
-      continue;
-    }
-
-    resetBus();
-    owb_s = owb_write_bytes(_ds, temp_convert_cmd, sizeof(temp_convert_cmd));
+  while ((owb_s == OWB_STATUS_OK) && in_progress) {
     owb_s = owb_read_byte(_ds, &data);
 
-    // before dropping into waiting for the temperature conversion to
-    // complete let's double check there weren't any errors after initiating
-    // the convert.  additionally, we should see zeroes on the bus since
-    // devices will hold the bus low during the convert
-    if ((owb_s != OWB_STATUS_OK) || (data != 0x00)) {
-      giveBus();
-      delayUntil(last_wake, _convert_frequency);
-      continue;
+    if (owb_s != OWB_STATUS_OK) {
+      Text::rlog("[DalSemi] temp convert failed (0x%02x)", owb_s);
+      break;
     }
 
-    bool in_progress = true;
-    bool temp_available = false;
-    uint64_t _wait_start = esp_timer_get_time();
-    while ((owb_s == OWB_STATUS_OK) && in_progress) {
-      owb_s = owb_read_byte(_ds, &data);
-
-      if (owb_s != OWB_STATUS_OK) {
-
-        Text::rlog("[DalSemi] temp convert failed (0x%02x)", owb_s);
-
-        break;
-      }
-
-      // if the bus isn't low then the convert is finished
-      if (data > 0x00) {
-        // NOTE: use a flag here so we can exit the while loop before
-        // setting the event group bit since tasks waiting for the bit
-        // will immediately wake up.  this allows for clean tracking of
-        // the temp convert elapsed time.
-        temp_available = true;
-        in_progress = false;
-      }
-
-      if (in_progress) {
-        BaseType_t notified = pdFALSE;
-
-        // wait for time to pass or to be notified that another
-        // task needs the bus
-        // if the bit was set then clear it
-        EventBits_t bits = waitFor(needBusBit(), _temp_convert_wait, true);
-        notified = (bits & needBusBit());
-
-        // another task needs the bus so break out of the loop
-        if (notified) {
-          resetBus();          // abort the temperature convert
-          in_progress = false; // signal to break from loop
-        }
-
-        if ((esp_timer_get_time() - _wait_start) >= _max_temp_convert_us) {
-
-          Text::rlog("[DalSemi] temp convert timed out)");
-
-          resetBus();
-          in_progress = false; // signal to break from loop
-        }
-      }
+    // if the bus isn't low then the convert is finished
+    if (data > 0x00) {
+      // NOTE: use a flag here so we can exit the while loop before
+      // setting the event group bit since tasks waiting for the bit
+      // will immediately wake up.  this allows for clean tracking of
+      // the temp convert elapsed time.
+      convert_rc = true;
+      in_progress = false;
     }
 
-    giveBus();
+    if (in_progress) {
+      // another task needs the bus so break out of the loop
+      if (isBusNeeded(_temp_convert_wait_ms)) {
+        resetBus();          // abort the temperature convert
+        in_progress = false; // signal to break from loop
+      }
 
-    // signal to other tasks if temperatures are available
-    if (temp_available) {
-      tempAvailable();
+      if (convert_elapsed >= _max_temp_convert_ms) {
+        Text::rlog("[DalSemi] temp convert timed out)");
+
+        resetBus();
+        in_progress = false; // signal to break from loop
+      }
     }
-
-    delayUntil(last_wake, _convert_frequency);
   }
+
+  giveBus();
+
+  return convert_rc;
 }
 
-void DallasSemi::discover(void *data) {
-  static TickType_t last_wake;
-  saveLastWake(last_wake);
+bool DallasSemi::discover() {
+  auto found = false;
+  auto device_found = false;
+  OneWireBus_SearchState search_state = {};
 
-  while (waitForEngine()) {
-    owb_status owb_s;
+  acquireBus(); // waits indefinitely for the bus
 
-    bool found = false;
-    auto device_found = false;
-    auto have_temperature_devs = false;
-    OneWireBus_SearchState search_state;
-
-    bzero(&search_state, sizeof(OneWireBus_SearchState));
-
-    // take the bus before beginning time tracking to avoid
-    // artificially inflating discover elapsed time
-    takeBus();
-
-    bool present = false;
-    if (resetBus(present) && (present == false)) {
-      giveBus();
-      delayUntil(last_wake, _discover_frequency);
-      continue;
-    }
-
-    owb_s = owb_search_first(_ds, &search_state, &found);
-
-    if (owb_s != OWB_STATUS_OK) {
-      giveBus();
-      delayUntil(last_wake, _discover_frequency);
-      continue;
-    }
-
-    bool hold_bus = true;
-    while ((owb_s == OWB_STATUS_OK) && found && hold_bus) {
-      device_found = true;
-
-      DeviceAddress_t found_addr(search_state.rom_code.bytes, 8);
-      DsDevice_t dev(found_addr, true);
-
-      if (justSeenDevice(dev) == nullptr) {
-        DsDevice_t *new_dev = new DsDevice(dev);
-        new_dev->setMissingSeconds(_report_frequency * 60 * 1.5);
-        addDevice(new_dev);
-      }
-
-      if (dev.hasTemperature()) {
-        have_temperature_devs = true;
-      }
-
-      // another task needs the bus so break out of the loop
-      if (isBusNeeded()) {
-        resetBus();       // abort the search
-        hold_bus = false; // signal to break from loop
-      } else {
-        // keeping searching
-        owb_s = owb_search_next(_ds, &search_state, &found);
-
-        if (owb_s != OWB_STATUS_OK) {
-
-          Text::rlog("DalSemi search next failed owb_s=\"%d\"", owb_s);
-        }
-      }
-    }
-
-    // TODO: create specific logic to detect pwr status of each family code
-    // ds->reset();
-    // ds->select(addr);
-    // ds->write(0xB4); // Read Power Supply
-    // uint8_t pwr = ds->read_bit();
-
-    _devices_powered = checkDevicesPowered();
-
+  if (resetBus() == false) { // if bus reset failed something is wrong.
     giveBus();
-
-    // must set before setting devices_available
-    _temp_devices_present = have_temperature_devs;
-    temperatureSensors(have_temperature_devs);
-
-    // signal to other tasks if there are devices available
-    devicesAvailable(device_found);
-
-    // to avoid including the execution time of the discover phase
-    saveLastWake(last_wake);
-    delayUntil(last_wake, _discover_frequency);
+    return device_found;
   }
+
+  if (owb_search_first(_ds, &search_state, &found) != OWB_STATUS_OK) {
+    giveBus();
+    return device_found;
+  }
+
+  auto hold_bus = true;
+  owb_status owb_s = OWB_STATUS_OK;
+
+  while ((owb_s == OWB_STATUS_OK) && found && hold_bus) {
+    device_found = true;
+
+    DeviceAddress_t found_addr(search_state.rom_code.bytes, 8);
+    DsDevice_t dev(found_addr, true);
+
+    if (justSeenDevice(dev) == nullptr) {
+      DsDevice_t *new_dev = new DsDevice(dev);
+      addDevice(new_dev);
+    }
+
+    if (dev.hasTemperature()) {
+      haveTemperatureDevices();
+    }
+
+    // another task needs the bus so break out of the loop
+    if (isBusNeeded()) {
+      resetBus();       // abort the search
+      hold_bus = false; // signal to break from loop
+    } else {
+      // keeping searching
+      owb_s = owb_search_next(_ds, &search_state, &found);
+
+      if (owb_s != OWB_STATUS_OK) {
+        Text::rlog("DalSemi search next failed owb_s=\"%d\"", owb_s);
+      }
+    }
+  }
+
+  // TODO: create specific logic to detect pwr status of each family code
+  // ds->reset();
+  // ds->select(addr);
+  // ds->write(0xB4); // Read Power Supply
+  // uint8_t pwr = ds->read_bit();
+
+  _devices_powered = checkDevicesPowered();
+
+  giveBus();
+
+  // signal to other tasks if there are devices available
+  notifyDevicesAvailable();
+
+  return device_found;
 }
 
 DallasSemi_t *DallasSemi::_instance_() {
@@ -392,47 +328,35 @@ DallasSemi_t *DallasSemi::_instance_() {
 
 void DallasSemi::report(void *data) {
   static TickType_t last_wake;
-  Net::waitForNormalOps();
 
   // let's wait here for the signal devices are available
-  // important to ensure we don't start reporting before
-  // the rest of the system is fully available (e.g. wifi, mqtt)
-  while (waitFor(devicesAvailableBit())) {
+  holdForDevicesAvailable();
+
+  for (;;) {
     Net::waitForNormalOps();
 
     // there are two cases of when report should run:
     //  a. wait for a temperature if there are temperature devices
     //  b. wait a preset duration
 
-    // case a:  wait for temperature to be available
-    if (_temp_devices_present) {
-      // let's wait here for the temperature available bit
-      // once we see it then clear it to ensure we don't run again until
-      // it's available again
-      waitFor(temperatureAvailableBit(), _report_frequency, true);
-    }
-
-    // last wake is after the event group has been satisified
     saveLastWake(last_wake);
+    if (temperatureConvert()) {
+      for_each(beginDevices(), endDevices(), [this](DsDevice_t *item) {
+        DsDevice_t *dev = item;
 
-    for_each(beginDevices(), endDevices(), [this](DsDevice_t *item) {
-      DsDevice_t *dev = item;
+        if (dev->available()) {
+          acquireBus();
 
-      if (dev->available()) {
-        takeBus();
+          if (readDevice(dev)) {
+            publish(dev);
+          }
 
-        if (readDevice(dev)) {
-          publish(dev);
+          giveBus();
         }
-
-        giveBus();
-      }
-    });
-
-    // case b:  wait a preset duration (no temp devices)
-    if (_temp_devices_present == false) {
-      delayUntil(last_wake, _report_frequency);
+      });
     }
+
+    delayUntil(last_wake, reportFrequency());
   }
 }
 
@@ -798,12 +722,8 @@ void DallasSemi::core(void *data) {
   saveLastWake(last_wake);
 
   for (;;) {
-    // signal to other tasks the dsEngine task is in it's run loop
-    // this ensures all other set-up activities are complete before
-    engineRunning();
-
-    // do high-level engine actions here (e.g. general housekeeping)
-    delayUntil(last_wake, _loop_frequency);
+    discover();
+    delayUntil(last_wake, coreFrequency());
   }
 }
 

@@ -84,6 +84,12 @@ public:
     return (lhs.val() > rhs) ? true : false;
   }
 
+  bool operator>=(uint32_t rhs) const {
+    elapsedMillis lhs(*this);
+
+    return (lhs.val() >= rhs) ? true : false;
+  }
+
   void freeze() {
     _frozen = true;
     _ms = millis() - _ms;

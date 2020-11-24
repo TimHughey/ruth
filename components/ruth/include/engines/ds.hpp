@@ -63,9 +63,8 @@ public:
   // Tasks
   //
   void command(void *data);
-  void convert(void *data);
   void core(void *data);
-  void discover(void *data);
+
   void report(void *data);
 
   void stop();
@@ -79,24 +78,11 @@ private:
   OneWireBus *_ds = nullptr;
 
   bool _devices_powered = true;
-  bool _temp_devices_present = true;
+  bool _temp_devices_present = false;
 
-  // delay times
-  const TickType_t _loop_frequency =
-      Profile::engineTaskIntervalTicks(ENGINE_DALSEMI, TASK_CORE);
+  const TickType_t _temp_convert_wait_ms = 10;
 
-  const TickType_t _convert_frequency =
-      Profile::engineTaskIntervalTicks(ENGINE_DALSEMI, TASK_CONVERT);
-
-  const TickType_t _discover_frequency =
-      Profile::engineTaskIntervalTicks(ENGINE_DALSEMI, TASK_DISCOVER);
-
-  const TickType_t _report_frequency =
-      Profile::engineTaskIntervalTicks(ENGINE_DALSEMI, TASK_REPORT);
-
-  const TickType_t _temp_convert_wait = pdMS_TO_TICKS(50);
-
-  const uint64_t _max_temp_convert_us = (1000 * 1000); // one second
+  const uint32_t _max_temp_convert_ms = 1000; // one second
 
   static DallasSemi_t *_instance_();
 
@@ -105,7 +91,10 @@ private:
                       bool ack, const RefID_t &refid,
                       elapsedMicros &cmd_elapsed);
 
+  bool discover();
+
   bool devicesPowered() { return _devices_powered; }
+  void haveTemperatureDevices() { _temp_devices_present = true; }
 
   bool readDevice(DsDevice_t *dev);
 
@@ -119,7 +108,7 @@ private:
   bool setDS2408(DsDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
   bool setDS2413(DsDevice_t *dev, uint32_t cmd_mask, uint32_t cmd_state);
 
-  // FIXME:  hard code there are always temperature devices
+  bool temperatureConvert();
   bool tempDevicesPresent() { return _temp_devices_present; }
 
   static bool check_crc16(const uint8_t *input, uint16_t len,

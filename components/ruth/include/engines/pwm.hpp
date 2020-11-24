@@ -74,13 +74,6 @@ public:
   void stop();
 
 private:
-  const TickType_t _loop_frequency =
-      Profile::engineTaskIntervalTicks(ENGINE_PWM, TASK_CORE);
-
-  const TickType_t _report_frequency =
-      Profile::engineTaskIntervalTicks(ENGINE_PWM, TASK_REPORT);
-
-private:
   static PulseWidth_t *_instance_();
 
   bool commandExecute(JsonDocument &doc);
