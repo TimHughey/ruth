@@ -179,7 +179,13 @@ protected:
     // xTicksToWait)
 
     // when the bus is needed there will be a notification waiting for the task
-    return ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(wait_ms) > 0) ? true : false;
+    auto notified =
+        xTaskNotifyWait(0x00, ULONG_MAX, nullptr, pdMS_TO_TICKS(wait_ms));
+
+    return (notified == pdTRUE) ? true : false;
+
+    // return ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(wait_ms) > 0) ? true :
+    // false;
   }
 
   void needBus() {
