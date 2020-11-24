@@ -91,6 +91,8 @@ public:
 
   static const char *version() { return _instance_()._version.c_str(); };
 
+  static bool watchStacks() { return _instance_()._watch_stacks; }
+
 private:
   Profile(MsgPayload_t *payload); // SINGLETON!  constructor is private
 
