@@ -51,7 +51,7 @@ void EngineTask::notify() const {
 
 void EngineTask::notifyClear() const {
   if (_handle) {
-    xTaskNotify(_handle, 0, eSetValueWithOverwrite);
+    xTaskNotify(_handle, 0x00, eSetValueWithOverwrite);
   }
 }
 

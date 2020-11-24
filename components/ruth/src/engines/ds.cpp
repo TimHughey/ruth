@@ -174,6 +174,24 @@ bool DallasSemi::commandExecute(DsDevice_t *dev, uint32_t cmd_mask,
   return set_rc;
 }
 
+void DallasSemi::core(void *data) {
+  static TickType_t last_wake;
+
+  owb_rmt_driver_info rmt_driver;
+  _ds = owb_rmt_initialize(&rmt_driver, _pin, RMT_CHANNEL_0, RMT_CHANNEL_1);
+
+  owb_use_crc(_ds, true);
+
+  Net::waitForNormalOps();
+
+  saveLastWake(last_wake);
+
+  for (;;) {
+    discover();
+    delayUntil(last_wake, coreFrequency());
+  }
+}
+
 bool DallasSemi::temperatureConvert() {
   static uint8_t temp_convert_cmd[] = {0xcc, 0x44};
   auto convert_rc = false;
@@ -317,14 +335,6 @@ bool DallasSemi::discover() {
   notifyDevicesAvailable();
 
   return device_found;
-}
-
-DallasSemi_t *DallasSemi::_instance_() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new DallasSemi();
-  }
-
-  return __singleton__;
 }
 
 void DallasSemi::report(void *data) {
@@ -709,24 +719,6 @@ bool DallasSemi::resetBus(bool &present) {
   return false;
 }
 
-void DallasSemi::core(void *data) {
-  static TickType_t last_wake;
-
-  owb_rmt_driver_info rmt_driver;
-  _ds = owb_rmt_initialize(&rmt_driver, _pin, RMT_CHANNEL_0, RMT_CHANNEL_1);
-
-  owb_use_crc(_ds, true);
-
-  Net::waitForNormalOps();
-
-  saveLastWake(last_wake);
-
-  for (;;) {
-    discover();
-    delayUntil(last_wake, coreFrequency());
-  }
-}
-
 bool DallasSemi::setDS2406(DsDevice_t *dev, uint32_t cmd_mask,
                            uint32_t cmd_state) {
   owb_status owb_s;
@@ -987,4 +979,11 @@ uint16_t DallasSemi::crc16(const uint8_t *input, uint16_t len, uint16_t crc) {
   return crc;
 }
 
+DallasSemi_t *DallasSemi::_instance_() {
+  if (__singleton__ == nullptr) {
+    __singleton__ = new DallasSemi();
+  }
+
+  return __singleton__;
+}
 } // namespace ruth

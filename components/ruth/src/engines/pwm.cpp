@@ -156,10 +156,11 @@ void PulseWidth::core(void *task_data) {
 void PulseWidth::report(void *data) {
   static TickType_t last_wake;
 
+  holdForDevicesAvailable();
+  saveLastWake(last_wake);
+
   for (;;) {
-    holdForDevicesAvailable();
     Net::waitForNormalOps();
-    saveLastWake(last_wake);
 
     if (numKnownDevices() == 0) {
       delayUntil(last_wake, reportFrequency());

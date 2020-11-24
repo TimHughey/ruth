@@ -201,7 +201,7 @@ protected:
     // wait indefinitely for devices to become available, when notified clear
     // the notification value as direct to task notifications are reused for
     // forcibly taking the bus mutex
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    xTaskNotifyWait(0x00, ULONG_MAX, nullptr, portMAX_DELAY);
   }
 
   bool acquireBus(TickType_t wait_ticks = portMAX_DELAY) {
