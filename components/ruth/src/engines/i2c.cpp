@@ -293,6 +293,7 @@ bool I2c::detectDevicesOnBus(int bus) {
 
     if (justSaw(sht31) == nullptr) {
       SHT31_t *new_dev = new SHT31(sht31);
+      new_dev->setMissingSeconds(defaultMissingSeconds());
       addDevice(new_dev);
     }
   }
@@ -302,6 +303,7 @@ bool I2c::detectDevicesOnBus(int bus) {
 
     if (justSaw(mcp23008) == nullptr) {
       MCP23008_t *new_dev = new MCP23008(mcp23008);
+      new_dev->setMissingSeconds(defaultMissingSeconds());
       addDevice(new_dev);
     }
   }

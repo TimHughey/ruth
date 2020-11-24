@@ -65,6 +65,9 @@ public:
     return _instance_()._engine_enabled[engine_type];
   }
 
+  static uint32_t engineTaskInterval(EngineTypes_t engine_type,
+                                     EngineTaskTypes_t task_type);
+
   static TickType_t engineTaskIntervalTicks(EngineTypes_t engine_type,
                                             EngineTaskTypes_t task_type);
 

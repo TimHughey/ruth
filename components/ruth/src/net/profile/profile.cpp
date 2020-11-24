@@ -39,6 +39,15 @@ static const size_t _doc_capacity =
 static const bool _unset_bool = false;
 
 // static
+uint32_t Profile::engineTaskInterval(EngineTypes_t engine_type,
+                                     EngineTaskTypes_t task_type) {
+
+  const PET_t &pet = _instance_()._engine_tasks[engine_type][task_type];
+
+  return pet.intervalMS();
+}
+
+// static
 TickType_t Profile::engineTaskIntervalTicks(EngineTypes_t engine_type,
                                             EngineTaskTypes_t task_type) {
 

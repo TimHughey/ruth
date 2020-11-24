@@ -281,6 +281,7 @@ bool DallasSemi::discover() {
 
     if (justSeenDevice(dev) == nullptr) {
       DsDevice_t *new_dev = new DsDevice(dev);
+      new_dev->setMissingSeconds(defaultMissingSeconds());
       addDevice(new_dev);
     }
 
@@ -338,7 +339,6 @@ void DallasSemi::report(void *data) {
     // there are two cases of when report should run:
     //  a. wait for a temperature if there are temperature devices
     //  b. wait a preset duration
-
     saveLastWake(last_wake);
     if (temperatureConvert()) {
       for_each(beginDevices(), endDevices(), [this](DsDevice_t *item) {

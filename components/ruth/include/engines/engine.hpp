@@ -63,6 +63,10 @@ public:
 
   virtual ~Engine(){};
 
+  inline uint32_t defaultMissingSeconds() {
+    return Profile::engineTaskInterval(ENGINE_TYPE, TASK_REPORT) * 1.5;
+  }
+
   static uint32_t maxDevices() { return 35; };
 
   // justSeenDevice():

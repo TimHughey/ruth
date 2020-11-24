@@ -38,13 +38,12 @@ const DeviceAddress_t &Device::address() const { return _addr; }
 
 bool Device::justSeen(bool rc) {
   if (rc == true) {
-    auto was_missing = missing();
+    if (missing()) {
+      Text::rlog("device \"%s\" was missing %d seconds", _id.c_str(),
+                 (time(nullptr) - _last_seen));
+    }
 
     _last_seen = time(nullptr);
-
-    if (was_missing) {
-      Text::rlog("missing device \"%s\" has returned", _id.c_str());
-    }
   }
 
   // return rc unchanged
