@@ -125,7 +125,6 @@ void PulseWidth::core(void *task_data) {
   }
 
   notifyDevicesAvailable();
-  holdForDevicesAvailable();
 
   // core task run loop
   //  1.  acts on task notifications
