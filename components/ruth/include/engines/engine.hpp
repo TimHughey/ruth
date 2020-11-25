@@ -175,21 +175,13 @@ protected:
   }
 
   bool isBusNeeded(uint32_t wait_ms = 0) {
-    // BaseType_t xTaskNotifyWait(uint32_t ulBitsToClearOnEntry, uint32_t
-    // ulBitsToClearOnExit, uint32_t *pulNotificationValue, TickType_t
-    // xTicksToWait)
-    //
-    // uint32_t ulTaskNotifyTake(BaseType_t xClearCountOnExit, TickType_t
-    // xTicksToWait)
 
     // when the bus is needed there will be a notification waiting for the task
+    uint32_t notify_val;
     auto notified =
-        xTaskNotifyWait(0x00, ULONG_MAX, nullptr, pdMS_TO_TICKS(wait_ms));
+        xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, pdMS_TO_TICKS(wait_ms));
 
-    return (notified == pdTRUE) ? true : false;
-
-    // return ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(wait_ms) > 0) ? true :
-    // false;
+    return ((notified == pdTRUE) && (notify_val > 0)) ? true : false;
   }
 
   void needBus() {
@@ -205,30 +197,30 @@ protected:
     uint32_t notify_val;
     xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, portMAX_DELAY);
 
-    Text::rlog("[%s] holdForDevicesAvailable() took %0.2fs",
-               pcTaskGetTaskName(nullptr), (float)elapsed);
+    Text::rlog("[%s] holdForDevicesAvailable() took %0.2fs val[0x%x]",
+               pcTaskGetTaskName(nullptr), (float)elapsed, notify_val);
   }
 
-  bool acquireBus(TickType_t wait_ticks = portMAX_DELAY) {
+  inline bool acquireBus(TickType_t wait_ticks = portMAX_DELAY) {
     return (xSemaphoreTake(_bus_mutex, wait_ticks) == pdTRUE) ? true : false;
   }
 
   // semaphore
-  bool giveBus() {
+  inline bool giveBus() {
     xSemaphoreGive(_bus_mutex);
     return true;
   }
 
-  bool takeBus(TickType_t wait_ticks = portMAX_DELAY) {
-    needBus();
-    // the bus will be in an indeterminate state if we do acquire it so
-    // call resetBus(). said differently, we could have taken the bus
-    // in the middle of some other operation (e.g. discover, device read)
-    if (xSemaphoreTake(_bus_mutex, wait_ticks) == pdTRUE) {
-      return true;
+  inline bool takeBus(TickType_t wait_ticks = portMAX_DELAY) {
+    // attempt taking the semaphore without waiting.  if not available notify
+    // tasks to release it and wait.
+    if (xSemaphoreTake(_bus_mutex, 0) == pdFALSE) {
+      needBus();
+      return (xSemaphoreTake(_bus_mutex, wait_ticks) == pdTRUE) ? true : false;
     }
 
-    return false;
+    // semaphore was acquired without waiting
+    return true;
   }
 
   void releaseBus() {

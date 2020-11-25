@@ -30,9 +30,7 @@ set(
     "src/devs/pwm/cmds/random")
 
 set(
-  RUTH_ENGINES
-    "src/engines/i2c"   "src/engines/ds"
-    "src/engines/pwm"   "src/engines/task")
+  RUTH_ENGINES "src/engines/i2c"   "src/engines/ds"   "src/engines/pwm")
 
 set(
   RUTH_READINGS

@@ -56,8 +56,21 @@ public:
   TaskHandle_t *handle_ptr() { return &_handle; }
   const char *name() const { return _name.c_str(); }
   size_t nameMaxLength() const { return (CONFIG_FREERTOS_MAX_TASK_NAME_LEN); }
-  void notify() const;
-  void notifyClear() const;
+
+  inline void notify() const {
+    static const uint32_t val = ('r' << 24) | ('u' << 16) | ('t' << 8) | 'h';
+    if (_handle) {
+      xTaskNotify(_handle, val, eSetValueWithOverwrite);
+    }
+  }
+
+  inline void notifyClear() const {
+    if (_handle) {
+      // xTaskNotifyStateClear(_handle);  // NOTE:  future ESP_IDF version
+      xTaskNotify(_handle, 0x00, eSetValueWithOverwrite);
+    }
+  }
+
   UBaseType_t priority() const { return _priority; }
   UBaseType_t stackSize() const { return _stack_size; }
   TaskFunc_t const *taskFunc() const { return _task_func; }
@@ -65,7 +78,26 @@ public:
   bool valid() const { return (_task_func == nullptr) ? false : true; }
 
 private:
-  void assembleName();
+  void assembleName() {
+    static const char *base[ENGINE_END_OF_LIST] = {"DLS", "I2C", "PWM"};
+
+    switch (_task_type) {
+    case TASK_CORE:
+      _name = base[_engine_type];
+      break;
+
+    case TASK_REPORT:
+      _name.printf("%s-rpt", base[_engine_type]);
+      break;
+
+    case TASK_COMMAND:
+      _name.printf("%s-cmd", base[_engine_type]);
+      break;
+
+    case TASK_END_OF_LIST:
+      break;
+    }
+  }
 
 private:
   EngineTypes_t _engine_type = ENGINE_END_OF_LIST;

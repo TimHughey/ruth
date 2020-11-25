@@ -115,7 +115,7 @@ void Command::kill() {
   auto stack_hw = uxTaskGetStackHighWaterMark(to_delete);
 
   Text::rlog("cmd \"%s\" killed, task[%s] notify[%ld] stack_hw[%d]",
-             name().c_str(), task_name, _notify_val, to_delete, stack_hw);
+             name().c_str(), task_name, _notify_val, stack_hw);
 
   // inform FreeRTOS to remove this task from the scheduler
   vTaskDelete(to_delete);
