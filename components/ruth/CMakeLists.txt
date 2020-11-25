@@ -8,7 +8,7 @@ set(RUTH_DEVS_DS "src/devs/ds/base")
 set(RUTH_DEVS_I2C "src/devs/i2c/base" "src/devs/i2c/mcp23008" "src/devs/i2c/mplex" "src/devs/i2c/sht31")
 set(RUTH_DEVS_PWM "src/devs/pwm/pwm" "src/devs/pwm/cmds/cmd" "src/devs/pwm/cmds/basic" "src/devs/pwm/cmds/random")
 
-set(RUTH_ENGINES "src/engines/i2c"   "src/engines/ds"   "src/engines/pwm")
+set(RUTH_ENGINES "src/engines/i2c" "src/engines/ds" "src/engines/pwm")
 
 set(RUTH_READINGS "src/readings/sensor" "src/readings/reading" "src/readings/startup" "src/readings/pwm" "src/readings/text" "src/readings/positions" "src/readings/remote")
 set(RUTH_PROTOCOLS "src/protocols/mqtt" "src/protocols/payload")
