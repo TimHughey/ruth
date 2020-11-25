@@ -57,7 +57,7 @@ public:
 
     // the command task does not have a loop and thus no interval_ms
     if (task_type != TASK_COMMAND) {
-      _interval_ms = task_doc["interval_ms"] | UINT32_MAX;
+      _interval_ms = task_doc["interval_ms"] | _interval_ms;
     }
   }
 
@@ -87,7 +87,7 @@ private:
   const char *_task_key;
   size_t _stack_size = 4096;
   uint32_t _priority = 5;
-  uint32_t _interval_ms = 0;
+  uint32_t _interval_ms = 30000;
 };
 } // namespace ruth
 

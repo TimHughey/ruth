@@ -29,7 +29,7 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 
-#include "devs/ds/dev.hpp"
+#include "devs/ds/base.hpp"
 #include "drivers/owb.h"
 #include "drivers/owb_rmt.h"
 #include "engines/engine.hpp"

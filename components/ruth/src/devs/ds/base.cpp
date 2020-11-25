@@ -1,5 +1,5 @@
 /*
-    ds_dev.cpp - Ruth Dalla Semiconductor Device
+    devs/des/base.cpp - Ruth Dalla Semiconductor Device
     Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
     https://www.wisslanding.com
 */
 
-#include "devs/ds/dev.hpp"
+#include "devs/ds/base.hpp"
 
 namespace ruth {
 
