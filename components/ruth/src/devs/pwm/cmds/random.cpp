@@ -66,8 +66,7 @@ Random::~Random() {
 void Random::_loop() {
   auto task_name = pcTaskGetTaskName(nullptr);
 
-  Text::rlog("cmd \"%s\" started, task[%s] handle[%p]", name().c_str(),
-             task_name, taskHandle());
+  Text::rlog("cmd \"%s\" started, task[%s]", name().c_str(), task_name);
 
   // pick a random starting point
   auto duty = random((_max - _min) + _min);

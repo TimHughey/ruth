@@ -198,10 +198,15 @@ protected:
   }
 
   void holdForDevicesAvailable() {
+    elapsedMillis elapsed;
     // wait indefinitely for devices to become available, when notified clear
     // the notification value as direct to task notifications are reused for
     // forcibly taking the bus mutex
-    xTaskNotifyWait(0x00, ULONG_MAX, nullptr, portMAX_DELAY);
+    uint32_t notify_val;
+    xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, portMAX_DELAY);
+
+    Text::rlog("[%s] holdForDevicesAvailable() took %0.2fs",
+               pcTaskGetTaskName(nullptr), (float)elapsed);
   }
 
   bool acquireBus(TickType_t wait_ticks = portMAX_DELAY) {
@@ -219,7 +224,7 @@ protected:
     // the bus will be in an indeterminate state if we do acquire it so
     // call resetBus(). said differently, we could have taken the bus
     // in the middle of some other operation (e.g. discover, device read)
-    if ((xSemaphoreTake(_bus_mutex, wait_ticks) == pdTRUE) && resetBus()) {
+    if (xSemaphoreTake(_bus_mutex, wait_ticks) == pdTRUE) {
       return true;
     }
 

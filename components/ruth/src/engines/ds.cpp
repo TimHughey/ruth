@@ -72,13 +72,14 @@ bool DallasSemi::checkDevicesPowered() {
 void DallasSemi::command(void *data) {
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
-  while (true) {
+  holdForDevicesAvailable();
+
+  for (;;) {
     BaseType_t queue_rc = pdFALSE;
     MsgPayload_t *payload = nullptr;
     elapsedMicros cmd_elapsed;
 
     _cmd_elapsed.reset();
-    releaseBus(); // ensure this task isn't holding the bus
 
     queue_rc = xQueueReceive(_cmd_q, &payload, portMAX_DELAY);
     // wrap in a unique_ptr so it is freed when out of scope
@@ -272,6 +273,7 @@ bool DallasSemi::temperatureConvert() {
 }
 
 bool DallasSemi::discover() {
+  static bool first_discover = true;
   auto found = false;
   auto device_found = false;
   OneWireBus_SearchState search_state = {};
@@ -307,8 +309,14 @@ bool DallasSemi::discover() {
       haveTemperatureDevices();
     }
 
-    // another task needs the bus so break out of the loop
+    if (first_discover) {
+      // the first discover is not to be preempted
+      owb_s = owb_search_next(_ds, &search_state, &found);
+      continue;
+    }
+
     if (isBusNeeded()) {
+      // another task needs the bus so break out of the loop
       resetBus();       // abort the search
       hold_bus = false; // signal to break from loop
     } else {
@@ -332,16 +340,19 @@ bool DallasSemi::discover() {
   giveBus();
 
   // signal to other tasks if there are devices available
+  first_discover = false;
   notifyDevicesAvailable();
 
   return device_found;
 }
 
 void DallasSemi::report(void *data) {
+
   static TickType_t last_wake;
 
   // let's wait here for the signal devices are available
   holdForDevicesAvailable();
+  saveLastWake(last_wake);
 
   for (;;) {
     Net::waitForNormalOps();
@@ -349,7 +360,6 @@ void DallasSemi::report(void *data) {
     // there are two cases of when report should run:
     //  a. wait for a temperature if there are temperature devices
     //  b. wait a preset duration
-    saveLastWake(last_wake);
     if (temperatureConvert()) {
       for_each(beginDevices(), endDevices(), [this](DsDevice_t *item) {
         DsDevice_t *dev = item;

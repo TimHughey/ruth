@@ -45,7 +45,7 @@ void EngineTask::assembleName() {
 
 void EngineTask::notify() const {
   if (_handle) {
-    xTaskNotify(_handle, 0, eIncrement);
+    xTaskNotify(_handle, 0x01, eSetValueWithOverwrite);
   }
 }
 

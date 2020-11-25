@@ -38,7 +38,6 @@ const size_t _capacity =
     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(7) + 227;
 
 I2c::I2c() : Engine() {
-  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   addTask(TASK_CORE);
   addTask(TASK_REPORT);
@@ -72,8 +71,11 @@ bool I2c::engineEnabled() { return (__singleton__) ? true : false; }
 //
 
 void I2c::command(void *data) {
+  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
-  while (true) {
+  holdForDevicesAvailable();
+
+  for (;;) {
     BaseType_t queue_rc = pdFALSE;
     MsgPayload_t *payload = nullptr;
     elapsedMicros cmd_elapsed;

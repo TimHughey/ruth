@@ -41,11 +41,7 @@ const size_t _capacity = JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) +
                          JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
 
 PulseWidth::PulseWidth() : Engine() {
-  // create the command queue
-  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
-
   configureTimer();
-
   PwmDevice::allOff(); // ensure all pins are off at initialization
 
   addTask(TASK_CORE);
@@ -105,6 +101,9 @@ bool PulseWidth::commandExecute(JsonDocument &doc) {
 //
 
 void PulseWidth::core(void *task_data) {
+  // create the command queue
+  _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
+
   Net::waitForNormalOps();
 
   // discovering the pwm devices is ultimately creating and adding them
@@ -126,10 +125,12 @@ void PulseWidth::core(void *task_data) {
   }
 
   notifyDevicesAvailable();
+  holdForDevicesAvailable();
 
   // core task run loop
   //  1.  acts on task notifications
   //  2.  acts on queued command messages
+
   for (;;) {
     MsgPayload_t *payload = nullptr;
 
