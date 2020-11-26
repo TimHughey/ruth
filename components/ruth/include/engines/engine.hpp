@@ -223,7 +223,7 @@ protected:
     return true;
   }
 
-  void releaseBus() {
+  inline void releaseBus() {
     _task_map.notifyClear(TASK_CORE);
     _task_map.notifyClear(TASK_REPORT);
 

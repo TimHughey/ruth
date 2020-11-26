@@ -20,6 +20,12 @@
 
 #include <cstdlib>
 
+#ifdef LINTER
+#define MBEDTLS_CONFIG_FILE "mbedtls/esp_config.h"
+#endif
+
+#include <mbedtls/base64.h>
+
 #include "net/network.hpp"
 #include "net/profile/profile.hpp"
 

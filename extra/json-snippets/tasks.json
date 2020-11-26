@@ -1,0 +1,14 @@
+{
+  "type": "task_info",
+  "mtime": 1351824120,
+  "host": "ruth.123456789012",
+  "name": "roost-alpha",
+  "tasks": [
+    { "id": 10, "name": "DLS-core", "stack_hw": 1000, "priority": 6 },
+    { "id": 11, "name": "DLS-rpt", "stack_hw": 1000, "priority": 5 },
+    { "id": 12, "name": "DLS-cmd", "stack_hw": 1000, "priority": 11 },
+    { "id": 13, "name": "I2C-core", "stack_hw": 1000, "priority": 6 },
+    { "id": 14, "name": "I2C-rpt", "stack_hw": 1000, "priority": 5 },
+    { "id": 15, "name": "I2C-cmd", "stack_hw": 1000, "priority": 11 }
+  ]
+}

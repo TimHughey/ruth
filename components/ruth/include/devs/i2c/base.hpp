@@ -81,10 +81,10 @@ public:
 
 protected:
   void clearPreviousError() { _esp_rc_prev = ESP_OK; }
-  bool hasPreviousErrpr() { return (_esp_rc_prev == ESP_OK) ? false : true; }
+  bool hasPreviousError() { return (_esp_rc_prev == ESP_OK) ? false : true; }
   esp_err_t previousError() { return _esp_rc_prev; }
 
-  esp_err_t recentError() { return _esp_rc; }
+  const char *recentError() { return esp_err_to_name(_esp_rc); }
 
   bool requestData(RawData_t &tx, RawData_t &rx, float timeout_scale = 1.0);
 };

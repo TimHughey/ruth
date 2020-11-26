@@ -96,9 +96,6 @@ void I2c::command(void *data) {
     StaticJsonDocument<_capacity> doc;
     DeserializationError err = deserializeMsgPack(doc, payload->payload());
 
-    // we're done with the original payload at this point
-    // payload_ptr.reset();
-
     // parsing complete, freeze the elapsed timer
     parse_elapsed.freeze();
 
@@ -163,6 +160,7 @@ bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
 
     releaseBus();
   }
+
   return set_rc;
 }
 
@@ -172,9 +170,13 @@ void I2c::core(void *task_data) {
 
   while (!driver_ready) {
     driver_ready = installDriver();
-    delay(1000); // prevent busy loop if i2c driver fails to install
+
+    if (!driver_ready) {
+      delay(1000); // prevent busy loop if i2c driver fails to install
+    }
   }
 
+  detectMultiplexer();
   Net::waitForNormalOps();
 
   saveLastWake(last_wake);
@@ -188,9 +190,6 @@ void I2c::core(void *task_data) {
 bool I2c::discover() {
   bool detect_rc = true;
 
-  acquireBus();
-  detectMultiplexer();
-
   if (useMultiplexer()) {
     for (uint32_t bus = 0; (detect_rc && (bus < _mplex.maxBuses())); bus++) {
       detect_rc = detectDevicesOnBus(bus);
@@ -198,8 +197,6 @@ bool I2c::discover() {
   } else { // multiplexer not available, just search bus 0
     detect_rc = detectDevicesOnBus(0x00);
   }
-
-  giveBus();
 
   if (numKnownDevices() == 0) {
     // since I2c is enabled we expect at least one device to be present on the
@@ -286,11 +283,8 @@ bool I2c::detectDevicesOnBus(int bus) {
   SHT31_t sht31(bus);
   MCP23008_t mcp23008(bus);
 
-  if (selectBus(bus) == false) {
-    return false;
-  }
-
-  if (sht31.detect()) {
+  acquireBus();
+  if (selectBus(bus) && sht31.detect()) {
     rc = true;
 
     if (justSaw(sht31) == nullptr) {
@@ -299,8 +293,10 @@ bool I2c::detectDevicesOnBus(int bus) {
       addDevice(new_dev);
     }
   }
+  giveBus();
 
-  if (mcp23008.detect()) {
+  acquireBus();
+  if (selectBus(bus) && mcp23008.detect()) {
     rc = true;
 
     if (justSaw(mcp23008) == nullptr) {
@@ -309,6 +305,7 @@ bool I2c::detectDevicesOnBus(int bus) {
       addDevice(new_dev);
     }
   }
+  giveBus();
 
   return rc;
 }

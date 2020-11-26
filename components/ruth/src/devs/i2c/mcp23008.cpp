@@ -42,9 +42,20 @@ bool MCP23008::detect() {
 
   // at POR the MCP2x008 operates in sequential mode where continued reads
   // automatically increment the address (register).  we read all registers
-  // (12 bytes) in one shot.
+  // (11 bytes) in one shot.
 
-  return requestData(_tx, _rx);
+  // if register 0x00 (IODIR) is not 0x00 (IODIR isn't output) then
+  // set it to output
+  auto detected = requestData(_tx, _rx);
+
+  if (detected && (_rx.at(0) > 0x00)) {
+    _tx = {0x00, 0x00};
+    _rx.clear();
+
+    detected = requestData(_tx, _rx) == false;
+  }
+
+  return detected;
 }
 
 bool MCP23008::read() {

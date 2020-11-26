@@ -108,7 +108,7 @@ private:
   bool pinReset();
   bool hardReset();
   bool installDriver();
-  bool useMultiplexer() const { return _use_multiplexer; }
+  inline bool useMultiplexer() const { return _use_multiplexer; }
   bool selectBus(uint32_t bus);
   void printUnhandledDev(I2cDevice_t *dev);
 };
