@@ -21,6 +21,7 @@
 */
 
 #include <algorithm>
+#include <cstdlib>
 
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
@@ -38,8 +39,13 @@ namespace pwm {
 Command::Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj)
     : _pin(pin), _channel(chan) {
 
-  // grab a const char * to the name so we can make a local copy.
-  // REMINDER we must always make a local copy of data from the JsonDocument
+  // ensure the priority is greater than MQTT but less than wifi
+  UBaseType_t priority = Binder::mqttTaskPriority() + 3;
+  _task.priority = (priority < 19) ? priority : 19;
+
+  // grab a const char * to the name so we can make a
+  // local copy. REMINDER we must always make a local
+  // copy of data from the JsonDocument
   _name = obj["name"].as<const char *>();
 
   // grab the task handle of the caller to use for later task notifications
@@ -52,8 +58,8 @@ Command::~Command() {
 }
 
 void Command::fadeTo(uint32_t fade_to) {
-  const auto step = 7;
-  const auto delay_ms = 55;
+  const auto step = 15;
+  const auto delay_ms = 70;
 
   auto current_duty = getDuty();
   auto direction = (fade_to < current_duty) ? -1 : 1;
@@ -85,7 +91,7 @@ void Command::pause(uint32_t ms) {
 
   if (_notify_val > 0) {
     _run = false;
-    Text::rlog("cmd \"%s\" on \"%s\" task notify=%ld", name().c_str(), pin(),
+    Text::rlog("\"%s\" task[%s] notify=%u", name().c_str(), taskName(),
                _notify_val);
   }
 }
@@ -111,11 +117,7 @@ void Command::kill() {
   TaskHandle_t to_delete = _task.handle;
   _task.handle = nullptr;
 
-  auto task_name = pcTaskGetTaskName(to_delete);
-  auto stack_hw = uxTaskGetStackHighWaterMark(to_delete);
-
-  Text::rlog("cmd \"%s\" killed, task[%s] notify[%ld] stack_hw[%d]",
-             name().c_str(), task_name, _notify_val, stack_hw);
+  Text::rlog("\"%s\" killed, task[%s]", name().c_str(), taskName(to_delete));
 
   // inform FreeRTOS to remove this task from the scheduler
   vTaskDelete(to_delete);

@@ -24,6 +24,7 @@
 #include <driver/ledc.h>
 #include <freertos/FreeRTOS.h>
 
+#include "core/binder.hpp"
 #include "devs/pwm/cmds/step.hpp"
 #include "readings/text.hpp"
 
@@ -67,6 +68,9 @@ protected:
   uint32_t notifyValue() const { return _notify_val; }
   void pause(uint32_t);
   xTaskHandle taskHandle() { return _task.handle; }
+  const char *taskName(xTaskHandle handle = nullptr) {
+    return pcTaskGetTaskName(handle);
+  }
   esp_err_t setDuty(uint32_t duty);
   void useLoopFunction(TaskFunc_t *func) { _loop_func = func; }
 
@@ -85,8 +89,10 @@ private:
 
   bool _run = true;
 
-  Task_t _task = {
-      .handle = nullptr, .data = nullptr, .priority = 15, .stackSize = 2560};
+  Task_t _task = {.handle = nullptr,
+                  .data = nullptr,
+                  .priority = 1, // see constructor
+                  .stackSize = 2560};
 
 private:
   void _start_(void *task_data = nullptr) {
@@ -98,7 +104,7 @@ private:
 
     // create the task name
 
-    _task_name.printf("pwm-%s", _pin);
+    _task_name.printf("Rpwm.%s", _pin);
 
     // this (object) is passed as the data to the task creation and is
     // used by the static runEngine method to call the run method

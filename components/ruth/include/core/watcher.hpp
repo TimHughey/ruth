@@ -33,7 +33,7 @@ typedef class Watcher Watcher_t;
 
 class Watcher {
 public:
-  Watcher(uint32_t minutes = 15) : _minutes(minutes) {}
+  Watcher(uint32_t seconds = 30) : _seconds(seconds) {}
   ~Watcher() {
     if (_task.handle) {
       vTaskDelete(_task.handle);
@@ -86,7 +86,7 @@ private:
       msg_pack.forceSize(len);
       MQTT::publish(msg_pack);
 
-      vTaskDelay(pdMS_TO_TICKS(_minutes * 60 * 1000));
+      vTaskDelay(pdMS_TO_TICKS(_seconds * 1000));
     }
   }
 
@@ -96,7 +96,7 @@ private:
   }
 
 private:
-  uint32_t _minutes;
+  uint32_t _seconds;
   TaskStatus_t _sys_tasks[30];
 
   Task_t _task = {.handle = nullptr,
