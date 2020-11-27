@@ -79,8 +79,8 @@ private:
       }
 
       JsonObject doc_stats = root.createNestedObject("doc_stats");
-      doc_stats["cap"] = doc.capacity();
-      doc_stats["use"] = doc.memoryUsage();
+      doc_stats["capacity"] = doc.capacity();
+      doc_stats["used"] = doc.memoryUsage();
 
       auto len = serializeMsgPack(doc, msg_pack.data(), msg_pack.capacity());
       msg_pack.forceSize(len);
