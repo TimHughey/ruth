@@ -48,7 +48,7 @@ using std::unique_ptr;
 
 using TR = ruth::Text_t;
 
-static const char *TAG = "MQTT";
+static const char *TAG = "Rmqtt";
 static const char *ESP_TAG = "ESP-MQTT";
 // __singleton__ is used by private MQTT static functions
 static MQTT __singleton__;

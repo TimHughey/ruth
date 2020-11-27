@@ -79,19 +79,19 @@ public:
 
 private:
   void assembleName() {
-    static const char *base[ENGINE_END_OF_LIST] = {"DLS", "I2C", "PWM"};
+    static const char *base[ENGINE_END_OF_LIST] = {"Rdls", "Ri2c", "Rpwm"};
 
     switch (_task_type) {
     case TASK_CORE:
-      _name = base[_engine_type];
+      _name.printf("%s.core", base[_engine_type]);
       break;
 
     case TASK_REPORT:
-      _name.printf("%s-rpt", base[_engine_type]);
+      _name.printf("%s.rpt", base[_engine_type]);
       break;
 
     case TASK_COMMAND:
-      _name.printf("%s-cmd", base[_engine_type]);
+      _name.printf("%s.cmd", base[_engine_type]);
       break;
 
     case TASK_END_OF_LIST:
