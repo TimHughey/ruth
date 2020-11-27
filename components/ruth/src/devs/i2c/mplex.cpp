@@ -70,8 +70,7 @@ bool TCA9548B::selectBus(uint8_t bus) {
     rc = false;
 
     if (_bus_select_errors > 50) {
-      const char *msg = "I2c bus select errors exceeded";
-      Restart::restart(msg, __PRETTY_FUNCTION__, 0);
+      Restart("i2c bus select errors exceeded", __PRETTY_FUNCTION__);
     }
   }
 

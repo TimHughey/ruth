@@ -57,6 +57,7 @@ public:
   // or has been shutdown
   static void publish(Reading_t *reading);
   static void publish(Reading_t &reading);
+  static void publish(const WatcherPayload_t &payload);
   // static void publish(unique_ptr<Reading_t> reading);
 
   // close MQTT connections and delete the task
@@ -92,6 +93,7 @@ private:
   FeedPrefix_t _feed_prefix;
 
   Feed_t _feed_rpt;
+  uint32_t _feed_qos = 0;
   Feed_t _feed_host;
 
   bool _run_core = true;
@@ -116,7 +118,16 @@ private:
   void core(void *data);
   bool handlePayload(MsgPayload_t_ptr payload);
 
-  void publishMsg(MsgPackPayload_t &payload);
+  bool publishActual(const char *msg, size_t len);
+
+  inline void publishMsg(const MsgPackPayload_t &payload) {
+    publishActual(payload.c_str(), payload.size());
+  }
+
+  inline void publishMsg(const WatcherPayload_t &payload) {
+    publishActual(payload.c_str(), payload.size());
+  }
+
   void connectionClosed();
 
   // Task implementation

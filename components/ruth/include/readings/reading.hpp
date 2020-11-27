@@ -34,9 +34,6 @@ namespace reading {
 typedef class Reading Reading_t;
 typedef std::unique_ptr<Reading_t> Reading_ptr_t;
 
-typedef TextBuffer<40> RefID_t; // e.g. eaa7c7fa-361a-4d07-a7fc-fe9681636b36
-typedef TextBuffer<512> MsgPackPayload_t;
-
 class Reading {
 protected:
   typedef enum {

@@ -50,7 +50,7 @@ void Net::checkError(const char *func, esp_err_t err) {
   snprintf(msg, max_msg_len, "[%s] %s", esp_err_to_name(err), func);
   ESP_LOGE(tagEngine(), "%s", msg);
 
-  Restart::restart(msg);
+  Restart();
 }
 
 void Net::connected(void *event_data) {
@@ -190,7 +190,8 @@ void Net::ensureTimeIsSet() {
   delay(check_ms / 2);
 
   if (sntp_elapsed > total_ms) {
-    Restart::restart("SNTP failed");
+    ESP_LOGE(pcTaskGetTaskName(nullptr), "SNTP failed");
+    Restart();
   } else {
     xEventGroupSetBits(evg_, timeSetBit());
     ESP_LOGI(tagEngine(), "SNTP complete[%0.1fs]", sntp_elapsed.toSeconds());
@@ -288,7 +289,7 @@ bool Net::_start_() {
     //       we are ready for normal operations
     xEventGroupSetBits(evg_, (readyBit() | normalOpsBit()));
   } else {
-    Restart::restart("IP address assignment failed");
+    Restart();
   }
 
   return true;

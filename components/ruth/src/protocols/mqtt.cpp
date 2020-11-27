@@ -447,20 +447,24 @@ void MQTT::publish(Reading_t &reading) {
   }
 }
 
-void MQTT::publishMsg(MsgPackPayload_t &payload) {
-  if (_connection) {
-
-    _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(),
-                                      payload.data(), payload.size(), 0, false);
-
-    // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
-    if (_msg_id < 0) {
-      // pass a nullptr for the message so Restart doesn't attempt to publish
-      Restart::restart(nullptr, __PRETTY_FUNCTION__);
-    }
-
-    _msg_max_size = max(payload.size(), _msg_max_size);
+void MQTT::publish(const WatcherPayload_t &payload) {
+  if (_instance_) {
+    _instance_->publishMsg(payload);
   }
+}
+
+bool MQTT::publishActual(const char *msg, size_t len) {
+  if (_connection == nullptr) {
+    return false;
+  }
+
+  _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(), msg, len,
+                                    _feed_qos, false);
+
+  _msg_max_size = max(len, _msg_max_size);
+
+  // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
+  return (_msg_id >= 0) ? true : Restart().now();
 }
 
 TaskHandle_t MQTT::taskHandle() { return __singleton__._task.handle; }

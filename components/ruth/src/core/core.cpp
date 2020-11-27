@@ -20,6 +20,7 @@
 
 #include "core/core.hpp"
 #include "core/binder.hpp"
+#include "core/watcher.hpp"
 #include "devs/base/base.hpp"
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
@@ -63,7 +64,8 @@ void Core::_loop() {
   //    wait for the name to be set for 90 seconds, if the name is not
   //    set within in 90 seconds then there's some problem so reboot
   if (Net::waitForName(45000) == false) {
-    Restart::restart("Did not receive profile and name assignment");
+    ESP_LOGE(pcTaskGetTaskName(nullptr), "name and profile assignment failed");
+    Restart();
   }
 
   // now that we have our name and protocols up, proceed with starting
@@ -202,6 +204,13 @@ void Core::startEngines() {
 }
 
 void Core::trackHeap() {
+  static Watcher_t *watcher = nullptr;
+
+  if (Profile::watchStacks() && (watcher == nullptr)) {
+    watcher = new Watcher();
+    watcher->start();
+  }
+
   if (heap_track_first_) {
     heap_track_first_ = false;
   } else if (heap_track_elapsed_ < heap_track_ms_) {
@@ -215,8 +224,7 @@ void Core::trackHeap() {
   uint32_t max_alloc = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
 
   if (max_alloc < (5 * 1024)) {
-    Restart::restart("max allocate < 5k (heap fragmentation)",
-                     __PRETTY_FUNCTION__, 0);
+    Restart("heap fragmentation", __PRETTY_FUNCTION__);
   }
 
   if (Net::waitForReady(0) == true) {

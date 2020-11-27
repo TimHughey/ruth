@@ -98,7 +98,7 @@ private:
     }
 
     if (restart_request_) {
-      Restart::restart("restart requested");
+      Restart("restart requested");
     }
   }
 
@@ -129,7 +129,7 @@ private:
   // task tracking
   UBaseType_t num_tasks_;
 
-  // OTA and Restart
+  // ota and restart commands
   OTA_t *ota_request_ = nullptr;
   bool restart_request_ = false;
   bool ota_marked_valid_ = false;

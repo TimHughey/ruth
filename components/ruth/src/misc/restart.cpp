@@ -26,41 +26,18 @@
 #include "protocols/mqtt.hpp"
 
 namespace ruth {
-static Restart_t *__singleton__ = nullptr;
 static const char *NONE = "NONE";
 
-Restart::Restart() {}
-
-// STATIC
-Restart_t *Restart::_instance_() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new Restart();
-  }
-
-  return __singleton__;
-}
-
-Restart::~Restart() {
-  if (__singleton__) {
-    delete __singleton__;
-    __singleton__ = nullptr;
-  }
-}
-
-void Restart::_now_() { _instance_()->restart(nullptr, nullptr, 0); }
-
-void Restart::restart(const char *text, const char *func,
-                      uint32_t reboot_delay_ms) {
-
+Restart::Restart(const char *text, const char *func, uint32_t reboot_delay_ms) {
   unique_ptr<char[]> func_buf(new char[256]);
   func_buf.get()[0] = 0x00;
 
-  if (func) {
+  if (text && func) {
     snprintf(func_buf.get(), 255, " func=\"%s\"", func);
-  }
 
-  Text::rlog("restart, reason=\"%s\"%s", (text == nullptr) ? NONE : text,
-             func_buf.get());
+    Text::rlog("restart, reason=\"%s\"%s", (text == nullptr) ? NONE : text,
+               func_buf.get());
+  }
 
   // gracefully shutdown MQTT
   MQTT::shutdown();
@@ -72,4 +49,6 @@ void Restart::restart(const char *text, const char *func,
 
   esp_restart();
 }
+
+bool Restart::now() { return true; }
 } // namespace ruth

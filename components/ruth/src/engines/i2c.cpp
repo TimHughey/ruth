@@ -70,7 +70,7 @@ bool I2c::engineEnabled() { return (__singleton__) ? true : false; }
 // Tasks
 //
 
-void I2c::command(void *data) {
+void IRAM_ATTR I2c::command(void *data) {
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
   holdForDevicesAvailable();
@@ -142,9 +142,10 @@ void I2c::command(void *data) {
   }
 }
 
-bool I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
-                         uint32_t cmd_state, bool ack, const RefID_t &refid,
-                         elapsedMicros &cmd_elapsed) {
+bool IRAM_ATTR I2c::commandExecute(I2cDevice_t *dev, uint32_t cmd_mask,
+                                   uint32_t cmd_state, bool ack,
+                                   const RefID_t &refid,
+                                   elapsedMicros &cmd_elapsed) {
 
   auto set_rc = false;
 

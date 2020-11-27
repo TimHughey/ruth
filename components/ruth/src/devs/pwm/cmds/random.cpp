@@ -63,7 +63,7 @@ Random::~Random() {
   kill(); // kill our process, if running, before freeing the steps
 }
 
-void Random::_loop() {
+void IRAM_ATTR Random::_loop() {
   auto task_name = pcTaskGetTaskName(nullptr);
 
   Text::rlog("cmd \"%s\" started, task[%s]", name().c_str(), task_name);
