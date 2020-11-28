@@ -98,7 +98,7 @@ private:
     }
 
     if (restart_request_) {
-      Restart("restart requested");
+      Restart("restart requested", __PRETTY_FUNCTION__);
     }
   }
 
