@@ -26,17 +26,13 @@
 #include "protocols/mqtt.hpp"
 
 namespace ruth {
-static const char *NONE = "NONE";
+static const char *NONE = "";
 
 Restart::Restart(const char *text, const char *func, uint32_t reboot_delay_ms) {
-  unique_ptr<char[]> func_buf(new char[256]);
-  func_buf.get()[0] = 0x00;
-
   if (text && func) {
-    snprintf(func_buf.get(), 255, " func=\"%s\"", func);
-
-    Text::rlog("restart, reason=\"%s\"%s", (text == nullptr) ? NONE : text,
-               func_buf.get());
+    Text::rlog("restart, \"%s\" %s", text, func);
+  } else if (text) {
+    Text::rlog("restart, \"%s\"", text);
   }
 
   // gracefully shutdown MQTT
