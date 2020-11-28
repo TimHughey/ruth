@@ -26,7 +26,6 @@
 #include "protocols/mqtt.hpp"
 
 namespace ruth {
-static const char *NONE = "";
 
 Restart::Restart(const char *text, const char *func, uint32_t reboot_delay_ms) {
   if (text && func) {
