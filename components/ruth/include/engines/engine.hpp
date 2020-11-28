@@ -197,8 +197,10 @@ protected:
     uint32_t notify_val;
     xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, portMAX_DELAY);
 
-    Text::rlog("[%s] holdForDevicesAvailable() took %0.2fs val[0x%x]",
-               pcTaskGetTaskName(nullptr), (float)elapsed, notify_val);
+    if ((float)elapsed > 0.5) {
+      Text::rlog("[%s] holdForDevicesAvailable() took %0.2fs val[0x%x]",
+                 pcTaskGetTaskName(nullptr), (float)elapsed, notify_val);
+    }
   }
 
   inline bool acquireBus(TickType_t wait_ticks = portMAX_DELAY) {
