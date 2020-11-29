@@ -318,7 +318,7 @@ protected:
     auto rc = false;
     auto q_rc = pdTRUE;
 
-    if (uxQueueSpacesAvailable(_cmd_q) == 0) {
+    if (_cmd_q && (uxQueueSpacesAvailable(_cmd_q) == 0)) {
       MsgPayload_t *old = nullptr;
 
       q_rc = xQueueReceive(_cmd_q, &old, pdMS_TO_TICKS(10));
@@ -389,8 +389,13 @@ protected:
     for (int type = TASK_CORE; type < TASK_END_OF_LIST; type++) {
       EngineTask_t &task = _task_map.get(type);
 
-      xTaskCreate(task.taskFunc(), task.name(), task.stackSize(), this,
-                  task.priority(), task.handle_ptr());
+      // only start tasks that have a stack size greater than zero.
+      // as an example, the command task can be disabled by setting its
+      // stack size to 0
+      if (task.stackSize() > 0) {
+        xTaskCreate(task.taskFunc(), task.name(), task.stackSize(), this,
+                    task.priority(), task.handle_ptr());
+      }
     }
   }
 

@@ -33,7 +33,7 @@ typedef class Watcher Watcher_t;
 
 class Watcher {
 public:
-  Watcher(uint32_t seconds = 30) : _seconds(seconds) {}
+  Watcher(uint32_t seconds = 5) : _seconds(seconds) {}
   ~Watcher() {
     if (_task.handle) {
       vTaskDelete(_task.handle);
