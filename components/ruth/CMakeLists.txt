@@ -1,6 +1,6 @@
 
-set(RUTH_CORE "src/core/binder" "src/core/core" "src/core/ota")
-set(RUTH_MISC "src/misc/datetime" "src/misc/restart" "src/misc/status_led")
+set(RUTH_CORE "src/core/binder" "src/core/core" "src/core/ota" "src/core/cli")
+set(RUTH_MISC "src/misc/status_led")
 set(RUTH_NET "src/net/net" "src/net/profile/profile")
 
 set(RUTH_DEVS_BASE "src/devs/base/addr" "src/devs/base/base")
@@ -25,7 +25,7 @@ idf_component_register(
   INCLUDE_DIRS
     "include" "include/external"
   REQUIRES
-    spiffs esp_http_client esp_https_ota mqtt nvs_flash app_update esp_adc_cal
+    spiffs esp_http_client esp_https_ota mqtt nvs_flash app_update esp_adc_cal console
   EMBED_FILES
     ca.pem)
 

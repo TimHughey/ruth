@@ -27,15 +27,7 @@ using namespace reading;
 
 static const char *TAG = "OTATask";
 
-static OTA_t *__singleton__ = nullptr;
-
-OTA_t *OTA::_instance_(MsgPayload_t_ptr payload_ptr) {
-  if (payload_ptr.get()) {
-    __singleton__ = new OTA(move(payload_ptr));
-  }
-
-  return __singleton__;
-}
+static OTA_t __singleton__;
 
 // document examples:
 // OTA:
@@ -45,9 +37,25 @@ OTA_t *OTA::_instance_(MsgPayload_t_ptr payload_ptr) {
 // RESTART:
 //  {"cmd":"restart","mtime":1589852135}
 //
-static const size_t _capacity = JSON_OBJECT_SIZE(3) + 336;
 
-OTA::OTA(MsgPayload_t_ptr payload_ptr) {
+void OTA::_handlePendPartIfNeeded_() {
+  const esp_partition_t *run_part = esp_ota_get_running_partition();
+  esp_ota_img_states_t ota_state;
+
+  if (esp_ota_get_state_partition(run_part, &ota_state) == ESP_OK) {
+    if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+      _valid_timer = xTimerCreate("ota_validate", pdMS_TO_TICKS(_ota_valid_ms),
+                                  pdFALSE, nullptr, &markPartitionValid);
+      vTimerSetTimerID(_valid_timer, this);
+      xTimerStart(_valid_timer, pdMS_TO_TICKS(0));
+    }
+  }
+}
+
+bool OTA::queuePayload(MsgPayload_t_ptr payload_ptr) {
+  const size_t _capacity = JSON_OBJECT_SIZE(3) + 336;
+  // ok to use a DynamicJsonDocument here as we're not generally concerned
+  // about long term heap fragmentation
   StaticJsonDocument<_capacity> doc;
 
   elapsedMicros parse_elapsed;
@@ -55,16 +63,40 @@ OTA::OTA(MsgPayload_t_ptr payload_ptr) {
   DeserializationError err =
       deserializeMsgPack(doc, payload_ptr.get()->payload());
 
-  // we're done with the original payload at this point
-  payload_ptr.reset();
+  // parsing complete, freeze the elapsed timer
+  parse_elapsed.freeze();
+
+  // did the deserailization succeed?
+  if (!err) {
+    _instance_()->_uri = doc["uri"] | "";
+    start();
+    return true;
+  }
+
+  return false;
+}
+
+bool OTA::queuePayload(const char *payload) {
+  const size_t _capacity = JSON_OBJECT_SIZE(3) + 336;
+  // ok to use a DynamicJsonDocument here as we're not generally concerned
+  // about long term heap fragmentation
+  StaticJsonDocument<_capacity> doc;
+
+  elapsedMicros parse_elapsed;
+  // deserialize the msgpack data
+  DeserializationError err = deserializeMsgPack(doc, payload);
 
   // parsing complete, freeze the elapsed timer
   parse_elapsed.freeze();
 
   // did the deserailization succeed?
   if (!err) {
-    _uri = doc["uri"] | "";
+    _instance_()->_uri = doc["uri"] | "";
+    start();
+    return true;
   }
+
+  return false;
 }
 
 void OTA::process() {
@@ -89,15 +121,11 @@ void OTA::process() {
 }
 
 // STATIC
-void OTA::markPartitionValid() {
-  static bool ota_marked_valid = false; // only do this once
-
-  if (OTA::inProgress() || (ota_marked_valid == true)) {
-    return;
-  }
-
+void OTA::markPartitionValid(TimerHandle_t handle) {
   const esp_partition_t *run_part = esp_ota_get_running_partition();
   esp_ota_img_states_t ota_state;
+  OTA_t *ota = (OTA_t *)pvTimerGetTimerID(handle);
+
   if (esp_ota_get_state_partition(run_part, &ota_state) == ESP_OK) {
     if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
       esp_err_t mark_valid_rc = esp_ota_mark_app_valid_cancel_rollback();
@@ -112,15 +140,9 @@ void OTA::markPartitionValid() {
     }
   }
 
-  ota_marked_valid = true;
-}
+  ota->_ota_marked_valid = true;
 
-const unique_ptr<char[]> OTA::debug() {
-  const size_t max_buf = 256;
-  unique_ptr<char[]> debug_str(new char[max_buf]);
-  snprintf(debug_str.get(), max_buf, "OTA(uri=\"%s\")", _uri.c_str());
-
-  return move(debug_str);
+  xTimerDelete(handle, 0);
 }
 
 //
@@ -142,4 +164,6 @@ esp_err_t OTA::httpEventHandler(esp_http_client_event_t *evt) {
   }
   return ESP_OK;
 }
+
+OTA_t *OTA::_instance_() { return &__singleton__; }
 } // namespace ruth

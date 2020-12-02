@@ -23,16 +23,20 @@
 
 #include <esp_spiffs.h>
 
+#include "external/ArduinoJson.h"
 #include "local/types.hpp"
 
 namespace ruth {
 
 typedef class Binder Binder_t;
-typedef class TextBuffer<512> BinderRaw_t;
+typedef class TextBuffer<768> BinderRaw_t;
 typedef class TextBuffer<10> RuntimeEnv_t;
 typedef class TextBuffer<50> NtpServer_t;
 typedef class TextBuffer<45> WifiConfigInfo_t;
 typedef class TextBuffer<45> MqttConfigInfo_t;
+typedef class TextBuffer<128> OtaHostname_t;
+typedef class TextBuffer<128> OtaPath_t;
+typedef class TextBuffer<25> OtaFile_t;
 
 class Binder {
 
@@ -40,24 +44,40 @@ public:
   Binder(){}; // SINGLETON
   static void init() { _inst_()->_init_(); }
 
+  // Command Line Interface
+  static bool cliEnabled() { return _inst_()->doc_["cli"]["enable"]; }
+
   // Runtime environment
-  static const char *env() { return _inst_()->env_.c_str(); };
+  static const char *env() { return _inst_()->doc_["env"] | "prod"; }
 
   // MQTT
-  static const char *mqttPasswd() { return _inst_()->mq_passwd_.c_str(); };
-  static size_t mqttReconnectMs() { return _inst_()->mq_reconnect_ms_; }
-  static size_t mqttRxBuffer() { return _inst_()->mq_rx_buffer_; }
-  static size_t mqttTxBuffer() { return _inst_()->mq_tx_buffer_; }
-  static uint32_t mqttTaskPriority() { return _inst_()->mq_task_prio_; };
-  static const char *mqttUri() { return _inst_()->mq_uri_.c_str(); };
-  static const char *mqttUser() { return _inst_()->mq_user_.c_str(); };
+  static const char *mqttPasswd() { return _inst_()->mqtt_["passwd"]; };
+  static size_t mqttReconnectMs() { return _inst_()->mqtt_["reconnect_ms"]; }
+  static size_t mqttRxBuffer() { return _inst_()->mqtt_["rx_buffer"]; }
+  static size_t mqttTxBuffer() { return _inst_()->mqtt_["tx_buffer"]; }
+  static uint32_t mqttTaskPriority() {
+    return _inst_()->mqtt_["task_priority"];
+  };
+  static const char *mqttUri() { return _inst_()->mqtt_["uri"]; }
+  static const char *mqttUser() { return _inst_()->mqtt_["user"]; }
 
   // NTP
   static const char *ntpServer(int index);
 
+  // OTA
+  static const char *otaHost() {
+    return _inst_()->ota_["host"] | "www.example.com";
+  }
+
+  static const char *otaPath() {
+    return _inst_()->ota_["path"] | "nested/path";
+  }
+
+  static const char *otaFile() { return _inst_()->ota_["file"] | "latest.bin"; }
+
   // WiFi
-  static const char *wifiSsid() { return _inst_()->wifi_ssid_.c_str(); };
-  static const char *wifiPasswd() { return _inst_()->wifi_passwd_.c_str(); };
+  static const char *wifiSsid() { return _inst_()->wifi_["ssid"]; }
+  static const char *wifiPasswd() { return _inst_()->wifi_["passwd"]; }
 
 private:
   void _init_();
@@ -72,26 +92,20 @@ private:
                                         .max_files = 5,
                                         .format_if_mount_failed = false};
 
+  const static size_t _doc_capacity =
+      JSON_OBJECT_SIZE(1) + 3 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(3) +
+      2 * JSON_OBJECT_SIZE(7) + 8;
+
   const char *config_path_ = "/ruthfs/config_0.json";
 
   BinderRaw_t raw_;
   size_t raw_size_ = 0;
 
-  RuntimeEnv_t env_;
-  time_t mtime_;
-  bool active_;
-
-  NtpServer_t ntp_servers_[2];
-  WifiConfigInfo_t wifi_ssid_;
-  WifiConfigInfo_t wifi_passwd_;
-
-  MqttConfigInfo_t mq_uri_;
-  MqttConfigInfo_t mq_user_;
-  MqttConfigInfo_t mq_passwd_;
-  uint32_t mq_task_prio_;
-  size_t mq_rx_buffer_;
-  size_t mq_tx_buffer_;
-  uint32_t mq_reconnect_ms_;
+  StaticJsonDocument<_doc_capacity> doc_;
+  JsonObject mqtt_;
+  JsonObject wifi_;
+  JsonObject ntp_servers_;
+  JsonObject ota_;
 };
 } // namespace ruth
 

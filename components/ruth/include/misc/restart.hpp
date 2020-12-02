@@ -26,6 +26,8 @@
 
 #include <esp_system.h>
 
+#include "net/network.hpp"
+#include "protocols/mqtt.hpp"
 #include "readings/readings.hpp"
 
 namespace ruth {
@@ -36,9 +38,25 @@ class Restart {
 
 public:
   Restart(const char *text = nullptr, const char *func = nullptr,
-          uint32_t reboot_delay_ms = 0);
+          uint32_t reboot_delay_ms = 0) {
+    if (text && func) {
+      Text::rlog("restart, \"%s\" %s", text, func);
+    } else if (text) {
+      Text::rlog("restart, \"%s\"", text);
+    }
 
-  bool now();
+    // gracefully shutdown MQTT
+    MQTT::shutdown();
+    Net::stop();
+
+    ESP_LOGW("Restart", "spooling ftl, jump in %dms...", reboot_delay_ms);
+    vTaskDelay(pdMS_TO_TICKS(reboot_delay_ms));
+    ESP_LOGW("Restart", "JUMP!");
+
+    esp_restart();
+  }
+
+  bool now() { return true; }
 };
 
 } // namespace ruth

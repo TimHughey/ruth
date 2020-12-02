@@ -37,31 +37,26 @@ typedef class OTA OTA_t;
 
 class OTA {
 public:
+  OTA(){}; // SINGLETON
   // start a new task to pocess the OTA update
-  static bool inProgress() {
-    return (_instance_() ? _instance_()->_ota_in_progress : false);
+  static void handlePendPartIfNeeded() {
+    _instance_()->_handlePendPartIfNeeded_();
   }
+  static bool inProgress() { return _instance_()->_ota_in_progress; }
+  static bool queuePayload(MsgPayload_t_ptr payload_ptr);
+  static bool queuePayload(const char *payload);
   static void start() { _instance_()->_start_(); }
-  static OTA_t *payload(MsgPayload_t_ptr payload_ptr) {
-    return _instance_(move(payload_ptr));
-  };
 
-  static void markPartitionValid();
-
-  const unique_ptr<char[]> debug();
+  static void markPartitionValid(TimerHandle_t handle);
 
 private:
   OTA(MsgPayload_t_ptr payload_ptr_t);
 
+  void _handlePendPartIfNeeded_();
+  static OTA_t *_instance_();
+
   // executed within a new task
   void process();
-
-  // when _instance_() is called with a MsgPayload pointer the
-  // actual singleton objected is allocated and the payload processed
-  //
-  // when _instance_() called without a payload only the existing SINGLETON
-  // instance is returned
-  static OTA_t *_instance_(MsgPayload_t_ptr payload_ptr = nullptr);
 
   void _start_(void *task_data = nullptr) {
     // ignore requests for OTA if one is in progress
@@ -83,6 +78,9 @@ private:
     task->process();
   }
 
+  static TaskHandle_t taskHandle() { return _instance_()->_task.handle; }
+  static TimerHandle_t timerHandle() { return _instance_()->_valid_timer; }
+
   static esp_err_t httpEventHandler(esp_http_client_event_t *evt);
 
 private:
@@ -91,7 +89,12 @@ private:
                   .priority = 1, // allow reporting to continue
                   .stackSize = (5 * 1024)};
 
+  TimerHandle_t _valid_timer = nullptr;
+  MsgPackPayload_t *_payload = nullptr;
+
   bool _ota_in_progress = false;
+  bool _ota_marked_valid = false;
+  uint32_t _ota_valid_ms = 60 * 1000;
 
   OtaUri_t _uri;
 };

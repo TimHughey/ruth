@@ -130,12 +130,10 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
       }
     } else if (payload->matchSubtopic("ota")) {
       matched = true;
-      OTA *ota = OTA::payload(move(payload_ptr));
-      payload_rc = Core::otaRequest(ota);
+      payload_rc = OTA::queuePayload(move(payload_ptr));
 
     } else if (payload->matchSubtopic("restart")) {
-      matched = true;
-      payload_rc = Core::restartRequest();
+      Restart("restart requested", __PRETTY_FUNCTION__);
     }
   }
 

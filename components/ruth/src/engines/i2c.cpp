@@ -350,7 +350,7 @@ bool I2c::installDriver() {
 }
 
 bool I2c::pinReset() {
-  Text::rlog("i2c reset via pin");
+  // Text::rlog("i2c reset via pin");
 
   auto rnd_delay = (esp_random() % 2000) + 1000;
   gpio_set_level(RST_PIN, 0); // pull the pin low to reset i2c devices

@@ -32,8 +32,18 @@ typedef class DateTime DateTime_t;
 
 class DateTime {
 public:
-  DateTime(time_t t = 0);
-  const char *get() const { return buffer_.c_str(); };
+  DateTime(time_t t = 0) {
+    time_t mtime = (t == 0) ? time(nullptr) : t;
+
+    struct tm timeinfo = {};
+    localtime_r(&mtime, &timeinfo);
+
+    auto size = strftime(buffer_.data(), buffer_.capacity(), "%c", &timeinfo);
+
+    buffer_.forceSize(size);
+  }
+
+  const char *c_str() const { return buffer_.c_str(); }
 
 private:
   TextBuffer<25> buffer_;

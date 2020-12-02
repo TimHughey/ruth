@@ -27,11 +27,14 @@
 #include <esp_adc_cal.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include <sys/time.h>
 #include <time.h>
 
+#include "core/cli.hpp"
 #include "core/ota.hpp"
+#include "core/watcher.hpp"
 #include "local/types.hpp"
 #include "misc/datetime.hpp"
 #include "misc/elapsed.hpp"
@@ -48,13 +51,14 @@ public:
   Core(); // SINGLETON
   static void start(TaskHandle_t app_task) { _instance_()->_start(app_task); };
   static void loop() { _instance_()->_loop(); };
+  static void reportTimer(TimerHandle_t handle) {
+    Core_t *core = (Core_t *)pvTimerGetTimerID(handle);
+    core->notifyTrackHeap();
+  }
 
   static uint32_t batteryMilliVolt() { return _instance_()->_battMV(); };
   static bool enginesStarted() { return _instance_()->engines_started_; };
   static uint32_t vref() { return 1100; };
-
-  static bool otaRequest(OTA_t *ota) { return _instance_()->_otaRequest(ota); };
-  static bool restartRequest() { return _instance_()->_restartRequest(); };
 
 private:
   // private methods for singleton
@@ -62,44 +66,12 @@ private:
   void _loop();
   void _start(xTaskHandle app_task);
   uint32_t _battMV();
-  bool _otaRequest(OTA_t *ota) {
-    // store the pointer to the ota request
-    ota_request_ = ota;
-
-    // notify app_main task to process it via Core::_loop()
-    xTaskNotify(app_task_, 0x0, eIncrement);
-
-    return true;
-  };
-
-  bool _restartRequest() {
-    // flag a restart was requested
-    restart_request_ = true;
-
-    // notify app_main task to process it via Core::_loop()
-    xTaskNotify(app_task_, 0x0, eIncrement);
-
-    return true;
-  };
 
   // private functions for class
   void bootComplete();
   void consoleTimestamp();
-  void markOtaValid();
-
-  // handle any Core requests
-  void handleRequests() {
-
-    // if, somehow, an OTA update an a researt were both requested
-    // favor the OTA request
-    if (ota_request_) {
-      ota_request_ = nullptr;
-      ota_request_->start();
-    }
-
-    if (restart_request_) {
-      Restart("restart requested", __PRETTY_FUNCTION__);
-    }
+  void notifyTrackHeap() {
+    xTaskNotify(app_task_, 0x01, eSetValueWithOverwrite);
   }
 
   void startEngines();
@@ -109,15 +81,11 @@ private:
   TaskHandle_t app_task_;
   UBaseType_t priority_ = 1;
   elapsedMillis core_elapsed_;
-  bool boot_complete_ = false;
-  bool engines_started_ = false;
 
   size_t stack_size_ = CONFIG_ESP_MAIN_TASK_STACK_SIZE;
 
   // heap monitoring
-  bool heap_track_first_ = true;
-  uint64_t heap_track_ms_ = 3 * 1000;
-  elapsedMillis heap_track_elapsed_;
+  uint32_t heap_track_ms_ = 5 * 1000;
   size_t firstHeap_ = 0;
   size_t availHeap_ = 0;
 
@@ -128,18 +96,21 @@ private:
 
   // task tracking
   UBaseType_t num_tasks_;
-
-  // ota and restart commands
-  OTA_t *ota_request_ = nullptr;
-  bool restart_request_ = false;
-  bool ota_marked_valid_ = false;
-  elapsedMillis ota_valid_elapsed_;
-  float ota_valid_ms_ = 60 * 1000;
+  bool engines_started_ = false;
 
   // battery voltage
   esp_adc_cal_characteristics_t *adc_chars_ = nullptr;
   esp_adc_cal_value_t adc_cal_;
   uint32_t batt_measurements_ = 64; // measurements to avg out noise
+
+  // remote reading reporting timer
+  TimerHandle_t report_timer_ = nullptr;
+
+  // Task Stack Watcher
+  Watcher_t *watcher_ = nullptr;
+
+  // Command Line Interface
+  CLI_t *cli_ = nullptr;
 
   static const adc_channel_t battery_adc_ = ADC_CHANNEL_7;
 };

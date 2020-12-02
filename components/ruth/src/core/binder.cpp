@@ -38,10 +38,6 @@ namespace ruth {
 static Binder_t __singleton__;
 static const char TAG[] = "Binder";
 
-// inclusive of largest profile document
-static const size_t _doc_capacity =
-    3 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(7) + 236;
-
 void Binder::_init_() {
   esp_err_t esp_rc = ESP_OK;
 
@@ -72,43 +68,34 @@ void Binder::load() {
 }
 
 const char *Binder::ntpServer(int index) {
-  if (_inst_()->ntp_servers_[index].size() > 0) {
-    return _inst_()->ntp_servers_[index].c_str();
-  } else {
-    return nullptr;
+  switch (index) {
+  case 0:
+    return _inst_()->ntp_servers_["0"];
+  case 1:
+    return _inst_()->ntp_servers_["1"];
+  default:
+    return (const char *)"pool.ntp.org";
   }
 }
 
 void Binder::parse() {
-  StaticJsonDocument<_doc_capacity> doc;
-  DeserializationError err = deserializeJson(doc, raw_.data(), raw_.size());
+  DeserializationError err = deserializeJson(doc_, raw_.data(), raw_.size());
 
   if ((raw_size_ > 0) && !err) {
     // auto used = doc.memoryUsage();
     // auto used_percent = ((float)used / (float)_doc_capacity) * 100.0;
     // ESP_LOGI(TAG, "JsonDocument memory usage %0.1f%% (%u/%u)", used_percent,
     // used, _doc_capacity);
+    wifi_ = doc_["wifi"];
+    ntp_servers_ = doc_["ntp"];
+    mqtt_ = doc_["mqtt"];
+    ota_ = doc_["ota"];
 
-    env_ = doc["env"] | "prod";
-    mtime_ = doc["meta"]["mtime"];
-    active_ = doc["meta"]["active"];
-
-    wifi_ssid_ = doc["wifi"]["ssid"] | "none";
-    wifi_passwd_ = doc["wifi"]["passwd"] | "none";
-
-    ntp_servers_[0] = doc["ntp"]["0"] | "pool.ntp.org";
-    ntp_servers_[1] = doc["ntp"]["1"] | "pool.ntp.org";
-
-    JsonObject mqtt = doc["mqtt"];
-    mq_uri_ = mqtt["uri"] | "none";
-    mq_user_ = mqtt["user"] | "none";
-    mq_passwd_ = mqtt["passwd"] | "none";
-    mq_task_prio_ = mqtt["task_priority"] | 11;
-    mq_rx_buffer_ = mqtt["rx_buffer"] | 1024;
-    mq_tx_buffer_ = mqtt["tx_buffer"] | 2048;
-    mq_reconnect_ms_ = mqtt["reconnect_ms"] | 3000;
-
-    ESP_LOGI(TAG, "contents dated %s", DateTime(mtime_).get());
+    float used_percent =
+        ((float)doc_.memoryUsage() / (float)_doc_capacity) * 100.0;
+    ESP_LOGI(TAG, "%s doc_used[%2.1f%%] (%d/%d)",
+             DateTime(doc_["meta"]["mtime"].as<uint32_t>()).c_str(),
+             used_percent, doc_.memoryUsage(), _doc_capacity);
   }
 }
 

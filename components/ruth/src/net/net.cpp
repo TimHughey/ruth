@@ -15,6 +15,7 @@
 #include "lwip/sys.h"
 
 #include "core/binder.hpp"
+#include "misc/datetime.hpp"
 #include "misc/restart.hpp"
 #include "misc/status_led.hpp"
 #include "net/network.hpp"
@@ -162,39 +163,29 @@ void Net::init() {
 // polls the current time waiting for SNTP to complete or timeout is reached
 void Net::ensureTimeIsSet() {
   elapsedMillis sntp_elapsed;
-  const uint32_t total_ms = 30000;
-  const uint32_t check_ms = 2998;
+  const uint32_t wait_max_ms = 30000;
+  const uint32_t check_ms = 100;
+  auto wait_sntp = true;
 
-  for (auto wait_sntp = true; wait_sntp;) {
-    struct timeval curr_time = {};
-
-    uint32_t recent_time = 1591114560;
-
-    StatusLED::percent(0.10);
-
+  while ((sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) && wait_sntp) {
+    StatusLED::percent(0.05);
     delay(check_ms / 2);
-    StatusLED::percent(0.75);
-    delay(check_ms / 2);
+    StatusLED::percent(0.50);
 
-    gettimeofday(&curr_time, nullptr);
-
-    if ((curr_time.tv_sec > recent_time) || (sntp_elapsed > total_ms)) {
+    if (sntp_elapsed > wait_max_ms) {
       wait_sntp = false;
+    } else {
+      delay(check_ms / 2);
     }
   }
 
-  // one final wait to ensure SNTP has fully set time
-  StatusLED::percent(0.10);
-  delay(check_ms / 2);
-  StatusLED::percent(0.75);
-  delay(check_ms / 2);
-
-  if (sntp_elapsed > total_ms) {
+  if (sntp_elapsed > wait_max_ms) {
     ESP_LOGE(pcTaskGetTaskName(nullptr), "SNTP failed");
     Restart();
   } else {
     xEventGroupSetBits(evg_, timeSetBit());
-    ESP_LOGI(tagEngine(), "SNTP complete[%0.1fs]", sntp_elapsed.toSeconds());
+    ESP_LOGI(tagEngine(), "SNTP complete, %s, elapsed[%0.1fs]",
+             DateTime().c_str(), sntp_elapsed.toSeconds());
   }
 }
 

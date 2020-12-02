@@ -20,7 +20,6 @@
 
 #include "core/core.hpp"
 #include "core/binder.hpp"
-#include "core/watcher.hpp"
 #include "devs/base/base.hpp"
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
@@ -39,7 +38,6 @@ using std::max;
 using std::min;
 
 Core::Core() {
-
   firstHeap_ = heap_caps_get_free_size(MALLOC_CAP_8BIT);
   availHeap_ = heap_caps_get_free_size(MALLOC_CAP_8BIT);
   // Characterize and setup ADC for measuring battery millivolts
@@ -53,36 +51,19 @@ Core::Core() {
 }
 
 void Core::_loop() {
-  //
-  // NOTE:
-  //  unless doing actual work on the first call or subsequent calls
-  //   (e.g. trackHeap(), consoleTimestamp()) all functions are designed
-  //   to execute very quickly
-  //
-
-  // safety net 1:
-  //    wait for the name to be set for 90 seconds, if the name is not
-  //    set within in 90 seconds then there's some problem so reboot
-  if (Net::waitForName(45000) == false) {
-    ESP_LOGE(pcTaskGetTaskName(nullptr), "name and profile assignment failed");
-    Restart();
-  }
-
-  // now that we have our name and protocols up, proceed with starting
-  // the engines and performing actual work
-  startEngines();
-
-  trackHeap();
-  bootComplete();
   consoleTimestamp();
-  markOtaValid();
-  handleRequests();
 
-  // TODO
-  // implement watchTaskStacks()
+  // BaseType_t xTaskNotifyWait(
+  //     uint32_t ulBitsToClearOnEntry, uint32_t ulBitsToClearOnExit,
+  //     uint32_t * pulNotificationValue, TickType_t xTicksToWait);
 
-  // sleep for one (1) second or until notified
-  ulTaskNotifyTake(pdTRUE, Profile::coreLoopTicks());
+  uint32_t notify_val = 0;
+  auto notify_rc =
+      xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, Profile::coreLoopTicks());
+
+  if ((notify_rc == pdTRUE) && (notify_val == 0x01)) {
+    trackHeap();
+  }
 }
 
 void Core::_start(xTaskHandle app_task) {
@@ -98,6 +79,33 @@ void Core::_start(xTaskHandle app_task) {
 
   MQTT::start();
   StatusLED::brighter();
+
+  // safety net 1:
+  //    wait for the name to be set for 90 seconds, if the name is not
+  //    set within in 90 seconds then there's some problem so reboot
+  if (Net::waitForName(45000) == false) {
+    ESP_LOGE(pcTaskGetTaskName(nullptr), "name and profile assignment failed");
+    Restart().now();
+  }
+
+  Net::waitForNormalOps(portMAX_DELAY);
+
+  // now that we have our name and protocols up, proceed with starting
+  // the engines and performing actual work
+  startEngines();
+  trackHeap();
+  bootComplete();
+  OTA::handlePendPartIfNeeded();
+
+  if (Binder::cliEnabled()) {
+    cli_ = new CLI();
+    cli_->start();
+  }
+
+  if (Profile::watchStacks()) {
+    watcher_ = new Watcher();
+    watcher_->start();
+  }
 }
 
 uint32_t Core::_battMV() {
@@ -120,16 +128,10 @@ uint32_t Core::_battMV() {
 }
 
 void Core::bootComplete() {
-  if (boot_complete_)
-    return;
-
   // boot up is successful, process any previously committed NVS messages
   // and record the successful boot
 
   num_tasks_ = uxTaskGetNumberOfTasks();
-
-  // NVS::processCommittedMsgs();
-  // NVS::commitMsg("BOOT", "LAST SUCCESSFUL BOOT");
 
   // lower main task priority since it's really just a watcher now
   UBaseType_t priority = uxTaskPriorityGet(nullptr);
@@ -138,18 +140,24 @@ void Core::bootComplete() {
     vTaskPrioritySet(nullptr, priority_);
   }
 
+  report_timer_ = xTimerCreate("core_report", pdMS_TO_TICKS(heap_track_ms_),
+                               pdTRUE, nullptr, &reportTimer);
+  vTimerSetTimerID(report_timer_, this);
+  xTimerStart(report_timer_, pdMS_TO_TICKS(0));
+
   UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
 
   auto stack_used =
       100.0 - ((float)stack_high_water / (float)stack_size_ * 100.0);
   ESP_LOGI(TAG, "BOOT COMPLETE in %0.2fs tasks[%d] stack used[%0.1f%%] hw[%u]",
            (float)core_elapsed_, num_tasks_, stack_used, stack_high_water);
-
-  boot_complete_ = true;
-  ota_valid_elapsed_.reset();
 }
 
 void Core::consoleTimestamp() {
+  if (Binder::cliEnabled()) {
+    return;
+  }
+
   if (timestamp_first_report_ == true) {
     // leave first report set to true, it will be set to false later
     timestamp_first_report_ = false;
@@ -169,22 +177,10 @@ void Core::consoleTimestamp() {
   auto stack_used =
       100.0 - ((float)stack_high_water / (float)stack_size_) * 100.0;
 
-  ESP_LOGI(TAG, ">> %s << %s stack used[%0.1f%%] hw[%u]", DateTime().get(),
+  ESP_LOGI(TAG, ">> %s << %s stack used[%0.1f%%] hw[%u]", DateTime().c_str(),
            Net::hostname(), stack_used, stack_high_water);
 
   timestamp_elapsed_.reset();
-}
-
-void Core::markOtaValid() {
-  if ((ota_marked_valid_) || (ota_valid_ms_ > (uint64_t)ota_valid_elapsed_))
-    return;
-
-  // safety net 2:
-  //    only after the core has been up for more than the configured
-  //    seconds mark the OTA partition as valid
-  OTA::markPartitionValid();
-
-  ota_marked_valid_ = true;
 }
 
 void Core::startEngines() {
@@ -204,21 +200,6 @@ void Core::startEngines() {
 }
 
 void Core::trackHeap() {
-  static Watcher_t *watcher = nullptr;
-
-  if (Profile::watchStacks() && (watcher == nullptr)) {
-    watcher = new Watcher();
-    watcher->start();
-  }
-
-  if (heap_track_first_) {
-    heap_track_first_ = false;
-  } else if (heap_track_elapsed_ < heap_track_ms_) {
-    return;
-  } else {
-    heap_track_elapsed_.reset();
-  }
-
   auto batt_mv = batteryMilliVolt();
 
   uint32_t max_alloc = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
@@ -232,8 +213,6 @@ void Core::trackHeap() {
 
     reading.publish();
   }
-
-  heap_track_elapsed_.reset();
 }
 
 // STATIC!
