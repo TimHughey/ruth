@@ -51,6 +51,10 @@ public:
 
   uint8_t devAddr() { return firstAddressByte(); };
 
+  // override the base class function
+  // pwm devices are always available provided the engine is enabled
+  bool available() const { return true; }
+
   void makeID();
 
   // ledc channel

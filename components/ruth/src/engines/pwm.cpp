@@ -104,8 +104,6 @@ void PulseWidth::core(void *task_data) {
   // create the command queue
   _cmd_q = xQueueCreate(_max_queue_depth, sizeof(MsgPayload_t *));
 
-  Net::waitForNormalOps();
-
   // discovering the pwm devices is ultimately creating and adding them
   // to the known device list since they are onboard hardware.
   for (uint8_t i = 1; i <= 4; i++) {
@@ -124,6 +122,7 @@ void PulseWidth::core(void *task_data) {
     }
   }
 
+  Net::waitForNormalOps();
   notifyDevicesAvailable();
 
   // core task run loop
@@ -142,14 +141,6 @@ void PulseWidth::core(void *task_data) {
       unique_ptr<MsgPayload_t> payload_ptr(payload);
       commandLocal(move(payload_ptr));
     }
-
-    auto notify_val = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10));
-
-    if (notify_val) {
-      auto stack_hw = uxTaskGetStackHighWaterMark(nullptr);
-
-      Text::rlog("core task notified, stack_hw=%d", stack_hw);
-    }
   }
 }
 
@@ -157,15 +148,9 @@ void PulseWidth::report(void *data) {
   static TickType_t last_wake;
 
   holdForDevicesAvailable();
-  saveLastWake(last_wake);
 
   for (;;) {
-    Net::waitForNormalOps();
-
-    if (numKnownDevices() == 0) {
-      delayUntil(last_wake, reportFrequency());
-      continue;
-    }
+    saveLastWake(last_wake);
 
     for_each(deviceMap().begin(), deviceMap().end(), [this](PwmDevice_t *dev) {
       if (dev->available()) {

@@ -87,7 +87,7 @@ public:
   uint64_t writeStop();
 
   void setMissingSeconds(uint32_t secs) { _missing_secs = secs; };
-  bool available() const;
+  virtual bool available() const;
   bool missing() const;
 
   void crcMismatch();
