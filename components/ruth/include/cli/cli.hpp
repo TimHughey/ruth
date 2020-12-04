@@ -21,9 +21,12 @@
 #ifndef _ruth_core_cli_hpp
 #define _ruth_core_cli_hpp
 
+#include <esp_console.h>
+
 #include "core/ota.hpp"
 #include "local/types.hpp"
 #include "misc/datetime.hpp"
+#include "misc/restart.hpp"
 #include "net/network.hpp"
 
 namespace ruth {
@@ -49,9 +52,45 @@ private:
   void init();
   void loop();
 
-  void registerClearCommand();
-  void registerDateCommand();
+  void registerAllCommands() {
+    registerClearCommand();
+    registerDateCommand();
+    registerOtaCommand();
+    registerRestartCommand();
+  }
+
+  void registerClearCommand() {
+    static esp_console_cmd_t cmd = {};
+    cmd.command = "clear";
+    cmd.help = "Clears the screen";
+    cmd.hint = NULL;
+    cmd.func = &clearCommand;
+
+    esp_console_cmd_register(&cmd);
+  }
+
+  void registerDateCommand() {
+    static esp_console_cmd_t cmd = {};
+    cmd.command = "date";
+    cmd.help = "Display the current date and time";
+    cmd.hint = NULL;
+    cmd.func = &dateCommand;
+
+    esp_console_cmd_register(&cmd);
+  }
+
+  // requires argtable defined in .cpp file
   void registerOtaCommand();
+
+  void registerRestartCommand() {
+    static esp_console_cmd_t cmd = {};
+    cmd.command = "reboot";
+    cmd.help = "Reboot Ruth immediately";
+    cmd.hint = NULL;
+    cmd.func = &rebootCommand;
+
+    esp_console_cmd_register(&cmd);
+  }
 
   // Task implementation
   static void runTask(void *task_instance) {
@@ -71,6 +110,12 @@ private:
   }
 
   static int otaCommand(int argc, char **argv);
+
+  static int rebootCommand(int argc, char **argv) {
+    Restart().now();
+
+    return 0;
+  }
 
 private:
   Task_t _task = {.handle = nullptr,

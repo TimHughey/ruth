@@ -25,8 +25,6 @@
 namespace ruth {
 using namespace reading;
 
-static const char *TAG = "OTATask";
-
 static OTA_t __singleton__;
 
 // document examples:
@@ -124,7 +122,7 @@ void OTA::process() {
 void OTA::markPartitionValid(TimerHandle_t handle) {
   const esp_partition_t *run_part = esp_ota_get_running_partition();
   esp_ota_img_states_t ota_state;
-  OTA_t *ota = (OTA_t *)pvTimerGetTimerID(handle);
+  OTA_t *ota = _instance_();
 
   if (esp_ota_get_state_partition(run_part, &ota_state) == ESP_OK) {
     if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
@@ -142,17 +140,25 @@ void OTA::markPartitionValid(TimerHandle_t handle) {
 
   ota->_ota_marked_valid = true;
 
-  xTimerDelete(handle, 0);
+  if (handle) {
+    xTimerDelete(handle, 0);
+  }
 }
 
 //
 // STATIC!
 //
 esp_err_t OTA::httpEventHandler(esp_http_client_event_t *evt) {
+  static bool first_line = true;
+
   switch (evt->event_id) {
   case HTTP_EVENT_ON_HEADER:
-    ESP_LOGI(TAG, "OTA HTTPS HEADER: key(%s), value(%s)", evt->header_key,
-             evt->header_value);
+    if (first_line) {
+      printf("\n\n\n");
+      first_line = false;
+    }
+
+    printf("%20s %s\n", evt->header_key, evt->header_value);
     break;
   case HTTP_EVENT_ERROR:
   case HTTP_EVENT_ON_CONNECTED:

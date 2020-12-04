@@ -20,7 +20,6 @@
 
 #include <argtable3/argtable3.h>
 #include <driver/uart.h>
-#include <esp_console.h>
 #include <esp_log.h>
 #include <esp_system.h>
 #include <esp_vfs_dev.h>
@@ -28,22 +27,28 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "cli/cli.hpp"
 #include "core/binder.hpp"
-#include "core/cli.hpp"
 #include "external/ArduinoJson.h"
 
 namespace ruth {
 
 static struct arg_file *fw_file;
 static struct arg_str *host, *path;
+static struct arg_lit *mark_valid;
 static struct arg_end *end;
 
 static void *ota_argtable[] = {
-    host = arg_strn("h", "host", "<hostname>", 0, 1, nullptr),
-    path = arg_strn("p", "path", "<path to file>", 0, 1, nullptr),
-    fw_file = arg_filen("f", "file", "<filename>", 0, 1, nullptr),
-    end = arg_end(3),
-};
+    host = arg_strn("h", "host", "<hostname>", 0, 1,
+                    "https://<HOSTNAME>/<path>/<file>"),
+    path = arg_strn("p", "path", "<path to file>", 0, 1,
+                    "https://<hostname>/<PATH>/<file>"),
+    fw_file = arg_filen("f", "file", "<filename>", 0, 1,
+                        "https://<hostname>/<path>/<FILE>"),
+    mark_valid =
+        arg_litn(nullptr, "mark-valid", 0, 1, "mark ota valid, if needed"),
+    end = arg_end(4),
+}; // namespace ruth
 
 void CLI::init() {
   /* Drain stdout before reconfiguring it */
@@ -86,9 +91,7 @@ void CLI::init() {
   ESP_ERROR_CHECK(esp_console_init(&console_config));
   esp_console_register_help_command();
 
-  registerClearCommand();
-  registerDateCommand();
-  registerOtaCommand();
+  registerAllCommands();
 
   /* Configure linenoise line completion library */
   /* Enable multiline editing. If not set, long commands will scroll within
@@ -146,6 +149,7 @@ void CLI::loop() {
 }
 
 int CLI::otaCommand(int argc, char **argv) {
+  mark_valid->count = 0;
   host->sval[0] = Binder::otaHost();
   path->sval[0] = Binder::otaPath();
   fw_file->filename[0] = Binder::otaFile();
@@ -156,48 +160,33 @@ int CLI::otaCommand(int argc, char **argv) {
     return 1;
   }
 
-  TextBuffer<128> uri;
+  if (mark_valid->count > 0) {
+    OTA::markPartitionValid();
+  } else {
 
-  uri.printf("https://%s/%s/%s", host->sval[0], path->sval[0],
-             fw_file->filename[0]);
+    TextBuffer<128> uri;
 
-  StaticJsonDocument<128> doc;
-  JsonObject root = doc.to<JsonObject>();
-  root["uri"] = uri.c_str();
+    uri.printf("https://%s/%s/%s", host->sval[0], path->sval[0],
+               fw_file->filename[0]);
 
-  TextBuffer<128> msgpack;
-  auto bytes = serializeMsgPack(doc, msgpack.data(), msgpack.capacity());
-  msgpack.forceSize(bytes);
+    StaticJsonDocument<128> doc;
+    JsonObject root = doc.to<JsonObject>();
+    root["uri"] = uri.c_str();
 
-  OTA::queuePayload(msgpack.c_str());
+    TextBuffer<128> msgpack;
+    auto bytes = serializeMsgPack(doc, msgpack.data(), msgpack.capacity());
+    msgpack.forceSize(bytes);
+
+    OTA::queuePayload(msgpack.c_str());
+  }
 
   return 0;
-}
-
-void CLI::registerClearCommand() {
-  static esp_console_cmd_t cmd = {};
-  cmd.command = "clear";
-  cmd.help = "Clears the screen";
-  cmd.hint = NULL;
-  cmd.func = &clearCommand;
-
-  esp_console_cmd_register(&cmd);
-}
-
-void CLI::registerDateCommand() {
-  static esp_console_cmd_t cmd = {};
-  cmd.command = "date";
-  cmd.help = "Display the current date and time";
-  cmd.hint = NULL;
-  cmd.func = &dateCommand;
-
-  esp_console_cmd_register(&cmd);
 }
 
 void CLI::registerOtaCommand() {
   static esp_console_cmd_t cmd = {};
   cmd.command = "ota";
-  cmd.help = "Perform an OTA update and restart";
+  cmd.help = "Perform an OTA update or mark the ota partition valid";
   cmd.hint = NULL;
   cmd.func = &otaCommand;
   cmd.argtable = ota_argtable;

@@ -199,14 +199,15 @@ bool I2c::discover() {
     detect_rc = detectDevicesOnBus(0x00);
   }
 
-  if (numKnownDevices() == 0) {
+  if (numKnownDevices() > 0) {
+    notifyDevicesAvailable();
+  } else {
     // since I2c is enabled we expect at least one device to be present on the
     // bus.  when zero devices are present use pinReset() to power cycle
     // devices attached to th4 RST pin then attempt another discover.
     pinReset();
+    detect_rc = false;
   }
-
-  notifyDevicesAvailable();
 
   return detect_rc;
 }
@@ -218,8 +219,6 @@ void I2c::report(void *data) {
   saveLastWake(last_wake);
 
   for (;;) {
-    Net::waitForNormalOps();
-
     if (numKnownDevices() == 0) {
       delayUntil(last_wake, reportFrequency());
       continue;

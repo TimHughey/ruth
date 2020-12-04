@@ -47,7 +47,7 @@ public:
   static bool queuePayload(const char *payload);
   static void start() { _instance_()->_start_(); }
 
-  static void markPartitionValid(TimerHandle_t handle);
+  static void markPartitionValid(TimerHandle_t handle = nullptr);
 
 private:
   OTA(MsgPayload_t_ptr payload_ptr_t);

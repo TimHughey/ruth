@@ -32,7 +32,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "core/cli.hpp"
+#include "cli/cli.hpp"
 #include "core/ota.hpp"
 #include "core/watcher.hpp"
 #include "local/types.hpp"

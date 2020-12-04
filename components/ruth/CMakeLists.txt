@@ -1,5 +1,5 @@
 
-set(RUTH_CORE "src/core/binder" "src/core/core" "src/core/ota" "src/core/cli")
+set(RUTH_CORE "src/core/binder" "src/core/core" "src/core/ota" "src/cli/cli")
 set(RUTH_MISC "src/misc/status_led")
 set(RUTH_NET "src/net/net" "src/net/profile/profile")
 

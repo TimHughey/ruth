@@ -102,17 +102,12 @@ private:
       return;
     }
 
-    // create the task name
-
     _task_name.printf("Rpwm.%s", _pin);
 
     // this (object) is passed as the data to the task creation and is
     // used by the static runEngine method to call the run method
     xTaskCreate(&runTask, _task_name.c_str(), _task.stackSize, _task.data,
                 _task.priority, &_task.handle);
-
-    // Text::rlog("cmd \"%s\" started on %s handle=%p", name_cstr(), pin(),
-    //            _task.handle);
   }
 
   // Task implementation
