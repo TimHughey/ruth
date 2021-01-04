@@ -28,7 +28,7 @@
 
 namespace ruth {
 namespace reading {
-Startup::Startup(uint32_t batt_mv) : Remote(BOOT, batt_mv) {
+Startup::Startup() : Remote(BOOT) {
   app_desc_ = esp_ota_get_app_description();
 
   reset_reason_ = decodeResetReason(esp_reset_reason());

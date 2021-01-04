@@ -23,8 +23,6 @@
 
 #include <cstdlib>
 
-#include <driver/adc.h>
-#include <esp_adc_cal.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -56,7 +54,6 @@ public:
     core->notifyTrackHeap();
   }
 
-  static uint32_t batteryMilliVolt() { return _instance_()->_battMV(); };
   static bool enginesStarted() { return _instance_()->engines_started_; };
   static uint32_t vref() { return 1100; };
 
@@ -65,7 +62,7 @@ private:
   static Core_t *_instance_();
   void _loop();
   void _start(xTaskHandle app_task);
-  uint32_t _battMV();
+  // uint32_t _battMV();
 
   // private functions for class
   void bootComplete();
@@ -98,11 +95,6 @@ private:
   UBaseType_t num_tasks_;
   bool engines_started_ = false;
 
-  // battery voltage
-  esp_adc_cal_characteristics_t *adc_chars_ = nullptr;
-  esp_adc_cal_value_t adc_cal_;
-  uint32_t batt_measurements_ = 64; // measurements to avg out noise
-
   // remote reading reporting timer
   TimerHandle_t report_timer_ = nullptr;
 
@@ -111,8 +103,6 @@ private:
 
   // Command Line Interface
   CLI_t *cli_ = nullptr;
-
-  static const adc_channel_t battery_adc_ = ADC_CHANNEL_7;
 };
 
 } // namespace ruth

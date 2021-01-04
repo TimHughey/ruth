@@ -46,6 +46,12 @@ public:
     memcpy(buff_, str, size_);
   }
 
+  void assign(const uint8_t *start, const uint8_t *end) {
+    size_t len = end - start;
+    size_ = (len < CAP) ? len : CAP;
+    memcpy(buff_, start, size_);
+  }
+
   void calcSize() { size_ = strlen_s(buff_); }
   size_t capacity() const { return CAP; }
   void clear() {
@@ -84,6 +90,8 @@ public:
 
     return *this;
   }
+
+  float usedPrecent() const { return ((float)size_ / (float)CAP) * 100; }
 
   bool operator==(const char *str) const {
     return (compare(str) == 0) ? true : false;

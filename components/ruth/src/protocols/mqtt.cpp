@@ -27,11 +27,13 @@
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
 
+#include "cli/cli.hpp"
 #include "core/core.hpp"
 #include "core/ota.hpp"
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
 #include "engines/pwm.hpp"
+#include "lightdesk/lightdesk.hpp"
 #include "local/types.hpp"
 #include "misc/restart.hpp"
 #include "misc/status_led.hpp"
@@ -62,10 +64,9 @@ MQTT::~MQTT() { // memory clean up handled by shutdown
 }
 
 void MQTT::announceStartup() {
-  uint32_t batt_mv = Core::batteryMilliVolt();
-  Startup_t startup(batt_mv);
+  Startup_t reading;
 
-  publish(&startup);
+  publish(reading);
   StatusLED::off();
 }
 
@@ -99,11 +100,9 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
     if (payload->matchSubtopic("pwm")) {
       matched = true;
       payload_rc = PulseWidth::queuePayload(move(payload_ptr));
-
     } else if (payload->matchSubtopic("i2c")) {
       matched = true;
       payload_rc = I2c::queuePayload(move(payload_ptr));
-
     } else if (payload->matchSubtopic("ds")) {
       matched = true;
       payload_rc = DallasSemi::queuePayload(move(payload_ptr));
@@ -121,7 +120,13 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
 
   // we can also process OTA and restart commands
   if (!matched) {
-    if (payload->matchSubtopic("profile")) {
+    if (payload->matchSubtopic("raw")) {
+      matched = true;
+      payload_rc = CLI::remoteLine(payload);
+    } else if (payload->matchSubtopic("lightdesk")) {
+      matched = true;
+      payload_rc = LightDesk::externalCommand(*payload);
+    } else if (payload->matchSubtopic("profile")) {
       matched = true;
       Profile::fromRaw(payload);
 

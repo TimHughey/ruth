@@ -22,20 +22,29 @@
 #define _ruth_core_cli_hpp
 
 #include <esp_console.h>
+#include <esp_vfs_dev.h>
+#include <linenoise/linenoise.h>
 
+#include "cli/lightdesk.hpp"
 #include "core/ota.hpp"
 #include "local/types.hpp"
 #include "misc/datetime.hpp"
 #include "misc/restart.hpp"
 #include "net/network.hpp"
+#include "protocols/dmx.hpp"
+#include "protocols/mqtt.hpp"
 
 namespace ruth {
 
 typedef class CLI CLI_t;
+typedef const char *STRING;
 
 class CLI {
 public:
-  CLI(){};
+  CLI() { init(); };
+
+  static bool remoteLine(MsgPayload_t *payload);
+  bool running() const { return (_task.handle == nullptr) ? false : true; }
 
   void start() {
     if (_task.handle) {
@@ -43,28 +52,57 @@ public:
     }
 
     // this (object) is passed as the data to the task creation and is
-    // used by the static runEngine method to call the run method
+    // used by the static runTask method to call object specific run loop
     ::xTaskCreate(&runTask, "Rcli", _task.stackSize, this, _task.priority,
                   &_task.handle);
   }
 
 private:
   void init();
+  void initCommands();
   void loop();
 
-  void registerAllCommands() {
-    registerClearCommand();
-    registerDateCommand();
-    registerOtaCommand();
-    registerRestartCommand();
+  static int commandBinder(int argc, char **argv);
+
+  static int commandClear(int argc, char **argv) {
+    linenoiseClearScreen();
+    return 0;
   }
+
+  static int commandDate(int argc, char **argv) {
+    printf("%s\n", DateTime().c_str());
+    return 0;
+  }
+
+  static int commandDiceStats(int argc, char **argv) {
+    printDiceRollStats();
+    return 0;
+  }
+
+  static int commandDmx(int argc, char **argv);
+  static int commandExit(int argc, char **argv) { return 255; }
+  static int commandLs(int argc, char **argv) {
+    return Binder::instance()->ls();
+  }
+  static int commandOta(int argc, char **argv);
+  static int commandPinSpot(int argc, char **argv);
+  static int commandReboot(int argc, char **argv) {
+    Restart("cli initiated reboot").now();
+
+    return 0;
+  }
+  static int commandRm(int argc, char **argv);
+
+  static uint32_t convertHex(const char *str);
+
+  void registerBinderCommand();
 
   void registerClearCommand() {
     static esp_console_cmd_t cmd = {};
-    cmd.command = "clear";
+    cmd.command = "c";
     cmd.help = "Clears the screen";
     cmd.hint = NULL;
-    cmd.func = &clearCommand;
+    cmd.func = &commandClear;
 
     esp_console_cmd_register(&cmd);
   }
@@ -74,54 +112,95 @@ private:
     cmd.command = "date";
     cmd.help = "Display the current date and time";
     cmd.hint = NULL;
-    cmd.func = &dateCommand;
+    cmd.func = &commandDate;
 
     esp_console_cmd_register(&cmd);
   }
 
-  // requires argtable defined in .cpp file
-  void registerOtaCommand();
+  void registerDiceRollStatsCommand() {
+    static esp_console_cmd_t cmd = {};
+    cmd.command = "dicestats";
+    cmd.help = "Display the current die roll stats";
+    cmd.hint = NULL;
+    cmd.func = &commandDiceStats;
+
+    esp_console_cmd_register(&cmd);
+  }
+
+  void registerExitCommand() {
+    static esp_console_cmd_t cmd = {};
+    cmd.command = "exit";
+    cmd.help = "Exit the Command Line Interface";
+    cmd.hint = NULL;
+    cmd.func = &commandExit;
+
+    esp_console_cmd_register(&cmd);
+  }
+
+  void registerPinSpotCommand(); // requires argtable defined in .cpp file
+
+  void registerLsCommand() {
+    static esp_console_cmd_t cmd = {};
+    cmd.command = "ls";
+    cmd.help = "List files";
+    cmd.hint = NULL;
+    cmd.func = &commandLs;
+
+    esp_console_cmd_register(&cmd);
+  }
+
+  void registerOtaCommand(); // requires argtable defined in .cpp file
 
   void registerRestartCommand() {
     static esp_console_cmd_t cmd = {};
     cmd.command = "reboot";
     cmd.help = "Reboot Ruth immediately";
     cmd.hint = NULL;
-    cmd.func = &rebootCommand;
+    cmd.func = &commandReboot;
 
     esp_console_cmd_register(&cmd);
   }
 
+  void registerRmCommand() {
+    static esp_console_cmd_t cmd = {};
+    cmd.command = "rm";
+    cmd.help = "Remove (unlink) a file";
+    cmd.hint = NULL;
+    cmd.func = &commandRm;
+
+    esp_console_cmd_register(&cmd);
+  }
+
+  static void runLine(const char *line, int &ret);
+
   // Task implementation
   static void runTask(void *task_instance) {
     CLI_t *cli = (CLI_t *)task_instance;
-    cli->init();
     cli->loop();
-  }
 
-  static int clearCommand(int argc, char **argv) {
-    printf("\033[2J\033[H");
-    return 9;
-  }
+    TaskHandle_t to_delete = cli->_task.handle;
+    cli->_task.handle = nullptr;
 
-  static int dateCommand(int argc, char **argv) {
-    printf("%s\n", DateTime().c_str());
-    return 0;
-  }
+    // return UART handling to default prior to console component usage
+    esp_vfs_dev_uart_use_nonblocking(CONFIG_ESP_CONSOLE_UART_NUM);
+    esp_console_deinit(); // free console component
 
-  static int otaCommand(int argc, char **argv);
+    ESP_LOGI(pcTaskGetTaskName(nullptr), "handle[%p] flagged for delete",
+             to_delete);
 
-  static int rebootCommand(int argc, char **argv) {
-    Restart().now();
-
-    return 0;
+    vTaskDelete(to_delete);
   }
 
 private:
+  // commands
+  LightDeskCli_t lightdesk;
+
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .priority = 1, // allow reporting to continue
                   .stackSize = (5 * 1024)};
+
+  const char *history_file_ = "/r/cli_hist.txt";
 };
 
 } // namespace ruth

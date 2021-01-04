@@ -45,6 +45,10 @@ private:
   PulseWidth();
 
 public:
+  static bool on(uint8_t pin);
+  static bool off(uint8_t pin);
+
+public:
   // returns true if the instance (singleton) has been created
   static bool engineEnabled();
   static void startIfEnabled() {

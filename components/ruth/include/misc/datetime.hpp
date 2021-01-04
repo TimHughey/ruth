@@ -32,13 +32,13 @@ typedef class DateTime DateTime_t;
 
 class DateTime {
 public:
-  DateTime(time_t t = 0) {
+  DateTime(time_t t = 0, const char *format = "%c") {
     time_t mtime = (t == 0) ? time(nullptr) : t;
 
     struct tm timeinfo = {};
     localtime_r(&mtime, &timeinfo);
 
-    auto size = strftime(buffer_.data(), buffer_.capacity(), "%c", &timeinfo);
+    auto size = strftime(buffer_.data(), buffer_.capacity(), format, &timeinfo);
 
     buffer_.forceSize(size);
   }

@@ -34,6 +34,10 @@ MsgPayload::MsgPayload(esp_mqtt_event_t *event) {
   }
 }
 
+MsgPayload::MsgPayload(const void *data, size_t len) {
+  _data.assign(static_cast<const char *>(data), len);
+}
+
 MsgPayload::~MsgPayload() {}
 
 //
@@ -48,6 +52,7 @@ bool MsgPayload::invalid() { return !valid(); }
 const char *MsgPayload::errorTopic() const { return _err_topic.c_str(); }
 
 // payload data functionality
+char *MsgPayload::data() { return _data.data(); }
 const char *MsgPayload::payload() const { return _data.c_str(); }
 bool MsgPayload::emptyPayload() const { return _data.empty(); }
 

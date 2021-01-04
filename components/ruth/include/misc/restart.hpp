@@ -40,9 +40,9 @@ public:
   Restart(const char *text = nullptr, const char *func = nullptr,
           uint32_t reboot_delay_ms = 0) {
     if (text && func) {
-      Text::rlog("restart, \"%s\" %s", text, func);
+      Text::rlog("\"%s\" %s", text, func);
     } else if (text) {
-      Text::rlog("restart, \"%s\"", text);
+      Text::rlog("\"%s\"", text);
     }
 
     // gracefully shutdown MQTT

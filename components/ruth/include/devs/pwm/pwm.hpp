@@ -69,8 +69,10 @@ public:
 
   // primary entry point for all cmds except duty
   bool cmd(uint32_t pwm_cmd, JsonDocument &doc);
-
   bool cmdKill();
+
+  void off() { updateDuty(dutyMin()); }
+  void on() { updateDuty(dutyMax()); }
 
   bool updateDuty(uint32_t duty);
   bool updateDuty(JsonDocument &doc);

@@ -31,6 +31,20 @@ fi
 # clean up after ourselves
 rm -f /tmp/idf-export.log &> /dev/null
 
+# recreate binder_0.mp, if needed
+
+pushd -q extra/embed
+
+binder_json=binder_0.json
+binder_mp=binder_0.mp
+
+if [[ binder_0.json -nt binder_0.mp ]]; then
+  echo "creating $binder_mp ..."
+  json2msgpack -i $binder_json -o $binder_mp
+fi
+
+popd
+
 # ok, all set to invoke idf.py
 
 # use ccache
@@ -82,6 +96,11 @@ case $argv[1] in
 
   size*)
     idf.py $argv[1] | egrep -v "idf_size|ninja|Running|Executing|Adding|complete|idf.py|python"
+    ;;
+
+  help)
+    echo "available commands:"
+    echo "build tag-update clean-build clean flash erase monitor menuconfig fullclean size"
     ;;
 
   *)

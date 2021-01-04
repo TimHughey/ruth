@@ -1,0 +1,21 @@
+{
+  "meta": { "mtime": 1608681604, "env": "prod" },
+  "wifi": { "ssid": "Guest", "passwd": "Guest" },
+  "ntp": ["ntp1.local", "ntp2.local"],
+  "mqtt": {
+    "uri": "mqtt://mqtt.live.local:1883",
+    "user": "mqtt",
+    "passwd": "mqtt",
+    "priority": 11,
+    "rx_buffer": 1024,
+    "tx_buffer": 1024,
+    "reconnect_ms": 3000
+  },
+  "ota": {
+    "host": "www.local",
+    "path": "helen/firmware",
+    "file": "latest.bin"
+  },
+  "cli": { "enable": true },
+  "lightdesk": { "enable": true }
+}

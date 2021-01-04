@@ -32,13 +32,13 @@ namespace ruth {
 namespace reading {
 typedef class Startup Startup_t;
 
-class Startup : public Remote {
+class Startup : public Remote_t {
 private:
   const esp_app_desc_t *app_desc_;
   const char *reset_reason_;
 
 public:
-  Startup(uint32_t batt_mv);
+  Startup();
   static const char *decodeResetReason(esp_reset_reason_t reason);
 
 protected:

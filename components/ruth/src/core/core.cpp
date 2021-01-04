@@ -18,8 +18,10 @@
     https://www.wisslanding.com
 */
 
-#include "core/core.hpp"
+#include <driver/uart.h>
+
 #include "core/binder.hpp"
+#include "core/core.hpp"
 #include "devs/base/base.hpp"
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
@@ -40,26 +42,37 @@ using std::min;
 Core::Core() {
   firstHeap_ = heap_caps_get_free_size(MALLOC_CAP_8BIT);
   availHeap_ = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-  // Characterize and setup ADC for measuring battery millivolts
-  adc_chars_ = (esp_adc_cal_characteristics_t *)calloc(
-      1, sizeof(esp_adc_cal_characteristics_t));
-  adc_cal_ = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11,
-                                      ADC_WIDTH_BIT_12, vref(), adc_chars_);
-
-  adc1_config_width(ADC_WIDTH_BIT_12);
-  adc1_config_channel_atten((adc1_channel_t)battery_adc_, ADC_ATTEN_DB_11);
 }
 
 void Core::_loop() {
-  consoleTimestamp();
+  TickType_t notify_ticks = 0;
+
+  if (cli_->running()) {
+    notify_ticks = Profile::coreLoopTicks();
+  } else {
+    uint8_t key_buff[2] = {};
+    auto bytes = uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, key_buff, 1,
+                                 Profile::coreLoopTicks());
+
+    if (bytes > 0) {
+      switch (key_buff[0]) {
+      case 'c':
+        cli_->start();
+        break;
+      case ' ':
+      case '\r':
+        ESP_LOGI("Core", "hint: press \'c'\' for command line interface");
+        break;
+      }
+    }
+  }
 
   // BaseType_t xTaskNotifyWait(
   //     uint32_t ulBitsToClearOnEntry, uint32_t ulBitsToClearOnExit,
   //     uint32_t * pulNotificationValue, TickType_t xTicksToWait);
 
   uint32_t notify_val = 0;
-  auto notify_rc =
-      xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, Profile::coreLoopTicks());
+  auto notify_rc = xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, notify_ticks);
 
   if ((notify_rc == pdTRUE) && (notify_val == 0x01)) {
     trackHeap();
@@ -69,6 +82,7 @@ void Core::_loop() {
 void Core::_start(xTaskHandle app_task) {
   app_task_ = app_task;
 
+  cli_ = new CLI();
   StatusLED::init();
   Binder::init();
 
@@ -98,7 +112,6 @@ void Core::_start(xTaskHandle app_task) {
   OTA::handlePendPartIfNeeded();
 
   if (Binder::cliEnabled()) {
-    cli_ = new CLI();
     cli_->start();
   }
 
@@ -108,24 +121,24 @@ void Core::_start(xTaskHandle app_task) {
   }
 }
 
-uint32_t Core::_battMV() {
-  uint32_t batt_raw = 0;
-  uint32_t batt_mv = 0;
-
-  // per ESP32 documentation ADC readings typically include noise.
-  // so, perform more than one reading then take the average
-  for (uint32_t i = 0; i < batt_measurements_; i++) {
-    batt_raw += adc1_get_raw((adc1_channel_t)battery_adc_);
-  }
-
-  batt_raw /= batt_measurements_;
-
-  // the pin used to measure battery millivolts is connected to a voltage
-  // divider so double the voltage
-  batt_mv = esp_adc_cal_raw_to_voltage(batt_raw, adc_chars_) * 2;
-
-  return batt_mv;
-}
+// uint32_t Core::_battMV() {
+//   uint32_t batt_raw = 0;
+//   uint32_t batt_mv = 0;
+//
+//   // per ESP32 documentation ADC readings typically include noise.
+//   // so, perform more than one reading then take the average
+//   for (uint32_t i = 0; i < batt_measurements_; i++) {
+//     batt_raw += adc1_get_raw((adc1_channel_t)battery_adc_);
+//   }
+//
+//   batt_raw /= batt_measurements_;
+//
+//   // the pin used to measure battery millivolts is connected to a voltage
+//   // divider so double the voltage
+//   batt_mv = esp_adc_cal_raw_to_voltage(batt_raw, adc_chars_) * 2;
+//
+//   return batt_mv;
+// }
 
 void Core::bootComplete() {
   // boot up is successful, process any previously committed NVS messages
@@ -200,8 +213,6 @@ void Core::startEngines() {
 }
 
 void Core::trackHeap() {
-  auto batt_mv = batteryMilliVolt();
-
   uint32_t max_alloc = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
 
   if (max_alloc < (5 * 1024)) {
@@ -209,7 +220,7 @@ void Core::trackHeap() {
   }
 
   if (Net::waitForReady(0) == true) {
-    Remote reading(batt_mv);
+    Remote reading;
 
     reading.publish();
   }

@@ -144,6 +144,38 @@ void PulseWidth::core(void *task_data) {
   }
 }
 
+bool PulseWidth::off(uint8_t pin) {
+  bool rc = false;
+  TextBuffer<64> dev_name;
+
+  dev_name.printf("pwm/%s.pin:%u", Net::hostname(), pin);
+
+  PwmDevice_t *dev = _instance_()->findDevice(dev_name.c_str());
+
+  if (dev) {
+    rc = true;
+    dev->off();
+  }
+
+  return rc;
+}
+
+bool PulseWidth::on(uint8_t pin) {
+  bool rc = false;
+  TextBuffer<64> dev_name;
+
+  dev_name.printf("pwm/%s.pin:%u", Net::hostname(), pin);
+
+  PwmDevice_t *dev = _instance_()->findDevice(dev_name.c_str());
+
+  if (dev) {
+    rc = true;
+    dev->on();
+  }
+
+  return rc;
+}
+
 void PulseWidth::report(void *data) {
   static TickType_t last_wake;
 

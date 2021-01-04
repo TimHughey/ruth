@@ -36,11 +36,11 @@ namespace reading {
 typedef class Remote Remote_t;
 typedef unique_ptr<Remote_t> Remote_ptr_t;
 
-class Remote : public Reading {
+class Remote : public Reading_t {
 
 public:
-  Remote(uint32_t batt_mv);
-  Remote(ReadingType_t type, uint32_t battZ_mv);
+  Remote();
+  Remote(ReadingType_t type);
 
 protected:
   virtual void populateMessage(JsonDocument &doc);
@@ -49,7 +49,6 @@ private:
   wifi_ap_record_t ap_;
   TextBuffer<17> bssid_;
   esp_err_t ap_rc_;
-  uint32_t batt_mv_;
   uint32_t heap_free_;
   uint32_t heap_min_;
   uint64_t uptime_us_;

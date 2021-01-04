@@ -21,10 +21,9 @@
 #ifndef _ruth_pwm_cmd_random_hpp
 #define _ruth_pwm_cmd_random_hpp
 
-#include "external/ArduinoJson.h"
-#include "local/types.hpp"
-
 #include "devs/pwm/cmds/cmd.hpp"
+#include "external/ArduinoJson.h"
+#include "misc/random.hpp"
 
 namespace ruth {
 namespace pwm {
@@ -46,8 +45,6 @@ protected:
 private:
   void _loop();
 
-  size_t availablePrimes() { return sizeof(_primes) / sizeof(_primes[0]); }
-
   int32_t directionFromVal(uint32_t val) const {
 
     switch (val) {
@@ -66,9 +63,7 @@ private:
     }
   }
 
-  uint32_t random(uint32_t modulo) const { return esp_random() % modulo; }
   int32_t randomDirection() const { return directionFromVal(random(3)); }
-  uint32_t randomPrime() const { return _primes[random(_num_primes)]; }
 
 private:
   uint32_t _max = 8191;
@@ -76,9 +71,6 @@ private:
   uint32_t _num_primes = 35;
   uint32_t _step = 7;
   uint32_t _step_ms = 65;
-
-  // primes
-  static uint32_t _primes[36];
 };
 
 } // namespace pwm

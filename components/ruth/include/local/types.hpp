@@ -30,12 +30,19 @@
 
 namespace ruth {
 
+typedef TextBuffer<576> BinderRaw_t;
+typedef TextBuffer<1024> BinderPrettyJson_t;
 typedef TextBuffer<20> Hostname_t;
-typedef TextBuffer<128> OtaUri_t;
 typedef TextBuffer<512> MsgPackPayload_t;
+typedef TextBuffer<128> OtaUri_t;
+typedef TextBuffer<20> PinSpotName_t;
 typedef TextBuffer<40> RefID_t; // e.g. eaa7c7fa-361a-4d07-a7fc-fe9681636b36
 typedef TextBuffer<CONFIG_FREERTOS_MAX_TASK_NAME_LEN> TaskName_t;
+typedef TextBuffer<20> TimerName_t;
 typedef TextBuffer<1024> WatcherPayload_t;
+
+typedef const char *CSTR; // used for static string assignments
+typedef uint32_t Rgbw_t;
 
 // type passed to xTaskCreate as the function to run as a task
 typedef void(TaskFunc_t)(void *);
@@ -46,6 +53,109 @@ typedef struct {
   UBaseType_t priority;
   UBaseType_t stackSize;
 } Task_t;
+
+typedef enum { BINDER_CLI, BINDER_LIGHTDESK } BinderCategory_t;
+
+namespace lightdesk {
+
+typedef enum {
+  fxDark = 0x00,
+  fxPrimaryColorsCycle = 0x01,
+  fxRedOnGreenBlueWhiteJumping = 0x02,
+  fxGreenOnRedBlueWhiteJumping = 0x03,
+  fxBlueOnRedGreenWhiteJumping = 0x04,
+  fxWhiteOnRedGreenBlueJumping = 0x05,
+  fxWhiteFadeInOut = 0x06,
+  fxRgbwGradientFast = 0x07,
+  fxRedGreenGradient = 0x08,
+  fxRedBlueGradient = 0x09,
+  fxBlueGreenGradient = 0x0a,
+  fxFullSpectrumCycle = 0x0b,
+  fxFullSpectrumJumping = 0x0c,
+  fxColorCycleSound = 0x0d,
+  fxColorStrobeSound = 0x0e,
+  fxFastStrobeSound = 0x0f,
+  fxNone = 0x20, // start of lightdesk fx
+  fxColorBars,
+  fxWashedSound,
+  fxSimpleStrobe,
+  fxCrossFadeFast
+} Fx_t;
+} // namespace lightdesk
+
+typedef struct {
+  uint64_t frame_us = 0;
+  uint64_t frames;
+  float fps = 0.0;
+  uint64_t notify_failures = 0;
+  float tx_elapsed = 0.0;
+  uint64_t tx_short_frames = 0;
+  uint64_t busy_wait = 0;
+} DmxStats_t;
+
+typedef struct {
+  struct {
+    uint64_t retries = 0;
+    uint64_t failures = 0;
+    uint64_t count = 0;
+  } notify;
+  size_t object_size = 0;
+} PinSpotStats_t;
+
+typedef struct {
+  uint64_t default_handled = 0;
+  lightdesk::Fx_t active = lightdesk::fxNone;
+  lightdesk::Fx_t next = lightdesk::fxNone;
+  float interval_default = 0.0f;
+  float interval = 0.0f;
+  size_t object_size = 0;
+} LightDeskFxStats_t;
+
+typedef struct {
+  const char *mode = nullptr;
+  DmxStats_t dmx;
+  LightDeskFxStats_t fx;
+  PinSpotStats_t pinspot[2];
+} LightDeskStats_t;
+
+typedef enum {
+  NotifyZero = 0x0000,
+  // timers that most likely firing at or near DMX frame rate
+  NotifyTimer = 0x1001,
+  NotifyFrame,
+  NotifyFaderTimer,
+  // notifications for commands
+  NotifyQueue = 0x2001,
+  NotifyColor,
+  NotifyDark,
+  NotifyDance,
+  NotifyDanceExecute,
+  NotifyFadeTo,
+  // notifications for changing task operational mode
+  NotifyStop = 0x3001,
+  NotifyOff,
+  NotifyPause,
+  NotifyResume,
+  NotifyReady,
+  NotifyShutdown,
+  NotifyDelete,
+  NotifyEndOfValues
+} NotifyVal_t;
+
+namespace lightdesk {
+
+typedef float Strobe_t;
+
+typedef enum {
+  // used to index into a color parts array
+  RED_PART = 0,
+  GREEN_PART,
+  BLUE_PART,
+  WHITE_PART,
+  END_OF_PARTS
+} ColorPart_t;
+
+} // namespace lightdesk
 
 } // namespace ruth
 #endif // ruth_type_hpp
