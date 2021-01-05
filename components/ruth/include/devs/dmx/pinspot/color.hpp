@@ -70,11 +70,6 @@ public:
       const float val = rint(colorPartConst(i));
       array[i] = static_cast<uint8_t>(val);
     }
-
-    // array[0] = static_cast<uint8_t>(colorPartConst(RED_PART));
-    // array[1] = static_cast<uint8_t>(colorPartConst(GREEN_PART));
-    // array[2] = static_cast<uint8_t>(colorPartConst(BLUE_PART));
-    // array[3] = static_cast<uint8_t>(colorPartConst(WHITE_PART));
   }
 
   inline float &colorPart(ColorPart_t part) {
@@ -191,9 +186,8 @@ private:
 public:
   ColorVelocity() {}
 
-  void calculate(const Color_t &begin, const Color_t &end,
-                 uint32_t travel_secs) {
-    const float travel_frames = (float)travel_secs * 44.0;
+  void calculate(const Color_t &begin, const Color_t &end, float travel_secs) {
+    const float travel_frames = travel_secs * 44.0;
     Color distance;
 
     distance.diff(begin, end, _directions);
@@ -237,11 +231,11 @@ private:
 
     // if we've reached our dest then the new color is the destination
     if (dir == 1.0) {
-      if (new_pos >= dest) {
+      if (new_pos > dest) {
         new_pos = dest;
       }
     } else {
-      if (new_pos <= dest) {
+      if (new_pos < dest) {
         new_pos = dest;
       }
     }

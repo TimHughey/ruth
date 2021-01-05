@@ -41,7 +41,7 @@ LightDesk::LightDesk() {
 
 bool LightDesk::command(MsgPayload_t &msg) {
   bool rc = false;
-  StaticJsonDocument<128> doc;
+  StaticJsonDocument<256> doc;
 
   auto err = deserializeMsgPack(doc, msg.data());
 
@@ -107,7 +107,7 @@ void IRAM_ATTR LightDesk::core() {
         break;
 
       case NotifyDance:
-        _mode = DANCE;
+        _mode = READY;
         danceStart();
 
         break;
@@ -173,8 +173,12 @@ void IRAM_ATTR LightDesk::danceExecute() {
 }
 
 void LightDesk::danceStart() {
-  // turn on the PulseWifth device that controls the head unit power
+  esp_timer_stop(_dance_timer);
+
+  // turn on the PulseWidth device that controls the head unit power
   PulseWidth::on(1);
+  pinSpotMain()->dark();
+  pinSpotFill()->dark();
 
   // anytime the LightDesk is requested to start DANCE mode
   // completely reset the LightDeskFx controller.
@@ -187,6 +191,8 @@ void LightDesk::danceStart() {
     _fx = new LightDeskFx(pinSpotMain(), pinSpotFill());
     _fx->intervalDefault(_request.dance.secs);
     _fx->start();
+
+    _mode = DANCE;
 
     danceTimerSchedule(_fx->nextTimerInterval());
   }

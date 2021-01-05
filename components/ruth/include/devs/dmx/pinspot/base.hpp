@@ -71,6 +71,8 @@ public:
     FADER,
     HOLD,
     MORSE,
+    READY,
+    PAUSE,
     SHUTDOWN
   } Mode_t;
 
@@ -86,9 +88,6 @@ private:
   bool &faderTimerRunning() { return _fader_timer_running; }
   void faderTimerStart();
   void faderTimerStop();
-
-  void handleFastNotification(NotifyVal_t val);
-  void handleTaskNotification(NotifyVal_t val);
 
   void makeFrame(uint8_t *data);
   void morseRender();

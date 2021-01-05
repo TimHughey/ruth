@@ -103,7 +103,7 @@ typedef struct {
 } PinSpotStats_t;
 
 typedef struct {
-  uint64_t default_handled = 0;
+  uint64_t basic = 0;
   lightdesk::Fx_t active = lightdesk::fxNone;
   lightdesk::Fx_t next = lightdesk::fxNone;
   float interval_default = 0.0f;

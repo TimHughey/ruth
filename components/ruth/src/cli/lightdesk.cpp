@@ -143,7 +143,7 @@ void LightDeskCli::reportStats(LightDesk_t *lightdesk) {
   printf("lightdesk:      mode=%s\n", stats.mode);
 
   printf("\n");
-  printf("lightdesk_fx:   default_handled=%llu\n", stats.fx.default_handled);
+  printf("lightdesk_fx:   basic=%llu\n", stats.fx.basic);
   printf("                interval_default=%3.2f\n", stats.fx.interval_default);
   printf("                interval=%3.2f\n", stats.fx.interval);
   printf("                active=0x%02x\n", stats.fx.active);

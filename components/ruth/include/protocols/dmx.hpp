@@ -56,6 +56,8 @@ public:
 
   float framesPerSecond() const { return _stats.fps; }
 
+  static bool isRunning();
+
   void registerHeadUnit(HeadUnit_t *unit);
 
   // stats
@@ -68,11 +70,26 @@ public:
 
   // task control
   void resume();
-  void pause();
+  void pause() { taskNotify(NotifyPause); }
   static void start() { instance()->_start_(); }
+  static void stop() {
+    if (Dmx::isRunning()) {
+      instance()->taskNotify(NotifyStop);
+      instance()->waitForStop();
+    }
+  }
 
-  static void shutdown();
+  static void shutdown() {
+    if (Dmx::isRunning()) {
+      instance()->taskNotify(NotifyStop);
+      instance()->waitForStop();
+      instance()->taskNotify(NotifyShutdown);
+    }
+  }
   static TaskHandle_t taskHandle() { return instance()->_task.handle; }
+
+private:
+  typedef enum { INIT = 0x00, STREAM_FRAMES, PAUSE, STOP, SHUTDOWN } DmxMode_t;
 
 private:
   Dmx(); // singleton, constructor is private
@@ -93,6 +110,7 @@ private:
   static void frameTimerCallback(void *data);
   esp_err_t frameTimerStart() const;
 
+  void setMode(DmxMode_t mode);
   void txFrame();
   esp_err_t uartInit();
 
@@ -100,14 +118,7 @@ private:
   void core();
   static void coreTask(void *task_instance);
 
-  void _start_() {
-    if (_task.handle == nullptr) {
-      // this (object) is passed as the data to the task creation and is
-      // used by the static coreTask method to call cpre()
-      ::xTaskCreate(&coreTask, "Rdmx", _task.stackSize, this, _task.priority,
-                    &(_task.handle));
-    }
-  }
+  void _start_();
 
   inline TaskHandle_t task() const { return _task.handle; }
   BaseType_t taskNotify(NotifyVal_t nval) {
@@ -121,6 +132,8 @@ private:
     return rc;
   }
 
+  void waitForStop();
+
 private:
   uint64_t _pin_sel = GPIO_SEL_17;
   gpio_config_t _pin_cfg = {};
@@ -128,8 +141,7 @@ private:
   int _uart_num = UART_NUM_2;
   esp_err_t _init_rc = ESP_FAIL;
 
-  bool _stream_frames = true;
-  bool _paused = false;
+  DmxMode_t _mode = INIT;
   elapsedMicros _mab_elapsed;
   static const size_t _frame_len = 127;
   uint8_t _frame[_frame_len] = {}; // the DMX frame starts as all zeros

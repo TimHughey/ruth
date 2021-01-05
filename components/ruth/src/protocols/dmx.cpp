@@ -49,13 +49,13 @@ Dmx::Dmx() {
 
   _init_rc = uart_driver_install(_uart_num, 129, _tx_buff_len, 0, NULL, 0);
   _init_rc = uartInit();
-
-  _init_rc = frameTimerStart();
 }
 
 void IRAM_ATTR Dmx::core() {
-  while (_stream_frames) {
+  setMode(STREAM_FRAMES);
+  frameTimerStart();
 
+  while (_mode != SHUTDOWN) {
     uint32_t val;
     auto notified =
         xTaskNotifyWait(0x00, ULONG_MAX, &val, pdMS_TO_TICKS(portMAX_DELAY));
@@ -67,6 +67,14 @@ void IRAM_ATTR Dmx::core() {
       switch (notify_val) {
       case NotifyFrame:
         txFrame();
+        break;
+
+      case NotifyStop:
+        setMode(STOP);
+        break;
+
+      case NotifyShutdown:
+        setMode(SHUTDOWN);
         break;
 
       default:
@@ -108,14 +116,22 @@ void Dmx::frameTimerCallback(void *data) {
 esp_err_t Dmx::frameTimerStart() const {
   esp_err_t rc = _init_rc;
 
-  if (_init_rc == ESP_OK) {
+  if ((_init_rc == ESP_OK) && (_mode == STREAM_FRAMES)) {
     rc = esp_timer_start_once(_frame_timer, _frame_us);
   }
 
   return rc;
 }
 
-void Dmx::pause() { _paused = true; }
+bool Dmx::isRunning() {
+  auto rc = true;
+
+  if (__singleton__ == nullptr) {
+    rc = false;
+  }
+
+  return rc;
+}
 
 void Dmx::registerHeadUnit(HeadUnit_t *unit) {
   if (_headunits < 10) {
@@ -125,23 +141,69 @@ void Dmx::registerHeadUnit(HeadUnit_t *unit) {
 }
 
 void Dmx::resume() {
-  _paused = false;
+  setMode(STREAM_FRAMES);
   frameTimerStart();
 }
 
-void Dmx::shutdown() {
-  Dmx_t *dmx = instance();
+void Dmx::_start_() {
+  if (_task.handle == nullptr) {
+    // this (object) is passed as the data to the task creation and is
+    // used by the static coreTask method to call cpre()
+    ::xTaskCreate(&coreTask, "Rdmx", _task.stackSize, this, _task.priority,
+                  &(_task.handle));
+  }
+}
 
-  dmx->_stream_frames = false;
+void Dmx::setMode(DmxMode_t mode) {
+  _mode = mode;
 
-  esp_timer_stop(dmx->_fps_timer);
-  esp_timer_delete(dmx->_fps_timer);
-  dmx->_fps_timer = nullptr;
+  switch (_mode) {
+
+  case INIT:
+    break;
+
+  case PAUSE:
+    setMode(PAUSE);
+    break;
+
+  case STOP:
+    // the setting of _mode to STOP will stop the frame timer and sending
+    // of frames
+
+    // wait at least _frame_us to ensure there aren't any pending frame timers
+    vTaskDelay(pdMS_TO_TICKS(1));
+
+    if (uart_is_driver_installed(_uart_num)) {
+      uart_driver_delete(_uart_num);
+
+      gpio_config_t tx_pin_cfg;
+
+      tx_pin_cfg.pin_bit_mask = GPIO_NUM_17;
+      tx_pin_cfg.mode = GPIO_MODE_OUTPUT;
+      tx_pin_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
+      tx_pin_cfg.pull_down_en = GPIO_PULLDOWN_ENABLE;
+      tx_pin_cfg.intr_type = GPIO_INTR_DISABLE;
+
+      gpio_config(&tx_pin_cfg);
+
+      gpio_set_level((gpio_num_t)17, 0);
+      vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    break;
+
+  case STREAM_FRAMES:
+    break;
+
+  case SHUTDOWN:
+    esp_timer_delete(_fps_timer);
+    _fps_timer = nullptr;
+    break;
+  }
 }
 
 void IRAM_ATTR Dmx::txFrame() {
 
-  if (_paused) {
+  if (_mode != STREAM_FRAMES) {
     return;
   }
 
@@ -198,11 +260,11 @@ esp_err_t Dmx::uartInit() {
                esp_err_to_name(esp_rc));
     };
 
-    if ((esp_rc = uart_set_mode(_uart_num, UART_MODE_RS485_HALF_DUPLEX)) !=
-        ESP_OK) {
-      ESP_LOGW(pcTaskGetTaskName(nullptr), "[%s] uart_set_mode()\n",
-               esp_err_to_name(esp_rc));
-    };
+    // if ((esp_rc = uart_set_mode(_uart_num, UART_MODE_RS485_HALF_DUPLEX)) !=
+    //     ESP_OK) {
+    //   ESP_LOGW(pcTaskGetTaskName(nullptr), "[%s] uart_set_mode()\n",
+    //            esp_err_to_name(esp_rc));
+    // };
 
     uart_set_pin(_uart_num, _tx_pin, 16, UART_PIN_NO_CHANGE,
                  UART_PIN_NO_CHANGE);
@@ -212,10 +274,25 @@ esp_err_t Dmx::uartInit() {
     // an oscillioscope.
     const char init_bytes[] = {0xAA, 0x55, 0xAA, 0x55};
     const size_t len = sizeof(init_bytes);
-    uart_write_bytes_with_break(_uart_num, init_bytes, len, _frame_break);
+    uart_write_bytes_with_break(_uart_num, init_bytes, len, (_frame_break * 2));
   }
 
   return esp_rc;
+}
+
+void Dmx::waitForStop() {
+
+  bool uart_installed = true;
+
+  do {
+    // delay until the uart is uninstalled
+    if (uart_installed) {
+      vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
+    uart_installed = uart_is_driver_installed(_uart_num);
+
+  } while (uart_installed);
 }
 
 Dmx_t *Dmx::instance() {

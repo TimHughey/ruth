@@ -134,7 +134,6 @@ private:
   bool _finished = true;
 
   float _acceleration = 0.0;
-  // elapsedMillis _elapsed;
 };
 
 } // namespace lightdesk

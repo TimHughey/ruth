@@ -35,6 +35,48 @@ void LightDeskFx::execute(Fx_t next_fx) {
   execute();
 }
 
+void LightDeskFx::basic(Fx_t fx) {
+  _stats.basic++; // track we're rendering a basic fx
+
+  intervalReset();
+  _main->autoRun(fx); // always run the basic fx
+
+  auto roll = dieRoll(); // roll a 1d6 (equal probabilies)
+
+  switch (roll) {
+  case 1:
+    _fill->autoRun(fx); // run the same fx on fill
+    break;
+
+  case 2:
+    _fill->dark();
+    break;
+
+  case 3:
+    _fill->color(Color(64, 64, 64, 64), 0.75f); // dim white, 75% strobe
+    break;
+
+  case 4:
+    _fill->autoRun(fxFastStrobeSound);
+    break;
+
+  case 5:
+    _fill->autoRun(fxColorCycleSound);
+    break;
+
+  case 6:
+    _fill->autoRun(fxRgbwGradientFast);
+    break;
+  }
+
+  if (fx == _fx_prev) {
+    // prevent extended periods of basic fx
+    intervalChange(randomPercent(95, 99));
+  } else {
+    intervalChange(randomPercent(50, 75));
+  }
+}
+
 bool LightDeskFx::execute(bool *finished_ptr) {
   bool finished = true;
   // bool default_handling = false;
@@ -55,10 +97,7 @@ bool LightDeskFx::execute(bool *finished_ptr) {
     break;
 
   case fxFullSpectrumCycle:
-    intervalReset();
-    _main->autoRun(_fx_next);
-    _fill->autoRun(fxColorStrobeSound);
-    intervalChange(randomPercent(75, 85));
+    fullSpectrumCycle();
     break;
 
   case fxWhiteFadeInOut:
@@ -82,22 +121,10 @@ bool LightDeskFx::execute(bool *finished_ptr) {
     break;
 
   default:
-    // default_handling = true;
-    _stats.default_handled++;
-    intervalReset();
-    _main->autoRun(_fx_next);
-    _fill->autoRun(_fx_next);
-
-    if (_fx_next == _fx_prev) {
-      // prevent extended periods of basic fx
-      intervalChange(randomPercent(95, 99));
-    } else {
-      intervalChange(randomPercent(75, 90));
-    }
     break;
   }
 
-  // when finished set internal state to reflect on active fx
+  // when finished set internal state to reflect no active fx
   if (finished) {
     _fx_prev = _fx_next;
     _fx_active = fxNone;
@@ -115,6 +142,13 @@ bool LightDeskFx::execute(bool *finished_ptr) {
   return finished;
 }
 
+void LightDeskFx::fullSpectrumCycle() {
+  intervalReset();
+  _main->autoRun(_fx_next);
+  _fill->color(Color(128, 0, 0, 0), 0.75);
+  intervalChange(randomPercent(75, 85));
+}
+
 void LightDeskFx::start() { execute(fxColorBars); }
 
 //
@@ -122,11 +156,11 @@ void LightDeskFx::start() { execute(fxColorBars); }
 //
 
 bool LightDeskFx::colorBars() {
-  auto finished = true;
+  auto finished = false;
   auto &count = fxActiveCount();
 
   if (_fx_active != fxColorBars) {
-    count = 8;
+    count = 10;
   }
 
   _fx_active = fxColorBars;
@@ -135,7 +169,7 @@ bool LightDeskFx::colorBars() {
 
   FaderOpts_t fade{.origin = Color::black(),
                    .dest = Color::black(),
-                   .travel_secs = 1.3f,
+                   .travel_secs = 0.8f,
                    .use_origin = true};
 
   const auto pinspot_select = count % 2;
@@ -148,34 +182,42 @@ bool LightDeskFx::colorBars() {
 
   switch (count) {
   case 1:
+    finished = true;
+    break;
+
   case 2:
-    fade.origin = Color::white();
+    _main->color(Color::black());
+    _fill->color(Color::black());
     break;
 
   case 3:
   case 4:
-    fade.origin = Color::blue();
+    fade.origin = Color::white();
     break;
 
   case 5:
   case 6:
-    fade.origin = Color::green();
+    fade.origin = Color::blue();
     break;
 
   case 7:
   case 8:
+    fade.origin = Color::green();
+    break;
+
+  case 9:
+  case 10:
     fade.origin = Color::red();
     break;
   }
 
-  pinspot->fadeTo(fade);
-
-  count--;
-  if (count > 0) {
-    finished = false;
+  if (count > 2) {
+    pinspot->fadeTo(fade);
   }
 
-  _fx_interval = 1.5f;
+  count--;
+
+  _fx_interval = fade.travel_secs + 0.2f;
 
   return finished;
 }
@@ -227,7 +269,7 @@ void LightDeskFx::primaryColorsCycle() {
 
   _main->autoRun(fxPrimaryColorsCycle);
 
-  const auto roll = dieRoll();
+  const auto roll = roll2D6();
   const auto fill_fx = fill_fx_map[roll];
 
   if (fill_fx == fxDark) {

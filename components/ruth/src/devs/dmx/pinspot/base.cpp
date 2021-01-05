@@ -90,15 +90,23 @@ void IRAM_ATTR PinSpot::core() {
 
     switch (val) {
     case NotifyFaderTimer:
-      handleFastNotification(val);
+      if (_normal_ops == true) {
+        faderMove();
+      }
+
       break;
 
       // always handle task control notifications
     case NotifyPause:
+      setMode(PAUSE);
+      break;
+
     case NotifyReady:
     case NotifyResume:
+      setMode(READY);
+      break;
+
     case NotifyShutdown:
-      handleTaskNotification(val);
       break;
 
     default:
@@ -117,6 +125,15 @@ void PinSpot::coreTask(void *task_instance) {
   vTaskDelay(portMAX_DELAY);
 }
 
+void IRAM_ATTR PinSpot::faderCallback(void *data) {
+  PinSpot_t *pinspot = (PinSpot_t *)data;
+
+  // fader timer is one shot. when this function is called we
+  // are assured the timer is not running
+  pinspot->faderTimerRunning() = false;
+  pinspot->taskNotify(NotifyFaderTimer);
+}
+
 void PinSpot::faderMove() {
   auto continue_traveling = _fader.travel();
   _color = _fader.location();
@@ -128,6 +145,22 @@ void PinSpot::faderMove() {
     setMode(HOLD);
   } else {
     faderTimerStart();
+  }
+}
+
+void IRAM_ATTR PinSpot::faderTimerStart() {
+  if (_fader_timer && _normal_ops && (_mode == FADER)) {
+
+    faderTimerStop();
+
+    faderTimerRunning() = true;
+    esp_timer_start_once(_fader_timer, _frame_us);
+  }
+}
+
+void IRAM_ATTR PinSpot::faderTimerStop() {
+  if (_fader_timer && _fader_timer_running) {
+    esp_timer_stop(_fader_timer);
   }
 }
 
@@ -151,61 +184,6 @@ void PinSpot::fadeTo(const FaderOpts_t &fo) {
   setMode(FADER);
 }
 
-void IRAM_ATTR PinSpot::faderCallback(void *data) {
-  PinSpot_t *pinspot = (PinSpot_t *)data;
-
-  // fader timer is one shot. when this function is called we
-  // are assured the timer is not running
-  pinspot->faderTimerRunning() = false;
-  pinspot->taskNotify(NotifyFaderTimer);
-}
-
-void IRAM_ATTR PinSpot::faderTimerStart() {
-  if (_fader_timer && _normal_ops && (_mode == FADER)) {
-
-    faderTimerStop();
-
-    _fader_timer_running = true;
-    esp_timer_start_once(_fader_timer, _frame_us);
-  }
-}
-
-void IRAM_ATTR PinSpot::faderTimerStop() {
-  if (_fader_timer && _fader_timer_running) {
-    esp_timer_stop(_fader_timer);
-  }
-}
-
-void PinSpot::handleFastNotification(NotifyVal_t val) {
-
-  // quietly ignore "fast" notifications when not operating normally
-  if (_normal_ops == true) {
-    switch (val) {
-    case NotifyFaderTimer:
-      faderMove();
-      break;
-
-    default:
-      break;
-    }
-  }
-}
-
-void PinSpot::handleTaskNotification(NotifyVal_t val) {
-  switch (val) {
-  case NotifyPause:
-    _normal_ops = false; // normal_ops = false allows only task control
-    break;
-
-  case NotifyResume:
-    _normal_ops = true;
-    break;
-
-  default:
-    break;
-  }
-}
-
 void PinSpot::morse(const char *text, uint32_t rgbw, uint32_t ms) {
   // setMode(MORSE);
 }
@@ -221,6 +199,16 @@ void PinSpot::setMode(Mode_t mode) {
   case COLOR:
   case AUTORUN:
   case MORSE:
+    updateFrame();
+    break;
+
+  case PAUSE:
+    setMode(DARK);
+    _normal_ops = false;
+    break;
+
+  case READY:
+    _normal_ops = true;
     break;
 
   case FADER:
@@ -231,8 +219,6 @@ void PinSpot::setMode(Mode_t mode) {
     faderTimerStop();
     break;
   }
-
-  updateFrame();
 }
 
 void PinSpot::resume() { taskNotify(NotifyResume); }
@@ -313,6 +299,7 @@ void PinSpot::updateFrame() {
     break;
 
   case DARK:
+    _strobe = 0;
     // send frame initialized with head control == 0x00
     break;
 
@@ -341,17 +328,20 @@ void PinSpot::updateFrame() {
     }
     break;
 
+  case READY:
+    need_frame_update = true;
+    break;
+
+  case PAUSE:
   case SHUTDOWN:
     need_frame_update = false;
     break;
   }
 
-  if (need_frame_update) {
-    // the changes to the frame for this PinSpot were staged above.
-    // calling frameChanged() will alert Dmx to incorporate the staged
-    // changes into the next frame TXed
-    frameChanged() = true;
-  }
+  // the changes to the frame for this PinSpot were staged above.
+  // calling frameChanged() will alert Dmx to incorporate the staged
+  // changes into the next frame
+  frameChanged() = need_frame_update;
 }
 
 } // namespace lightdesk

@@ -87,8 +87,10 @@ private:
   inline void intervalReset() { _fx_interval = _fx_interval_default; }
 
   // Fx specific Functions
+  void basic(Fx_t fx);
   bool crossFadeFast();
   bool colorBars();
+  void fullSpectrumCycle();
   void primaryColorsCycle();
   void simpleStrobe();
   void soundFastStrobe();

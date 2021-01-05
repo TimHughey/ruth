@@ -27,6 +27,7 @@
 #include <esp_system.h>
 
 #include "net/network.hpp"
+#include "protocols/dmx.hpp"
 #include "protocols/mqtt.hpp"
 #include "readings/readings.hpp"
 
@@ -45,7 +46,8 @@ public:
       Text::rlog("\"%s\"", text);
     }
 
-    // gracefully shutdown MQTT
+    // gracefully shutdown protocols and network
+    Dmx::stop();
     MQTT::shutdown();
     Net::stop();
 

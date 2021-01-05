@@ -29,6 +29,7 @@ size_t availablePrimes();
 uint8_t dieRoll(uint8_t mum_sides = 6);
 uint8_t diceRoll(uint8_t num_dice = 2, uint8_t num_sides = 6);
 bool diceWin(uint8_t match, uint8_t num_dice = 2, uint8_t num_sides = 6);
+inline uint8_t roll2D6() { return diceRoll(2, 6); }
 void printDiceRollStats();
 uint32_t random(uint32_t modulo);
 float randomPercent(uint32_t min = 0, uint32_t max = 100);
