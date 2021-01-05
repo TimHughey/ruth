@@ -121,6 +121,7 @@ bool LightDeskFx::execute(bool *finished_ptr) {
     break;
 
   default:
+    basic(_fx_next);
     break;
   }
 
