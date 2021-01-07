@@ -1,5 +1,5 @@
 /*
-    cli/lightdesk.hpp - Ruth Command Line Interface for the LightDesk
+    cli/binder.hpp - Ruth CLI for Binder
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,37 +18,27 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_cli_lightdesk_hpp
-#define _ruth_cli_lightdesk_hpp
+#ifndef _ruth_cli_binder_hpp
+#define _ruth_cli_binder_hpp
 
 #include <esp_console.h>
 
-#include "lightdesk/lightdesk.hpp"
+#include "core/binder.hpp"
 
 namespace ruth {
 
-typedef class LightDeskCli LightDeskCli_t;
+typedef class BinderCli BinderCli_t;
 
-using namespace lightdesk;
-
-class LightDeskCli {
+class BinderCli {
 
 public:
-  LightDeskCli(){};
+  BinderCli(){};
 
   void init() { registerArgTable(); }
 
 private:
-  typedef enum { STROBE } Args_t;
-
-private:
-  static uint32_t convertHex(const char *str);
   static int execute(int argc, char **argv);
-  static const char *fxDesc(Fx_t fx) { return LightDesk::fxDesc(fx); }
-  static void reportStats(LightDesk_t *lightdesk);
   void registerArgTable();
-
-  static bool validate(Args_t arg);
 };
 
 } // namespace ruth

@@ -109,6 +109,11 @@ private:
   DeserializationError _parse_err;
   bool _valid = false;
 
+  // inclusive of largest profile document
+  static const size_t _doc_capacity =
+      6 * JSON_OBJECT_SIZE(2) + 9 * JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(4) +
+      JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(10) + 620;
+
   // root data
   Hostname_t _assigned_name;
   time_t _mtime = 0;

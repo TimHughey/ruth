@@ -33,7 +33,10 @@ PinSpot::PinSpot(uint16_t address, uint64_t frame_interval)
 }
 
 PinSpot::~PinSpot() {
-  // not implemented, deleting a pinspot is very likely to trigger an abort
+
+  while (_task.handle != nullptr) {
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
 }
 
 void PinSpot::autoRun(Fx_t fx) {
@@ -42,7 +45,7 @@ void PinSpot::autoRun(Fx_t fx) {
   setMode(AUTORUN);
 }
 
-uint8_t PinSpot::autorunMap(Fx_t fx) const {
+uint8_t IRAM_ATTR PinSpot::autorunMap(Fx_t fx) const {
   static const uint8_t model_codes[] = {0,   31,  63,  79,  95,  111, 127, 143,
                                         159, 175, 191, 207, 223, 239, 249, 254};
 
@@ -81,7 +84,7 @@ void PinSpot::color(const Color_t &color, float strobe) {
 void PinSpot::dark() { setMode(DARK); }
 
 void IRAM_ATTR PinSpot::core() {
-  while (_running) {
+  while (_mode != SHUTDOWN) {
     uint32_t notify_val;
 
     xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, portMAX_DELAY);
@@ -97,16 +100,16 @@ void IRAM_ATTR PinSpot::core() {
       break;
 
       // always handle task control notifications
-    case NotifyPause:
-      setMode(PAUSE);
+    case NotifyStop:
+      setMode(STOP);
       break;
 
     case NotifyReady:
-    case NotifyResume:
       setMode(READY);
       break;
 
     case NotifyShutdown:
+      setMode(SHUTDOWN);
       break;
 
     default:
@@ -119,10 +122,12 @@ void IRAM_ATTR PinSpot::core() {
 void PinSpot::coreTask(void *task_instance) {
   PinSpot_t *pinspot = (PinSpot_t *)task_instance;
 
-  pinspot->core();
+  pinspot->core(); // when core() returns this task is done
 
-  // if core() ever returns then the task will become idle waiting forever
-  vTaskDelay(portMAX_DELAY);
+  TaskHandle_t handle = pinspot->_task.handle;
+  pinspot->_task.handle = nullptr;
+
+  vTaskDelete(handle); // remove the task from the scheduler
 }
 
 void IRAM_ATTR PinSpot::faderCallback(void *data) {
@@ -130,7 +135,7 @@ void IRAM_ATTR PinSpot::faderCallback(void *data) {
 
   // fader timer is one shot. when this function is called we
   // are assured the timer is not running
-  pinspot->faderTimerRunning() = false;
+  pinspot->faderTimeActive() = false;
   pinspot->taskNotify(NotifyFaderTimer);
 }
 
@@ -153,13 +158,13 @@ void IRAM_ATTR PinSpot::faderTimerStart() {
 
     faderTimerStop();
 
-    faderTimerRunning() = true;
+    faderTimeActive() = true;
     esp_timer_start_once(_fader_timer, _frame_us);
   }
 }
 
 void IRAM_ATTR PinSpot::faderTimerStop() {
-  if (_fader_timer && _fader_timer_running) {
+  if (_fader_timer && _fader_timer_active) {
     esp_timer_stop(_fader_timer);
   }
 }
@@ -194,35 +199,47 @@ void PinSpot::setMode(Mode_t mode) {
   _mode = mode;
 
   switch (mode) {
-  case DARK:
   case HOLD:
+    break;
+
+  case DARK:
   case COLOR:
-  case AUTORUN:
   case MORSE:
-    updateFrame();
+    _fx = fxNone;
     break;
 
-  case PAUSE:
-    setMode(DARK);
-    _normal_ops = false;
+  case AUTORUN:
     break;
 
+  // READY resets the PinSpot to initial defaults
   case READY:
-    _normal_ops = true;
+    faderTimerStop();        // ensure fader is stopped
+    _color = Color::black(); // set the color to black
+    _fx = fxNone;
+    _normal_ops = true; // enter normal ops
     break;
 
   case FADER:
     faderTimerStart();
     break;
 
-  case SHUTDOWN:
+  case STOP:
+    _normal_ops = false;
+    setMode(DARK);
     faderTimerStop();
+    taskNotify(NotifyShutdown);
+    break;
+
+  case SHUTDOWN:
+    vTaskDelay(pdMS_TO_TICKS(100)); // delay to ensure timer has stopped
+    esp_timer_delete(_fader_timer);
     break;
   }
-}
 
-void PinSpot::resume() { taskNotify(NotifyResume); }
-void PinSpot::pause() { taskNotify(NotifyPause); }
+  if (_mode < STOP) {
+    updateFrame();
+  }
+}
 
 void PinSpot::start() {
   PinSpotName_t name;
@@ -286,11 +303,16 @@ bool PinSpot::taskNotify(NotifyVal_t val) {
   return rc;
 }
 
-void PinSpot::updateFrame() {
-  uint8_t *data = frameData(); // HeadUnit member function
-  const uint8_t autorun_byte = autorunMap(_fx);
-  auto need_frame_update = true;
+void IRAM_ATTR PinSpot::updateFrame() {
 
+  portENTER_CRITICAL_SAFE(&_spinlock);
+
+  uint8_t *data = frameData();   // HeadUnit member function
+  auto need_frame_update = true; // true is most common
+
+  data[0] = 0x00; // head control byte
+
+  // always copy the color, only not used when mode is AUTORUN
   _color.copyToByteArray(&(data[1])); // color data bytes 1-5
 
   switch (_mode) {
@@ -299,20 +321,19 @@ void PinSpot::updateFrame() {
     break;
 
   case DARK:
-    _strobe = 0;
-    // send frame initialized with head control == 0x00
+  case READY:
+    data[5] = 0x00; // clear autorun
     break;
 
   case COLOR:
+  case FADER:
     if (_strobe > 0) {
       data[0] = _strobe + 0x87;
     } else {
       data[0] = 0xF0;
     }
-    break;
 
-  case FADER:
-    data[0] = 0xF0;
+    data[5] = 0x00; // clear autorun
     break;
 
   case MORSE:
@@ -320,19 +341,10 @@ void PinSpot::updateFrame() {
     break;
 
   case AUTORUN:
-    // only update the frame if the autorun fx has changed
-    if (data[5] == autorun_byte) {
-      need_frame_update = false;
-    } else {
-      data[5] = autorunMap(_fx);
-    }
+    data[5] = autorunMap(_fx);
     break;
 
-  case READY:
-    need_frame_update = true;
-    break;
-
-  case PAUSE:
+  case STOP:
   case SHUTDOWN:
     need_frame_update = false;
     break;
@@ -342,6 +354,8 @@ void PinSpot::updateFrame() {
   // calling frameChanged() will alert Dmx to incorporate the staged
   // changes into the next frame
   frameChanged() = need_frame_update;
+
+  portEXIT_CRITICAL_SAFE(&_spinlock);
 }
 
 } // namespace lightdesk

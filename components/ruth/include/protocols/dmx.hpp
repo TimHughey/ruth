@@ -44,7 +44,7 @@ class Dmx {
 
 public:
   static Dmx_t *instance();
-  ~Dmx(){}; // memory cleanup handled by shutdown
+  ~Dmx();
 
   static uint64_t frameInterval() { return instance()->_frame_us; }
   static float frameIntervalAsSeconds() {
@@ -64,28 +64,14 @@ public:
   void stats(DmxStats_t &stats) {
     stats = _stats;
 
-    stats.frame_us = _frame_us;
-    stats.tx_elapsed = (uint64_t)_tx_elapsed / 1000.0f;
+    stats.frame.us = _frame_us;
+    stats.object_size = sizeof(Dmx_t);
   }
 
   // task control
-  void resume();
-  void pause() { taskNotify(NotifyPause); }
-  static void start() { instance()->_start_(); }
-  static void stop() {
-    if (Dmx::isRunning()) {
-      instance()->taskNotify(NotifyStop);
-      instance()->waitForStop();
-    }
-  }
+  static void start() { instance()->taskStart(); }
+  static void stop();
 
-  static void shutdown() {
-    if (Dmx::isRunning()) {
-      instance()->taskNotify(NotifyStop);
-      instance()->waitForStop();
-      instance()->taskNotify(NotifyShutdown);
-    }
-  }
   static TaskHandle_t taskHandle() { return instance()->_task.handle; }
 
 private:
@@ -107,30 +93,22 @@ private:
   }
 
   static void fpsCalculate(void *data);
+  void frameApplyUpdates();
   static void frameTimerCallback(void *data);
   esp_err_t frameTimerStart() const;
 
   void setMode(DmxMode_t mode);
+  int txBytes();
   void txFrame();
   esp_err_t uartInit();
 
   // task implementation
-  void core();
-  static void coreTask(void *task_instance);
-
-  void _start_();
 
   inline TaskHandle_t task() const { return _task.handle; }
-  BaseType_t taskNotify(NotifyVal_t nval) {
-    const uint32_t val = static_cast<uint32_t>(nval);
-    const auto rc = xTaskNotify(task(), val, eSetValueWithOverwrite);
-
-    if (rc == pdFAIL) {
-      _stats.notify_failures++;
-    }
-
-    return rc;
-  }
+  static void taskCore(void *task_instance);
+  void taskLoop();
+  BaseType_t taskNotify(NotifyVal_t nval);
+  void taskStart();
 
   void waitForStop();
 
@@ -138,7 +116,7 @@ private:
   uint64_t _pin_sel = GPIO_SEL_17;
   gpio_config_t _pin_cfg = {};
   gpio_num_t _tx_pin = GPIO_NUM_17;
-  int _uart_num = UART_NUM_2;
+  int _uart_num = UART_NUM_1;
   esp_err_t _init_rc = ESP_FAIL;
 
   DmxMode_t _mode = INIT;
@@ -158,7 +136,6 @@ private:
   uint64_t _frame_us = _frame_mab + _frame_sc + _frame_data + _frame_mtbf;
 
   const size_t _tx_buff_len = (_frame_len < 128) ? 0 : _frame_len + 1;
-  elapsedMicros _tx_elapsed;
 
   elapsedMillis runtime_;
 

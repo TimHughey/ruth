@@ -25,7 +25,9 @@
 #include <esp_vfs_dev.h>
 #include <linenoise/linenoise.h>
 
+#include "cli/binder.hpp"
 #include "cli/lightdesk.hpp"
+#include "cli/ota.hpp"
 #include "core/ota.hpp"
 #include "local/types.hpp"
 #include "misc/datetime.hpp"
@@ -79,13 +81,11 @@ private:
     return 0;
   }
 
-  static int commandDmx(int argc, char **argv);
   static int commandExit(int argc, char **argv) { return 255; }
   static int commandLs(int argc, char **argv) {
     return Binder::instance()->ls();
   }
-  static int commandOta(int argc, char **argv);
-  static int commandPinSpot(int argc, char **argv);
+
   static int commandReboot(int argc, char **argv) {
     Restart("cli initiated reboot").now();
 
@@ -94,8 +94,6 @@ private:
   static int commandRm(int argc, char **argv);
 
   static uint32_t convertHex(const char *str);
-
-  void registerBinderCommand();
 
   void registerClearCommand() {
     static esp_console_cmd_t cmd = {};
@@ -137,8 +135,6 @@ private:
     esp_console_cmd_register(&cmd);
   }
 
-  void registerPinSpotCommand(); // requires argtable defined in .cpp file
-
   void registerLsCommand() {
     static esp_console_cmd_t cmd = {};
     cmd.command = "ls";
@@ -148,8 +144,6 @@ private:
 
     esp_console_cmd_register(&cmd);
   }
-
-  void registerOtaCommand(); // requires argtable defined in .cpp file
 
   void registerRestartCommand() {
     static esp_console_cmd_t cmd = {};
@@ -193,7 +187,9 @@ private:
 
 private:
   // commands
+  BinderCli_t binder;
   LightDeskCli_t lightdesk;
+  OtaCli_t ota;
 
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,

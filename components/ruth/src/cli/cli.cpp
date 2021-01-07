@@ -34,40 +34,10 @@ namespace ruth {
 
 using namespace lightdesk;
 
-static Binder_t *binder = nullptr;
-
-static struct arg_end *binder_end, *ota_end, *rm_end;
-
-static struct arg_lit *binder_cp, *binder_ls, *binder_print, *binder_rm,
-    *binder_versions;
-
-static struct arg_file *fw_file;
-static struct arg_str *host, *path;
-static struct arg_lit *mark_valid;
+static struct arg_end *rm_end;
 
 // static struct arg_lit *rm_help;
 static struct arg_file *rm_file;
-
-static void *binder_argtable[] = {
-    binder_cp = arg_litn("c", "cp", 0, 1, "cp <firmware> /r/binder_0.mp"),
-    binder_ls = arg_litn("l", "ls", 0, 1, "ls /r"),
-    binder_print = arg_litn("p", "pr", 0, 1, "print active binder"),
-    binder_rm = arg_litn("r", "rm", 0, 1, "rm /r/binder_0.mp"),
-    binder_versions = arg_litn("v", "ve", 0, 1, "list available versions"),
-    binder_end = arg_end(10),
-};
-
-static void *ota_argtable[] = {
-    host = arg_strn("h", "host", "<hostname>", 0, 1,
-                    "https://<HOSTNAME>/<path>/<file>"),
-    path = arg_strn("p", "path", "<path to file>", 0, 1,
-                    "https://<hostname>/<PATH>/<file>"),
-    fw_file = arg_filen("f", "file", "<filename>", 0, 1,
-                        "https://<hostname>/<path>/<FILE>"),
-    mark_valid =
-        arg_litn(nullptr, "mark-valid", 0, 1, "mark ota valid, if needed"),
-    ota_end = arg_end(4),
-};
 
 static void *rm_argtable[] = {
     // rm_help = arg_litn("h", "help", 0, 1, nullptr),
@@ -75,89 +45,8 @@ static void *rm_argtable[] = {
     rm_end = arg_end(1),
 };
 
-int CLI::commandBinder(int argc, char **argv) {
-  binder_cp->count = 0;
-  binder_ls->count = 0;
-  binder_rm->count = 0;
-
-  int nerrors = arg_parse(argc, argv, binder_argtable);
-
-  if (nerrors > 0) {
-    printf("\nbinder: invalid options\n");
-    return 1;
-  }
-
-  if (binder_cp->count > 0) {
-    auto bytes = binder->copyToFilesystem();
-    if (bytes > 0) {
-      printf("binder: wrote %d bytes\n", bytes);
-      return 0;
-    } else {
-      printf("\nbinder: write to filesystem failed\n");
-      return 1;
-    }
-  }
-
-  if (binder_ls->count > 0) {
-    return binder->ls();
-  }
-
-  if (binder_rm->count > 0) {
-    return binder->rm();
-  }
-
-  if (binder_versions->count > 0) {
-    return binder->versions();
-  }
-
-  if (binder_print->count > 0) {
-    BinderPrettyJson_t buff;
-    auto bytes = binder->pretty(buff);
-
-    printf("used: %4d total: %4d (%0.1f%%)\n", bytes, buff.capacity(),
-           buff.usedPrecent());
-    printf("%s\n", buff.c_str());
-  }
-
-  return 1;
-}
-
-int CLI::commandOta(int argc, char **argv) {
-  mark_valid->count = 0;
-  host->sval[0] = binder->otaHost();
-  path->sval[0] = binder->otaPath();
-  fw_file->filename[0] = binder->otaFile();
-
-  int nerrors = arg_parse(argc, argv, ota_argtable);
-
-  if (nerrors > 0) {
-    return 1;
-  }
-
-  if (mark_valid->count > 0) {
-    OTA::markPartitionValid();
-  } else {
-
-    TextBuffer<128> uri;
-
-    uri.printf("https://%s/%s/%s", host->sval[0], path->sval[0],
-               fw_file->filename[0]);
-
-    StaticJsonDocument<128> doc;
-    JsonObject root = doc.to<JsonObject>();
-    root["uri"] = uri.c_str();
-
-    TextBuffer<128> msgpack;
-    auto bytes = serializeMsgPack(doc, msgpack.data(), msgpack.capacity());
-    msgpack.forceSize(bytes);
-
-    OTA::queuePayload(msgpack.c_str());
-  }
-
-  return 0;
-}
-
 int CLI::commandRm(int argc, char **argv) {
+  Binder_t *binder = Binder::instance();
   auto rc = 0;
   TextBuffer<35> rm_path;
 
@@ -203,20 +92,19 @@ void CLI::init() {
 
 void CLI::initCommands() {
   esp_console_register_help_command();
-  registerBinderCommand();
+  binder.init();
   registerClearCommand();
   registerDateCommand();
   registerDiceRollStatsCommand();
   registerExitCommand();
   lightdesk.init();
+  ota.init();
   registerLsCommand();
-  registerOtaCommand();
   registerRestartCommand();
   registerRmCommand();
 }
 
 void CLI::loop() {
-  binder = Binder::instance();
 
   // tell VFS to use the UART driver
   esp_vfs_dev_uart_use_driver(CONFIG_ESP_CONSOLE_UART_NUM);
@@ -267,28 +155,6 @@ void CLI::loop() {
     /* linenoise allocates line buffer on the heap, so need to free it */
     linenoiseFree(line);
   }
-}
-
-void CLI::registerBinderCommand() {
-  static esp_console_cmd_t cmd = {};
-  cmd.command = "binder";
-  cmd.help = "Binder administration";
-  cmd.hint = NULL;
-  cmd.func = &commandBinder;
-  cmd.argtable = binder_argtable;
-
-  esp_console_cmd_register(&cmd);
-}
-
-void CLI::registerOtaCommand() {
-  static esp_console_cmd_t cmd = {};
-  cmd.command = "ota";
-  cmd.help = "Perform an OTA update or mark the ota partition valid";
-  cmd.hint = NULL;
-  cmd.func = &commandOta;
-  cmd.argtable = ota_argtable;
-
-  esp_console_cmd_register(&cmd);
 }
 
 bool CLI::remoteLine(MsgPayload_t *remote_line) {

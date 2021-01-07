@@ -46,12 +46,13 @@ typedef enum { PINSPOT_MAIN = 0, PINSPOT_FILL, PINSPOT_NONE } PinSpotFunction_t;
 class LightDesk {
 private:
   typedef enum {
-    PAUSED = 0x00,
-    READY,
+    READY = 0x00,
     DANCE,
     COLOR,
     DARK,
-    FADE_TO
+    FADE_TO,
+    STOP,
+    SHUTDOWN
   } LightDeskMode_t;
 
   typedef struct {
@@ -76,6 +77,8 @@ private:
   } Request_t;
 
 public:
+  ~LightDesk();
+
   void color(PinSpotFunction_t func, uint32_t rgbw, float strobe = 0.0) {
     _request.func = func;
     _request.color.rgbw = rgbw;
@@ -109,10 +112,14 @@ public:
 
   static uint64_t frameInterval() { return Dmx::frameInterval(); }
 
+  static const char *fxDesc(Fx_t fx);
+
   static LightDesk_t *instance();
 
-  void pause() { taskNotify(NotifyPause); }
-  void resume() { taskNotify(NotifyResume); }
+  static void cleanUp();
+  static bool isRunning();
+  void stop() { taskNotify(NotifyStop); }
+  void ready() { taskNotify(NotifyReady); }
 
   const LightDeskStats_t &stats();
 
@@ -124,13 +131,10 @@ private:
   static void danceTimerCallback(void *data);
   uint64_t danceTimerSchedule(float secs) const;
 
-  void deskPause();
-  void deskResume();
-
   bool command(MsgPayload_t &msg);
 
   inline Fx_t fxRandom() const {
-    const uint8_t roll = diceRoll();
+    const uint8_t roll = roll2D6();
     const Fx_t choosen_fx = _fx_patterns[roll];
 
     return choosen_fx;
@@ -168,13 +172,23 @@ private:
     return interval;
   }
 
-  uint64_t timerSchedule(float secs) const;
   static void timerCallback(void *data);
+  void timerDelete(esp_timer_handle_t &timer) {
+    if (timer != nullptr) {
+      esp_timer_handle_t x = timer;
+      timer = nullptr;
+      esp_timer_stop(x);
+      esp_timer_delete(x);
+    }
+  }
+
+  uint64_t timerSchedule(float secs) const;
 
   // task
   void core();
   static void coreTask(void *task_instance);
   void start();
+  void shutdown(){};
 
   inline TaskHandle_t task() const { return _task.handle; }
   inline const char *taskName() const { return pcTaskGetTaskName(nullptr); }
@@ -185,7 +199,6 @@ private:
 
 private:
   esp_err_t _init_rc = ESP_FAIL;
-  bool _running = true;
 
   LightDeskMode_t _mode = READY;
   Request_t _request = {};
@@ -200,16 +213,16 @@ private:
   // 2d6 probabilities
   // 2: 2.78, 3: 5.56, 4: 8.33, 5: 11.11%, 6: 13.89%, 7: 16.67
   // 8: 13.89, 9: 11.11, 10: 9.33, 11: 5.56, 12: 2.78
-  const Fx_t _fx_patterns[13] = {fxDark,               // 0
-                                 fxDark,               // 1
+  const Fx_t _fx_patterns[13] = {fxNone,               // 0
+                                 fxNone,               // 1
                                  fxPrimaryColorsCycle, // 2
                                  fxBlueGreenGradient,  // 3
                                  fxFullSpectrumCycle,  // 4
                                  fxRedBlueGradient,    // 5
                                  fxWashedSound,        // 6
-                                 fxFastStrobeSound,    // 7
-                                 fxSimpleStrobe,       // 8
-                                 fxCrossFadeFast,      // 9
+                                 fxCrossFadeFast,      // 7
+                                 fxFastStrobeSound,    // 8
+                                 fxSimpleStrobe,       // 9
                                  fxRgbwGradientFast,   // 10
                                  fxWhiteFadeInOut,     // 11
                                  fxSimpleStrobe};      // 12
@@ -229,7 +242,7 @@ private:
   // task
   Task_t _task = {
       .handle = nullptr, .data = nullptr, .priority = 19, .stackSize = 4096};
-}; // namespace ruth
+};
 
 } // namespace lightdesk
 } // namespace ruth

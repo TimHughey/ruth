@@ -32,11 +32,63 @@ namespace lightdesk {
 
 using TR = reading::Text;
 
+static const char *_fx_desc[] = {"fxNone",
+                                 "fxPrimaryColorsCycle",
+                                 "fxRedOnGreenBlueWhiteJumping",
+                                 "fxGreenOnRedBlueWhiteJumping",
+                                 "fxBlueOnRedGreenWhiteJumping",
+                                 "fxWhiteOnRedGreenBlueJumping",
+                                 "fxWhiteFadeInOut",
+                                 "fxRgbwGradientFast",
+                                 "fxRedGreenGradient",
+                                 "fxRedBlueGradient",
+                                 "fxBlueGreenGradient",
+                                 "fxFullSpectrumCycle",
+                                 "fxFullSpectrumJumping",
+                                 "fxColorCycleSound",
+                                 "fxColorStrobeSound",
+                                 "fxFastStrobeSound",
+                                 "fxUnkown", // 0x10
+                                 "fxColorBars",
+                                 "fxWashedSound",
+                                 "fxSimpleStrobe",
+                                 "fxCrossFadeFast"};
+
 LightDesk *__singleton__ = nullptr;
 
 LightDesk::LightDesk() {
   start();
   vTaskDelay(pdMS_TO_TICKS(100)); // allow time for tasks to start
+}
+
+LightDesk::~LightDesk() {
+  LightDesk_t *desk = __singleton__;
+
+  if (_fx != nullptr) {
+    delete _fx;
+    _fx = nullptr;
+  }
+
+  for (uint32_t i = PINSPOT_MAIN; i < PINSPOT_NONE; i++) {
+    PinSpot_t *pinspot = _pinspots[i];
+
+    if (pinspot != nullptr) {
+      _pinspots[i] = nullptr;
+      pinspot->stop();
+      delete pinspot;
+    }
+  }
+
+  while (desk->_task.handle != nullptr) {
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  __singleton__ = nullptr;
+}
+
+void LightDesk::cleanUp() {
+  TR::rlog("LightDesk shutdown");
+  delete __singleton__;
 }
 
 bool LightDesk::command(MsgPayload_t &msg) {
@@ -58,7 +110,7 @@ bool LightDesk::command(MsgPayload_t &msg) {
   if (dance_obj) {
     const float interval = dance_obj["interval_secs"];
 
-    resume();
+    ready();
     rc = dance(interval);
 
     TR::rlog("LightDesk dance with interval=%3.2f %s", interval,
@@ -67,13 +119,13 @@ bool LightDesk::command(MsgPayload_t &msg) {
 
   if (mode_obj) {
     const bool ready_flag = mode_obj["ready"];
-    const bool pause_flag = mode_obj["pause"];
+    const bool stop_flag = mode_obj["stop"];
 
     if (ready_flag) {
-      resume();
+      ready();
     }
-    if (pause_flag) {
-      pause();
+    if (stop_flag) {
+      stop();
     }
 
     rc = true;
@@ -83,7 +135,10 @@ bool LightDesk::command(MsgPayload_t &msg) {
 }
 
 void IRAM_ATTR LightDesk::core() {
-  while (_running) {
+
+  TR::rlog("LightDesk ready");
+
+  while (_mode != SHUTDOWN) {
     uint32_t v = 0;
     auto notified =
         xTaskNotifyWait(0x00, ULONG_MAX, &v, pdMS_TO_TICKS(portMAX_DELAY));
@@ -119,12 +174,23 @@ void IRAM_ATTR LightDesk::core() {
         }
         break;
 
-      case NotifyPause:
-        deskPause();
+      case NotifyStop:
+        _mode = STOP;
+
+        if (_mode == STOP) {
+          PulseWidth::off(1);
+
+          Dmx_t *dmx = Dmx::instance();
+          dmx->stop();
+
+          taskNotify(NotifyShutdown);
+        }
         break;
 
-      case NotifyResume:
-        deskResume();
+      case NotifyShutdown:
+        _mode = SHUTDOWN;
+        timerDelete(_dance_timer);
+        timerDelete(_timer);
         break;
 
       case NotifyReady:
@@ -150,11 +216,10 @@ void LightDesk::coreTask(void *task_instance) {
   lightdesk->init();
   lightdesk->core();
 
-  lightdesk->pause();
-  Dmx::shutdown();
+  TaskHandle_t task = lightdesk->_task.handle;
+  lightdesk->_task.handle = nullptr;
 
-  // if the core task ever returns then wait forever
-  vTaskDelay(UINT32_MAX);
+  vTaskDelete(task); // task removed from the scheduler
 }
 
 void IRAM_ATTR LightDesk::danceExecute() {
@@ -207,8 +272,8 @@ void IRAM_ATTR LightDesk::danceTimerCallback(void *data) {
 uint64_t IRAM_ATTR LightDesk::danceTimerSchedule(float secs) const {
 
   // safety net, prevent runaway task
-  if (secs < 0.90f) {
-    secs = 0.90f;
+  if (secs < 0.10f) {
+    secs = 0.10f;
   }
 
   const uint64_t interval = secondsToInterval(secs);
@@ -217,37 +282,7 @@ uint64_t IRAM_ATTR LightDesk::danceTimerSchedule(float secs) const {
   return interval;
 }
 
-void LightDesk::deskPause() {
-  if (_mode != PAUSED) {
-    PulseWidth::off(1);
-
-    Dmx_t *dmx = Dmx::instance();
-
-    _pinspots[0]->pause();
-    _pinspots[1]->pause();
-
-    dmx->pause();
-
-    TR::rlog("LightDesk paused");
-
-    _mode = PAUSED;
-  }
-}
-
-void LightDesk::deskResume() {
-  if (_mode == PAUSED) {
-    Dmx_t *dmx = Dmx::instance();
-
-    _pinspots[0]->resume();
-    _pinspots[1]->resume();
-
-    dmx->resume();
-
-    TR::rlog("LightDesk ready");
-
-    taskNotify(NotifyReady);
-  }
-}
+const char *LightDesk::fxDesc(Fx_t fx) { return _fx_desc[fx]; }
 
 void LightDesk::init() {
   Dmx::start();
@@ -285,6 +320,16 @@ LightDesk_t *LightDesk::instance() {
   return __singleton__;
 }
 
+bool LightDesk::isRunning() {
+  auto rc = true;
+
+  if (__singleton__ == nullptr) {
+    rc = false;
+  }
+
+  return rc;
+}
+
 uint32_t LightDesk::randomInterval(uint32_t min, uint32_t max) const {
   const uint32_t modulo = max - min;
   const uint32_t interval = (esp_random() % modulo) + min;
@@ -303,12 +348,13 @@ void LightDesk::start() {
 }
 
 const LightDeskStats_t &LightDesk::stats() {
-  static const char *mode_str[6] = {"paused", "ready", "dance",
-                                    "color",  "dark",  "fade to"};
+  static const char *mode_str[] = {"ready",   "dance", "color",   "dark",
+                                   "fade to", "stop",  "shutdown"};
 
   const auto mode_index = static_cast<uint32_t>(_mode);
 
   _stats.mode = mode_str[mode_index];
+  _stats.object_size = sizeof(LightDesk_t);
 
   Dmx_t *dmx = Dmx::instance();
   dmx->stats(_stats.dmx);

@@ -26,21 +26,16 @@
 
 #include <mbedtls/base64.h>
 
+#include "core/binder.hpp"
 #include "net/network.hpp"
 #include "net/profile/profile.hpp"
 
 namespace ruth {
 
-using ArduinoJson::DynamicJsonDocument;
 using PET = ProfileEngineTask;
 using PET_t = ProfileEngineTask_t;
 
 static Profile_t singleton;
-
-// inclusive of largest profile document
-static const size_t _doc_capacity =
-    6 * JSON_OBJECT_SIZE(2) + 9 * JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(4) +
-    JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(10) + 620;
 
 static const bool _unset_bool = false;
 

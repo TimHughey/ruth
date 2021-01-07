@@ -50,15 +50,27 @@ public:
     _fx_interval_default = interval;
   }
 
-  float nextTimerInterval() const { return _fx_interval; }
+  inline float nextTimerInterval() {
+    if (_fx_interval < _stats.interval.min) {
+      _stats.interval.min = _fx_interval;
+    }
+
+    if (_fx_interval > _stats.interval.max) {
+      _stats.interval.max = _fx_interval;
+    }
+
+    _stats.interval.current = _fx_interval;
+
+    return _fx_interval;
+  }
 
   void start();
 
   void stats(LightDeskFxStats_t &stats) {
-    _stats.active = _fx_active;
-    _stats.next = _fx_next;
-    _stats.interval_default = _fx_interval_default;
-    _stats.interval = _fx_interval;
+    _stats.fx.active = _fx_active;
+    _stats.fx.next = _fx_next;
+    _stats.fx.prev = _fx_prev;
+    _stats.interval.base = _fx_interval_default;
     _stats.object_size = sizeof(LightDeskFx_t);
 
     stats = _stats;
@@ -78,6 +90,10 @@ private:
     } else if (scale > 1.00) {
       _fx_interval = _fx_interval + change;
     }
+  }
+
+  inline void intervalReduceTo(float percent) {
+    _fx_interval = _fx_interval_default * percent;
   }
 
   inline float intervalPercent(float percent) const {

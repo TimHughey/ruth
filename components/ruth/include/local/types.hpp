@@ -57,9 +57,8 @@ typedef struct {
 typedef enum { BINDER_CLI, BINDER_LIGHTDESK } BinderCategory_t;
 
 namespace lightdesk {
-
 typedef enum {
-  fxDark = 0x00,
+  fxNone = 0x00,
   fxPrimaryColorsCycle = 0x01,
   fxRedOnGreenBlueWhiteJumping = 0x02,
   fxGreenOnRedBlueWhiteJumping = 0x03,
@@ -75,8 +74,8 @@ typedef enum {
   fxColorCycleSound = 0x0d,
   fxColorStrobeSound = 0x0e,
   fxFastStrobeSound = 0x0f,
-  fxNone = 0x20, // start of lightdesk fx
-  fxColorBars,
+  fxUnknown = 0x10,
+  fxColorBars = 0x11,
   fxWashedSound,
   fxSimpleStrobe,
   fxCrossFadeFast
@@ -84,13 +83,29 @@ typedef enum {
 } // namespace lightdesk
 
 typedef struct {
-  uint64_t frame_us = 0;
-  uint64_t frames;
   float fps = 0.0;
-  uint64_t notify_failures = 0;
-  float tx_elapsed = 0.0;
-  uint64_t tx_short_frames = 0;
   uint64_t busy_wait = 0;
+  uint64_t frame_update_us = 0;
+  size_t object_size = 0;
+
+  struct {
+    uint64_t us = 0;
+    uint64_t count = 0;
+    uint64_t shorts = 0;
+
+    struct {
+      uint64_t curr = 0;
+      uint64_t min = 9999;
+      uint64_t max = 0;
+    } update;
+  } frame;
+
+  struct {
+    float curr = 0.0f;
+    float min = 9999.0f;
+    float max = 0.0f;
+  } tx;
+
 } DmxStats_t;
 
 typedef struct {
@@ -103,16 +118,26 @@ typedef struct {
 } PinSpotStats_t;
 
 typedef struct {
-  uint64_t basic = 0;
-  lightdesk::Fx_t active = lightdesk::fxNone;
-  lightdesk::Fx_t next = lightdesk::fxNone;
-  float interval_default = 0.0f;
-  float interval = 0.0f;
+  struct {
+    uint64_t basic = 0;
+    lightdesk::Fx_t active = lightdesk::fxNone;
+    lightdesk::Fx_t next = lightdesk::fxNone;
+    lightdesk::Fx_t prev = lightdesk::fxNone;
+  } fx;
+
+  struct {
+    float base = 0.0f;
+    float current = 0.0f;
+    float min = 9999.9f;
+    float max = 0.0f;
+  } interval;
+
   size_t object_size = 0;
 } LightDeskFxStats_t;
 
 typedef struct {
   const char *mode = nullptr;
+  size_t object_size = 0;
   DmxStats_t dmx;
   LightDeskFxStats_t fx;
   PinSpotStats_t pinspot[2];

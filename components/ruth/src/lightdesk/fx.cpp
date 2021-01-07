@@ -35,59 +35,14 @@ void LightDeskFx::execute(Fx_t next_fx) {
   execute();
 }
 
-void LightDeskFx::basic(Fx_t fx) {
-  _stats.basic++; // track we're rendering a basic fx
-
-  intervalReset();
-  _main->autoRun(fx); // always run the basic fx
-
-  auto roll = dieRoll(); // roll a 1d6 (equal probabilies)
-
-  switch (roll) {
-  case 1:
-    _fill->autoRun(fx); // run the same fx on fill
-    break;
-
-  case 2:
-    _fill->dark();
-    break;
-
-  case 3:
-    _fill->color(Color(64, 64, 64, 64), 0.75f); // dim white, 75% strobe
-    break;
-
-  case 4:
-    _fill->autoRun(fxFastStrobeSound);
-    break;
-
-  case 5:
-    _fill->autoRun(fxColorCycleSound);
-    break;
-
-  case 6:
-    _fill->autoRun(fxRgbwGradientFast);
-    break;
-  }
-
-  if (fx == _fx_prev) {
-    // prevent extended periods of basic fx
-    intervalChange(randomPercent(95, 99));
-  } else {
-    intervalChange(randomPercent(50, 75));
-  }
-}
-
 bool LightDeskFx::execute(bool *finished_ptr) {
   bool finished = true;
-  // bool default_handling = false;
-
-  // quickly return if there isn't an active or next fx
-  if ((_fx_next == fxNone) && (_fx_active == fxNone)) {
-    _fx_interval = 1.0f; // just in case to prevent runaway task
-    return finished;
-  }
 
   switch (_fx_next) {
+
+  case fxNone:
+    break;
+
   case fxPrimaryColorsCycle:
     primaryColorsCycle();
     break;
@@ -127,7 +82,7 @@ bool LightDeskFx::execute(bool *finished_ptr) {
 
   // when finished set internal state to reflect no active fx
   if (finished) {
-    _fx_prev = _fx_next;
+    _fx_prev = (_fx_next != fxNone) ? _fx_next : _fx_prev;
     _fx_active = fxNone;
     _fx_next = fxNone;
     _fx_active_count = 0;
@@ -143,18 +98,53 @@ bool LightDeskFx::execute(bool *finished_ptr) {
   return finished;
 }
 
-void LightDeskFx::fullSpectrumCycle() {
-  intervalReset();
-  _main->autoRun(_fx_next);
-  _fill->color(Color(128, 0, 0, 0), 0.75);
-  intervalChange(randomPercent(75, 85));
-}
-
 void LightDeskFx::start() { execute(fxColorBars); }
 
 //
 // Fx Functions
 //
+
+void LightDeskFx::basic(Fx_t fx) {
+  _stats.fx.basic++;
+
+  _main->autoRun(fx); // always run the choosen fx on main
+
+  const auto roll = roll1D6();
+
+  // make basic Fx more interesting
+  switch (roll) {
+  case 1:
+    _fill->autoRun(fx);
+    break;
+
+  case 2:
+    _fill->color(Color::red(), 0.75f);
+    break;
+
+  case 3:
+    _fill->color(Color::blue(), 0.75f);
+    break;
+
+  case 4:
+    _fill->color(Color::green(), 0.75f);
+    break;
+
+  case 5:
+    _fill->autoRun(fxFastStrobeSound);
+    break;
+
+  case 6:
+    _fill->autoRun(fxColorCycleSound);
+    break;
+  }
+
+  // limit the duration of the same basic fx
+  if (fx == _fx_prev) {
+    intervalReduceTo(0.10f);
+  } else {
+    intervalReduceTo(0.27f);
+  }
+}
 
 bool LightDeskFx::colorBars() {
   auto finished = false;
@@ -260,54 +250,54 @@ bool LightDeskFx::crossFadeFast() {
   return finished;
 }
 
+void LightDeskFx::fullSpectrumCycle() {
+  _main->autoRun(_fx_next);
+  _fill->color(Color(128, 0, 0, 0), 0.75);
+  intervalReduceTo(randomPercent(15, 25));
+}
+
 void LightDeskFx::primaryColorsCycle() {
-  Fx_t fill_fx_map[13] = {};
+  Fx_t fill_fx_map[13] = {fxNone};
   fill_fx_map[6] = fxWhiteFadeInOut;
   fill_fx_map[7] = fxFastStrobeSound;
   fill_fx_map[8] = fxRgbwGradientFast;
-
-  intervalReset();
 
   _main->autoRun(fxPrimaryColorsCycle);
 
   const auto roll = roll2D6();
   const auto fill_fx = fill_fx_map[roll];
 
-  if (fill_fx == fxDark) {
+  if (fill_fx == fxNone) {
     _fill->dark();
   } else {
     _fill->autoRun(fill_fx);
   }
 
-  if (fill_fx == fxDark) {
-    intervalChange(0.75);
+  if (fill_fx == fxNone) {
+    intervalReduceTo(0.25f);
   } else {
-    intervalChange(0.44);
+    intervalReduceTo(0.35f);
   }
 }
 
 void LightDeskFx::simpleStrobe() {
-  intervalReset();
-
   _main->color(Color(0, 0, 0, 255), 0.40);
   _fill->color(Color(255, 0, 0, 0), 0.60);
 
-  intervalChange(0.63);
+  intervalReduceTo(0.27);
 }
 
 void LightDeskFx::soundFastStrobe() {
   // index 0 and 1 are unused
-  static const float interval_changes[13] = {0.0f,  0.0f,  0.44f, 0.49f,
-                                             0.65f, 0.35f, 0.30f, 0.66f,
-                                             0.70f, 0.50f, 0.53f, 0.48f};
-
-  intervalReset();
+  static const float intervals[13] = {0.0f,  0.0f,  0.25f, 0.20f, 0.15f,
+                                      0.15f, 0.13f, 0.13f, 0.13f, 0.13f,
+                                      0.17f, 0.18f, 0.18f};
 
   _main->autoRun(fxFastStrobeSound);
 
-  const auto roll = diceRoll();
+  const auto roll = roll2D6();
 
-  intervalChange(interval_changes[roll]);
+  intervalReduceTo(intervals[roll]);
 
   FaderOpts fader{
       .dest = Color::black(), .travel_secs = 0.0f, .use_origin = true};
@@ -327,18 +317,21 @@ void LightDeskFx::soundFastStrobe() {
     break;
 
   case 5:
-    _fill->color(Color(0, 32, 0, 0), 0.01f);
+    _fill->color(Color(0, 32, 0, 0), 0.75f);
     break;
 
   case 6:
-  case 8:
-    _fill->autoRun(fxFastStrobeSound);
+    _fill->dark();
     break;
 
   case 7:
     fader.dest = Color::randomize();
-    fader.travel_secs = intervalPercent(0.25f);
+    fader.travel_secs = intervalPercent(intervals[roll]);
     _fill->fadeTo(fader);
+    break;
+
+  case 8:
+    _fill->autoRun(fxFastStrobeSound);
     break;
 
   case 9:
@@ -346,7 +339,9 @@ void LightDeskFx::soundFastStrobe() {
     break;
 
   case 10:
-    _fill->dark();
+    fader.dest = Color::randomize();
+    fader.travel_secs = intervalPercent(intervals[roll]);
+    _fill->fadeTo(fader);
     break;
 
   case 11:
@@ -360,8 +355,6 @@ void LightDeskFx::soundFastStrobe() {
 }
 
 void LightDeskFx::soundWashed() {
-  intervalReset();
-
   const FaderOpts fo{.origin = Color::white(),
                      .dest = Color::black(),
                      .travel_secs = 3.1f,
@@ -370,24 +363,23 @@ void LightDeskFx::soundWashed() {
   _fill->fadeTo(fo);
   _main->autoRun(fxFastStrobeSound);
 
-  intervalChange(0.65f);
+  intervalReduceTo(0.50f);
 }
 
 void LightDeskFx::whiteFadeInOut() {
-  intervalReset();
   _main->autoRun(fxWhiteFadeInOut);
 
-  auto roll = diceRoll();
+  auto roll = roll2D6();
 
   if (roll == 7) {
     _fill->color(Color::randomize());
-    intervalChange(0.50);
+    intervalReduceTo(0.15);
   } else if (roll == 6) {
     _fill->autoRun(fxFastStrobeSound);
-    intervalChange(0.50);
+    intervalReduceTo(0.20);
   } else {
     _fill->dark();
-    intervalChange(0.75);
+    intervalReduceTo(0.17);
   }
 }
 

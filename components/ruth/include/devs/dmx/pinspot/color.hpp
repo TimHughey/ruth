@@ -125,7 +125,7 @@ public:
     for (uint32_t i = 0; i < end_of_parts; i++) {
       const ColorPart_t part = static_cast<ColorPart_t>(i);
 
-      switch (diceRoll()) {
+      switch (roll2D6()) {
       case 2:
       case 12:
         c.colorPart(part) = 0.0f;
