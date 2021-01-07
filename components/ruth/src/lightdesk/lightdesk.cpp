@@ -124,7 +124,7 @@ bool LightDesk::command(MsgPayload_t &msg) {
       ready();
     }
     if (stop_flag) {
-      stop();
+      // stop();
     }
 
     rc = true;
@@ -312,6 +312,9 @@ void LightDesk::init() {
 }
 
 LightDesk_t *LightDesk::instance() {
+
+
+
   if (__singleton__ == nullptr) {
     __singleton__ = new LightDesk();
   }
