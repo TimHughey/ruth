@@ -33,37 +33,7 @@
 namespace ruth {
 
 using namespace lightdesk;
-
-static struct arg_end *rm_end;
-
-// static struct arg_lit *rm_help;
-static struct arg_file *rm_file;
-
-static void *rm_argtable[] = {
-    // rm_help = arg_litn("h", "help", 0, 1, nullptr),
-    rm_file = arg_filen(NULL, NULL, "<file>", 1, 1, "file to delete"),
-    rm_end = arg_end(1),
-};
-
-int CLI::commandRm(int argc, char **argv) {
-  Binder_t *binder = Binder::instance();
-  auto rc = 0;
-  TextBuffer<35> rm_path;
-
-  int nerrors = arg_parse(argc, argv, rm_argtable);
-
-  if (nerrors > 0) {
-    arg_print_errors(stdout, rm_end, "rm");
-    rc = 1;
-    goto finish;
-  }
-
-  rm_path.printf("%s/%s", binder->basePath(), rm_file->filename[0]);
-  rc = binder->rm(rm_path.c_str());
-
-finish:
-  return rc;
-}
+using Text = reading::Text;
 
 void CLI::init() {
   fflush(stdout); // drain stdout before adjusting configuration
@@ -93,15 +63,10 @@ void CLI::init() {
 void CLI::initCommands() {
   esp_console_register_help_command();
   binder.init();
-  registerClearCommand();
-  registerDateCommand();
-  registerDiceRollStatsCommand();
-  registerExitCommand();
   lightdesk.init();
   ota.init();
-  registerLsCommand();
-  registerRestartCommand();
-  registerRmCommand();
+  random.init();
+  shell.init();
 }
 
 void CLI::loop() {

@@ -1,5 +1,5 @@
 set(RUTH_CORE "src/core/binder" "src/core/core" "src/core/ota")
-set(RUTH_CLI "src/cli/cli" "src/cli/binder" "src/cli/lightdesk" "src/cli/ota")
+set(RUTH_CLI "src/cli/cli" "src/cli/binder" "src/cli/lightdesk" "src/cli/ota" "src/cli/shell" "src/cli/random")
 set(RUTH_MISC "src/misc/random" "src/misc/status_led")
 set(RUTH_NET "src/net/net" "src/net/profile/profile")
 

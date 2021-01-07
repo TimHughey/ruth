@@ -65,7 +65,7 @@ bool IRAM_ATTR diceWin(uint8_t match, uint8_t num_dice, uint8_t num_sides) {
 
 void printDiceRollStats() {
   if (_roll_count > 0) {
-    printf("\n  die    percent    roll count\n");
+    printf("\n  2d6    percent    roll count\n");
     printf("  ---    -------    ----------\n");
 
     for (auto i = 2; i < 25; i++) {

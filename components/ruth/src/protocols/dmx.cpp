@@ -52,12 +52,12 @@ Dmx::Dmx() {
 }
 
 Dmx::~Dmx() {
+  __singleton__ = nullptr;
+
   // note:  the destructor must be called by a separate task
   while (_task.handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
-
-  __singleton__ = nullptr;
 }
 
 void IRAM_ATTR Dmx::fpsCalculate(void *data) {

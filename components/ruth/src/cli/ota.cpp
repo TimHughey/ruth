@@ -24,6 +24,7 @@
 
 #include "cli/ota.hpp"
 #include "core/binder.hpp"
+#include "core/ota.hpp"
 
 namespace ruth {
 

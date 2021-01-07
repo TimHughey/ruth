@@ -28,13 +28,9 @@
 #include "cli/binder.hpp"
 #include "cli/lightdesk.hpp"
 #include "cli/ota.hpp"
-#include "core/ota.hpp"
+#include "cli/random.hpp"
+#include "cli/shell.hpp"
 #include "local/types.hpp"
-#include "misc/datetime.hpp"
-#include "misc/restart.hpp"
-#include "net/network.hpp"
-#include "protocols/dmx.hpp"
-#include "protocols/mqtt.hpp"
 
 namespace ruth {
 
@@ -64,107 +60,6 @@ private:
   void initCommands();
   void loop();
 
-  static int commandBinder(int argc, char **argv);
-
-  static int commandClear(int argc, char **argv) {
-    linenoiseClearScreen();
-    return 0;
-  }
-
-  static int commandDate(int argc, char **argv) {
-    printf("%s\n", DateTime().c_str());
-    return 0;
-  }
-
-  static int commandDiceStats(int argc, char **argv) {
-    printDiceRollStats();
-    return 0;
-  }
-
-  static int commandExit(int argc, char **argv) { return 255; }
-  static int commandLs(int argc, char **argv) {
-    return Binder::instance()->ls();
-  }
-
-  static int commandReboot(int argc, char **argv) {
-    Restart("cli initiated reboot").now();
-
-    return 0;
-  }
-  static int commandRm(int argc, char **argv);
-
-  static uint32_t convertHex(const char *str);
-
-  void registerClearCommand() {
-    static esp_console_cmd_t cmd = {};
-    cmd.command = "c";
-    cmd.help = "Clears the screen";
-    cmd.hint = NULL;
-    cmd.func = &commandClear;
-
-    esp_console_cmd_register(&cmd);
-  }
-
-  void registerDateCommand() {
-    static esp_console_cmd_t cmd = {};
-    cmd.command = "date";
-    cmd.help = "Display the current date and time";
-    cmd.hint = NULL;
-    cmd.func = &commandDate;
-
-    esp_console_cmd_register(&cmd);
-  }
-
-  void registerDiceRollStatsCommand() {
-    static esp_console_cmd_t cmd = {};
-    cmd.command = "dicestats";
-    cmd.help = "Display the current die roll stats";
-    cmd.hint = NULL;
-    cmd.func = &commandDiceStats;
-
-    esp_console_cmd_register(&cmd);
-  }
-
-  void registerExitCommand() {
-    static esp_console_cmd_t cmd = {};
-    cmd.command = "exit";
-    cmd.help = "Exit the Command Line Interface";
-    cmd.hint = NULL;
-    cmd.func = &commandExit;
-
-    esp_console_cmd_register(&cmd);
-  }
-
-  void registerLsCommand() {
-    static esp_console_cmd_t cmd = {};
-    cmd.command = "ls";
-    cmd.help = "List files";
-    cmd.hint = NULL;
-    cmd.func = &commandLs;
-
-    esp_console_cmd_register(&cmd);
-  }
-
-  void registerRestartCommand() {
-    static esp_console_cmd_t cmd = {};
-    cmd.command = "reboot";
-    cmd.help = "Reboot Ruth immediately";
-    cmd.hint = NULL;
-    cmd.func = &commandReboot;
-
-    esp_console_cmd_register(&cmd);
-  }
-
-  void registerRmCommand() {
-    static esp_console_cmd_t cmd = {};
-    cmd.command = "rm";
-    cmd.help = "Remove (unlink) a file";
-    cmd.hint = NULL;
-    cmd.func = &commandRm;
-
-    esp_console_cmd_register(&cmd);
-  }
-
   static void runLine(const char *line, int &ret);
 
   // Task implementation
@@ -190,6 +85,8 @@ private:
   BinderCli_t binder;
   LightDeskCli_t lightdesk;
   OtaCli_t ota;
+  ShellCli_t shell;
+  RandomCli_t random;
 
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,

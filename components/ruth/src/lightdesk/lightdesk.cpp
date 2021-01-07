@@ -63,6 +63,7 @@ LightDesk::LightDesk() {
 
 LightDesk::~LightDesk() {
   LightDesk_t *desk = __singleton__;
+  __singleton__ = nullptr;
 
   if (_fx != nullptr) {
     delete _fx;
@@ -82,8 +83,6 @@ LightDesk::~LightDesk() {
   while (desk->_task.handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
-
-  __singleton__ = nullptr;
 }
 
 void LightDesk::cleanUp() {
