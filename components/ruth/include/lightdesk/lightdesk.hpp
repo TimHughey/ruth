@@ -29,6 +29,7 @@
 #include "devs/dmx/pinspot/base.hpp"
 #include "lightdesk/fx.hpp"
 #include "lightdesk/fx_defs.hpp"
+#include "lightdesk/request.hpp"
 #include "lightdesk/types.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
@@ -41,91 +42,19 @@ namespace lightdesk {
 
 typedef class LightDesk LightDesk_t;
 
-typedef enum { PINSPOT_MAIN = 0, PINSPOT_FILL, PINSPOT_NONE } PinSpotFunction_t;
-
 class LightDesk {
-private:
-  typedef enum {
-    READY = 0x00,
-    DANCE,
-    COLOR,
-    DARK,
-    FADE_TO,
-    STOP,
-    SHUTDOWN
-  } LightDeskMode_t;
-
-  typedef struct {
-    PinSpotFunction_t func = PINSPOT_NONE;
-
-    union {
-      struct {
-        uint32_t secs;
-      } dance;
-
-      struct {
-        uint32_t rgbw;
-        float strobe;
-      } color;
-
-      struct {
-        uint32_t rgbw;
-        float secs;
-      } fadeto;
-    };
-
-  } Request_t;
 
 public:
+  LightDesk();
   ~LightDesk();
-
-  void color(PinSpotFunction_t func, uint32_t rgbw, float strobe = 0.0) {
-    _request.func = func;
-    _request.color.rgbw = rgbw;
-    _request.color.strobe = strobe;
-
-    taskNotify(NotifyColor);
-  }
-
-  bool dance(const float secs) {
-    requestClear();
-    _request.dance.secs = secs;
-
-    return taskNotify(NotifyDance);
-  }
-
-  void dark() {
-    requestClear();
-    taskNotify(NotifyDark);
-  }
-
-  static bool externalCommand(MsgPayload_t &msg) {
-    return instance()->command(msg);
-  }
-
-  void fadeTo(PinSpotFunction_t func, uint32_t rgbw, float secs = 2.5) {
-    _request.func = func;
-    _request.fadeto.rgbw = rgbw;
-    _request.fadeto.secs = secs;
-    taskNotify(NotifyFadeTo);
-  }
 
   static uint64_t frameInterval() { return Dmx::frameInterval(); }
 
-  static const char *fxDesc(Fx_t fx);
-
-  static LightDesk_t *instance();
-
-  static void cleanUp();
-  static bool isRunning();
-  void stop() { taskNotify(NotifyStop); }
-  void ready() { taskNotify(NotifyReady); }
+  bool request(const Request_t &r);
 
   const LightDeskStats_t &stats();
 
 private:
-  LightDesk(); // singleton
-
   void danceExecute();
   void danceStart();
   static void danceTimerCallback(void *data);
@@ -157,11 +86,6 @@ private:
   inline PinSpot_t *pinSpotFill() { return pinSpotObject(PINSPOT_FILL); }
 
   inline uint32_t randomInterval(uint32_t min, uint32_t max) const;
-
-  inline void requestClear() {
-    _request = {};
-    _request.func = PINSPOT_NONE;
-  }
 
   inline uint64_t secondsToInterval(const float secs) const {
     const uint64_t us_sec = 1000 * 1000;

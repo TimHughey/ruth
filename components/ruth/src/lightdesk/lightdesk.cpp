@@ -32,39 +32,12 @@ namespace lightdesk {
 
 using TR = reading::Text;
 
-static const char *_fx_desc[] = {"fxNone",
-                                 "fxPrimaryColorsCycle",
-                                 "fxRedOnGreenBlueWhiteJumping",
-                                 "fxGreenOnRedBlueWhiteJumping",
-                                 "fxBlueOnRedGreenWhiteJumping",
-                                 "fxWhiteOnRedGreenBlueJumping",
-                                 "fxWhiteFadeInOut",
-                                 "fxRgbwGradientFast",
-                                 "fxRedGreenGradient",
-                                 "fxRedBlueGradient",
-                                 "fxBlueGreenGradient",
-                                 "fxFullSpectrumCycle",
-                                 "fxFullSpectrumJumping",
-                                 "fxColorCycleSound",
-                                 "fxColorStrobeSound",
-                                 "fxFastStrobeSound",
-                                 "fxUnkown", // 0x10
-                                 "fxColorBars",
-                                 "fxWashedSound",
-                                 "fxSimpleStrobe",
-                                 "fxCrossFadeFast"};
-
-LightDesk *__singleton__ = nullptr;
-
 LightDesk::LightDesk() {
   start();
   vTaskDelay(pdMS_TO_TICKS(100)); // allow time for tasks to start
 }
 
 LightDesk::~LightDesk() {
-  LightDesk_t *desk = __singleton__;
-  __singleton__ = nullptr;
-
   if (_fx != nullptr) {
     delete _fx;
     _fx = nullptr;
@@ -80,57 +53,9 @@ LightDesk::~LightDesk() {
     }
   }
 
-  while (desk->_task.handle != nullptr) {
+  while (_task.handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
-}
-
-void LightDesk::cleanUp() {
-  TR::rlog("LightDesk shutdown");
-  delete __singleton__;
-}
-
-bool LightDesk::command(MsgPayload_t &msg) {
-  bool rc = false;
-  StaticJsonDocument<256> doc;
-
-  auto err = deserializeMsgPack(doc, msg.data());
-
-  auto root = doc.as<JsonObject>();
-
-  if (err) {
-    TR::rlog("LightDesk command parse failure: %s", err.c_str());
-    return rc;
-  }
-
-  auto dance_obj = root["dance"].as<JsonObject>();
-  auto mode_obj = root["mode"].as<JsonObject>();
-
-  if (dance_obj) {
-    const float interval = dance_obj["interval_secs"];
-
-    ready();
-    rc = dance(interval);
-
-    TR::rlog("LightDesk dance with interval=%3.2f %s", interval,
-             (rc) ? "started" : "failed");
-  }
-
-  if (mode_obj) {
-    const bool ready_flag = mode_obj["ready"];
-    const bool stop_flag = mode_obj["stop"];
-
-    if (ready_flag) {
-      ready();
-    }
-    if (stop_flag) {
-      // stop();
-    }
-
-    rc = true;
-  }
-
-  return rc;
 }
 
 void IRAM_ATTR LightDesk::core() {
@@ -145,13 +70,13 @@ void IRAM_ATTR LightDesk::core() {
     if (notified == pdTRUE) {
       NotifyVal_t notify = static_cast<NotifyVal_t>(v);
 
-      PinSpot_t *pinspot = pinSpotObject(_request.func);
+      PinSpot_t *pinspot = pinSpotObject(_request.func());
 
       switch (notify) {
 
       case NotifyColor:
         _mode = COLOR;
-        pinspot->color(_request.color.rgbw, _request.color.strobe);
+        pinspot->color(_request.colorRgbw(), _request.colorStrobe());
         break;
 
       case NotifyDark:
@@ -198,7 +123,7 @@ void IRAM_ATTR LightDesk::core() {
 
       case NotifyFadeTo:
         _mode = FADE_TO;
-        pinspot->fadeTo(_request.fadeto.rgbw, _request.fadeto.secs);
+        pinspot->fadeTo(_request.fadeToRgbw(), _request.fadeToSecs());
         break;
 
       default:
@@ -253,7 +178,7 @@ void LightDesk::danceStart() {
 
   if (_fx == nullptr) {
     _fx = new LightDeskFx(pinSpotMain(), pinSpotFill());
-    _fx->intervalDefault(_request.dance.secs);
+    _fx->intervalDefault(_request.danceInterval());
     _fx->start();
 
     _mode = DANCE;
@@ -280,8 +205,6 @@ uint64_t IRAM_ATTR LightDesk::danceTimerSchedule(float secs) const {
 
   return interval;
 }
-
-const char *LightDesk::fxDesc(Fx_t fx) { return _fx_desc[fx]; }
 
 void LightDesk::init() {
   Dmx::start();
@@ -311,32 +234,48 @@ void LightDesk::init() {
   esp_timer_create(&_dance_timer_args, &_dance_timer);
 }
 
-LightDesk_t *LightDesk::instance() {
-
-
-
-  if (__singleton__ == nullptr) {
-    __singleton__ = new LightDesk();
-  }
-
-  return __singleton__;
-}
-
-bool LightDesk::isRunning() {
-  auto rc = true;
-
-  if (__singleton__ == nullptr) {
-    rc = false;
-  }
-
-  return rc;
-}
-
 uint32_t LightDesk::randomInterval(uint32_t min, uint32_t max) const {
   const uint32_t modulo = max - min;
   const uint32_t interval = (esp_random() % modulo) + min;
 
   return interval;
+}
+
+bool LightDesk::request(const Request_t &r) {
+  auto rc = true;
+  _request = r;
+
+  switch (r.mode()) {
+  case COLOR:
+    taskNotify(NotifyColor);
+    break;
+
+  case DANCE:
+    taskNotify(NotifyDance);
+    break;
+
+  case DARK:
+    taskNotify(NotifyDark);
+    break;
+
+  case FADE_TO:
+    taskNotify(NotifyFadeTo);
+    break;
+
+  case READY:
+    taskNotify(NotifyReady);
+    break;
+
+  case STOP:
+    taskNotify(NotifyStop);
+    break;
+
+  default:
+    rc = false;
+    break;
+  }
+
+  return rc;
 }
 
 void LightDesk::start() {
@@ -350,12 +289,7 @@ void LightDesk::start() {
 }
 
 const LightDeskStats_t &LightDesk::stats() {
-  static const char *mode_str[] = {"ready",   "dance", "color",   "dark",
-                                   "fade to", "stop",  "shutdown"};
-
-  const auto mode_index = static_cast<uint32_t>(_mode);
-
-  _stats.mode = mode_str[mode_index];
+  _stats.mode = modeDesc(_mode);
   _stats.object_size = sizeof(LightDesk_t);
 
   Dmx_t *dmx = Dmx::instance();

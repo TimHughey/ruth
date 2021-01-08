@@ -56,93 +56,6 @@ typedef struct {
 
 typedef enum { BINDER_CLI, BINDER_LIGHTDESK } BinderCategory_t;
 
-namespace lightdesk {
-typedef enum {
-  fxNone = 0x00,
-  fxPrimaryColorsCycle = 0x01,
-  fxRedOnGreenBlueWhiteJumping = 0x02,
-  fxGreenOnRedBlueWhiteJumping = 0x03,
-  fxBlueOnRedGreenWhiteJumping = 0x04,
-  fxWhiteOnRedGreenBlueJumping = 0x05,
-  fxWhiteFadeInOut = 0x06,
-  fxRgbwGradientFast = 0x07,
-  fxRedGreenGradient = 0x08,
-  fxRedBlueGradient = 0x09,
-  fxBlueGreenGradient = 0x0a,
-  fxFullSpectrumCycle = 0x0b,
-  fxFullSpectrumJumping = 0x0c,
-  fxColorCycleSound = 0x0d,
-  fxColorStrobeSound = 0x0e,
-  fxFastStrobeSound = 0x0f,
-  fxUnknown = 0x10,
-  fxColorBars = 0x11,
-  fxWashedSound,
-  fxSimpleStrobe,
-  fxCrossFadeFast
-} Fx_t;
-} // namespace lightdesk
-
-typedef struct {
-  float fps = 0.0;
-  uint64_t busy_wait = 0;
-  uint64_t frame_update_us = 0;
-  size_t object_size = 0;
-
-  struct {
-    uint64_t us = 0;
-    uint64_t count = 0;
-    uint64_t shorts = 0;
-
-    struct {
-      uint64_t curr = 0;
-      uint64_t min = 9999;
-      uint64_t max = 0;
-    } update;
-  } frame;
-
-  struct {
-    float curr = 0.0f;
-    float min = 9999.0f;
-    float max = 0.0f;
-  } tx;
-
-} DmxStats_t;
-
-typedef struct {
-  struct {
-    uint64_t retries = 0;
-    uint64_t failures = 0;
-    uint64_t count = 0;
-  } notify;
-  size_t object_size = 0;
-} PinSpotStats_t;
-
-typedef struct {
-  struct {
-    uint64_t basic = 0;
-    lightdesk::Fx_t active = lightdesk::fxNone;
-    lightdesk::Fx_t next = lightdesk::fxNone;
-    lightdesk::Fx_t prev = lightdesk::fxNone;
-  } fx;
-
-  struct {
-    float base = 0.0f;
-    float current = 0.0f;
-    float min = 9999.9f;
-    float max = 0.0f;
-  } interval;
-
-  size_t object_size = 0;
-} LightDeskFxStats_t;
-
-typedef struct {
-  const char *mode = nullptr;
-  size_t object_size = 0;
-  DmxStats_t dmx;
-  LightDeskFxStats_t fx;
-  PinSpotStats_t pinspot[2];
-} LightDeskStats_t;
-
 typedef enum {
   NotifyZero = 0x0000,
   // timers that most likely firing at or near DMX frame rate
@@ -166,21 +79,6 @@ typedef enum {
   NotifyDelete,
   NotifyEndOfValues
 } NotifyVal_t;
-
-namespace lightdesk {
-
-typedef float Strobe_t;
-
-typedef enum {
-  // used to index into a color parts array
-  RED_PART = 0,
-  GREEN_PART,
-  BLUE_PART,
-  WHITE_PART,
-  END_OF_PARTS
-} ColorPart_t;
-
-} // namespace lightdesk
 
 } // namespace ruth
 #endif // ruth_type_hpp

@@ -44,8 +44,7 @@ private:
 private:
   static uint32_t convertHex(const char *str);
   static int execute(int argc, char **argv);
-  static const char *fxDesc(Fx_t fx) { return LightDesk::fxDesc(fx); }
-  static void reportStats(LightDesk_t *lightdesk);
+  static int invertReturnCode(bool rc) { return (rc == true) ? 0 : 1; }
   void registerArgTable();
 
   static bool validate(Args_t arg);

@@ -10,7 +10,7 @@ set(RUTH_DEVS_PWM "src/devs/pwm/pwm" "src/devs/pwm/cmds/cmd" "src/devs/pwm/cmds/
 set(RUTH_DEVS_DMX "src/devs/dmx/headunit" "src/devs/dmx/pinspot/base")
 
 set(RUTH_ENGINES "src/engines/i2c" "src/engines/ds" "src/engines/pwm")
-set(RUTH_LIGHTDESK "src/lightdesk/lightdesk" "src/lightdesk/fx")
+set(RUTH_LIGHTDESK "src/lightdesk/control" "src/lightdesk/lightdesk" "src/lightdesk/fx" "src/lightdesk/types")
 
 set(RUTH_READINGS "src/readings/sensor" "src/readings/reading" "src/readings/startup" "src/readings/pwm" "src/readings/text" "src/readings/positions" "src/readings/remote")
 set(RUTH_PROTOCOLS "src/protocols/dmx" "src/protocols/mqtt" "src/protocols/payload")

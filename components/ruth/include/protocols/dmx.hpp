@@ -33,10 +33,13 @@
 #include <soc/uart_reg.h>
 
 #include "devs/dmx/headunit.hpp"
+#include "lightdesk/types.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
 
 namespace ruth {
+
+using namespace lightdesk;
 
 typedef class Dmx Dmx_t;
 

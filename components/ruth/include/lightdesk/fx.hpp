@@ -28,6 +28,7 @@
 
 #include "devs/dmx/pinspot/base.hpp"
 #include "lightdesk/fx_defs.hpp"
+#include "lightdesk/types.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
 #include "misc/random.hpp"
@@ -66,7 +67,7 @@ public:
 
   void start();
 
-  void stats(LightDeskFxStats_t &stats) {
+  void stats(FxStats_t &stats) {
     _stats.fx.active = _fx_active;
     _stats.fx.next = _fx_next;
     _stats.fx.prev = _fx_prev;
@@ -125,7 +126,7 @@ private:
   Fx_t _fx_next = fxNone;
   Fx_t _fx_prev = fxNone;
 
-  LightDeskFxStats_t _stats;
+  FxStats_t _stats;
 };
 
 } // namespace lightdesk

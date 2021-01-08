@@ -23,6 +23,7 @@
 
 #include "math.h"
 
+#include "lightdesk/types.hpp"
 #include "local/types.hpp"
 #include "misc/random.hpp"
 

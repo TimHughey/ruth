@@ -21,10 +21,90 @@
 #ifndef _ruth_lightdesk_types_hpp
 #define _ruth_lightdesk_types_hpp
 
+#include "lightdesk/enums.hpp"
 #include "local/types.hpp"
 
 namespace ruth {
-namespace lightdesk {}
+namespace lightdesk {
+
+typedef enum ColorPart ColorPart_t;
+typedef enum Fx Fx_t;
+typedef enum LightDeskMode LightDeskMode_t;
+typedef enum PinSpotFunction PinSpotFunction_t;
+
+typedef float Strobe_t;
+typedef struct DmxStats DmxStats_t;
+typedef struct FxStats FxStats_t;
+typedef struct LightDeskStats LightDeskStats_t;
+typedef struct PinSpotStats PinSpotStats_t;
+
+struct DmxStats {
+  float fps = 0.0;
+  uint64_t busy_wait = 0;
+  uint64_t frame_update_us = 0;
+  size_t object_size = 0;
+
+  struct {
+    uint64_t us = 0;
+    uint64_t count = 0;
+    uint64_t shorts = 0;
+
+    struct {
+      uint64_t curr = 0;
+      uint64_t min = 9999;
+      uint64_t max = 0;
+    } update;
+  } frame;
+
+  struct {
+    float curr = 0.0f;
+    float min = 9999.0f;
+    float max = 0.0f;
+  } tx;
+};
+
+struct FxStats {
+  struct {
+    uint64_t basic = 0;
+    Fx_t active = lightdesk::fxNone;
+    Fx_t next = lightdesk::fxNone;
+    Fx_t prev = lightdesk::fxNone;
+  } fx;
+
+  struct {
+    float base = 0.0f;
+    float current = 0.0f;
+    float min = 9999.9f;
+    float max = 0.0f;
+  } interval;
+
+  size_t object_size = 0;
+};
+
+struct PinSpotStats {
+  struct {
+    uint64_t retries = 0;
+    uint64_t failures = 0;
+    uint64_t count = 0;
+  } notify;
+
+  size_t object_size = 0;
+};
+
+struct LightDeskStats {
+  const char *mode = nullptr;
+
+  DmxStats_t dmx;
+  FxStats_t fx;
+  PinSpotStats_t pinspot[2];
+
+  size_t object_size = 0;
+};
+
+const char *fxDesc(const Fx_t fx);
+const char *modeDesc(const LightDeskMode_t mode);
+
+} // namespace lightdesk
 } // namespace ruth
 
 #endif

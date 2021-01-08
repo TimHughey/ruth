@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "cli/lightdesk.hpp"
+#include "lightdesk/control.hpp"
 
 namespace ruth {
 using namespace lightdesk;
@@ -32,14 +33,14 @@ static struct arg_end *end;
 static struct arg_lit *dark, *fill, *main, *ready, *stop, *stats, *test;
 static struct arg_str *color, *fadeto;
 
-static CSTR DANCE = "<seconds>";
+static CSTR SECS = "<seconds>";
 static CSTR FLOAT = "<float>";
 static CSTR RGBW = "RR,GG,BB,WW";
 
 static void *argtable[] = {
     fill = arg_litn(nullptr, "main", 0, 1, "target main pinspot"),
     main = arg_litn(nullptr, "fill", 0, 1, "target fill pinspot"),
-    dance = arg_dbln("D", "dance", DANCE, 0, 1, "start dance mode"),
+    dance = arg_dbln("D", "dance", SECS, 0, 1, "start dance mode"),
     color = arg_strn("C", "color", RGBW, 0, 1, "set color"),
     dark = arg_litn("d", "dark", 0, 1, "set to dark"),
     ready = arg_litn(nullptr, "ready", 0, 1, "set ready"),
@@ -68,7 +69,8 @@ uint32_t LightDeskCli::convertHex(const char *str) {
 }
 
 int LightDeskCli::execute(int argc, char **argv) {
-  auto rc = 0;
+  LightDeskControl_t *desk_ctrl = LightDeskControl::instance();
+  auto rc = true;
 
   secs->dval[0] = 1.0;
 
@@ -76,21 +78,13 @@ int LightDeskCli::execute(int argc, char **argv) {
 
   if (nerrors > 0) {
     arg_print_errors(stdout, end, "pinspot");
-    return rc;
+    return 1;
   }
 
   if (stats->count > 0) {
-    if (LightDesk::isRunning()) {
-      LightDesk_t *lightdesk = LightDesk::instance();
-      reportStats(lightdesk);
-    } else {
-      printf("LightDesk unavailable\n");
-      rc = 1;
-      return rc;
-    }
+    rc = desk_ctrl->reportStats();
+    return invertReturnCode(rc);
   }
-
-  LightDesk_t *lightdesk = LightDesk::instance();
 
   PinSpotFunction_t func = PINSPOT_MAIN;
   if (fill->count > 0) {
@@ -98,90 +92,37 @@ int LightDeskCli::execute(int argc, char **argv) {
   }
 
   if (dark->count > 0) {
-    lightdesk->dark();
+    rc = desk_ctrl->dark();
   } else if (dance->count > 0) {
-    float secs = dance->dval[0];
-
-    lightdesk->dance(secs);
+    const float secs = dance->dval[0];
+    rc = desk_ctrl->dance(secs);
   } else if (color->count > 0) {
     uint32_t rgbw = convertHex(color->sval[0]);
 
     if (validate(STROBE)) {
       if (strobe->count > 0) {
-        lightdesk->color(func, rgbw, strobe->dval[0]);
+        rc = desk_ctrl->color(func, rgbw, strobe->dval[0]);
       } else {
-        lightdesk->color(func, rgbw);
+        rc = desk_ctrl->color(func, rgbw);
       }
     }
   } else if (fadeto->count > 0) {
     uint32_t rgbw = convertHex(fadeto->sval[0]);
     auto secs_val = secs->dval[0];
 
-    lightdesk->fadeTo(func, rgbw, secs_val);
+    rc = desk_ctrl->fadeTo(func, rgbw, secs_val);
   } else if (ready->count > 0) {
-    lightdesk->ready();
-    rc = 0;
+    rc = desk_ctrl->ready();
   } else if (stop->count > 0) {
-    lightdesk->stop();
-    LightDesk::cleanUp();
-    rc = 0;
+    rc = desk_ctrl->stop();
   } else if (test->count > 0) {
     printf("test not available\n");
-    rc = 1;
+    rc = false;
   } else {
-    rc = 1;
+    rc = false;
   }
 
-  return rc;
-}
-
-void LightDeskCli::reportStats(LightDesk_t *lightdesk) {
-  static const char *indent = "                ";
-  const LightDeskStats_t &stats = lightdesk->stats();
-  const DmxStats_t &dmx = stats.dmx;
-  const LightDeskFxStats_t &fx = stats.fx;
-
-  printf("\n");
-  printf("lightdesk:      mode=%s object_size=%u\n", stats.mode,
-         stats.object_size);
-
-  printf("\n");
-  printf("lightdesk_fx:   basic=%llu active=%s next=%s prev=%s\n", fx.fx.basic,
-         fxDesc(fx.fx.active), fxDesc(fx.fx.next), fxDesc(fx.fx.prev));
-
-  printf("%sinterval curr=%4.2fs min=%4.2fs max=%4.2fs base=%4.2fs\n", indent,
-         fx.interval.current, fx.interval.min, fx.interval.max,
-         fx.interval.base);
-  printf("%sobject_size=%u\n", indent, fx.object_size);
-
-  printf("\n");
-
-  const float frame_ms = (float)dmx.frame.us / 1000.f;
-
-  printf("dmx:            %02.02ffps frame=%5.3fms shorts=%llu ", dmx.fps,
-         frame_ms, dmx.frame.shorts);
-  printf("frame_update: curr=%lluµs min=%lluµs max=%lluµs\n",
-         dmx.frame.update.curr, dmx.frame.update.min, dmx.frame.update.max);
-  printf("%stx curr=%02.02fms min=%02.02fms max=%02.02fms\n", indent,
-         dmx.tx.curr, dmx.tx.min, dmx.tx.max);
-  printf("%sbusy_wait=%lld object_size=%u\n", indent, dmx.busy_wait,
-         dmx.object_size);
-
-  const uint32_t last_pinspot = static_cast<uint32_t>(PINSPOT_FILL);
-
-  for (uint32_t i = 0; i <= last_pinspot; i++) {
-    printf("\n");
-    const PinSpotStats_t &pinspot = stats.pinspot[i];
-    TextBuffer<16> name;
-    name.printf("pinspot %02d:", i);
-
-    printf("%-16snotify count=%llu retries=%llu failures=%llu\n", name.c_str(),
-           pinspot.notify.count, pinspot.notify.retries,
-           pinspot.notify.failures);
-    printf("%sobject_size=%u\n", indent, pinspot.object_size);
-  }
-
-  printf("\n");
+  return invertReturnCode(rc);
 }
 
 void LightDeskCli::registerArgTable() {
