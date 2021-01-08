@@ -60,8 +60,6 @@ LightDesk::~LightDesk() {
 
 void IRAM_ATTR LightDesk::core() {
 
-  TR::rlog("LightDesk ready");
-
   while (_mode != SHUTDOWN) {
     uint32_t v = 0;
     auto notified =
@@ -118,6 +116,7 @@ void IRAM_ATTR LightDesk::core() {
         break;
 
       case NotifyReady:
+        TR::rlog("LightDesk ready");
         _mode = READY;
         break;
 
@@ -247,27 +246,27 @@ bool LightDesk::request(const Request_t &r) {
 
   switch (r.mode()) {
   case COLOR:
-    taskNotify(NotifyColor);
+    rc = taskNotify(NotifyColor);
     break;
 
   case DANCE:
-    taskNotify(NotifyDance);
+    rc = taskNotify(NotifyDance);
     break;
 
   case DARK:
-    taskNotify(NotifyDark);
+    rc = taskNotify(NotifyDark);
     break;
 
   case FADE_TO:
-    taskNotify(NotifyFadeTo);
+    rc = taskNotify(NotifyFadeTo);
     break;
 
   case READY:
-    taskNotify(NotifyReady);
+    rc = taskNotify(NotifyReady);
     break;
 
   case STOP:
-    taskNotify(NotifyStop);
+    rc = taskNotify(NotifyStop);
     break;
 
   default:

@@ -116,10 +116,7 @@ private:
 
   inline TaskHandle_t task() const { return _task.handle; }
   inline const char *taskName() const { return pcTaskGetTaskName(nullptr); }
-  inline BaseType_t taskNotify(NotifyVal_t val) const {
-    const uint32_t v = static_cast<uint32_t>(val);
-    return xTaskNotify(task(), v, eSetValueWithOverwrite);
-  }
+  bool taskNotify(NotifyVal_t val) const;
 
 private:
   esp_err_t _init_rc = ESP_FAIL;

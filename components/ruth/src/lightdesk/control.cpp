@@ -52,7 +52,6 @@ bool LightDeskControl::command(MsgPayload_t &msg) {
   if (dance_obj) {
     _dance_interval = dance_obj["interval_secs"];
 
-    ready();
     rc = dance(_dance_interval);
 
     TR::rlog("LightDesk dance with interval=%3.2f %s", _dance_interval,
@@ -108,7 +107,7 @@ bool LightDeskControl::setMode(LightDeskMode_t mode) {
       LightDesk *desk = _desk;
       _desk = nullptr;
 
-      desk->request(_request);
+      rc = desk->request(_request);
       delete desk;
     }
     break;
@@ -121,7 +120,7 @@ bool LightDeskControl::setMode(LightDeskMode_t mode) {
       _desk = new LightDesk();
     }
 
-    _desk->request(_request);
+    rc = _desk->request(_request);
 
     break;
 
@@ -183,6 +182,26 @@ bool LightDeskControl::stats() {
   printf("\n");
 
   return rc;
+}
+
+bool IRAM_ATTR LightDesk::taskNotify(NotifyVal_t val) const {
+  const uint32_t v = static_cast<uint32_t>(val);
+  TickType_t wait_ticks = pdMS_TO_TICKS(1);
+  const uint32_t max_wait_ticks = pdMS_TO_TICKS(20);
+
+  UBaseType_t notified = pdFAIL;
+
+  do {
+    notified = xTaskNotify(task(), v, eSetValueWithoutOverwrite);
+
+    if (notified == pdFAIL) {
+      vTaskDelay(wait_ticks);
+      wait_ticks++; // backoff one tick at a time if busy
+    }
+
+  } while ((notified == pdFAIL) && (wait_ticks <= max_wait_ticks));
+
+  return (notified == pdPASS) ? true : false;
 }
 
 } // namespace ruth
