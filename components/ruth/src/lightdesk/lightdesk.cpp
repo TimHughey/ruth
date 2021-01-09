@@ -110,6 +110,7 @@ void IRAM_ATTR LightDesk::core() {
         break;
 
       case NotifyShutdown:
+        TR::rlog("LightDesk stopped");
         _mode = SHUTDOWN;
         timerDelete(_dance_timer);
         timerDelete(_timer);
