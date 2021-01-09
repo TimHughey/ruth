@@ -149,17 +149,9 @@ void OTA::markPartitionValid(TimerHandle_t handle) {
 // STATIC!
 //
 esp_err_t OTA::httpEventHandler(esp_http_client_event_t *evt) {
-  static bool first_line = true;
 
   switch (evt->event_id) {
   case HTTP_EVENT_ON_HEADER:
-    if (first_line) {
-      printf("\n\n\n");
-      first_line = false;
-    }
-
-    printf("%20s %s\n", evt->header_key, evt->header_value);
-    break;
   case HTTP_EVENT_ERROR:
   case HTTP_EVENT_ON_CONNECTED:
   case HTTP_EVENT_HEADER_SENT:
