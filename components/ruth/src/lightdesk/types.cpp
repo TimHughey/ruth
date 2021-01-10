@@ -47,8 +47,9 @@ static const DRAM_ATTR char *_fx_desc[] = {"fxNone",
 
 static const DRAM_ATTR char *_fx_oorange = "fxOutOfRange";
 
-static const DRAM_ATTR char *_mode_desc[] = {
-    "init", "color", "dance", "dark", "fade to", "ready", "stop", "shutdown"};
+static const DRAM_ATTR char *_mode_desc[] = {"invalid", "init", "color",
+                                             "dance",   "dark", "fade to",
+                                             "ready",   "stop", "shutdown"};
 
 static const DRAM_ATTR char *_mode_oorange = "out of range";
 

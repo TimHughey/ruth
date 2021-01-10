@@ -109,6 +109,7 @@ private:
 
   inline TaskHandle_t task() const { return _task.handle; }
   static void taskCore(void *task_instance);
+  void taskInit();
   void taskLoop();
   BaseType_t taskNotify(NotifyVal_t nval);
   void taskStart();

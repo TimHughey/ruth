@@ -38,6 +38,7 @@ public:
   }
 
   inline bool dance(const float secs) {
+    // printf("LightDeskControl::dance() invoked\n");
     _request = Request(DANCE, secs);
     return setMode();
   }

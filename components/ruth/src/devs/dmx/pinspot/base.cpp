@@ -37,6 +37,8 @@ PinSpot::~PinSpot() {
   while (_task.handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
+
+  // printf("PinSpot %p deleted\n", this);
 }
 
 void PinSpot::autoRun(Fx_t fx) {
@@ -84,7 +86,7 @@ void PinSpot::color(const Color_t &color, float strobe) {
 void PinSpot::dark() { setMode(DARK); }
 
 void IRAM_ATTR PinSpot::core() {
-  while (_mode != SHUTDOWN) {
+  while (_mode != STOP) {
     uint32_t notify_val;
 
     xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, portMAX_DELAY);
@@ -108,12 +110,8 @@ void IRAM_ATTR PinSpot::core() {
       setMode(READY);
       break;
 
-    case NotifyShutdown:
-      setMode(SHUTDOWN);
-      break;
-
     default:
-      printf("pinspot unhandled notification: 0x%04x\n", val);
+      // printf("pinspot unhandled notification: 0x%04x\n", val);
       break;
     }
   }
@@ -126,6 +124,8 @@ void PinSpot::coreTask(void *task_instance) {
 
   TaskHandle_t handle = pinspot->_task.handle;
   pinspot->_task.handle = nullptr;
+
+  // printf("PinSpot %p task %p ending\n", pinspot, handle);
 
   vTaskDelete(handle); // remove the task from the scheduler
 }
@@ -224,15 +224,8 @@ void PinSpot::setMode(Mode_t mode) {
     break;
 
   case STOP:
-    _normal_ops = false;
-    setMode(DARK);
-    faderTimerStop();
-    taskNotify(NotifyShutdown);
-    break;
-
   case SHUTDOWN:
-    vTaskDelay(pdMS_TO_TICKS(100)); // delay to ensure timer has stopped
-    esp_timer_delete(_fader_timer);
+    stopActual();
     break;
   }
 
@@ -263,6 +256,16 @@ void PinSpot::start() {
 
     _init_rc = esp_timer_create(&fader_timer_args, &_fader_timer);
   }
+}
+
+void PinSpot::stopActual() {
+  _normal_ops = false;
+  setMode(DARK);
+  faderTimerStop();
+
+  vTaskDelay(pdMS_TO_TICKS(30)); // delay to ensure timer has stopped
+  esp_timer_delete(_fader_timer);
+  _mode = STOP; // seting _mode to STOP will break out of core loop
 }
 
 bool PinSpot::taskNotify(NotifyVal_t val) {

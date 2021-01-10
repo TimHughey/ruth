@@ -53,9 +53,6 @@ bool LightDeskControl::command(MsgPayload_t &msg) {
     _dance_interval = dance_obj["interval_secs"];
 
     rc = dance(_dance_interval);
-
-    TR::rlog("LightDesk dance with interval=%3.2f %s", _dance_interval,
-             (rc) ? "started" : "failed");
   }
 
   if (mode_obj) {
@@ -94,39 +91,27 @@ LightDeskControl_t *LightDeskControl::i() {
 }
 
 bool LightDeskControl::setMode(LightDeskMode_t mode) {
-  auto rc = true;
+  auto rc = false;
   _mode = mode;
 
-  switch (mode) {
-  case INIT:
-    rc = false;
-    break;
+  // there are two top-level conditions to handle:
+  //   1. stop
+  //   2. issue a request
+  if ((mode == STOP) && _desk) {
+    // stop requested and _desk is active
+    LightDesk *desk = _desk;
+    _desk = nullptr;
 
-  case STOP:
-    if (_desk != nullptr) {
-      LightDesk *desk = _desk;
-      _desk = nullptr;
-
-      rc = desk->request(_request);
-      delete desk;
-    }
-    break;
-
-  case COLOR:
-  case DANCE:
-  case FADE_TO:
-  case READY:
+    rc = desk->request(_request);
+    delete desk;
+  } else if (mode != STOP) {
+    // issuing a request requires an active LightDesk subsystem, start one if
+    // not available
     if (_desk == nullptr) {
       _desk = new LightDesk();
     }
 
-    rc = _desk->request(_request);
-
-    break;
-
-  default:
-    rc = false;
-    break;
+    rc = _desk->request(_request); // issue the request to the LightDesk
   }
 
   return rc;
@@ -182,26 +167,6 @@ bool LightDeskControl::stats() {
   printf("\n");
 
   return rc;
-}
-
-bool IRAM_ATTR LightDesk::taskNotify(NotifyVal_t val) const {
-  const uint32_t v = static_cast<uint32_t>(val);
-  TickType_t wait_ticks = pdMS_TO_TICKS(1);
-  const uint32_t max_wait_ticks = pdMS_TO_TICKS(20);
-
-  UBaseType_t notified = pdFAIL;
-
-  do {
-    notified = xTaskNotify(task(), v, eSetValueWithoutOverwrite);
-
-    if (notified == pdFAIL) {
-      vTaskDelay(wait_ticks);
-      wait_ticks++; // backoff one tick at a time if busy
-    }
-
-  } while ((notified == pdFAIL) && (wait_ticks <= max_wait_ticks));
-
-  return (notified == pdPASS) ? true : false;
 }
 
 } // namespace ruth

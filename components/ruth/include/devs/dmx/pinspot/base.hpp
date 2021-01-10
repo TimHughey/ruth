@@ -98,13 +98,13 @@ private:
   inline const char *taskName() const { return pcTaskGetTaskName(nullptr); }
 
   bool taskNotify(NotifyVal_t val);
-
   void updateFrame();
 
   // task
   void core();
   static void coreTask(void *task_instance);
   void start();
+  void stopActual();
 
 private:
   esp_err_t _init_rc = ESP_FAIL;

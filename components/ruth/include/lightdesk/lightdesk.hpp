@@ -112,16 +112,22 @@ private:
   void core();
   static void coreTask(void *task_instance);
   void start();
-  void shutdown(){};
+  void stopActual();
 
-  inline TaskHandle_t task() const { return _task.handle; }
+  inline TaskHandle_t task() const {
+    while (_task.handle == nullptr) {
+      vTaskDelay(1);
+    }
+
+    return _task.handle;
+  }
   inline const char *taskName() const { return pcTaskGetTaskName(nullptr); }
   bool taskNotify(NotifyVal_t val) const;
 
 private:
   esp_err_t _init_rc = ESP_FAIL;
 
-  LightDeskMode_t _mode = READY;
+  LightDeskMode_t _mode = INIT;
   Request_t _request = {};
   LightDeskStats_t _stats = {};
 

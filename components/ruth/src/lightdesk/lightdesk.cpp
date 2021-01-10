@@ -54,13 +54,17 @@ LightDesk::~LightDesk() {
   }
 
   while (_task.handle != nullptr) {
+    // printf("LightDesk::~LightDesk() waiting for task to exit\n");
     vTaskDelay(pdMS_TO_TICKS(10));
   }
+
+  // printf("LightDesk %p deleted\n", this);
 }
 
 void IRAM_ATTR LightDesk::core() {
+  _mode = READY;
 
-  while (_mode != SHUTDOWN) {
+  while (_mode != STOP) {
     uint32_t v = 0;
     auto notified =
         xTaskNotifyWait(0x00, ULONG_MAX, &v, pdMS_TO_TICKS(portMAX_DELAY));
@@ -97,23 +101,7 @@ void IRAM_ATTR LightDesk::core() {
         break;
 
       case NotifyStop:
-        _mode = STOP;
-
-        if (_mode == STOP) {
-          PulseWidth::off(1);
-
-          Dmx_t *dmx = Dmx::instance();
-          dmx->stop();
-
-          taskNotify(NotifyShutdown);
-        }
-        break;
-
-      case NotifyShutdown:
-        TR::rlog("LightDesk stopped");
-        _mode = SHUTDOWN;
-        timerDelete(_dance_timer);
-        timerDelete(_timer);
+        stopActual();
         break;
 
       case NotifyReady:
@@ -141,6 +129,7 @@ void LightDesk::coreTask(void *task_instance) {
   lightdesk->core();
 
   TaskHandle_t task = lightdesk->_task.handle;
+  TR::rlog("LightDesk task %p exiting", task);
   lightdesk->_task.handle = nullptr;
 
   vTaskDelete(task); // task removed from the scheduler
@@ -178,13 +167,17 @@ void LightDesk::danceStart() {
 
   if (_fx == nullptr) {
     _fx = new LightDeskFx(pinSpotMain(), pinSpotFill());
-    _fx->intervalDefault(_request.danceInterval());
-    _fx->start();
-
-    _mode = DANCE;
-
-    danceTimerSchedule(_fx->nextTimerInterval());
   }
+
+  _fx->intervalDefault(_request.danceInterval());
+  _fx->start();
+
+  _mode = DANCE;
+
+  TR::rlog("LightDesk dance with interval=%3.2f started",
+           _request.danceInterval());
+
+  danceTimerSchedule(_fx->nextTimerInterval());
 }
 
 void IRAM_ATTR LightDesk::danceTimerCallback(void *data) {
@@ -308,6 +301,34 @@ const LightDeskStats_t &LightDesk::stats() {
   }
 
   return _stats;
+}
+
+void LightDesk::stopActual() {
+  _mode = STOP;
+
+  PulseWidth::off(1);
+
+  Dmx_t *dmx = Dmx::instance();
+  dmx->stop();
+
+  timerDelete(_dance_timer);
+  timerDelete(_timer);
+  TR::rlog("LightDesk stopped");
+}
+
+bool IRAM_ATTR LightDesk::taskNotify(NotifyVal_t val) const {
+  bool rc = true;
+  const uint32_t v = static_cast<uint32_t>(val);
+
+  if (task()) { // prevent attempts to notify the task that does not exist
+    xTaskNotify(task(), v, eSetValueWithOverwrite);
+  } else {
+    TR::rlog("LightDesk: attempt to send NotifyVal_t %u to null task handle",
+             val);
+    rc = false;
+  }
+
+  return rc;
 }
 
 void LightDesk::timerCallback(void *data) {

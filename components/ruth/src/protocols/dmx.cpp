@@ -26,26 +26,6 @@ static Dmx_t *__singleton__ = nullptr;
 
 // SINGLETON! constructor is private
 Dmx::Dmx() {
-  esp_timer_create_args_t timer_args = {};
-  timer_args.callback = fpsCalculate;
-  timer_args.arg = this;
-  timer_args.dispatch_method = ESP_TIMER_TASK;
-  timer_args.name = "dmx_fps";
-
-  _init_rc = esp_timer_create(&timer_args, &_fps_timer);
-
-  if (_init_rc == ESP_OK) {
-    // the interval to count frames in µs
-    // _fpc_period is in seconds
-    _init_rc = esp_timer_start_periodic(_fps_timer, _fpc_period * 1000 * 1000);
-  }
-
-  if (_init_rc == ESP_OK) {
-    timer_args.callback = frameTimerCallback;
-    timer_args.name = "dmx frame";
-
-    _init_rc = esp_timer_create(&timer_args, &_frame_timer);
-  }
 
   _init_rc = uart_driver_install(_uart_num, 129, _tx_buff_len, 0, NULL, 0);
   _init_rc = uartInit();
@@ -58,6 +38,8 @@ Dmx::~Dmx() {
   while (_task.handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
+
+  // printf("Dmx %p deleted\n", this);
 }
 
 void IRAM_ATTR Dmx::fpsCalculate(void *data) {
@@ -144,13 +126,11 @@ void Dmx::setMode(DmxMode_t mode) {
 
   switch (_mode) {
   case INIT:
-    break;
-
   case PAUSE:
-    setMode(PAUSE);
     break;
 
   case STOP:
+  case SHUTDOWN:
     // the setting of _mode to STOP begins the shutdown process
 
     // wait at least _frame_us to ensure there aren't any pending frame timers
@@ -160,17 +140,13 @@ void Dmx::setMode(DmxMode_t mode) {
       uart_driver_delete(_uart_num);
 
       vTaskDelay(pdMS_TO_TICKS(100));
-
-      taskNotify(NotifyShutdown);
     }
+
+    esp_timer_delete(_fps_timer);
+    _fps_timer = nullptr;
     break;
 
   case STREAM_FRAMES:
-    break;
-
-  case SHUTDOWN:
-    esp_timer_delete(_fps_timer);
-    _fps_timer = nullptr;
     break;
   }
 }
@@ -178,13 +154,39 @@ void Dmx::setMode(DmxMode_t mode) {
 void Dmx::taskCore(void *task_instance) {
   Dmx_t *dmx = (Dmx_t *)task_instance;
 
+  dmx->taskInit();
   dmx->taskLoop(); // returns when _mode == SHUTDOWN
 
   // the task is complete, clean up
   TaskHandle_t task = dmx->_task.handle;
   dmx->_task.handle = nullptr;
 
+  // printf("Dmx task %p ending\n", task);
+
   vTaskDelete(task); // task is removed the scheduler
+}
+
+void Dmx::taskInit() {
+  esp_timer_create_args_t timer_args = {};
+  timer_args.callback = fpsCalculate;
+  timer_args.arg = this;
+  timer_args.dispatch_method = ESP_TIMER_TASK;
+  timer_args.name = "dmx_fps";
+
+  _init_rc = esp_timer_create(&timer_args, &_fps_timer);
+
+  if (_init_rc == ESP_OK) {
+    // the interval to count frames in µs
+    // _fpc_period is in seconds
+    _init_rc = esp_timer_start_periodic(_fps_timer, _fpc_period * 1000 * 1000);
+  }
+
+  if (_init_rc == ESP_OK) {
+    timer_args.callback = frameTimerCallback;
+    timer_args.name = "dmx frame";
+
+    _init_rc = esp_timer_create(&timer_args, &_frame_timer);
+  }
 }
 
 void IRAM_ATTR Dmx::taskLoop() {
@@ -192,7 +194,7 @@ void IRAM_ATTR Dmx::taskLoop() {
   frameTimerStart();
 
   // when _mode is SHUTDOWN this function returns
-  while (_mode != SHUTDOWN) {
+  while (_mode != STOP) {
     uint32_t val;
     auto notified =
         xTaskNotifyWait(0x00, ULONG_MAX, &val, pdMS_TO_TICKS(portMAX_DELAY));
@@ -224,8 +226,13 @@ void IRAM_ATTR Dmx::taskLoop() {
 
 BaseType_t IRAM_ATTR Dmx::taskNotify(NotifyVal_t nval) {
   const uint32_t val = static_cast<uint32_t>(nval);
-  const auto rc = xTaskNotify(task(), val, eSetValueWithOverwrite);
+  auto rc = true;
 
+  if (task()) {
+    rc = xTaskNotify(task(), val, eSetValueWithOverwrite);
+  } else {
+    rc = false;
+  }
   return rc;
 }
 
