@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "cli/lightdesk.hpp"
+#include "core/core.hpp"
 #include "lightdesk/control.hpp"
 
 namespace ruth {
@@ -69,7 +70,7 @@ uint32_t LightDeskCli::convertHex(const char *str) {
 }
 
 int LightDeskCli::execute(int argc, char **argv) {
-  LightDeskControl_t *desk_ctrl = LightDeskControl::instance();
+  LightDeskControl_t *desk_ctrl = Core::lightDeskControl();
   auto rc = true;
 
   secs->dval[0] = 1.0;

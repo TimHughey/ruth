@@ -82,13 +82,14 @@ void IRAM_ATTR I2c::command(void *data) {
     _cmd_elapsed.reset();
 
     queue_rc = xQueueReceive(_cmd_q, &payload, portMAX_DELAY);
-    // wrap in a unique_ptr so it is freed when out of scope
-    unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     if (queue_rc == pdFALSE) {
       Text::rlog("[i2c] [rc=%d] cmd queue receive failed", queue_rc);
       continue;
     }
+
+    // wrap in a unique_ptr so it is freed when out of scope
+    unique_ptr<MsgPayload_t> payload_ptr(payload);
 
     elapsedMicros parse_elapsed;
     // deserialize the msgpack data

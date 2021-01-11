@@ -77,6 +77,8 @@ public:
     stats = _stats;
   }
 
+  void stop() { _stats = FxStats(); }
+
 private:
   inline uint32_t &fxActiveCount() { return _fx_active_count; }
 

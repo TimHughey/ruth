@@ -33,6 +33,7 @@
 #include "cli/cli.hpp"
 #include "core/ota.hpp"
 #include "core/watcher.hpp"
+#include "lightdesk/control.hpp"
 #include "local/types.hpp"
 #include "misc/datetime.hpp"
 #include "misc/elapsed.hpp"
@@ -47,62 +48,74 @@ typedef class Core Core_t;
 class Core {
 public:
   Core(); // SINGLETON
-  static void start(TaskHandle_t app_task) { _instance_()->_start(app_task); };
-  static void loop() { _instance_()->_loop(); };
+  static void start(TaskHandle_t app_task) { i()->_start(app_task); };
+  static void loop() { i()->_loop(); };
+  static bool queuePayload(MsgPayload_t_ptr payload_ptr) {
+    return i()->_queuePayload(move(payload_ptr));
+  };
   static void reportTimer(TimerHandle_t handle) {
     Core_t *core = (Core_t *)pvTimerGetTimerID(handle);
     core->notifyTrackHeap();
   }
 
-  static bool enginesStarted() { return _instance_()->engines_started_; };
+  static LightDeskControl_t *lightDeskControl() { return i()->_lightdesk_ctrl; }
+
+  static bool enginesStarted() { return i()->_engines_started; };
   static uint32_t vref() { return 1100; };
 
 private:
   // private methods for singleton
-  static Core_t *_instance_();
+  static Core_t *i();
   void _loop();
+  bool _queuePayload(MsgPayload_t_ptr payload_ptr);
   void _start(xTaskHandle app_task);
-  // uint32_t _battMV();
 
   // private functions for class
   void bootComplete();
   void consoleTimestamp();
   void notifyTrackHeap() {
-    xTaskNotify(app_task_, NotifyTrackHeap, eSetValueWithOverwrite);
+    xTaskNotify(_app_task, NotifyTrackHeap, eSetValueWithOverwrite);
   }
 
   void startEngines();
   void trackHeap();
 
 private:
-  TaskHandle_t app_task_;
-  UBaseType_t priority_ = 1;
-  elapsedMillis core_elapsed_;
+  TaskHandle_t _app_task;
+  UBaseType_t _priority = 1;
+  elapsedMillis _core_elapsed;
 
-  size_t stack_size_ = CONFIG_ESP_MAIN_TASK_STACK_SIZE;
+  size_t _stack_size = CONFIG_ESP_MAIN_TASK_STACK_SIZE;
 
   // heap monitoring
-  uint32_t heap_track_ms_ = 5 * 1000;
-  size_t firstHeap_ = 0;
-  size_t availHeap_ = 0;
+  uint32_t _heap_track_ms = 5 * 1000;
+  size_t _heap_first = 0;
+  size_t _heap_avail = 0;
 
   // console timestamp reporting
-  bool timestamp_first_report_ = true;
-  uint64_t timestamp_freq_ms_ = 60 * 1000;
-  elapsedMillis timestamp_elapsed_;
+  bool _timestamp_first_report = true;
+  uint64_t _timestamp_freq_ms = 60 * 1000;
+  elapsedMillis _timestamp_elapsed;
+
+  // cmd queue
+  const int _cmd_queue_max_depth = 6;
+  QueueHandle_t _cmd_q = nullptr;
 
   // task tracking
-  UBaseType_t num_tasks_;
-  bool engines_started_ = false;
+  UBaseType_t _task_count;
+  bool _engines_started = false;
 
   // remote reading reporting timer
-  TimerHandle_t report_timer_ = nullptr;
+  TimerHandle_t _report_timer = nullptr;
 
   // Task Stack Watcher
-  Watcher_t *watcher_ = nullptr;
+  Watcher_t *_watcher = nullptr;
+
+  // Light Desk Controller
+  LightDeskControl_t *_lightdesk_ctrl = nullptr;
 
   // Command Line Interface
-  CLI_t *cli_ = nullptr;
+  CLI_t *_cli = nullptr;
 };
 
 } // namespace ruth

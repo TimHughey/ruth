@@ -22,18 +22,12 @@
 
 namespace ruth {
 
-static Dmx_t *__singleton__ = nullptr;
-
-// SINGLETON! constructor is private
 Dmx::Dmx() {
-
   _init_rc = uart_driver_install(_uart_num, 129, _tx_buff_len, 0, NULL, 0);
   _init_rc = uartInit();
 }
 
 Dmx::~Dmx() {
-  __singleton__ = nullptr;
-
   // note:  the destructor must be called by a separate task
   while (_task.handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(10));
@@ -72,7 +66,7 @@ void IRAM_ATTR Dmx::frameApplyUpdates() {
     _stats.frame.update.max = v;
   }
 
-  if (v < _stats.frame.update.min) {
+  if ((_stats.frame.update.min == 0) || (v < _stats.frame.update.min)) {
     _stats.frame.update.min = v;
   }
 }
@@ -93,59 +87,10 @@ esp_err_t IRAM_ATTR Dmx::frameTimerStart() const {
   return rc;
 }
 
-bool Dmx::isRunning() {
-  auto rc = true;
-
-  if (__singleton__ == nullptr) {
-    rc = false;
-  }
-
-  return rc;
-}
-
 void Dmx::registerHeadUnit(HeadUnit_t *unit) {
   if (_headunits < 10) {
     _headunit[_headunits] = unit;
     _headunits++;
-  }
-}
-
-void Dmx::stop() {
-  if (Dmx::isRunning()) {
-    __singleton__->taskNotify(NotifyStop);
-    __singleton__->waitForStop();
-
-    delete __singleton__;
-  }
-}
-
-void Dmx::setMode(DmxMode_t mode) {
-  _mode = mode;
-
-  switch (_mode) {
-  case INIT:
-  case PAUSE:
-    break;
-
-  case STOP:
-  case SHUTDOWN:
-    // the setting of _mode to STOP begins the shutdown process
-
-    // wait at least _frame_us to ensure there aren't any pending frame timers
-    vTaskDelay(pdMS_TO_TICKS(1));
-
-    if (uart_is_driver_installed(_uart_num)) {
-      uart_driver_delete(_uart_num);
-
-      vTaskDelay(pdMS_TO_TICKS(100));
-    }
-
-    esp_timer_delete(_fps_timer);
-    _fps_timer = nullptr;
-    break;
-
-  case STREAM_FRAMES:
-    break;
   }
 }
 
@@ -188,11 +133,11 @@ void Dmx::taskInit() {
 }
 
 void IRAM_ATTR Dmx::taskLoop() {
-  setMode(STREAM_FRAMES);
+  _mode = STREAM_FRAMES;
   frameTimerStart();
 
   // when _mode is SHUTDOWN this function returns
-  while (_mode != STOP) {
+  while (_mode != SHUTDOWN) {
     uint32_t val;
     auto notified =
         xTaskNotifyWait(0x00, ULONG_MAX, &val, pdMS_TO_TICKS(portMAX_DELAY));
@@ -208,11 +153,29 @@ void IRAM_ATTR Dmx::taskLoop() {
         break;
 
       case NotifyStop:
-        setMode(STOP);
+        _mode = STOP;
+        break;
+
+      case NotifyStreamFrames:
+        _mode = STREAM_FRAMES;
+        frameTimerStart();
         break;
 
       case NotifyShutdown:
-        setMode(SHUTDOWN);
+        _mode = SHUTDOWN;
+        // wait at least _frame_us to ensure there aren't any pending frame
+        // timers
+        vTaskDelay(pdMS_TO_TICKS(1));
+
+        if (uart_is_driver_installed(_uart_num)) {
+          uart_driver_delete(_uart_num);
+
+          vTaskDelay(pdMS_TO_TICKS(100));
+        }
+
+        esp_timer_delete(_fps_timer);
+        _fps_timer = nullptr;
+
         break;
 
       default:
@@ -256,7 +219,7 @@ int IRAM_ATTR Dmx::txBytes() {
   const float v = (uint64_t)e / 1000.0f;
 
   _stats.tx.curr = v;
-  if (v < _stats.tx.min) {
+  if ((_stats.tx.min == 0.0f) || (v < _stats.tx.min)) {
     _stats.tx.min = v;
   }
 
@@ -329,14 +292,6 @@ void Dmx::waitForStop() {
     uart_installed = uart_is_driver_installed(_uart_num);
 
   } while (uart_installed);
-}
-
-Dmx_t *Dmx::instance() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new Dmx();
-  }
-
-  return __singleton__;
 }
 
 } // namespace ruth

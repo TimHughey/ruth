@@ -48,7 +48,13 @@ public:
   LightDesk();
   ~LightDesk();
 
-  static uint64_t frameInterval() { return Dmx::frameInterval(); }
+  inline uint64_t frameInterval() {
+    if (_dmx) {
+      return _dmx->frameInterval();
+    } else {
+      return 0;
+    }
+  }
 
   bool request(const Request_t &r);
 
@@ -120,6 +126,8 @@ private:
 
 private:
   esp_err_t _init_rc = ESP_FAIL;
+
+  Dmx_t *_dmx = nullptr;
 
   LightDeskMode_t _mode = INIT;
   Request_t _request = {};

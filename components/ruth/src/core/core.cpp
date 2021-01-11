@@ -40,24 +40,26 @@ using std::max;
 using std::min;
 
 Core::Core() {
-  firstHeap_ = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-  availHeap_ = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+  _heap_first = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+  _heap_avail = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+
+  _cmd_q = xQueueCreate(_cmd_queue_max_depth, sizeof(MsgPayload_t *));
 }
 
 void Core::_loop() {
-  TickType_t notify_ticks = 0;
+  TickType_t wait_ticks = 0;
 
-  if (cli_->running()) {
-    notify_ticks = Profile::coreLoopTicks();
+  if (_cli->running()) {
+    wait_ticks = Profile::coreLoopTicks();
   } else {
+    // when the CLI is not running provide a way to start it up
     uint8_t key_buff[2] = {};
-    auto bytes = uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, key_buff, 1,
-                                 Profile::coreLoopTicks());
+    auto bytes = uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, key_buff, 1, 0);
 
     if (bytes > 0) {
       switch (key_buff[0]) {
       case 'c':
-        cli_->start();
+        _cli->start();
         break;
       case ' ':
       case '\r':
@@ -67,31 +69,56 @@ void Core::_loop() {
     }
   }
 
-  // BaseType_t xTaskNotifyWait(
-  //     uint32_t ulBitsToClearOnEntry, uint32_t ulBitsToClearOnExit,
-  //     uint32_t * pulNotificationValue, TickType_t xTicksToWait);
+  MsgPayload_t *payload = nullptr;
+  auto queue_rc = xQueueReceive(_cmd_q, &payload, wait_ticks);
 
-  uint32_t val = 0;
-  auto notify_rc = xTaskNotifyWait(0x00, ULONG_MAX, &val, notify_ticks);
+  // if we received a queued message proceess it
+  // otherwise ignore the failure because it was most likely a timeout
+  if (queue_rc == pdTRUE) {
+    // wrap in a unique_ptr so it is freed when out of scope
+    unique_ptr<MsgPayload_t> payload_ptr(payload);
 
-  if (notify_rc == pdTRUE) {
-    const NotifyVal_t notify_val = static_cast<NotifyVal_t>(val);
-
-    switch (notify_val) {
-    case NotifyTrackHeap:
-      trackHeap();
-      break;
-
-    default:
-      break;
+    if (payload->matchSubtopic("lightdesk") && _lightdesk_ctrl) {
+      _lightdesk_ctrl->handleCommand(*payload);
     }
   }
+
+  trackHeap();
+}
+
+bool Core::_queuePayload(MsgPayload_t_ptr payload_ptr) {
+  auto rc = false;
+  auto q_rc = pdTRUE;
+
+  // when the queue is full pop the first queued command to make room
+  if (_cmd_q && (uxQueueSpacesAvailable(_cmd_q) == 0)) {
+    MsgPayload_t *old = nullptr;
+
+    q_rc = xQueueReceive(_cmd_q, &old, pdMS_TO_TICKS(10));
+
+    if ((q_rc == pdTRUE) && (old != nullptr)) {
+      delete old;
+    }
+  }
+
+  if (q_rc == pdTRUE) {
+    MsgPayload_t *payload = payload_ptr.get();
+    q_rc = xQueueSendToBack(_cmd_q, (void *)&payload, pdMS_TO_TICKS(10));
+
+    if (q_rc == pdTRUE) {
+      // since the payload was queued and we need to keep it until processed
+      // release it from the unique ptr
+      payload_ptr.release();
+      rc = true;
+    }
+  }
+  return rc;
 }
 
 void Core::_start(xTaskHandle app_task) {
-  app_task_ = app_task;
+  _app_task = app_task;
 
-  cli_ = new CLI();
+  _cli = new CLI();
   StatusLED::init();
   Binder::init();
 
@@ -116,17 +143,22 @@ void Core::_start(xTaskHandle app_task) {
   // now that we have our name and protocols up, proceed with starting
   // the engines and performing actual work
   startEngines();
+
+  if (Binder::lightDeskEnabled()) {
+    _lightdesk_ctrl = new LightDeskControl();
+  }
+
   trackHeap();
   bootComplete();
   OTA::handlePendPartIfNeeded();
 
   if (Binder::cliEnabled()) {
-    cli_->start();
+    _cli->start();
   }
 
   if (Profile::watchStacks()) {
-    watcher_ = new Watcher();
-    watcher_->start();
+    _watcher = new Watcher();
+    _watcher->start();
   }
 }
 
@@ -134,26 +166,26 @@ void Core::bootComplete() {
   // boot up is successful, process any previously committed NVS messages
   // and record the successful boot
 
-  num_tasks_ = uxTaskGetNumberOfTasks();
+  _task_count = uxTaskGetNumberOfTasks();
 
   // lower main task priority since it's really just a watcher now
   UBaseType_t priority = uxTaskPriorityGet(nullptr);
 
-  if (priority > priority_) {
-    vTaskPrioritySet(nullptr, priority_);
+  if (priority > _priority) {
+    vTaskPrioritySet(nullptr, _priority);
   }
 
-  report_timer_ = xTimerCreate("core_report", pdMS_TO_TICKS(heap_track_ms_),
+  _report_timer = xTimerCreate("core_report", pdMS_TO_TICKS(_heap_track_ms),
                                pdTRUE, nullptr, &reportTimer);
-  vTimerSetTimerID(report_timer_, this);
-  xTimerStart(report_timer_, pdMS_TO_TICKS(0));
+  vTimerSetTimerID(_report_timer, this);
+  xTimerStart(_report_timer, pdMS_TO_TICKS(0));
 
   UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
 
   auto stack_used =
-      100.0 - ((float)stack_high_water / (float)stack_size_ * 100.0);
+      100.0 - ((float)stack_high_water / (float)_stack_size * 100.0);
   ESP_LOGI(TAG, "BOOT COMPLETE in %0.2fs tasks[%d] stack used[%0.1f%%] hw[%u]",
-           (float)core_elapsed_, num_tasks_, stack_used, stack_high_water);
+           (float)_core_elapsed, _task_count, stack_used, stack_high_water);
 }
 
 void Core::consoleTimestamp() {
@@ -161,33 +193,33 @@ void Core::consoleTimestamp() {
     return;
   }
 
-  if (timestamp_first_report_ == true) {
+  if (_timestamp_first_report == true) {
     // leave first report set to true, it will be set to false later
-    timestamp_first_report_ = false;
+    _timestamp_first_report = false;
   } else {
 
-    if (timestamp_elapsed_ < Profile::timestampMS()) {
+    if (_timestamp_elapsed < Profile::timestampMS()) {
       return;
     }
   }
 
   // grab the timestamp frequency seconds from the Profile and cache locally
-  if (timestamp_freq_ms_ == 0.0) {
-    timestamp_freq_ms_ = Profile::timestampMS();
+  if (_timestamp_freq_ms == 0.0) {
+    _timestamp_freq_ms = Profile::timestampMS();
   }
 
   UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
   auto stack_used =
-      100.0 - ((float)stack_high_water / (float)stack_size_) * 100.0;
+      100.0 - ((float)stack_high_water / (float)_stack_size) * 100.0;
 
   ESP_LOGI(TAG, ">> %s << %s stack used[%0.1f%%] hw[%u]", DateTime().c_str(),
            Net::hostname(), stack_used, stack_high_water);
 
-  timestamp_elapsed_.reset();
+  _timestamp_elapsed.reset();
 }
 
 void Core::startEngines() {
-  if (engines_started_) {
+  if (_engines_started) {
     return;
   }
 
@@ -199,7 +231,7 @@ void Core::startEngines() {
   I2c::startIfEnabled();
   PulseWidth::startIfEnabled();
 
-  engines_started_ = true;
+  _engines_started = true;
 }
 
 void Core::trackHeap() {
@@ -217,6 +249,6 @@ void Core::trackHeap() {
 }
 
 // STATIC!
-Core_t *Core::_instance_() { return &__singleton__; }
+Core_t *Core::i() { return &__singleton__; }
 
 } // namespace ruth

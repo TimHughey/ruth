@@ -47,7 +47,6 @@ public:
     }
 
     // gracefully shutdown protocols and network
-    Dmx::stop();
     MQTT::shutdown();
     Net::stop();
 

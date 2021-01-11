@@ -76,6 +76,7 @@ typedef enum {
   NotifyResume,
   NotifyReady,
   NotifyShutdown,
+  NotifyStreamFrames,
   NotifyDelete,
   NotifyEndOfValues,
   // core task notifications

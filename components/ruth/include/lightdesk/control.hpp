@@ -30,7 +30,26 @@ typedef class LightDeskControl LightDeskControl_t;
 using namespace lightdesk;
 
 class LightDeskControl {
+public:
+  LightDeskControl(){};
 
+  inline bool isRunning();
+  bool handleCommand(MsgPayload_t &msg);
+
+  bool reportStats() {
+    auto rc = true;
+
+    if (_desk == nullptr) {
+      printf("LightDesk offline\n");
+      rc = false;
+    } else {
+      rc = stats();
+    }
+
+    return rc;
+  }
+
+  // available functionality
 public:
   inline bool color(PinSpotFunction_t func, Rgbw_t rgbw, float strobe = 0.0f) {
     _request = Request(COLOR, func, rgbw, strobe);
@@ -38,7 +57,6 @@ public:
   }
 
   inline bool dance(const float secs) {
-    printf("LightDeskControl::dance() invoked\n");
     _request = Request(DANCE, secs);
     return setMode();
   }
@@ -63,31 +81,7 @@ public:
     return setMode();
   }
 
-  // support member functions
-
-  static LightDeskControl_t *instance() { return i(); };
-  inline bool isRunning();
-  static bool handleCommand(MsgPayload_t &msg) { return i()->command(msg); }
-
-  bool reportStats() {
-    auto rc = true;
-
-    if (_desk == nullptr) {
-      printf("LightDesk offline\n");
-      rc = false;
-    } else {
-      rc = stats();
-    }
-
-    return rc;
-  }
-
 private:
-  LightDeskControl();
-
-  bool command(MsgPayload_t &msg);
-  static LightDeskControl_t *i();
-
   bool setModeDance(const float secs);
   bool setMode() { return setMode(_request.mode()); }
   bool setMode(LightDeskMode_t mode);
@@ -97,8 +91,6 @@ private:
   LightDeskMode_t _mode = INIT;
   LightDesk *_desk = nullptr;
   Request_t _request;
-
-  float _dance_interval = 0.0;
 };
 
 } // namespace ruth

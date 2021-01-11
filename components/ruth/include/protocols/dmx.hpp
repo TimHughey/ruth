@@ -46,20 +46,18 @@ typedef class Dmx Dmx_t;
 class Dmx {
 
 public:
-  static Dmx_t *instance();
+  Dmx();
   ~Dmx();
 
-  static uint64_t frameInterval() { return instance()->_frame_us; }
-  static float frameIntervalAsSeconds() {
-    const double frame_us = static_cast<double>(instance()->_frame_us);
+  inline uint64_t frameInterval() const { return _frame_us; }
+  inline float frameIntervalAsSeconds() {
+    const double frame_us = static_cast<double>(_frame_us);
     const float frame_secs = (frame_us / (1000.0f * 1000.0f));
 
     return frame_secs;
   }
 
   float framesPerSecond() const { return _stats.fps; }
-
-  static bool isRunning();
 
   void registerHeadUnit(HeadUnit_t *unit);
 
@@ -72,17 +70,28 @@ public:
   }
 
   // task control
-  static void start() { instance()->taskStart(); }
-  static void stop();
+  void start() { taskStart(); }
+  void stop() {
+    if (_mode != STOP) {
+      taskNotify(NotifyStop);
+      vTaskDelay(pdMS_TO_TICKS(10)); // allow time for final frames to be sent
+      _stats = DmxStats();
+    }
+  }
 
-  static TaskHandle_t taskHandle() { return instance()->_task.handle; }
+  void streamFrames(bool stream = true) {
+    if ((_mode != STREAM_FRAMES) && stream) {
+      taskNotify(NotifyStreamFrames);
+
+      // allow time for initial frames to be sent}
+      vTaskDelay(pdMS_TO_TICKS(10));
+    }
+  }
 
 private:
   typedef enum { INIT = 0x00, STREAM_FRAMES, PAUSE, STOP, SHUTDOWN } DmxMode_t;
 
 private:
-  Dmx(); // singleton, constructor is private
-
   inline void busyWait(uint32_t usec, const bool reset = true) {
     if (reset) {
       _mab_elapsed.reset();
@@ -100,7 +109,6 @@ private:
   static void frameTimerCallback(void *data);
   esp_err_t frameTimerStart() const;
 
-  void setMode(DmxMode_t mode);
   int txBytes();
   void txFrame();
   esp_err_t uartInit();

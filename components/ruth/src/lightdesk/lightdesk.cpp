@@ -65,6 +65,7 @@ void IRAM_ATTR LightDesk::core() {
   _mode = READY;
 
   while (_mode != SHUTDOWN) {
+    bool stream_frames = true;
     uint32_t v = 0;
     auto notified =
         xTaskNotifyWait(0x00, ULONG_MAX, &v, pdMS_TO_TICKS(portMAX_DELAY));
@@ -73,6 +74,11 @@ void IRAM_ATTR LightDesk::core() {
       NotifyVal_t notify = static_cast<NotifyVal_t>(v);
 
       PinSpot_t *pinspot = pinSpotObject(_request.func());
+
+      // ensure DMX is streaming frames unless we're stopping or shutting down
+      if ((notify == NotifyStop) || (notify == NotifyShutdown)) {
+        stream_frames = false;
+      }
 
       switch (notify) {
 
@@ -90,13 +96,14 @@ void IRAM_ATTR LightDesk::core() {
       case NotifyDance:
         _mode = READY;
         danceStart();
-
         break;
 
       case NotifyDanceExecute:
         // prevent processing of pending timer events after a mode change
         if (_mode == DANCE) {
           danceExecute();
+        } else if (_mode == STOP) {
+          stream_frames = false;
         }
         break;
 
@@ -115,9 +122,11 @@ void IRAM_ATTR LightDesk::core() {
         break;
 
       default:
-        // no op
+        stream_frames = false;
         break;
       }
+
+      _dmx->streamFrames(stream_frames);
     }
   }
 }
@@ -200,13 +209,20 @@ uint64_t IRAM_ATTR LightDesk::danceTimerSchedule(float secs) const {
 }
 
 void LightDesk::init() {
-  Dmx::start();
+
+  if (_dmx == nullptr) {
+    _dmx = new Dmx();
+  }
+
+  _dmx->start();
 
   // dmx address 1
-  _pinspots[PINSPOT_MAIN] = new PinSpot(1, Dmx::frameInterval());
+  _pinspots[PINSPOT_MAIN] = new PinSpot(1, frameInterval());
+  _dmx->registerHeadUnit(_pinspots[PINSPOT_MAIN]);
 
   // dmx address 7
-  _pinspots[PINSPOT_FILL] = new PinSpot(7, Dmx::frameInterval());
+  _pinspots[PINSPOT_FILL] = new PinSpot(7, frameInterval());
+  _dmx->registerHeadUnit(_pinspots[PINSPOT_FILL]);
 
   _timer_args = {
       .callback = timerCallback,
@@ -285,8 +301,9 @@ const LightDeskStats_t &LightDesk::stats() {
   _stats.mode = modeDesc(_mode);
   _stats.object_size = sizeof(LightDesk_t);
 
-  Dmx_t *dmx = Dmx::instance();
-  dmx->stats(_stats.dmx);
+  if (_dmx) {
+    _dmx->stats(_stats.dmx);
+  }
 
   if (_fx) {
     _fx->stats(_stats.fx);
@@ -316,11 +333,10 @@ void LightDesk::stopActual() {
     }
   }
 
-  // Dmx_t *dmx = Dmx::instance();
-  // dmx->stop();
-  //
-  // timerDelete(_dance_timer);
-  // timerDelete(_timer);
+  vTaskDelay(10); // allow time for PinSpots to set dark
+  _fx->stop();
+  _dmx->stop();
+
   TR::rlog("LightDesk stopped");
 }
 

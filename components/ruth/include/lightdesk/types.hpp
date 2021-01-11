@@ -51,14 +51,14 @@ struct DmxStats {
 
     struct {
       uint64_t curr = 0;
-      uint64_t min = 9999;
+      uint64_t min = 0;
       uint64_t max = 0;
     } update;
   } frame;
 
   struct {
     float curr = 0.0f;
-    float min = 9999.0f;
+    float min = 0.0f;
     float max = 0.0f;
   } tx;
 };

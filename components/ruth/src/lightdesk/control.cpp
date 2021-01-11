@@ -29,43 +29,35 @@ namespace ruth {
 
 using TR = reading::Text;
 
-static LightDeskControl_t *__singleton__ = nullptr;
-
-LightDeskControl::LightDeskControl() {}
-
-bool LightDeskControl::command(MsgPayload_t &msg) {
+bool LightDeskControl::handleCommand(MsgPayload_t &msg) {
   bool rc = false;
-  StaticJsonDocument<372> doc;
-  TextBuffer<512> output;
+  StaticJsonDocument<256> doc;
 
-  auto err = deserializeMsgPack(doc, msg.payload());
+  auto err = deserializeMsgPack(doc, msg.data());
 
-  serializeJson(doc, output.data(), output.capacity());
-
-  auto root = doc.as<JsonObject>();
+  const auto root = doc.as<JsonObject>();
 
   if (err) {
     TR::rlog("LightDesk command parse failure: %s", err.c_str());
     return rc;
   }
 
-  auto dance_obj = root["dance"].as<JsonObject>();
-  auto mode_obj = root["mode"].as<JsonObject>();
-
-  if (dance_obj) {
-    _dance_interval = dance_obj["interval_secs"];
-
-    rc = dance(_dance_interval);
-  }
+  const auto mode_obj = root["mode"].as<JsonObject>();
 
   if (mode_obj) {
     const bool ready_flag = mode_obj["ready"];
     const bool stop_flag = mode_obj["stop"];
+    const bool dance_flag = mode_obj["dance"];
 
     if (ready_flag) {
-      ready();
-    }
-    if (stop_flag) {
+      rc = ready();
+
+    } else if (dance_flag) {
+      const auto dance_interval = mode_obj["opts"]["interval_secs"] | 23.3;
+
+      rc = dance(dance_interval);
+
+    } else if (stop_flag) {
       stop();
     }
 
@@ -83,14 +75,6 @@ bool LightDeskControl::isRunning() {
   }
 
   return rc;
-}
-
-LightDeskControl_t *LightDeskControl::i() {
-  if (__singleton__ == nullptr) {
-    __singleton__ = new LightDeskControl();
-  }
-
-  return __singleton__;
 }
 
 bool LightDeskControl::setMode(LightDeskMode_t mode) {
@@ -133,6 +117,7 @@ bool LightDeskControl::stats() {
 
   printf("%-*s%02.02ffps frame=%5.3fms shorts=%llu ", indent_size,
          "dmx:", dmx.fps, frame_ms, dmx.frame.shorts);
+
   printf("frame_update: curr=%lluµs min=%lluµs max=%lluµs\n",
          dmx.frame.update.curr, dmx.frame.update.min, dmx.frame.update.max);
   printf("%stx curr=%02.02fms min=%02.02fms max=%02.02fms\n", indent,

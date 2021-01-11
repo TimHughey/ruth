@@ -33,7 +33,6 @@
 #include "engines/ds.hpp"
 #include "engines/i2c.hpp"
 #include "engines/pwm.hpp"
-#include "lightdesk/control.hpp"
 #include "local/types.hpp"
 #include "misc/restart.hpp"
 #include "misc/status_led.hpp"
@@ -100,9 +99,11 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
     if (payload->matchSubtopic("pwm")) {
       matched = true;
       payload_rc = PulseWidth::queuePayload(move(payload_ptr));
+
     } else if (payload->matchSubtopic("i2c")) {
       matched = true;
       payload_rc = I2c::queuePayload(move(payload_ptr));
+
     } else if (payload->matchSubtopic("ds")) {
       matched = true;
       payload_rc = DallasSemi::queuePayload(move(payload_ptr));
@@ -123,10 +124,11 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
     if (payload->matchSubtopic("raw")) {
       matched = true;
       payload_rc = CLI::remoteLine(payload);
+
     } else if (payload->matchSubtopic("lightdesk")) {
       matched = true;
-      payload_rc = LightDeskControl::handleCommand(*payload);
-      printf("handleCommand() returned\n");
+      payload_rc = Core::queuePayload(move(payload_ptr));
+
     } else if (payload->matchSubtopic("profile")) {
       matched = true;
       Profile::fromRaw(payload);
@@ -134,6 +136,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
       if (Profile::valid()) {
         payload_rc = Profile::postParseActions();
       }
+
     } else if (payload->matchSubtopic("ota")) {
       matched = true;
       payload_rc = OTA::queuePayload(move(payload_ptr));
