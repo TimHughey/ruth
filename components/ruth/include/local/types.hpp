@@ -62,7 +62,7 @@ typedef enum {
   NotifyTimer = 0x1001,
   NotifyFrame,
   NotifyFaderTimer,
-  // notifications for commands
+  // notifications for LightDesk commands
   NotifyQueue = 0x2001,
   NotifyColor,
   NotifyDark,
@@ -77,7 +77,10 @@ typedef enum {
   NotifyReady,
   NotifyShutdown,
   NotifyDelete,
-  NotifyEndOfValues
+  NotifyEndOfValues,
+  // core task notifications
+  NotifyTrackHeap = 0x4001,
+  NotifyLightDeskController
 } NotifyVal_t;
 
 } // namespace ruth

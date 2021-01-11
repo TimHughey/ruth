@@ -38,7 +38,7 @@ PinSpot::~PinSpot() {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
-  // printf("PinSpot %p deleted\n", this);
+  printf("PinSpot %p deleted\n", this);
 }
 
 void PinSpot::autoRun(Fx_t fx) {

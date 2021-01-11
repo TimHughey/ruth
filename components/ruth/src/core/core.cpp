@@ -71,11 +71,20 @@ void Core::_loop() {
   //     uint32_t ulBitsToClearOnEntry, uint32_t ulBitsToClearOnExit,
   //     uint32_t * pulNotificationValue, TickType_t xTicksToWait);
 
-  uint32_t notify_val = 0;
-  auto notify_rc = xTaskNotifyWait(0x00, ULONG_MAX, &notify_val, notify_ticks);
+  uint32_t val = 0;
+  auto notify_rc = xTaskNotifyWait(0x00, ULONG_MAX, &val, notify_ticks);
 
-  if ((notify_rc == pdTRUE) && (notify_val == 0x01)) {
-    trackHeap();
+  if (notify_rc == pdTRUE) {
+    const NotifyVal_t notify_val = static_cast<NotifyVal_t>(val);
+
+    switch (notify_val) {
+    case NotifyTrackHeap:
+      trackHeap();
+      break;
+
+    default:
+      break;
+    }
   }
 }
 

@@ -68,7 +68,7 @@ private:
   void bootComplete();
   void consoleTimestamp();
   void notifyTrackHeap() {
-    xTaskNotify(app_task_, 0x01, eSetValueWithOverwrite);
+    xTaskNotify(app_task_, NotifyTrackHeap, eSetValueWithOverwrite);
   }
 
   void startEngines();

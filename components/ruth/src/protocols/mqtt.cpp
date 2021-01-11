@@ -126,6 +126,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
     } else if (payload->matchSubtopic("lightdesk")) {
       matched = true;
       payload_rc = LightDeskControl::handleCommand(*payload);
+      printf("handleCommand() returned\n");
     } else if (payload->matchSubtopic("profile")) {
       matched = true;
       Profile::fromRaw(payload);

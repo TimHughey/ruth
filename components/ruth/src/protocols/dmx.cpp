@@ -38,8 +38,6 @@ Dmx::~Dmx() {
   while (_task.handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
-
-  // printf("Dmx %p deleted\n", this);
 }
 
 void IRAM_ATTR Dmx::fpsCalculate(void *data) {

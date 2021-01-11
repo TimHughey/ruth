@@ -54,7 +54,7 @@ LightDesk::~LightDesk() {
   }
 
   while (_task.handle != nullptr) {
-    // printf("LightDesk::~LightDesk() waiting for task to exit\n");
+    printf("LightDesk::~LightDesk() waiting for task to exit\n");
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
@@ -64,7 +64,7 @@ LightDesk::~LightDesk() {
 void IRAM_ATTR LightDesk::core() {
   _mode = READY;
 
-  while (_mode != STOP) {
+  while (_mode != SHUTDOWN) {
     uint32_t v = 0;
     auto notified =
         xTaskNotifyWait(0x00, ULONG_MAX, &v, pdMS_TO_TICKS(portMAX_DELAY));
@@ -308,11 +308,19 @@ void LightDesk::stopActual() {
 
   PulseWidth::off(1);
 
-  Dmx_t *dmx = Dmx::instance();
-  dmx->stop();
+  for (uint32_t i = PINSPOT_MAIN; i < PINSPOT_NONE; i++) {
+    PinSpot_t *pinspot = _pinspots[i];
 
-  timerDelete(_dance_timer);
-  timerDelete(_timer);
+    if (pinspot) {
+      pinspot->dark();
+    }
+  }
+
+  // Dmx_t *dmx = Dmx::instance();
+  // dmx->stop();
+  //
+  // timerDelete(_dance_timer);
+  // timerDelete(_timer);
   TR::rlog("LightDesk stopped");
 }
 

@@ -35,9 +35,12 @@ LightDeskControl::LightDeskControl() {}
 
 bool LightDeskControl::command(MsgPayload_t &msg) {
   bool rc = false;
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<372> doc;
+  TextBuffer<512> output;
 
-  auto err = deserializeMsgPack(doc, msg.data());
+  auto err = deserializeMsgPack(doc, msg.payload());
+
+  serializeJson(doc, output.data(), output.capacity());
 
   auto root = doc.as<JsonObject>();
 
@@ -91,28 +94,13 @@ LightDeskControl_t *LightDeskControl::i() {
 }
 
 bool LightDeskControl::setMode(LightDeskMode_t mode) {
-  auto rc = false;
   _mode = mode;
 
-  // there are two top-level conditions to handle:
-  //   1. stop
-  //   2. issue a request
-  if ((mode == STOP) && _desk) {
-    // stop requested and _desk is active
-    LightDesk *desk = _desk;
-    _desk = nullptr;
-
-    rc = desk->request(_request);
-    delete desk;
-  } else if (mode != STOP) {
-    // issuing a request requires an active LightDesk subsystem, start one if
-    // not available
-    if (_desk == nullptr) {
-      _desk = new LightDesk();
-    }
-
-    rc = _desk->request(_request); // issue the request to the LightDesk
+  if (_desk == nullptr) {
+    _desk = new LightDesk();
   }
+
+  auto rc = _desk->request(_request);
 
   return rc;
 }
