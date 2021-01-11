@@ -107,18 +107,20 @@ bool LightDeskControl::setMode(LightDeskMode_t mode) {
 
 bool LightDeskControl::stats() {
   auto rc = true;
-  static const char *indent = "                ";
+  static const char *indent = "                    ";
+  const size_t indent_size = strlen(indent);
   const LightDeskStats_t &stats = _desk->stats();
   const DmxStats_t &dmx = stats.dmx;
   const FxStats_t &fx = stats.fx;
 
   printf("\n");
-  printf("lightdesk:      mode=%s object_size=%u\n", stats.mode,
+  printf("%-*smode=%s object_size=%u\n", indent_size, "lightdesk:", stats.mode,
          stats.object_size);
 
   printf("\n");
-  printf("lightdesk_fx:   basic=%llu active=%s next=%s prev=%s\n", fx.fx.basic,
-         fxDesc(fx.fx.active), fxDesc(fx.fx.next), fxDesc(fx.fx.prev));
+  printf("%-*sbasic=%llu active=%s next=%s prev=%s\n", indent_size,
+         "lightdesk_fx:", fx.fx.basic, fxDesc(fx.fx.active), fxDesc(fx.fx.next),
+         fxDesc(fx.fx.prev));
 
   printf("%sinterval curr=%4.2fs min=%4.2fs max=%4.2fs base=%4.2fs\n", indent,
          fx.interval.current, fx.interval.min, fx.interval.max,
@@ -129,8 +131,8 @@ bool LightDeskControl::stats() {
 
   const float frame_ms = (float)dmx.frame.us / 1000.f;
 
-  printf("dmx:            %02.02ffps frame=%5.3fms shorts=%llu ", dmx.fps,
-         frame_ms, dmx.frame.shorts);
+  printf("%-*s%02.02ffps frame=%5.3fms shorts=%llu ", indent_size,
+         "dmx:", dmx.fps, frame_ms, dmx.frame.shorts);
   printf("frame_update: curr=%lluµs min=%lluµs max=%lluµs\n",
          dmx.frame.update.curr, dmx.frame.update.min, dmx.frame.update.max);
   printf("%stx curr=%02.02fms min=%02.02fms max=%02.02fms\n", indent,
@@ -146,11 +148,16 @@ bool LightDeskControl::stats() {
     TextBuffer<16> name;
     name.printf("pinspot %02d:", i);
 
-    printf("%-16snotify count=%llu retries=%llu failures=%llu\n", name.c_str(),
-           pinspot.notify.count, pinspot.notify.retries,
+    printf("%-*snotify count=%llu retries=%llu failures=%llu\n", indent_size,
+           name.c_str(), pinspot.notify.count, pinspot.notify.retries,
            pinspot.notify.failures);
     printf("%sobject_size=%u\n", indent, pinspot.object_size);
   }
+
+  printf("\n");
+
+  printf("%-*sobject_size=%u\n", indent_size,
+         "lightdeskcontrol:", sizeof(LightDeskControl_t));
 
   printf("\n");
 

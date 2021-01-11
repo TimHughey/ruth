@@ -130,25 +130,6 @@ void Core::_start(xTaskHandle app_task) {
   }
 }
 
-// uint32_t Core::_battMV() {
-//   uint32_t batt_raw = 0;
-//   uint32_t batt_mv = 0;
-//
-//   // per ESP32 documentation ADC readings typically include noise.
-//   // so, perform more than one reading then take the average
-//   for (uint32_t i = 0; i < batt_measurements_; i++) {
-//     batt_raw += adc1_get_raw((adc1_channel_t)battery_adc_);
-//   }
-//
-//   batt_raw /= batt_measurements_;
-//
-//   // the pin used to measure battery millivolts is connected to a voltage
-//   // divider so double the voltage
-//   batt_mv = esp_adc_cal_raw_to_voltage(batt_raw, adc_chars_) * 2;
-//
-//   return batt_mv;
-// }
-
 void Core::bootComplete() {
   // boot up is successful, process any previously committed NVS messages
   // and record the successful boot
