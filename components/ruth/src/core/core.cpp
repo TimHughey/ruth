@@ -142,7 +142,7 @@ void Core::_start(xTaskHandle app_task) {
   // the engines and performing actual work
   startEngines();
 
-  if (Binder::lightDeskEnabled()) {
+  if (Profile::lightDeskEnabled()) {
     _lightdesk_ctrl = new LightDeskControl();
   }
 

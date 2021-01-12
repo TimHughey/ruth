@@ -49,10 +49,6 @@ public:
       component = _i_()->_cli;
       break;
 
-    case BINDER_LIGHTDESK:
-      component = _i_()->_lightdesk;
-      break;
-
     default:
       break;
     }
@@ -76,9 +72,6 @@ public:
 
   // Runtime environment
   static const char *env() { return _i_()->meta_["env"] | "prod"; }
-
-  // LightDesk
-  static bool lightDeskEnabled() { return componentEnabled(BINDER_LIGHTDESK); }
 
   // MQTT
   static const char *mqttPasswd() { return _i_()->mqtt_["passwd"]; };

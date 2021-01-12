@@ -82,6 +82,11 @@ int LightDeskCli::execute(int argc, char **argv) {
     return 1;
   }
 
+  if (desk_ctrl == nullptr) {
+    printf("LightDesk not enabled\n");
+    return 1;
+  }
+
   if (stats->count > 0) {
     rc = desk_ctrl->reportStats();
     return invertReturnCode(rc);

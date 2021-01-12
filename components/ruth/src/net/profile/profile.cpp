@@ -43,7 +43,7 @@ static const bool _unset_bool = false;
 uint32_t Profile::engineTaskInterval(EngineTypes_t engine_type,
                                      EngineTaskTypes_t task_type) {
 
-  const PET_t &pet = _instance_()._engine_tasks[engine_type][task_type];
+  const PET_t &pet = i()._engine_tasks[engine_type][task_type];
 
   return pet.intervalMS();
 }
@@ -52,7 +52,7 @@ uint32_t Profile::engineTaskInterval(EngineTypes_t engine_type,
 TickType_t Profile::engineTaskIntervalTicks(EngineTypes_t engine_type,
                                             EngineTaskTypes_t task_type) {
 
-  const PET_t &pet = _instance_()._engine_tasks[engine_type][task_type];
+  const PET_t &pet = i()._engine_tasks[engine_type][task_type];
 
   return pdMS_TO_TICKS(pet.intervalMS());
 }
@@ -61,7 +61,7 @@ TickType_t Profile::engineTaskIntervalTicks(EngineTypes_t engine_type,
 uint32_t Profile::engineTaskPriority(EngineTypes_t engine_type,
                                      EngineTaskTypes_t task_type) {
 
-  const PET_t &pet = _instance_()._engine_tasks[engine_type][task_type];
+  const PET_t &pet = i()._engine_tasks[engine_type][task_type];
 
   return pet.priority();
 }
@@ -70,7 +70,7 @@ uint32_t Profile::engineTaskPriority(EngineTypes_t engine_type,
 uint32_t Profile::engineTaskStack(EngineTypes_t engine_type,
                                   EngineTaskTypes_t task_type) {
 
-  const PET_t &pet = _instance_()._engine_tasks[engine_type][task_type];
+  const PET_t &pet = i()._engine_tasks[engine_type][task_type];
 
   return pet.stackSize();
 }
@@ -105,6 +105,7 @@ void Profile::_fromRaw(MsgPayload_t *payload) {
 
   const JsonObject meta = root["meta"];
   const JsonObject core = root["core"];
+  const JsonObject lightdesk = root["lightdesk"];
   const JsonObject misc = root["misc"];
 
   _assigned_name = root["assigned_name"] | "none";
@@ -118,6 +119,8 @@ void Profile::_fromRaw(MsgPayload_t *payload) {
   _watch_stacks = misc["watch_stacks"] | _watch_stacks;
   _core_loop_ms = core["loop_ms"] | _core_loop_ms;
   _core_timestamp_ms = core["timestamp_ms"] | _core_timestamp_ms;
+
+  _lightdesk_enabled = lightdesk["enable"] | false;
 
   _i2c_mplex = misc["i2c_mplex"] | _i2c_mplex;
 
@@ -150,5 +153,5 @@ void Profile::_fromRaw(MsgPayload_t *payload) {
 }
 
 // STATIC
-Profile_t &Profile::_instance_() { return singleton; }
+Profile_t &Profile::i() { return singleton; }
 } // namespace ruth

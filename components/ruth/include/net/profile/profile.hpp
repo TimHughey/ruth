@@ -46,23 +46,19 @@ class Profile {
 public:
   Profile(){};
 
-  static bool postParseActions() { return _instance_()._postParseActions(); };
+  static bool postParseActions() { return i()._postParseActions(); };
 
-  static const char *assignedName() {
-    return _instance_()._assigned_name.c_str();
-  };
+  static const char *assignedName() { return i()._assigned_name.c_str(); };
 
-  static uint32_t coreLoopTicks() {
-    return pdMS_TO_TICKS(_instance_()._core_loop_ms);
-  }
+  static uint32_t coreLoopTicks() { return pdMS_TO_TICKS(i()._core_loop_ms); }
 
   // was the Profile received within the previous 60 seconds
   static bool current() {
-    return (_instance_()._mtime > (time(nullptr) - 60)) ? true : false;
+    return (i()._mtime > (time(nullptr) - 60)) ? true : false;
   }
 
   static bool engineEnabled(EngineTypes_t engine_type) {
-    return _instance_()._engine_enabled[engine_type];
+    return i()._engine_enabled[engine_type];
   }
 
   static uint32_t engineTaskInterval(EngineTypes_t engine_type,
@@ -77,30 +73,28 @@ public:
   static uint32_t engineTaskStack(EngineTypes_t engine_type,
                                   EngineTaskTypes_t task_type);
 
-  static void fromRaw(MsgPayload_t *payload) {
-    _instance_()._fromRaw(payload);
-  };
+  static void fromRaw(MsgPayload_t *payload) { i()._fromRaw(payload); };
 
   // MISC
-  static bool i2cMultiplexer() { return _instance_()._i2c_mplex; };
+  static bool i2cMultiplexer() { return i()._i2c_mplex; };
 
-  static const char *profileName() {
-    return _instance_()._profile_name.c_str();
-  };
+  static bool lightDeskEnabled() { return i()._lightdesk_enabled; }
 
-  static uint64_t timestampMS() { return _instance_()._core_timestamp_ms; }
+  static const char *profileName() { return i()._profile_name.c_str(); };
 
-  static bool valid() { return _instance_()._valid; }
+  static uint64_t timestampMS() { return i()._core_timestamp_ms; }
 
-  static const char *version() { return _instance_()._version.c_str(); };
+  static bool valid() { return i()._valid; }
 
-  static bool watchStacks() { return _instance_()._watch_stacks; }
+  static const char *version() { return i()._version.c_str(); };
+
+  static bool watchStacks() { return i()._watch_stacks; }
 
 private:
   Profile(MsgPayload_t *payload); // SINGLETON!  constructor is private
 
   void _fromRaw(MsgPayload_t *payload);
-  static Profile_t &_instance_();
+  static Profile_t &i();
 
   bool _postParseActions();
 
@@ -130,6 +124,7 @@ private:
 
   // misc
   bool _i2c_mplex = false;
+  bool _lightdesk_enabled = false;
 
   // array of engine enabled
   bool _engine_enabled[ENGINE_END_OF_LIST];
