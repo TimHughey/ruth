@@ -334,8 +334,14 @@ void LightDesk::stopActual() {
   }
 
   vTaskDelay(10); // allow time for PinSpots to set dark
-  _fx->stop();
-  _dmx->stop();
+
+  if (_fx) {
+    _fx->stop();
+  }
+
+  if (_dmx) {
+    _dmx->stop();
+  }
 
   TR::rlog("LightDesk stopped");
 }
