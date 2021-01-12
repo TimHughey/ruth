@@ -81,7 +81,10 @@ typedef enum {
   NotifyEndOfValues,
   // core task notifications
   NotifyTrackHeap = 0x4001,
-  NotifyLightDeskController
+  NotifyLightDeskController,
+  // misc supporting task notifications
+  NotifyOtaStart = 0x5001,
+  NotifyOtaCancel
 } NotifyVal_t;
 
 } // namespace ruth

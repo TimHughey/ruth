@@ -34,6 +34,10 @@ MsgPayload::MsgPayload(esp_mqtt_event_t *event) {
   }
 }
 
+MsgPayload::MsgPayload(const char *subtopic) {
+  _topic_parts[PART_SUBTOPIC].printf("%s", subtopic);
+}
+
 MsgPayload::MsgPayload(const void *data, size_t len) {
   _data.assign(static_cast<const char *>(data), len);
 }

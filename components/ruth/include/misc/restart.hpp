@@ -29,7 +29,7 @@
 #include "net/network.hpp"
 #include "protocols/dmx.hpp"
 #include "protocols/mqtt.hpp"
-#include "readings/readings.hpp"
+#include "readings/text.hpp"
 
 namespace ruth {
 
@@ -37,13 +37,15 @@ typedef class Restart Restart_t;
 
 class Restart {
 
+  using TR = reading::Text;
+
 public:
   Restart(const char *text = nullptr, const char *func = nullptr,
           uint32_t reboot_delay_ms = 0) {
     if (text && func) {
-      Text::rlog("\"%s\" %s", text, func);
+      TR::rlog("\"%s\" %s", text, func);
     } else if (text) {
-      Text::rlog("\"%s\"", text);
+      TR::rlog("%s", text);
     }
 
     // gracefully shutdown protocols and network

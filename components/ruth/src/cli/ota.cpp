@@ -24,6 +24,7 @@
 
 #include "cli/ota.hpp"
 #include "core/binder.hpp"
+#include "core/core.hpp"
 #include "core/ota.hpp"
 
 namespace ruth {
@@ -60,7 +61,7 @@ int OtaCli::execute(int argc, char **argv) {
   }
 
   if (mark_valid->count > 0) {
-    OTA::markPartitionValid();
+    OTA::partitionMarkValid();
   } else {
 
     OtaUri_t uri;
@@ -72,11 +73,12 @@ int OtaCli::execute(int argc, char **argv) {
     JsonObject root = doc.to<JsonObject>();
     root["uri"] = uri.c_str();
 
-    TextBuffer<128> msgpack;
-    auto bytes = serializeMsgPack(doc, msgpack.data(), msgpack.capacity());
-    msgpack.forceSize(bytes);
+    MsgPayload_t *payload = new MsgPayload("ota");
 
-    OTA::queuePayload(msgpack.c_str());
+    serializeMsgPack(doc, payload->data(), payload->dataCapacity());
+
+    MsgPayload_t_ptr payload_ptr(payload);
+    Core::queuePayload(move(payload_ptr));
   }
 
   return 0;

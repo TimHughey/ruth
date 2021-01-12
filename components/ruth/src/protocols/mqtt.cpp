@@ -125,7 +125,8 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
       matched = true;
       payload_rc = CLI::remoteLine(payload);
 
-    } else if (payload->matchSubtopic("lightdesk")) {
+    } else if ((payload->matchSubtopic("lightdesk")) ||
+               (payload->matchSubtopic("ota"))) {
       matched = true;
       payload_rc = Core::queuePayload(move(payload_ptr));
 
@@ -136,10 +137,6 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
       if (Profile::valid()) {
         payload_rc = Profile::postParseActions();
       }
-
-    } else if (payload->matchSubtopic("ota")) {
-      matched = true;
-      payload_rc = OTA::queuePayload(move(payload_ptr));
 
     } else if (payload->matchSubtopic("restart")) {
       Restart("restart requested", __PRETTY_FUNCTION__);
@@ -234,11 +231,6 @@ void MQTT::core(void *data) {
       ESP_LOGV(TAG, "reporting to feed[%s]", _feed_rpt.c_str());
       ESP_LOGI(TAG, "after announce stack used[%0.1f%%] hw[%u]", stack_percent,
                stack_high_water);
-    }
-
-    if ((_msg_max_size > _msg_max_size_reported) && Net::waitForName(0)) {
-      _msg_max_size_reported = _msg_max_size;
-      TR::rlog("[MQTT] message size max[%d]", _msg_max_size);
     }
 
     vTaskDelay(1000);
@@ -467,8 +459,6 @@ bool MQTT::publishActual(const char *msg, size_t len) {
 
   _msg_id = esp_mqtt_client_publish(_connection, _feed_rpt.c_str(), msg, len,
                                     _feed_qos, false);
-
-  _msg_max_size = max(len, _msg_max_size);
 
   // esp_mqtt_client_publish returns the msg_id on success, -1 if failed
   return (_msg_id >= 0) ? true : Restart().now();

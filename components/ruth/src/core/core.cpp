@@ -79,6 +79,16 @@ void Core::_loop() {
     if (payload->matchSubtopic("lightdesk") && _lightdesk_ctrl) {
       _lightdesk_ctrl->handleCommand(*payload);
     }
+
+    if (payload->matchSubtopic("ota")) {
+      _ota = new OTA();
+      _ota->start();
+      if (_ota->handleCommand(*payload) == false) {
+        // OTA initialization failed, clean up
+        delete _ota;
+        _ota = nullptr;
+      };
+    }
   }
 
   trackHeap();
@@ -148,7 +158,7 @@ void Core::_start(xTaskHandle app_task) {
 
   trackHeap();
   bootComplete();
-  OTA::handlePendPartIfNeeded();
+  OTA::partitionHandlePendingIfNeeded();
 
   if (Binder::cliEnabled()) {
     _cli->start();

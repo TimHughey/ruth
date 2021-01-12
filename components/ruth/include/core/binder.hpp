@@ -35,8 +35,8 @@ class Binder {
 
 public:
   Binder(){}; // SINGLETON
-  static void init() { _i_()->_init_(); }
-  static Binder_t *instance() { return _i_(); }
+  static void init() { i()->_init_(); }
+  static Binder_t *instance() { return i(); }
 
   // Command Line Interface
   static bool cliEnabled() { return componentEnabled(BINDER_CLI); }
@@ -46,7 +46,7 @@ public:
 
     switch (category) {
     case BINDER_CLI:
-      component = _i_()->_cli;
+      component = i()->_cli;
       break;
 
     default:
@@ -62,7 +62,7 @@ public:
   }
 
   // cli interface
-  const char *basePath() const { return base_path_; }
+  const char *basePath() const { return _base_path; }
   size_t copyToFilesystem();
   int ls(const char *path = nullptr);
   size_t pretty(BinderPrettyJson_t &buff);
@@ -71,49 +71,47 @@ public:
   int versions();
 
   // Runtime environment
-  static const char *env() { return _i_()->meta_["env"] | "prod"; }
+  static const char *env() { return i()->_meta["env"] | "prod"; }
 
   // MQTT
-  static const char *mqttPasswd() { return _i_()->mqtt_["passwd"]; };
-  static size_t mqttReconnectMs() { return _i_()->mqtt_["reconnect_ms"]; }
-  static size_t mqttRxBuffer() { return _i_()->mqtt_["rx_buffer"]; }
-  static size_t mqttTxBuffer() { return _i_()->mqtt_["tx_buffer"]; }
-  static uint32_t mqttTaskPriority() { return _i_()->mqtt_["task_priority"]; };
-  static const char *mqttUri() { return _i_()->mqtt_["uri"]; }
-  static const char *mqttUser() { return _i_()->mqtt_["user"]; }
+  static const char *mqttPasswd() { return i()->_mqtt["passwd"]; };
+  static size_t mqttReconnectMs() { return i()->_mqtt["reconnect_ms"]; }
+  static size_t mqttRxBuffer() { return i()->_mqtt["rx_buffer"]; }
+  static size_t mqttTxBuffer() { return i()->_mqtt["tx_buffer"]; }
+  static uint32_t mqttTaskPriority() { return i()->_mqtt["task_priority"]; };
+  static const char *mqttUri() { return i()->_mqtt["uri"]; }
+  static const char *mqttUser() { return i()->_mqtt["user"]; }
 
   // NTP
-  static const char *ntpServer(int index) { return _i_()->ntp_servers_[index]; }
+  static const char *ntpServer(int index) { return i()->_ntp_servers[index]; }
 
   // OTA
-  static const char *otaHost() {
-    return _i_()->ota_["host"] | "www.example.com";
-  }
+  static const char *otaHost() { return i()->_ota["host"] | "www.example.com"; }
 
-  static const char *otaPath() { return _i_()->ota_["path"] | "nested/path"; }
-
-  static const char *otaFile() { return _i_()->ota_["file"] | "latest.bin"; }
+  static const char *otaPath() { return i()->_ota["path"] | "nested/path"; }
+  static const char *otaFile() { return i()->_ota["file"] | "latest.bin"; }
+  static uint32_t otaValidMs() { return i()->_ota["valid_ms"] | 60000; }
 
   // WiFi
-  static const char *wifiSsid() { return _i_()->wifi_["ssid"]; }
-  static const char *wifiPasswd() { return _i_()->wifi_["passwd"]; }
+  static const char *wifiSsid() { return i()->_wifi["ssid"]; }
+  static const char *wifiPasswd() { return i()->_wifi["passwd"]; }
 
 private:
   void _init_();
-  static Binder *_i_();
+  static Binder *i();
 
   DeserializationError deserialize(JsonDocument &doc, BinderRaw_t &buff) const;
   void load();
   void parse();
 
 private:
-  const esp_vfs_fat_mount_config_t mount_config_ = {
+  const esp_vfs_fat_mount_config_t _mount_config = {
       .format_if_mount_failed = true,
       .max_files = 4,
       .allocation_unit_size = CONFIG_WL_SECTOR_SIZE};
 
-  wl_handle_t s_wl_handle_ = WL_INVALID_HANDLE;
-  const char *base_path_ = "/r";
+  wl_handle_t _s_wl_handle = WL_INVALID_HANDLE;
+  const char *_base_path = "/r";
 
   const static size_t _doc_capacity =
       JSON_ARRAY_SIZE(2) + 2 * JSON_OBJECT_SIZE(1) + 2 * JSON_OBJECT_SIZE(2) +
@@ -123,23 +121,23 @@ private:
   static const uint8_t _embed_end_[] asm("_binary_binder_0_mp_end");
   static const size_t _embed_length_ asm("binder_0_mp_length");
 
-  const char *binder_file_ = "/r/binder_0.mp";
+  const char *_binder_file = "/r/binder_0.mp";
 
-  BinderRaw_t embed_raw_;
-  BinderRaw_t file_raw_;
+  BinderRaw_t _embed_raw;
+  BinderRaw_t _file_raw;
 
-  StaticJsonDocument<_doc_capacity> embed_doc_;
-  StaticJsonDocument<_doc_capacity> file_doc_;
+  StaticJsonDocument<_doc_capacity> _embed_doc;
+  StaticJsonDocument<_doc_capacity> _file_doc;
   JsonObject _root;
   JsonObject _cli;
   JsonObject _lightdesk;
-  JsonObject meta_;
-  JsonObject mqtt_;
-  JsonArray ntp_servers_;
-  JsonObject ota_;
-  JsonObject wifi_;
+  JsonObject _meta;
+  JsonObject _mqtt;
+  JsonArray _ntp_servers;
+  JsonObject _ota;
+  JsonObject _wifi;
 
-  time_t versions_[2] = {0, 0};
+  time_t _versions[2] = {0, 0};
 };
 } // namespace ruth
 

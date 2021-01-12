@@ -19,85 +19,80 @@
 */
 
 #include "core/ota.hpp"
+#include "core/binder.hpp"
 #include "external/ArduinoJson.h"
 #include "misc/restart.hpp"
 
 namespace ruth {
-using namespace reading;
 
-static OTA_t __singleton__;
+using TR = reading::Text;
 
-// document examples:
-// OTA:
-//  {"cmd":"ota","mtime":1589852135,
-//   "uri":"https://www.wisslanding.com/helen/firmware/latest.bin"}
-//
-// RESTART:
-//  {"cmd":"restart","mtime":1589852135}
-//
+void OTA::core() {
+  // wait for notification to start
+  uint32_t v = 0;
+  xTaskNotifyWait(0x00, ULONG_MAX, &v, pdMS_TO_TICKS(portMAX_DELAY));
+  NotifyVal_t notify_val = static_cast<NotifyVal_t>(v);
 
-void OTA::_handlePendPartIfNeeded_() {
-  const esp_partition_t *run_part = esp_ota_get_running_partition();
-  esp_ota_img_states_t ota_state;
+  switch (notify_val) {
+  case NotifyOtaStart:
+    perform();
+    break;
 
-  if (esp_ota_get_state_partition(run_part, &ota_state) == ESP_OK) {
-    if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
-      _valid_timer = xTimerCreate("ota_validate", pdMS_TO_TICKS(_ota_valid_ms),
-                                  pdFALSE, nullptr, &markPartitionValid);
-      vTimerSetTimerID(_valid_timer, this);
-      xTimerStart(_valid_timer, pdMS_TO_TICKS(0));
+  case NotifyOtaCancel:
+  default:
+    TR::rlog("OTA cancel");
+    break;
+  }
+}
+
+OTA::~OTA() {
+  while (_task.handle != nullptr) {
+    vTaskDelay(10);
+  }
+}
+
+void OTA::coreTask(void *task_data) {
+  OTA_t *ota = (OTA_t *)task_data;
+  ota->core();
+
+  TaskHandle_t task = ota->taskHandle();
+  ota->taskHandle() = nullptr;
+  vTaskDelete(task); // remove task from scheduler
+}
+
+bool OTA::handleCommand(MsgPayload_t &msg) {
+  auto rc = true; // initial assumption is success
+
+  const size_t _capacity = JSON_OBJECT_SIZE(3) + 336;
+  StaticJsonDocument<_capacity> doc;
+  // deserialize the msgpack data, use data() (returns char *)
+  // to allow deserializeMsgPack() to minimize copying data
+  //
+  DeserializationError err = deserializeMsgPack(doc, msg.data());
+
+  if (err) {
+    TR::rlog("failed to parse OTA message: %s", err.c_str());
+    rc = false;
+  } else {
+    _uri = doc["uri"] | "";
+
+    if (strlen(_uri) < 3) {
+      rc = false;
     }
   }
-}
 
-bool OTA::queuePayload(MsgPayload_t_ptr payload_ptr) {
-  const size_t _capacity = JSON_OBJECT_SIZE(3) + 336;
-  // ok to use a DynamicJsonDocument here as we're not generally concerned
-  // about long term heap fragmentation
-  StaticJsonDocument<_capacity> doc;
-
-  elapsedMicros parse_elapsed;
-  // deserialize the msgpack data
-  DeserializationError err =
-      deserializeMsgPack(doc, payload_ptr.get()->payload());
-
-  // parsing complete, freeze the elapsed timer
-  parse_elapsed.freeze();
-
-  // did the deserailization succeed?
-  if (!err) {
-    _instance_()->_uri = doc["uri"] | "";
-    start();
-    return true;
+  if (rc) {
+    xTaskNotify(taskHandle(), NotifyOtaStart, eSetValueWithOverwrite);
+  } else {
+    xTaskNotify(taskHandle(), NotifyOtaCancel, eSetValueWithOverwrite);
   }
 
-  return false;
+  return rc;
 }
 
-bool OTA::queuePayload(const char *payload) {
-  const size_t _capacity = JSON_OBJECT_SIZE(3) + 336;
-  // ok to use a DynamicJsonDocument here as we're not generally concerned
-  // about long term heap fragmentation
-  StaticJsonDocument<_capacity> doc;
+bool OTA::perform() {
+  auto rc = true;
 
-  elapsedMicros parse_elapsed;
-  // deserialize the msgpack data
-  DeserializationError err = deserializeMsgPack(doc, payload);
-
-  // parsing complete, freeze the elapsed timer
-  parse_elapsed.freeze();
-
-  // did the deserailization succeed?
-  if (!err) {
-    _instance_()->_uri = doc["uri"] | "";
-    start();
-    return true;
-  }
-
-  return false;
-}
-
-void OTA::process() {
   const esp_partition_t *ota_part = esp_ota_get_next_update_partition(nullptr);
   esp_http_client_config_t config = {};
   config.url = _uri.c_str();
@@ -105,44 +100,75 @@ void OTA::process() {
   config.event_handler = OTA::httpEventHandler;
   config.timeout_ms = 1000;
 
-  Text::rlog("OTA begin partition=\"%s\" addr=0x%x", ota_part->label,
-             ota_part->address);
+  TR::rlog("OTA begin partition=\"%s\" addr=0x%x", ota_part->label,
+           ota_part->address);
 
   // track the time it takes to perform ota
   elapsedMicros ota_elapsed;
   esp_err_t esp_rc = esp_https_ota(&config);
 
-  Text::rlog("OTA elapsed %0.2fs [%s]", (float)ota_elapsed,
-             esp_err_to_name(esp_rc));
+  if (esp_rc == ESP_OK) {
+    const float secs = (float)ota_elapsed;
+    TextBuffer<35> msg;
 
-  Restart("OTA complete");
+    msg.printf("OTA elapsed %0.2fs, restarting", secs);
+    Restart(msg.c_str());
+  } else {
+    TR::rlog("[%s] OTA failure", esp_err_to_name(esp_rc));
+    rc = false;
+  }
+
+  return rc;
 }
 
-// STATIC
-void OTA::markPartitionValid(TimerHandle_t handle) {
+void OTA::start() {
+  // ignore requets if the task is already running
+  if (_task.handle != nullptr) {
+    return;
+  }
+
+  // this (object) is passed as the data to the task creation and is
+  // used by the static runEngine method to call the run method
+  xTaskCreate(&coreTask, "OTATask", _task.stackSize, this, _task.priority,
+              &_task.handle);
+}
+
+void OTA::partitionHandlePendingIfNeeded() {
   const esp_partition_t *run_part = esp_ota_get_running_partition();
   esp_ota_img_states_t ota_state;
-  OTA_t *ota = _instance_();
+
+  if (esp_ota_get_state_partition(run_part, &ota_state) == ESP_OK) {
+    if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+      const auto valid_ms = Binder::otaValidMs();
+
+      auto timer = xTimerCreate("ota_validate", pdMS_TO_TICKS(valid_ms),
+                                pdFALSE, nullptr, &partitionMarkValid);
+      xTimerStart(timer, pdMS_TO_TICKS(0));
+    }
+  }
+}
+
+void OTA::partitionMarkValid(TimerHandle_t handle) {
+  using TR = reading::Text;
+
+  const esp_partition_t *run_part = esp_ota_get_running_partition();
+  esp_ota_img_states_t ota_state;
 
   if (esp_ota_get_state_partition(run_part, &ota_state) == ESP_OK) {
     if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
       esp_err_t mark_valid_rc = esp_ota_mark_app_valid_cancel_rollback();
 
       if (mark_valid_rc == ESP_OK) {
-        Text::rlog("[%s] partition=\"%s\" marked as valid",
-                   esp_err_to_name(mark_valid_rc), run_part->label);
+        TR::rlog("[%s] partition=\"%s\" marked as valid",
+                 esp_err_to_name(mark_valid_rc), run_part->label);
       } else {
-        Text::rlog("[%s] failed to mark partition=\"%s\" as valid",
-                   esp_err_to_name(mark_valid_rc), run_part->label);
+        TR::rlog("[%s] failed to mark partition=\"%s\" as valid",
+                 esp_err_to_name(mark_valid_rc), run_part->label);
       }
     }
   }
 
-  ota->_ota_marked_valid = true;
-
-  if (handle) {
-    xTimerDelete(handle, 0);
-  }
+  xTimerDelete(handle, 0);
 }
 
 //
@@ -163,5 +189,4 @@ esp_err_t OTA::httpEventHandler(esp_http_client_event_t *evt) {
   return ESP_OK;
 }
 
-OTA_t *OTA::_instance_() { return &__singleton__; }
 } // namespace ruth

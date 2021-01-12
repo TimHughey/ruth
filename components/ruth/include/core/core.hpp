@@ -116,6 +116,9 @@ private:
 
   // Command Line Interface
   CLI_t *_cli = nullptr;
+
+  // OTA task, when needed
+  OTA_t *_ota = nullptr;
 };
 
 } // namespace ruth

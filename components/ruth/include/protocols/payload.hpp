@@ -46,6 +46,7 @@ public:
   //
 
   MsgPayload(esp_mqtt_event_t *event);
+  MsgPayload(const char *subtopic);
   MsgPayload(const void *data, const size_t len);
   MsgPayload(const MsgPayload &s) = delete; // no copies!
   ~MsgPayload();
@@ -57,6 +58,7 @@ public:
 
   // payload data functionality
   char *data();
+  size_t dataCapacity() const { return _data.capacity(); }
   const char *payload() const;
   bool emptyPayload() const;
 

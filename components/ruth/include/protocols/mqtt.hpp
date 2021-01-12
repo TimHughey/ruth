@@ -107,8 +107,6 @@ private:
   esp_mqtt_connect_return_code_t _last_return_code;
 
   uint16_t _subscribe_msg_id;
-  size_t _msg_max_size = 0;
-  size_t _msg_max_size_reported = 0;
 
 private:
   // instance member functions
