@@ -47,11 +47,9 @@ Core::Core() {
 }
 
 void Core::_loop() {
-  TickType_t wait_ticks = 0;
+  TickType_t wait_ticks = Profile::coreLoopTicks();
 
-  if (_cli->running()) {
-    wait_ticks = Profile::coreLoopTicks();
-  } else {
+  if (_cli->running() == false) {
     // when the CLI is not running provide a way to start it up
     uint8_t key_buff[2] = {};
     auto bytes = uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, key_buff, 1, 0);
