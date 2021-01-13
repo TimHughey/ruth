@@ -47,6 +47,8 @@ Core::Core() {
 }
 
 void Core::_loop() {
+  using TR = reading::Text;
+
   TickType_t wait_ticks = Profile::coreLoopTicks();
 
   if (_cli->running() == false) {
@@ -78,16 +80,23 @@ void Core::_loop() {
 
     if (payload->matchSubtopic("lightdesk") && _lightdesk_ctrl) {
       _lightdesk_ctrl->handleCommand(*payload);
-    }
-
-    if (payload->matchSubtopic("ota")) {
-      _ota = new OTA();
-      _ota->start();
-      if (_ota->handleCommand(*payload) == false) {
-        // OTA initialization failed, clean up
+    } else if (payload->matchSubtopic("raw")) {
+      CLI::remoteLine(payload);
+    } else if (payload->matchSubtopic("restart")) {
+      Restart("restart requested", __PRETTY_FUNCTION__);
+    } else if (payload->matchSubtopic("ota")) {
+      if (_ota == nullptr) {
+        _ota = new OTA();
+        _ota->start();
+        _ota->handleCommand(*payload); // handleCommand() logs as required
+      }
+    } else if (payload->matchSubtopic("ota_cancel")) {
+      if (_ota) {
         delete _ota;
         _ota = nullptr;
-      };
+      }
+    } else {
+      TR::rlog("[CORE] unknown message subtopic=\"%s\"", payload->subtopic());
     }
   }
 

@@ -85,7 +85,8 @@ typedef enum {
   NotifyLightDeskController,
   // misc supporting task notifications
   NotifyOtaStart = 0x5001,
-  NotifyOtaCancel
+  NotifyOtaCancel,
+  NotifyOtaFinish
 } NotifyVal_t;
 
 } // namespace ruth

@@ -20,6 +20,7 @@
 
 #include "core/ota.hpp"
 #include "core/binder.hpp"
+#include "core/core.hpp"
 #include "external/ArduinoJson.h"
 #include "misc/restart.hpp"
 
@@ -27,27 +28,49 @@ namespace ruth {
 
 using TR = reading::Text;
 
-void OTA::core() {
-  // wait for notification to start
-  uint32_t v = 0;
-  xTaskNotifyWait(0x00, ULONG_MAX, &v, pdMS_TO_TICKS(portMAX_DELAY));
-  NotifyVal_t notify_val = static_cast<NotifyVal_t>(v);
-
-  switch (notify_val) {
-  case NotifyOtaStart:
-    perform();
-    break;
-
-  case NotifyOtaCancel:
-  default:
-    TR::rlog("OTA cancelled");
-    break;
-  }
-}
-
 OTA::~OTA() {
   while (_task.handle != nullptr) {
     vTaskDelay(10);
+  }
+
+  ESP_LOGI("OTA", "task complete");
+}
+
+void OTA::cancel() {
+  if (_ota_handle) { // clean up
+    esp_https_ota_finish(_ota_handle);
+    _ota_handle = nullptr;
+  }
+
+  MsgPayload_t_ptr msg(new MsgPayload_t("ota_cancel"));
+  Core::queuePayload(move(msg));
+}
+
+void OTA::core() {
+
+  while (_run_task) {
+
+    uint32_t v = 0;
+
+    xTaskNotifyWait(0x00, ULONG_MAX, &v, portMAX_DELAY);
+    NotifyVal_t notify_val = static_cast<NotifyVal_t>(v);
+
+    switch (notify_val) {
+    case NotifyOtaStart:
+      perform();
+      break;
+
+    case NotifyOtaCancel:
+      cancel();
+      break;
+
+    case NotifyOtaFinish:
+      Restart("OTA finished in %0.2fs, restarting", (float)_elapsed);
+      break;
+
+    default:
+      break;
+    }
   }
 }
 
@@ -81,11 +104,11 @@ bool OTA::handleCommand(MsgPayload_t &msg) {
     }
   }
 
-  if (_ota_in_progress == false) {
+  if (_in_progress == false) {
     if (rc) {
-      xTaskNotify(taskHandle(), NotifyOtaStart, eSetValueWithOverwrite);
+      taskNotify(NotifyOtaStart);
     } else {
-      xTaskNotify(taskHandle(), NotifyOtaCancel, eSetValueWithOverwrite);
+      taskNotify(NotifyOtaCancel);
     }
   } else {
     rc = false;
@@ -114,26 +137,26 @@ bool OTA::isNewImage(const esp_app_desc_t *asis, const esp_app_desc_t *tobe) {
 bool OTA::perform() {
   auto rc = true;
 
+  _run_task = true;
+
   const esp_partition_t *ota_part = esp_ota_get_next_update_partition(nullptr);
+  esp_https_ota_config_t ota_config;
   esp_http_client_config_t http_conf = {};
   http_conf.url = _uri.c_str();
   http_conf.cert_pem = Net::ca_start();
   http_conf.event_handler = OTA::httpEventHandler;
   http_conf.timeout_ms = 1000;
 
-  esp_https_ota_config_t ota_config;
   ota_config.http_config = &http_conf;
 
-  esp_https_ota_handle_t ota_handle = NULL;
-
   // track the time it takes to perform ota
-  elapsedMicros ota_elapsed;
+  _elapsed.reset();
 
-  auto esp_rc = esp_https_ota_begin(&ota_config, &ota_handle);
+  auto esp_rc = esp_https_ota_begin(&ota_config, &_ota_handle);
 
   const esp_app_desc_t *app_curr = esp_ota_get_app_description();
   esp_app_desc_t app_new;
-  auto img_rc = esp_https_ota_get_img_desc(ota_handle, &app_new);
+  auto img_rc = esp_https_ota_get_img_desc(_ota_handle, &app_new);
 
   if (isNewImage(app_curr, &app_new) && (img_rc == ESP_OK)) {
     // this is a new image
@@ -142,27 +165,26 @@ bool OTA::perform() {
 
     auto ota_finish_rc = ESP_FAIL;
 
-    if ((esp_rc == ESP_OK) && ota_handle) {
+    if ((esp_rc == ESP_OK) && _ota_handle) {
       do {
-        esp_rc = esp_https_ota_perform(ota_handle);
+        esp_rc = esp_https_ota_perform(_ota_handle);
       } while (esp_rc == ESP_ERR_HTTPS_OTA_IN_PROGRESS);
 
-      ota_finish_rc = esp_https_ota_finish(ota_handle);
+      ota_finish_rc = esp_https_ota_finish(_ota_handle);
     }
 
     // give priority to errors from ota_begin() vs. ota_finish()
     const auto ota_rc = (esp_rc != ESP_OK) ? esp_rc : ota_finish_rc;
     if (ota_rc == ESP_OK) {
-      const float secs = (float)ota_elapsed;
-
-      Restart("OTA finished in %0.2fs, restarting", secs);
+      taskNotify(NotifyOtaFinish);
     } else {
       TR::rlog("[%s] OTA failure", esp_err_to_name(ota_rc));
       rc = false;
     }
   } else if (img_rc == ESP_OK) {
     // is is not a new image, clean up the ota_begin and return success
-    esp_https_ota_finish(ota_handle);
+    esp_https_ota_finish(_ota_handle);
+    taskNotify(NotifyOtaCancel);
     rc = true;
   } else {
     // failure with initial esp_begin
@@ -176,7 +198,7 @@ void OTA::start() {
   // ignore requets if the task is already running
   if (_task.handle != nullptr) {
     TR::rlog("OTA already in-progress");
-    _ota_in_progress = true;
+    _in_progress = true;
     return;
   }
 

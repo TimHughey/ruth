@@ -47,6 +47,7 @@ public:
   static void partitionMarkValid(TimerHandle_t handle = nullptr);
 
 private:
+  void cancel();
   void core(); // main task loop
   static void coreTask(void *task_data);
 
@@ -56,18 +57,25 @@ private:
 
   bool perform();
 
-  TaskHandle_t &taskHandle() { return _task.handle; }
+  inline TaskHandle_t &taskHandle() { return _task.handle; }
+  inline void taskNotify(NotifyVal_t val) {
+    xTaskNotify(taskHandle(), val, eSetValueWithOverwrite);
+  }
 
 private:
+  bool _in_progress = false;
+  elapsedMicros _elapsed;
+
+  esp_https_ota_handle_t _ota_handle = nullptr;
+  MsgPackPayload_t *_payload = nullptr;
+  bool _run_task = true;
+
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
                   .priority = 1, // allow reporting to continue
                   .stackSize = (5 * 1024)};
 
-  MsgPackPayload_t *_payload = nullptr;
-
   OtaUri_t _uri;
-  bool _ota_in_progress = false;
 };
 
 } // namespace ruth

@@ -78,8 +78,8 @@ void MQTT::connectionClosed() {
 }
 
 bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
-  auto matched = false;
   auto payload_rc = false;
+  auto matched = false;
   auto payload = payload_ptr.get();
 
   if (payload->invalid()) {
@@ -89,7 +89,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
 
   // NOTE:
   // in the various cases below we either move the payload_ptr to another
-  // function or directly use the contents.  once this if/then/else completes
+  // function or directly use the contents.  once this code section is complete
   // it is UNSAFE to use the payload_ptr -- assume it is no longer valid.
   // if the payload_ptr happens to still hold a valid pointer, once it falls
   // out of scope it will be freed.
@@ -97,58 +97,43 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   // only handle Engine commands if the Engines have been started
   if (Core::enginesStarted()) {
     if (payload->matchSubtopic("pwm")) {
-      matched = true;
       payload_rc = PulseWidth::queuePayload(move(payload_ptr));
+      matched = true;
 
     } else if (payload->matchSubtopic("i2c")) {
-      matched = true;
       payload_rc = I2c::queuePayload(move(payload_ptr));
+      matched = true;
 
     } else if (payload->matchSubtopic("ds")) {
-      matched = true;
       payload_rc = DallasSemi::queuePayload(move(payload_ptr));
+      matched = true;
     }
   }
 
   // always handle Profile, OTA and Restart messages regardless of if
   // Engines (e.g. PulseWidth, DalSemi, I2c) are running.  this covers
   // the typically short period of time between assignment of an
-  // IP, SNTP completion, announcing startup and receipt of the Profile
-  // and start of the Engines.
+  // IP, SNTP completion, announcing startup and receipt of the Profile and
+  // ultimately starting the required Engines.
 
-  // said differently, Engine commands could be received prior to
-  // the Profile which can not be processed and must be ignored.
+  if (!matched && !Core::enginesStarted() &&
+      payload->matchSubtopic("profile")) {
+    Profile::fromRaw(payload);
 
-  // we can also process OTA and restart commands
-  if (!matched) {
-    if (payload->matchSubtopic("raw")) {
-      matched = true;
-      payload_rc = CLI::remoteLine(payload);
-
-    } else if ((payload->matchSubtopic("lightdesk")) ||
-               (payload->matchSubtopic("ota"))) {
-      matched = true;
-      payload_rc = Core::queuePayload(move(payload_ptr));
-
-    } else if (payload->matchSubtopic("profile")) {
-      matched = true;
-      Profile::fromRaw(payload);
-
-      if (Profile::valid()) {
-        payload_rc = Profile::postParseActions();
-      }
-
-    } else if (payload->matchSubtopic("restart")) {
-      Restart("restart requested", __PRETTY_FUNCTION__);
+    if (Profile::valid()) {
+      payload_rc = Profile::postParseActions();
     }
-  }
-
-  if (matched && !payload_rc) {
-    TR::rlog("[MQTT] failed handling subtopic[%s]", payload->subtopic());
+    matched = true;
   }
 
   if (!matched) {
-    TR::rlog("[MQTT] unknown subtopic[%s]", payload->subtopic());
+    // send all unmatched messages to Core
+    payload_rc = Core::queuePayload(move(payload_ptr));
+    matched = true;
+  }
+
+  if (!payload_rc) {
+    TR::rlog("[MQTT] failed handling subtopic[%s]", payload->subtopic());
   }
 
   return payload_rc;
