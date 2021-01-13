@@ -40,7 +40,7 @@ void OTA::core() {
 
   case NotifyOtaCancel:
   default:
-    TR::rlog("OTA cancel");
+    TR::rlog("OTA cancelled");
     break;
   }
 }
@@ -111,7 +111,7 @@ bool OTA::perform() {
     const float secs = (float)ota_elapsed;
     TextBuffer<35> msg;
 
-    msg.printf("OTA elapsed %0.2fs, restarting", secs);
+    msg.printf("OTA complete, elapsed=%0.2fs, restarting", secs);
     Restart(msg.c_str());
   } else {
     TR::rlog("[%s] OTA failure", esp_err_to_name(esp_rc));
@@ -124,6 +124,7 @@ bool OTA::perform() {
 void OTA::start() {
   // ignore requets if the task is already running
   if (_task.handle != nullptr) {
+    TR::rlog("OTA already in-progress");
     return;
   }
 

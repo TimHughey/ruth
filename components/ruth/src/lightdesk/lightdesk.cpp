@@ -321,6 +321,7 @@ const LightDeskStats_t &LightDesk::stats() {
 }
 
 void LightDesk::stopActual() {
+  LightDeskMode_t prev_mode = _mode;
   _mode = STOP;
 
   PulseWidth::off(1);
@@ -343,7 +344,9 @@ void LightDesk::stopActual() {
     _dmx->stop();
   }
 
-  TR::rlog("LightDesk stopped");
+  if (prev_mode != STOP) {
+    TR::rlog("LightDesk stopped");
+  }
 }
 
 bool IRAM_ATTR LightDesk::taskNotify(NotifyVal_t val) const {
