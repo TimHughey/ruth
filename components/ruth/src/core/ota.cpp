@@ -81,11 +81,32 @@ bool OTA::handleCommand(MsgPayload_t &msg) {
     }
   }
 
-  if (rc) {
-    xTaskNotify(taskHandle(), NotifyOtaStart, eSetValueWithOverwrite);
+  if (_ota_in_progress == false) {
+    if (rc) {
+      xTaskNotify(taskHandle(), NotifyOtaStart, eSetValueWithOverwrite);
+    } else {
+      xTaskNotify(taskHandle(), NotifyOtaCancel, eSetValueWithOverwrite);
+    }
   } else {
-    xTaskNotify(taskHandle(), NotifyOtaCancel, eSetValueWithOverwrite);
+    rc = false;
   }
+
+  return rc;
+}
+
+bool OTA::isNewImage(const esp_app_desc_t *asis, const esp_app_desc_t *tobe) {
+  const size_t bytes = sizeof(asis->app_elf_sha256);
+  const uint8_t *sha1 = asis->app_elf_sha256;
+  const uint8_t *sha2 = tobe->app_elf_sha256;
+
+  bool rc = false;
+
+  if (memcmp(sha1, sha2, bytes) != 0) {
+    rc = true;
+  }
+
+  TR::rlog("OTA image version=\"%s\" is %s", tobe->version,
+           (rc) ? "new" : "already installed");
 
   return rc;
 }
@@ -94,27 +115,57 @@ bool OTA::perform() {
   auto rc = true;
 
   const esp_partition_t *ota_part = esp_ota_get_next_update_partition(nullptr);
-  esp_http_client_config_t config = {};
-  config.url = _uri.c_str();
-  config.cert_pem = Net::ca_start();
-  config.event_handler = OTA::httpEventHandler;
-  config.timeout_ms = 1000;
+  esp_http_client_config_t http_conf = {};
+  http_conf.url = _uri.c_str();
+  http_conf.cert_pem = Net::ca_start();
+  http_conf.event_handler = OTA::httpEventHandler;
+  http_conf.timeout_ms = 1000;
 
-  TR::rlog("OTA begin partition=\"%s\" addr=0x%x", ota_part->label,
-           ota_part->address);
+  esp_https_ota_config_t ota_config;
+  ota_config.http_config = &http_conf;
+
+  esp_https_ota_handle_t ota_handle = NULL;
 
   // track the time it takes to perform ota
   elapsedMicros ota_elapsed;
-  esp_err_t esp_rc = esp_https_ota(&config);
 
-  if (esp_rc == ESP_OK) {
-    const float secs = (float)ota_elapsed;
-    TextBuffer<35> msg;
+  auto esp_rc = esp_https_ota_begin(&ota_config, &ota_handle);
 
-    msg.printf("OTA complete, elapsed=%0.2fs, restarting", secs);
-    Restart(msg.c_str());
+  const esp_app_desc_t *app_curr = esp_ota_get_app_description();
+  esp_app_desc_t app_new;
+  auto img_rc = esp_https_ota_get_img_desc(ota_handle, &app_new);
+
+  if (isNewImage(app_curr, &app_new) && (img_rc == ESP_OK)) {
+    // this is a new image
+    TR::rlog("OTA begin partition=\"%s\" addr=0x%x", ota_part->label,
+             ota_part->address);
+
+    auto ota_finish_rc = ESP_FAIL;
+
+    if ((esp_rc == ESP_OK) && ota_handle) {
+      do {
+        esp_rc = esp_https_ota_perform(ota_handle);
+      } while (esp_rc == ESP_ERR_HTTPS_OTA_IN_PROGRESS);
+
+      ota_finish_rc = esp_https_ota_finish(ota_handle);
+    }
+
+    // give priority to errors from ota_begin() vs. ota_finish()
+    const auto ota_rc = (esp_rc != ESP_OK) ? esp_rc : ota_finish_rc;
+    if (ota_rc == ESP_OK) {
+      const float secs = (float)ota_elapsed;
+
+      Restart("OTA finished in %0.2fs, restarting", secs);
+    } else {
+      TR::rlog("[%s] OTA failure", esp_err_to_name(ota_rc));
+      rc = false;
+    }
+  } else if (img_rc == ESP_OK) {
+    // is is not a new image, clean up the ota_begin and return success
+    esp_https_ota_finish(ota_handle);
+    rc = true;
   } else {
-    TR::rlog("[%s] OTA failure", esp_err_to_name(esp_rc));
+    // failure with initial esp_begin
     rc = false;
   }
 
@@ -125,6 +176,7 @@ void OTA::start() {
   // ignore requets if the task is already running
   if (_task.handle != nullptr) {
     TR::rlog("OTA already in-progress");
+    _ota_in_progress = true;
     return;
   }
 
@@ -160,8 +212,7 @@ void OTA::partitionMarkValid(TimerHandle_t handle) {
       esp_err_t mark_valid_rc = esp_ota_mark_app_valid_cancel_rollback();
 
       if (mark_valid_rc == ESP_OK) {
-        TR::rlog("[%s] partition=\"%s\" marked as valid",
-                 esp_err_to_name(mark_valid_rc), run_part->label);
+        TR::rlog("partition=\"%s\" marked as valid", run_part->label);
       } else {
         TR::rlog("[%s] failed to mark partition=\"%s\" as valid",
                  esp_err_to_name(mark_valid_rc), run_part->label);

@@ -35,7 +35,7 @@ MsgPayload::MsgPayload(esp_mqtt_event_t *event) {
 }
 
 MsgPayload::MsgPayload(const char *subtopic) {
-  _topic_parts[PART_SUBTOPIC].printf("%s", subtopic);
+  _topic_parts[PART_SUBTOPIC].assign(subtopic);
 }
 
 MsgPayload::MsgPayload(const void *data, size_t len) {
@@ -102,7 +102,7 @@ bool MsgPayload::current() {
 }
 
 // use the slashes in the topic to parse out the subtopics
-void MsgPayload::parseTopic(esp_mqtt_event_t *event) {
+void IRAM_ATTR MsgPayload::parseTopic(esp_mqtt_event_t *event) {
   auto found_parts = 0;
 
   // i is the index into the topic array
@@ -136,7 +136,7 @@ void MsgPayload::parseTopic(esp_mqtt_event_t *event) {
 }
 
 // validate and determine if the expected subtopics are present
-void MsgPayload::validateSubtopics() {
+void IRAM_ATTR MsgPayload::validateSubtopics() {
 
   // exmaple:
   //  index: 0....1......2..........3......

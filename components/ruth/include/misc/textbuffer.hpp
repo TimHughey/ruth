@@ -32,40 +32,45 @@ template <size_t CAP = 15> class TextBuffer {
 public:
   TextBuffer(){};
   TextBuffer(const char *str) {
-    size_ = strnlen_s(str);
-    strncpy(buff_, str, CAP);
+    _size = strnlen_s(str);
+    strncpy(_buff, str, CAP);
   }
 
   TextBuffer(const char *str, size_t len) {
-    size_ = (len < CAP) ? len : CAP;
-    memcpy(buff_, str, size_);
+    _size = (len < CAP) ? len : CAP;
+    memcpy(_buff, str, _size);
+  }
+
+  void assign(const char *str) {
+    _size = strnlen(str, CAP);
+    strncpy(_buff, str, _size);
   }
 
   void assign(const char *str, size_t len) {
-    size_ = (len < CAP) ? len : CAP;
-    memcpy(buff_, str, size_);
+    _size = (len < CAP) ? len : CAP;
+    memcpy(_buff, str, _size);
   }
 
   void assign(const uint8_t *start, const uint8_t *end) {
     size_t len = end - start;
-    size_ = (len < CAP) ? len : CAP;
-    memcpy(buff_, start, size_);
+    _size = (len < CAP) ? len : CAP;
+    memcpy(_buff, start, _size);
   }
 
-  void calcSize() { size_ = strlen_s(buff_); }
+  void calcSize() { _size = strlen_s(_buff); }
   size_t capacity() const { return CAP; }
   void clear() {
-    size_ = 0;
-    bzero(buff_, CAP);
+    _size = 0;
+    bzero(_buff, CAP);
   }
 
-  int compare(const char *str) const { return strncmp(buff_, str, CAP); }
+  int compare(const char *str) const { return strncmp(_buff, str, CAP); }
 
-  const char *c_str() const { return buff_; }
-  char *data() { return buff_; }
-  bool empty() const { return ((size_ == 0) ? true : false); }
-  void forceSize(size_t size) { size_ = (size > CAP) ? CAP : size; }
-  size_t length() const { return size_; }
+  const char *c_str() const { return _buff; }
+  char *data() { return _buff; }
+  bool empty() const { return ((_size == 0) ? true : false); }
+  void forceSize(size_t size) { _size = (size > CAP) ? CAP : size; }
+  size_t length() const { return _size; }
   bool match(const char *str) const {
     return (compare(str) == 0) ? true : false;
   }
@@ -74,39 +79,40 @@ public:
     va_list arglist;
 
     va_start(arglist, format);
-    size_ = vsnprintf(buff_, CAP, format, arglist);
+    _size = vsnprintf(_buff, CAP, format, arglist);
     va_end(arglist);
   }
 
   void printf(const char *format, va_list arglist) {
-    size_ = vsnprintf(buff_, CAP, format, arglist);
+    _size = vsnprintf(_buff, CAP, format, arglist);
   }
 
-  size_t size() const { return size_; }
+  size_t size() const { return _size; }
 
   TextBuffer &operator=(const char *rhs) {
-    size_ = strnlen_s(rhs);
     copySafe(rhs);
 
     return *this;
   }
 
-  float usedPrecent() const { return ((float)size_ / (float)CAP) * 100; }
+  float usedPrecent() const { return ((float)_size / (float)CAP) * 100; }
 
   bool operator==(const char *str) const {
     return (compare(str) == 0) ? true : false;
   }
 
   // support type casting from DeviceAddress to a plain ole const char *
-  operator const char *() { return buff_; };
+  operator const char *() { return _buff; };
 
 private:
   void copySafe(const char *str) {
-    strncpy(buff_, str, CAP);
+    strncpy(_buff, str, CAP);
 
-    if (size_ > CAP) {
-      size_ = CAP;
-      buff_[CAP - 1] = 0x00;
+    if (_size > CAP) {
+      _size = CAP;
+      _buff[CAP - 1] = 0x00;
+    } else {
+      _size = strnlen(str, CAP);
     }
   }
 
@@ -121,8 +127,8 @@ private:
   }
 
 private:
-  char buff_[CAP + 1] = {};
-  size_t size_ = 0;
+  char _buff[CAP + 1] = {};
+  size_t _size = 0;
 };
 
 } // namespace ruth

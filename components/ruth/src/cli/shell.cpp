@@ -54,7 +54,7 @@ int ShellCli::executeLs(int argc, char **argv) {
 }
 
 int ShellCli::executeReboot(int argc, char **argv) {
-  Restart("cli initiated reboot").now();
+  Restart("cli initiated reboot", __PRETTY_FUNCTION__).now();
 
   return 0;
 }

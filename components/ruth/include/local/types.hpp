@@ -37,6 +37,7 @@ typedef TextBuffer<512> MsgPackPayload_t;
 typedef TextBuffer<128> OtaUri_t;
 typedef TextBuffer<20> PinSpotName_t;
 typedef TextBuffer<40> RefID_t; // e.g. eaa7c7fa-361a-4d07-a7fc-fe9681636b36
+typedef TextBuffer<128> RestartMsg_t;
 typedef TextBuffer<CONFIG_FREERTOS_MAX_TASK_NAME_LEN> TaskName_t;
 typedef TextBuffer<20> TimerName_t;
 typedef TextBuffer<1024> WatcherPayload_t;

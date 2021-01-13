@@ -52,6 +52,8 @@ private:
 
   static esp_err_t httpEventHandler(esp_http_client_event_t *evt);
 
+  bool isNewImage(const esp_app_desc_t *asis, const esp_app_desc_t *tobe);
+
   bool perform();
 
   TaskHandle_t &taskHandle() { return _task.handle; }
@@ -65,6 +67,7 @@ private:
   MsgPackPayload_t *_payload = nullptr;
 
   OtaUri_t _uri;
+  bool _ota_in_progress = false;
 };
 
 } // namespace ruth

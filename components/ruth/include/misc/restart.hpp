@@ -21,6 +21,7 @@
 #ifndef _ruth_restart_hpp
 #define _ruth_restart_hpp
 
+#include <stdarg.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -40,8 +41,28 @@ class Restart {
   using TR = reading::Text;
 
 public:
+  Restart(const char *format, ...) {
+    va_list arglist;
+    RestartMsg_t msg;
+
+    va_start(arglist, format);
+    msg.printf(format, arglist);
+    va_end(arglist);
+
+    restartActual(msg.c_str(), nullptr, 0);
+  }
+
   Restart(const char *text = nullptr, const char *func = nullptr,
           uint32_t reboot_delay_ms = 0) {
+    restartActual(text, func, reboot_delay_ms);
+  }
+
+  bool now() { return true; }
+
+private:
+  void restartActual(const char *text, const char *func,
+                     uint32_t reboot_delay_ms) {
+
     if (text && func) {
       TR::rlog("\"%s\" %s", text, func);
     } else if (text) {
@@ -58,8 +79,6 @@ public:
 
     esp_restart();
   }
-
-  bool now() { return true; }
 };
 
 } // namespace ruth
