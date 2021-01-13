@@ -281,10 +281,26 @@ void LightDeskFx::primaryColorsCycle() {
 }
 
 void LightDeskFx::simpleStrobe() {
-  _main->color(Color(0, 0, 0, 255), 0.40);
-  _fill->color(Color(255, 0, 0, 0), 0.60);
+  _main->color(Color::white(), 0.55);
 
-  intervalReduceTo(0.27);
+  switch (roll1D6()) {
+  case 1:
+  case 2:
+    _fill->color(Color::red(), 0.70);
+    break;
+
+  case 3:
+  case 4:
+    _fill->color(Color::green(), 0.70);
+    break;
+
+  case 5:
+  case 6:
+    _fill->color(Color::blue(), 0.70);
+    break;
+  }
+
+  intervalReduceTo(0.37);
 }
 
 void LightDeskFx::soundFastStrobe() {

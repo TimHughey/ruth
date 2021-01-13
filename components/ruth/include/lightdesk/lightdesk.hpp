@@ -142,19 +142,19 @@ private:
   // 2d6 probabilities
   // 2: 2.78, 3: 5.56, 4: 8.33, 5: 11.11%, 6: 13.89%, 7: 16.67
   // 8: 13.89, 9: 11.11, 10: 9.33, 11: 5.56, 12: 2.78
-  const Fx_t _fx_patterns[13] = {fxNone,               // 0
-                                 fxNone,               // 1
-                                 fxPrimaryColorsCycle, // 2
-                                 fxBlueGreenGradient,  // 3
-                                 fxFullSpectrumCycle,  // 4
-                                 fxRedBlueGradient,    // 5
-                                 fxWashedSound,        // 6
-                                 fxCrossFadeFast,      // 7
-                                 fxFastStrobeSound,    // 8
-                                 fxSimpleStrobe,       // 9
-                                 fxRgbwGradientFast,   // 10
-                                 fxWhiteFadeInOut,     // 11
-                                 fxSimpleStrobe};      // 12
+  const Fx_t _fx_patterns[13] = {fxNone,                        // 0
+                                 fxNone,                        // 1
+                                 fxPrimaryColorsCycle,          // 2
+                                 fxBlueGreenGradient,           // 3
+                                 fxFullSpectrumCycle,           // 4
+                                 fxRedBlueGradient,             // 5
+                                 fxWashedSound,                 // 6
+                                 fxSimpleStrobe,                // 7
+                                 fxFastStrobeSound,             // 8
+                                 fxCrossFadeFast,               // 9
+                                 fxRgbwGradientFast,            // 10
+                                 fxWhiteFadeInOut,              // 11
+                                 fxGreenOnRedBlueWhiteJumping}; // 12
 
   // light desk fx controller
   LightDeskFx_t *_fx = nullptr;
