@@ -63,7 +63,6 @@ private:
   }
 
 private:
-  bool _in_progress = false;
   elapsedMicros _elapsed;
 
   esp_https_ota_handle_t _ota_handle = nullptr;

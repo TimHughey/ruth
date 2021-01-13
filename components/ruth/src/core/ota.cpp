@@ -104,14 +104,10 @@ bool OTA::handleCommand(MsgPayload_t &msg) {
     }
   }
 
-  if (_in_progress == false) {
-    if (rc) {
-      taskNotify(NotifyOtaStart);
-    } else {
-      taskNotify(NotifyOtaCancel);
-    }
+  if (rc) {
+    taskNotify(NotifyOtaStart);
   } else {
-    rc = false;
+    taskNotify(NotifyOtaCancel);
   }
 
   return rc;
@@ -128,8 +124,8 @@ bool OTA::isNewImage(const esp_app_desc_t *asis, const esp_app_desc_t *tobe) {
     rc = true;
   }
 
-  TR::rlog("OTA image version=\"%s\" is %s", tobe->version,
-           (rc) ? "new" : "already installed");
+  TR::rlog("OTA image version=\"%s\" %s", tobe->version,
+           (rc) ? "will be installed" : "is already installed");
 
   return rc;
 }
@@ -183,7 +179,6 @@ bool OTA::perform() {
     }
   } else if (img_rc == ESP_OK) {
     // is is not a new image, clean up the ota_begin and return success
-    esp_https_ota_finish(_ota_handle);
     taskNotify(NotifyOtaCancel);
     rc = true;
   } else {
@@ -198,7 +193,6 @@ void OTA::start() {
   // ignore requets if the task is already running
   if (_task.handle != nullptr) {
     TR::rlog("OTA already in-progress");
-    _in_progress = true;
     return;
   }
 
