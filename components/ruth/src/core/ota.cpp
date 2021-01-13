@@ -49,9 +49,9 @@ void OTA::cancel() {
 void OTA::core() {
 
   while (_run_task) {
+    _run_task = false;
 
     uint32_t v = 0;
-
     xTaskNotifyWait(0x00, ULONG_MAX, &v, portMAX_DELAY);
     NotifyVal_t notify_val = static_cast<NotifyVal_t>(v);
 
