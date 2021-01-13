@@ -32,12 +32,11 @@ OTA::~OTA() {
   while (_task.handle != nullptr) {
     vTaskDelay(10);
   }
-
-  ESP_LOGI("OTA", "task complete");
 }
 
 void OTA::cancel() {
   if (_ota_handle) { // clean up
+    ESP_LOGI("OTA", "canceled");
     esp_https_ota_finish(_ota_handle);
     _ota_handle = nullptr;
   }
@@ -47,7 +46,6 @@ void OTA::cancel() {
 }
 
 void OTA::core() {
-
   while (_run_task) {
     _run_task = false;
 
@@ -80,6 +78,8 @@ void OTA::coreTask(void *task_data) {
 
   TaskHandle_t task = ota->taskHandle();
   ota->taskHandle() = nullptr;
+
+  ESP_LOGI("OTA", "task ending...");
   vTaskDelete(task); // remove task from scheduler
 }
 
