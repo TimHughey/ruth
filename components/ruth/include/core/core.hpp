@@ -62,7 +62,6 @@ public:
 
   static bool enginesStarted() { return i()->_engines_started; };
   static TaskHandle_t taskHandle() { return i()->_app_task; }
-  static uint32_t vref() { return 1100; };
 
 private:
   // private methods for singleton
