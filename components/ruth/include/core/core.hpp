@@ -55,7 +55,7 @@ public:
   };
   static void reportTimer(TimerHandle_t handle) {
     Core_t *core = (Core_t *)pvTimerGetTimerID(handle);
-    core->notifyTrackHeap();
+    core->trackHeap();
   }
 
   static LightDeskControl_t *lightDeskControl() { return i()->_lightdesk_ctrl; }
@@ -72,10 +72,10 @@ private:
 
   // private functions for class
   void bootComplete();
-  void consoleTimestamp();
-  void notifyTrackHeap() {
-    xTaskNotify(_app_task, NotifyTrackHeap, eSetValueWithOverwrite);
-  }
+  // void consoleTimestamp();
+  // void notifyTrackHeap() {
+  //   xTaskNotify(_app_task, NotifyTrackHeap, eSetValueWithOverwrite);
+  // }
 
   void startEngines();
   void trackHeap();
