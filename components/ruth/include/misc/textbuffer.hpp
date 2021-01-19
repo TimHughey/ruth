@@ -79,13 +79,11 @@ public:
     va_list arglist;
 
     va_start(arglist, format);
-    _size = vsnprintf(_buff, CAP, format, arglist);
+    _printf(format, arglist);
     va_end(arglist);
   }
 
-  void printf(const char *format, va_list arglist) {
-    _size = vsnprintf(_buff, CAP, format, arglist);
-  }
+  void printf(const char *format, va_list arglist) { _printf(format, arglist); }
 
   size_t size() const { return _size; }
 
@@ -114,6 +112,12 @@ private:
     } else {
       _size = strnlen(str, CAP);
     }
+  }
+
+  void _printf(const char *format, va_list arglist) {
+    const size_t cap = CAP - _size;
+    auto bytes = vsnprintf((_buff + _size), cap, format, arglist);
+    _size += bytes;
   }
 
   size_t strnlen_s(const char *str) const {
