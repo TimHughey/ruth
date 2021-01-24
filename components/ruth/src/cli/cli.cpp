@@ -67,6 +67,7 @@ void CLI::initCommands() {
   ota.init();
   random.init();
   shell.init();
+  i2s.init();
 }
 
 void CLI::loop() {

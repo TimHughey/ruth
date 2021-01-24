@@ -36,8 +36,20 @@ public:
 
   Request(LightDeskMode_t m) : _mode(m) {}
 
-  Request(LightDeskMode_t m, float interval_secs) : _mode(m) {
-    _dance.secs = interval_secs;
+  Request(LightDeskMode_t m, float val) : _mode(m) {
+
+    switch (m) {
+    case DANCE:
+      _dance.secs = val;
+      break;
+
+    case MAJOR_PEAK:
+      _major_peak.mag_floor = val;
+      break;
+
+    default:
+      break;
+    }
   }
 
   Request(LightDeskMode_t m, const PinSpotFunction_t func, const Rgbw_t rgbw,
@@ -88,6 +100,10 @@ public:
       uint32_t rgbw;
       float secs;
     } _fadeto;
+
+    struct {
+      float mag_floor;
+    } _major_peak;
   };
 };
 

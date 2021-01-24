@@ -32,7 +32,7 @@
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
 #include "misc/random.hpp"
-#include "protocols/dmx.hpp"
+#include "protocols/i2s.hpp"
 
 namespace ruth {
 namespace lightdesk {
@@ -41,7 +41,7 @@ typedef class LightDeskFx LightDeskFx_t;
 
 class LightDeskFx {
 public:
-  LightDeskFx(PinSpot_t *main, PinSpot_t *fill);
+  LightDeskFx(PinSpot_t *main, PinSpot_t *fill, I2s_t *i2s);
 
   void execute(Fx_t next_fx);
   bool execute(bool *finished = nullptr);
@@ -82,6 +82,8 @@ public:
 private:
   inline uint32_t &fxActiveCount() { return _fx_active_count; }
 
+  inline float &interval() { return _fx_interval; }
+
   // scale < 1.00 -> reduction
   // scale == 1.00 -> no change
   // scale > 1.00 -> increase
@@ -105,11 +107,15 @@ private:
 
   inline void intervalReset() { _fx_interval = _fx_interval_default; }
 
+  bool withinRange(const float val, const float low, const float high,
+                   const float mag, const float mag_floor) const;
+
   // Fx specific Functions
   void basic(Fx_t fx);
   bool crossFadeFast();
   bool colorBars();
   void fullSpectrumCycle();
+  bool majorPeak();
   void primaryColorsCycle();
   void simpleStrobe();
   void soundFastStrobe();
@@ -119,6 +125,7 @@ private:
 private:
   PinSpot_t *_main = nullptr;
   PinSpot_t *_fill = nullptr;
+  I2s_t *_i2s = nullptr;
 
   Fx_t _fx_active = fxNone;
   uint32_t _fx_active_count = 0;

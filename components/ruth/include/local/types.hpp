@@ -70,6 +70,7 @@ typedef enum {
   NotifyDance,
   NotifyDanceExecute,
   NotifyFadeTo,
+  NotifyMajorPeak,
   // notifications for changing task operational mode
   NotifyStop = 0x3001,
   NotifyOff,
@@ -86,7 +87,10 @@ typedef enum {
   // misc supporting task notifications
   NotifyOtaStart = 0x5001,
   NotifyOtaCancel,
-  NotifyOtaFinish
+  NotifyOtaFinish,
+  // notifications for I2s
+  NotifySamplePrint = 0x6001,
+  NotifySampleStopPrint
 } NotifyVal_t;
 
 } // namespace ruth

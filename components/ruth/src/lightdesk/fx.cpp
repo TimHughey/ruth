@@ -26,8 +26,8 @@
 namespace ruth {
 namespace lightdesk {
 
-LightDeskFx::LightDeskFx(PinSpot_t *main, PinSpot_t *fill)
-    : _main(main), _fill(fill){};
+LightDeskFx::LightDeskFx(PinSpot_t *main, PinSpot_t *fill, I2s_t *i2s)
+    : _main(main), _fill(fill), _i2s(i2s){};
 
 void LightDeskFx::execute(Fx_t next_fx) {
   _fx_next = next_fx;
@@ -75,6 +75,10 @@ bool LightDeskFx::execute(bool *finished_ptr) {
     finished = colorBars();
     break;
 
+  case fxMajorPeak:
+    finished = majorPeak();
+    break;
+
   default:
     basic(_fx_next);
     break;
@@ -99,6 +103,18 @@ bool LightDeskFx::execute(bool *finished_ptr) {
 }
 
 void LightDeskFx::start() { execute(fxColorBars); }
+
+bool IRAM_ATTR LightDeskFx::withinRange(const float val, const float low,
+                                        const float high, const float mag,
+                                        const float mag_floor) const {
+  bool rc = false;
+
+  if ((mag >= mag_floor) && ((val >= low) && (val < high))) {
+    rc = true;
+  }
+
+  return rc;
+}
 
 //
 // Fx Functions
@@ -254,6 +270,69 @@ void LightDeskFx::fullSpectrumCycle() {
   _main->autoRun(_fx_next);
   _fill->color(Color(128, 0, 0, 0), 0.75);
   intervalReduceTo(randomPercent(15, 25));
+}
+
+bool IRAM_ATTR LightDeskFx::majorPeak() {
+  bool finished = false;
+  static elapsedMillis runtime;
+
+  if (_fx_active == fxMajorPeak) {
+    if (runtime.toSeconds() >= intervalDefault()) {
+      finished = true;
+    }
+  } else {
+    runtime.reset();
+    _fx_active = fxMajorPeak;
+  }
+
+  Color_t color_choice = Color::black();
+
+  float mpeak, mag;
+
+  _i2s->majorPeak(mpeak, mag);
+
+  const float mag_low_freq = 15.0;
+  const float mag_generic = 0.0;
+
+  if (withinRange(mpeak, 20.0, 200.0, mag, mag_low_freq)) {
+    color_choice = Color(mag, 0, 0, 0);
+
+  } else if (withinRange(mpeak, 200.0, 300.0, mag, mag_low_freq)) {
+    color_choice = Color(0, mag, 0, 0);
+
+  } else if (withinRange(mpeak, 300.0, 500.0, mag, mag_generic)) {
+    color_choice = Color(0, mag * 0.25, mag * 0.25, 0);
+
+  } else if (withinRange(mpeak, 500.0, 1000.0, mag, mag_generic)) {
+    color_choice = Color(0, mag * 0.5, mag * 0.5, 0);
+
+  } else if (withinRange(mpeak, 1000.0, 1500.0, mag, mag_generic)) {
+    color_choice = Color(0, 0, 0, mag);
+
+  } else if (withinRange(mpeak, 1500.0, 2000.0, mag, mag_generic)) {
+    color_choice = Color(0, 0, mag, mag);
+
+  } else if (withinRange(mpeak, 2000, 17000, mag, mag_generic)) {
+    color_choice = Color(mag * 0.75, mag * 0.45, 0, 0);
+  }
+
+  if (!finished) {
+
+    _main->color(color_choice);
+    _fill->color(color_choice);
+
+    interval() = 0.022f;
+  } else {
+    FaderOpts_t fade_out{.origin = 0x00,
+                         .dest = Color::black(),
+                         .travel_secs = 0.2f,
+                         .use_origin = false};
+
+    _main->fadeTo(fade_out);
+    _fill->fadeTo(fade_out);
+  }
+
+  return finished;
 }
 
 void LightDeskFx::primaryColorsCycle() {

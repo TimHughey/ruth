@@ -35,6 +35,7 @@
 #include "misc/elapsed.hpp"
 #include "misc/random.hpp"
 #include "protocols/dmx.hpp"
+#include "protocols/i2s.hpp"
 #include "protocols/payload.hpp"
 
 namespace ruth {
@@ -62,7 +63,7 @@ public:
 
 private:
   void danceExecute();
-  void danceStart();
+  void danceStart(LightDeskMode_t mode);
   static void danceTimerCallback(void *data);
   uint64_t danceTimerSchedule(float secs) const;
 
@@ -70,12 +71,18 @@ private:
 
   inline Fx_t fxRandom() const {
     const uint8_t roll = roll2D6();
-    const Fx_t choosen_fx = _fx_patterns[roll];
+    Fx_t choosen_fx = _fx_patterns[roll];
+
+    if (_mode == MAJOR_PEAK) {
+      choosen_fx = fxMajorPeak;
+    }
 
     return choosen_fx;
   }
 
   void init();
+
+  void majorPeakStart();
 
   inline PinSpot *pinSpotObject(PinSpotFunction_t func) {
     PinSpot_t *spot = nullptr;
@@ -128,6 +135,7 @@ private:
   esp_err_t _init_rc = ESP_FAIL;
 
   Dmx_t *_dmx = nullptr;
+  I2s_t *_i2s = nullptr;
 
   LightDeskMode_t _mode = INIT;
   Request_t _request = {};
@@ -147,9 +155,9 @@ private:
                                  fxPrimaryColorsCycle,          // 2
                                  fxBlueGreenGradient,           // 3
                                  fxFullSpectrumCycle,           // 4
-                                 fxRedBlueGradient,             // 5
+                                 fxSimpleStrobe,                // 5
                                  fxWashedSound,                 // 6
-                                 fxSimpleStrobe,                // 7
+                                 fxMajorPeak,                   // 7
                                  fxFastStrobeSound,             // 8
                                  fxCrossFadeFast,               // 9
                                  fxRgbwGradientFast,            // 10

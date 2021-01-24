@@ -35,6 +35,7 @@ typedef enum PinSpotFunction PinSpotFunction_t;
 typedef float Strobe_t;
 typedef struct DmxStats DmxStats_t;
 typedef struct FxStats FxStats_t;
+typedef struct I2sStats I2sStats_t;
 typedef struct LightDeskStats LightDeskStats_t;
 typedef struct PinSpotStats PinSpotStats_t;
 
@@ -77,6 +78,30 @@ struct FxStats {
     float min = 9999.9f;
     float max = 0.0f;
   } interval;
+
+  size_t object_size = 0;
+};
+
+struct I2sStats {
+  struct {
+    uint32_t byte_count = 0;
+    size_t fft_us_idx = 0;
+    size_t rx_us_idx = 0;
+  } temp;
+
+  struct {
+    uint32_t kbps = 0;
+  } rate;
+
+  struct {
+    int32_t min24 = INT_MAX;
+    int32_t max24 = min24 * -1;
+  } raw_val;
+
+  struct {
+    uint32_t fft_us[6] = {};
+    uint32_t rx_us[6] = {};
+  } durations;
 
   size_t object_size = 0;
 };

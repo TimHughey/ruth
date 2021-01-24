@@ -115,12 +115,12 @@ bool LightDeskControl::stats() {
 
   const float frame_ms = (float)dmx.frame.us / 1000.f;
 
-  printf("%-*s%02.02ffps frame=%5.3fms shorts=%llu ", indent_size,
+  printf("%-*s%02.02ffps frame=%5.3fms shorts=%llu\n", indent_size,
          "dmx:", dmx.fps, frame_ms, dmx.frame.shorts);
 
-  printf("frame_update: curr=%lluµs min=%lluµs max=%lluµs\n",
+  printf("%sframe_update: curr=%lluµs min=%lluµs max=%lluµs\n", indent,
          dmx.frame.update.curr, dmx.frame.update.min, dmx.frame.update.max);
-  printf("%stx curr=%02.02fms min=%02.02fms max=%02.02fms\n", indent,
+  printf("%stx: curr=%02.02fms min=%02.02fms max=%02.02fms\n", indent,
          dmx.tx.curr, dmx.tx.min, dmx.tx.max);
   printf("%sbusy_wait=%lld object_size=%u\n", indent, dmx.busy_wait,
          dmx.object_size);

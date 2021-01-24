@@ -69,7 +69,7 @@ public:
   void copyToByteArray(uint8_t *array) const {
     for (auto i = 0; i < endOfParts(); i++) {
       const float val = rint(colorPartConst(i));
-      array[i] = static_cast<uint8_t>(val);
+      array[i] = (uint8_t)val;
     }
   }
 

@@ -38,6 +38,12 @@ LightDesk::LightDesk() {
 }
 
 LightDesk::~LightDesk() {
+
+  if (_i2s != nullptr) {
+    _i2s->stop();
+    delete _i2s;
+  }
+
   if (_fx != nullptr) {
     delete _fx;
     _fx = nullptr;
@@ -95,12 +101,12 @@ void IRAM_ATTR LightDesk::core() {
 
       case NotifyDance:
         _mode = READY;
-        danceStart();
+        danceStart(DANCE);
         break;
 
       case NotifyDanceExecute:
         // prevent processing of pending timer events after a mode change
-        if (_mode == DANCE) {
+        if ((_mode == DANCE) || (_mode == MAJOR_PEAK)) {
           danceExecute();
         } else if (_mode == STOP) {
           stream_frames = false;
@@ -119,6 +125,11 @@ void IRAM_ATTR LightDesk::core() {
       case NotifyFadeTo:
         _mode = FADE_TO;
         pinspot->fadeTo(_request.fadeToRgbw(), _request.fadeToSecs());
+        break;
+
+      case NotifyMajorPeak:
+        _mode = READY;
+        danceStart(MAJOR_PEAK);
         break;
 
       default:
@@ -145,10 +156,10 @@ void LightDesk::coreTask(void *task_instance) {
 }
 
 void IRAM_ATTR LightDesk::danceExecute() {
-  // NOTE:  when _mode is anything other than DANCE this function is a
-  //        NOP and the dance execute timer is not rescheduled.
+  // NOTE:  when _mode is anything other than DANCE or MAJOR_PEAL  this
+  // J= function is a NOP and the dance execute timer is not rescheduled.
 
-  if ((_mode == DANCE) && _fx) {
+  if (((_mode == MAJOR_PEAK) || (_mode == DANCE)) && _fx) {
     auto fx_finished = _fx->execute();
 
     if (fx_finished == true) {
@@ -159,7 +170,7 @@ void IRAM_ATTR LightDesk::danceExecute() {
   }
 }
 
-void LightDesk::danceStart() {
+void LightDesk::danceStart(LightDeskMode_t mode) {
   esp_timer_stop(_dance_timer);
 
   // turn on the PulseWidth device that controls the head unit power
@@ -175,13 +186,16 @@ void LightDesk::danceStart() {
   }
 
   if (_fx == nullptr) {
-    _fx = new LightDeskFx(pinSpotMain(), pinSpotFill());
+    _fx = new LightDeskFx(pinSpotMain(), pinSpotFill(), _i2s);
   }
 
-  _fx->intervalDefault(_request.danceInterval());
+  if (mode == DANCE) {
+    _fx->intervalDefault(_request.danceInterval());
+  }
+
   _fx->start();
 
-  _mode = DANCE;
+  _mode = mode;
 
   TR::rlog("LightDesk dance with interval=%3.2f started",
            _request.danceInterval());
@@ -198,8 +212,8 @@ void IRAM_ATTR LightDesk::danceTimerCallback(void *data) {
 uint64_t IRAM_ATTR LightDesk::danceTimerSchedule(float secs) const {
 
   // safety net, prevent runaway task
-  if (secs < 0.10f) {
-    secs = 0.10f;
+  if (secs < 0.0020f) {
+    secs = 0.0020f;
   }
 
   const uint64_t interval = secondsToInterval(secs);
@@ -210,10 +224,10 @@ uint64_t IRAM_ATTR LightDesk::danceTimerSchedule(float secs) const {
 
 void LightDesk::init() {
 
-  if (_dmx == nullptr) {
-    _dmx = new Dmx();
-  }
+  _i2s = (_i2s == nullptr) ? new I2s() : _i2s;
+  _dmx = (_dmx == nullptr) ? new Dmx() : _dmx;
 
+  _i2s->start();
   _dmx->start();
 
   // dmx address 1
@@ -269,6 +283,10 @@ bool LightDesk::request(const Request_t &r) {
 
   case FADE_TO:
     rc = taskNotify(NotifyFadeTo);
+    break;
+
+  case MAJOR_PEAK:
+    rc = taskNotify(NotifyMajorPeak);
     break;
 
   case READY:

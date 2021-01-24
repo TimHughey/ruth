@@ -43,7 +43,8 @@ static const DRAM_ATTR char *_fx_desc[] = {"fxNone",
                                            "fxColorBars",
                                            "fxWashedSound",
                                            "fxSimpleStrobe",
-                                           "fxCrossFadeFast"};
+                                           "fxCrossFadeFast",
+                                           "fxMajorPeak"};
 
 static const DRAM_ATTR char *_fx_oorange = "fxOutOfRange";
 

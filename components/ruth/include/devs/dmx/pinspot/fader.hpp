@@ -63,19 +63,6 @@ public:
 
   inline bool finished() const { return _finished; }
 
-  // void init(const Color_t &origin, const Color_t &dest,
-  //           float travel_secs = 1.0) {
-  //   _finished = false;
-  //   _traveled = false;
-  //
-  //   _opts.origin = origin;
-  //   _opts.dest = dest;
-  //   _opts.travel_secs = travel_secs;
-  //   _location = origin;
-  //
-  //   _velocity.calculate(_location, _opts.dest, travel_secs);
-  // }
-
   const Color_t &location() const { return _location; }
   void print() {
     printf("loc[%3.2f %3.2f %3.2f %3.2f]\n"

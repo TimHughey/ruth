@@ -29,9 +29,10 @@
 namespace ruth {
 using namespace lightdesk;
 
-static struct arg_dbl *dance, *secs, *strobe;
+static struct arg_dbl *dance, *a_mag_floor, *secs, *strobe;
 static struct arg_end *end;
-static struct arg_lit *dark, *fill, *main, *ready, *stop, *stats, *test;
+static struct arg_lit *dark, *fill, *main, *a_major_peak, *ready, *stop, *stats,
+    *test;
 static struct arg_str *color, *fadeto;
 
 static CSTR SECS = "<seconds>";
@@ -46,7 +47,9 @@ static void *argtable[] = {
     dark = arg_litn("d", "dark", 0, 1, "set to dark"),
     ready = arg_litn(nullptr, "ready", 0, 1, "set ready"),
     fadeto = arg_strn("F", "fade-to", RGBW, 0, 1, "fade to specified color"),
+    a_major_peak = arg_litn("M", "major-peak", 0, 1, "set major peak mode"),
     secs = arg_dbln("t", "secs", FLOAT, 0, 1, nullptr),
+    a_mag_floor = arg_dbln(nullptr, "mag-floor", FLOAT, 0, 1, nullptr),
     strobe = arg_dbln("S", "strobe", FLOAT, 0, 1, "set strobe"),
     stats = arg_litn(nullptr, "stats", 0, 1, nullptr),
     stop = arg_litn(nullptr, "stop", 0, 1, nullptr),
@@ -117,6 +120,8 @@ int LightDeskCli::execute(int argc, char **argv) {
     auto secs_val = secs->dval[0];
 
     rc = desk_ctrl->fadeTo(func, rgbw, secs_val);
+  } else if (a_major_peak->count > 0) {
+    rc = desk_ctrl->majorPeak();
   } else if (ready->count > 0) {
     rc = desk_ctrl->ready();
   } else if (stop->count > 0) {

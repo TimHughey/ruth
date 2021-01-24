@@ -53,7 +53,8 @@ enum Fx {
   fxColorBars = 0x11,
   fxWashedSound,
   fxSimpleStrobe,
-  fxCrossFadeFast
+  fxCrossFadeFast,
+  fxMajorPeak,
 };
 
 enum LightDeskMode {
@@ -62,6 +63,7 @@ enum LightDeskMode {
   DANCE,
   DARK,
   FADE_TO,
+  MAJOR_PEAK,
   READY,
   STOP,
   SHUTDOWN

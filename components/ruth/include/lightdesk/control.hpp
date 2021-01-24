@@ -23,6 +23,7 @@
 
 #include "lightdesk/lightdesk.hpp"
 #include "local/types.hpp"
+#include "protocols/i2s.hpp"
 
 namespace ruth {
 
@@ -71,6 +72,11 @@ public:
     return setMode();
   }
 
+  inline bool majorPeak(float mag_floor = 15.0) {
+    _request = Request(MAJOR_PEAK);
+    return setMode();
+  }
+
   inline bool ready() {
     _request = Request(READY);
     return setMode();
@@ -90,6 +96,7 @@ private:
 private:
   LightDeskMode_t _mode = INIT;
   LightDesk *_desk = nullptr;
+  I2s_t *_i2s = nullptr;
   Request_t _request;
 };
 
