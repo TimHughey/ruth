@@ -203,36 +203,6 @@ void Core::bootComplete() {
            (float)_core_elapsed, _task_count, stack_used, stack_high_water);
 }
 
-// void Core::consoleTimestamp() {
-//   if (Binder::cliEnabled()) {
-//     return;
-//   }
-//
-//   if (_timestamp_first_report == true) {
-//     // leave first report set to true, it will be set to false later
-//     _timestamp_first_report = false;
-//   } else {
-//
-//     if (_timestamp_elapsed < Profile::timestampMS()) {
-//       return;
-//     }
-//   }
-//
-//   // grab the timestamp frequency seconds from the Profile and cache locally
-//   if (_timestamp_freq_ms == 0.0) {
-//     _timestamp_freq_ms = Profile::timestampMS();
-//   }
-//
-//   UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
-//   auto stack_used =
-//       100.0 - ((float)stack_high_water / (float)_stack_size) * 100.0;
-//
-//   ESP_LOGI(TAG, ">> %s << %s stack used[%0.1f%%] hw[%u]", DateTime().c_str(),
-//            Net::hostname(), stack_used, stack_high_water);
-//
-//   _timestamp_elapsed.reset();
-// }
-
 void Core::startEngines() {
   if (_engines_started) {
     return;

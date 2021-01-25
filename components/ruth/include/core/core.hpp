@@ -55,7 +55,13 @@ public:
   };
   static void reportTimer(TimerHandle_t handle) {
     Core_t *core = (Core_t *)pvTimerGetTimerID(handle);
-    core->trackHeap();
+
+    if (core) {
+      core->trackHeap();
+    } else {
+      using TR = reading::Text;
+      TR::rlog("%s core==nullptr", __PRETTY_FUNCTION__);
+    }
   }
 
   static LightDeskControl_t *lightDeskControl() { return i()->_lightdesk_ctrl; }
