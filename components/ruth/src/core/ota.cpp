@@ -213,7 +213,7 @@ void OTA::partitionHandlePendingIfNeeded() {
       auto timer = xTimerCreate("ota_validate", pdMS_TO_TICKS(valid_ms),
                                 pdFALSE, nullptr, &partitionMarkValid);
 
-      TR::rlog("found pending partition, starting validate timer");
+      TR::rlog("OTA found pending partition, starting validate timer");
 
       xTimerStart(timer, pdMS_TO_TICKS(0));
     }
