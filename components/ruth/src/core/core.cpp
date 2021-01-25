@@ -256,7 +256,7 @@ void Core::trackHeap() {
     Restart("heap fragmentation", __PRETTY_FUNCTION__);
   }
 
-  if (Net::waitForReady(0) == true) {
+  if (Net::waitForNormalOps(0) == true) {
     Remote reading;
 
     reading.publish();

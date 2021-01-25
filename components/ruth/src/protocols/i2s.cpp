@@ -35,6 +35,11 @@ I2s::~I2s() {
     delete _raw;
     _raw = nullptr;
   }
+
+  while (_task.handle != nullptr) {
+    printf("%s waiting for task to exit\n", __PRETTY_FUNCTION__);
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
 }
 
 void IRAM_ATTR I2s::filterNoise() {

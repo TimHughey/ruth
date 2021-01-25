@@ -72,10 +72,6 @@ private:
 
   // private functions for class
   void bootComplete();
-  // void consoleTimestamp();
-  // void notifyTrackHeap() {
-  //   xTaskNotify(_app_task, NotifyTrackHeap, eSetValueWithOverwrite);
-  // }
 
   void startEngines();
   void trackHeap();
