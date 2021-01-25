@@ -213,8 +213,7 @@ void OTA::partitionHandlePendingIfNeeded() {
       auto timer = xTimerCreate("ota_validate", pdMS_TO_TICKS(valid_ms),
                                 pdFALSE, nullptr, &partitionMarkValid);
 
-      TR::rlog("%s found pending partition, starting timer=%p",
-               __PRETTY_FUNCTION__, timer);
+      TR::rlog("found pending partition, starting validate timer");
 
       xTimerStart(timer, pdMS_TO_TICKS(0));
     }
@@ -223,8 +222,6 @@ void OTA::partitionHandlePendingIfNeeded() {
 
 void OTA::partitionMarkValid(TimerHandle_t handle) {
   using TR = reading::Text;
-
-  TR::rlog("%s entered", __PRETTY_FUNCTION__);
 
   const esp_partition_t *run_part = esp_ota_get_running_partition();
   esp_ota_img_states_t ota_state;
