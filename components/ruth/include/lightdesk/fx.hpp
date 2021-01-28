@@ -108,7 +108,7 @@ private:
   inline void intervalReset() { _fx_interval = _fx_interval_default; }
 
   bool withinRange(const float val, const float low, const float high,
-                   const float mag, const float mag_floor) const;
+                   const float mag, const float mag_floor, float &scale) const;
 
   // Fx specific Functions
   void basic(Fx_t fx);

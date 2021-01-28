@@ -80,6 +80,7 @@ typedef enum {
   NotifyShutdown,
   NotifyStreamFrames,
   NotifyDelete,
+  NotifyStatsCalculate,
   NotifyEndOfValues,
   // core task notifications
   NotifyTrackHeap = 0x4001,

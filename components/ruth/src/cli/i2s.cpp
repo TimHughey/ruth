@@ -32,15 +32,14 @@ I2s_t *_i2s = nullptr;
 
 static struct arg_end *a_end;
 static struct arg_int *a_print_secs;
-static struct arg_lit *a_i2s, *a_print, *a_print_freq_bins, *a_stop;
+static struct arg_lit *a_i2s, *a_print, *a_stop;
 
 static void *argtable[] = {
     a_i2s = arg_litn("i", nullptr, 0, 1, "init i2s"),
     a_print = arg_litn("p", nullptr, 0, 1, "print samples"),
     a_print_secs = arg_intn(nullptr, "secs", "<scalar>", 0, 1,
                             "print for specified seconds"),
-    a_print_freq_bins =
-        arg_litn("F", "freq-bins", 0, 1, "print FFT frequency bins"),
+
     a_stop = arg_litn("s", nullptr, 0, 1, "stop printing samples"),
     a_end = arg_end(3),
 };
@@ -53,8 +52,8 @@ int I2sCli::execute(int argc, char **argv) {
 
   int nerrors = arg_parse(argc, argv, argtable);
 
-  auto any = a_i2s->count + a_print->count + a_stop->count +
-             a_print_freq_bins->count + a_print_secs->count;
+  auto any =
+      a_i2s->count + a_print->count + a_stop->count + +a_print_secs->count;
 
   if ((nerrors == 0) && (any > 0)) {
     if (_i2s == nullptr) {
@@ -73,10 +72,6 @@ int I2sCli::execute(int argc, char **argv) {
 
     if ((a_stop->count > 0) && (_i2s)) {
       _i2s->sampleStopPrint();
-    }
-
-    if (a_print_freq_bins->count > 0) {
-      _i2s->printFrequencyBins();
     }
 
   } else {

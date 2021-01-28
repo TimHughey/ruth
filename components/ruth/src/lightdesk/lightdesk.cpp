@@ -329,6 +329,10 @@ const LightDeskStats_t &LightDesk::stats() {
     _fx->stats(_stats.fx);
   }
 
+  if (_i2s) {
+    _i2s->stats(_stats.i2s);
+  }
+
   const uint32_t last_pinspot = static_cast<uint32_t>(PINSPOT_FILL);
   for (auto i = 0; i <= last_pinspot; i++) {
     PinSpot_t *pinspot = _pinspots[i];

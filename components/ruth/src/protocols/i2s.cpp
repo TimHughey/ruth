@@ -28,12 +28,20 @@
 
 namespace ruth {
 
-I2s::I2s() {}
+I2s::I2s() {
+  _stats.object_size = sizeof(I2s);
+  _stats.config.freq_bin_width = (float)_sample_rate / (float)_vsamples_chan;
+}
 
 I2s::~I2s() {
   if (_raw) {
     delete _raw;
     _raw = nullptr;
+  }
+
+  if (_stats_timer) {
+    esp_timer_delete(_stats_timer);
+    _stats_timer = nullptr;
   }
 
   while (_task.handle != nullptr) {
@@ -101,6 +109,8 @@ void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
   _fft.majorPeak(_mpeak, _mpeak_mag);
   _mpeak_mag /= 100000.0;
 
+  trackMagMinMax(_mpeak_mag);
+
   filterNoise();
 
   fftRecordElapsed(e);
@@ -127,14 +137,25 @@ bool I2s::handleNotifications() {
 
     case NotifyStop:
       _mode = STOP;
+      // prevent further stats timer callbacks
+      if (_stats_timer) {
+        esp_timer_stop(_stats_timer);
+        vTaskDelay(pdMS_TO_TICKS(100)); // allow stats timer to stop
+      }
+
       taskNotify(NotifyShutdown);
       break;
 
     case NotifyShutdown:
       _mode = SHUTDOWN;
+
       i2s_driver_uninstall(_i2s_port);
       vTaskDelay(pdMS_TO_TICKS(1));
 
+      break;
+
+    case NotifyStatsCalculate:
+      statsCalculate();
       break;
 
     default:
@@ -166,16 +187,11 @@ bool IRAM_ATTR I2s::samplesRx() {
 
   elapsedMicros e;
   esp_rc = i2s_read(_i2s_port, buffer, _dma_buff, &bytes_read, ticks);
-  samplesRxElapsed(e);
+  samplesRxElapsed(e, bytes_read);
 
   if ((esp_rc == ESP_OK) && (bytes_read == _dma_buff)) {
     rc = true;
 
-    // udpSend(buffer, bytes_read);
-
-    // printf("%6lluµs ", (uint64_t)elapsed);
-
-    // compute(buffer, bytes_read);
     fft(buffer, bytes_read);
 
   } else {
@@ -184,6 +200,30 @@ bool IRAM_ATTR I2s::samplesRx() {
   }
 
   return rc;
+}
+
+void IRAM_ATTR I2s::statsCalculate() {
+  _stats.rate.raw_bps =
+      (float)_stats.temp.byte_count / (float)_stats_interval_secs;
+  _stats.rate.samples_per_sec = _stats.rate.raw_bps / sizeof(int32_t);
+
+  // reset byte count
+  _stats.temp.byte_count = 0;
+
+  const size_t durations = sizeof(_stats.durations.fft_us) / sizeof(uint32_t);
+  uint64_t duration_sum = 0;
+  for (auto k = 0; k < durations; k++) {
+    duration_sum += _stats.durations.fft_us[k];
+  }
+
+  _stats.durations.fft_avg_us = (float)duration_sum / (float)durations;
+
+  duration_sum = 0;
+  for (auto k = 0; k < durations; k++) {
+    duration_sum += _stats.durations.rx_us[k];
+  }
+
+  _stats.durations.rx_avg_us = (float)duration_sum / (float)durations;
 }
 
 void I2s::taskCore(void *task_instance) {
@@ -208,7 +248,7 @@ void I2s::taskInit() {
       .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
       .communication_format = I2S_COMM_FORMAT_STAND_I2S,
       .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-      .dma_buf_count = 4,
+      .dma_buf_count = 2,
       .dma_buf_len = _dma_buff,
       .use_apll = false,
       .tx_desc_auto_clear = false,
@@ -236,6 +276,26 @@ void I2s::taskInit() {
   if (_raw == nullptr) {
     _raw = new uint8_t[_dma_buff];
     bzero(_raw, _dma_buff);
+  }
+
+  esp_timer_create_args_t timer_args = {};
+  timer_args.callback = statsCalculateCallback;
+  timer_args.arg = this;
+  timer_args.dispatch_method = ESP_TIMER_TASK;
+  timer_args.name = "dmx_fps";
+
+  if (_init_rc == ESP_OK) {
+    _init_rc = esp_timer_create(&timer_args, &_stats_timer);
+
+    if (_init_rc == ESP_OK) {
+      const uint64_t us = _stats_interval_secs * 1000 * 1000;
+      _init_rc = esp_timer_start_periodic(_stats_timer, us);
+    }
+  }
+
+  if (_init_rc != ESP_OK) {
+    ESP_LOGW("I2s", "%s failed, %s", __PRETTY_FUNCTION__,
+             esp_err_to_name(_init_rc));
   }
 }
 

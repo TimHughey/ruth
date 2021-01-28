@@ -95,8 +95,10 @@ bool LightDeskControl::stats() {
   const size_t indent_size = strlen(indent);
   const LightDeskStats_t &stats = _desk->stats();
   const DmxStats_t &dmx = stats.dmx;
+  const I2sStats_t &i2s = stats.i2s;
   const FxStats_t &fx = stats.fx;
 
+  // lightdesk
   printf("\n");
   printf("%-*smode=%s object_size=%u\n", indent_size, "lightdesk:", stats.mode,
          stats.object_size);
@@ -111,19 +113,39 @@ bool LightDeskControl::stats() {
          fx.interval.base);
   printf("%sobject_size=%u\n", indent, fx.object_size);
 
-  printf("\n");
-
+  // dmx
   const float frame_ms = (float)dmx.frame.us / 1000.f;
-
+  printf("\n");
   printf("%-*s%02.02ffps frame=%5.3fms shorts=%llu\n", indent_size,
          "dmx:", dmx.fps, frame_ms, dmx.frame.shorts);
 
   printf("%sframe_update: curr=%lluµs min=%lluµs max=%lluµs\n", indent,
          dmx.frame.update.curr, dmx.frame.update.min, dmx.frame.update.max);
-  printf("%stx: curr=%02.02fms min=%02.02fms max=%02.02fms\n", indent,
+  printf("%stx: curr(%02.02fms) min(%02.02fms) max(%02.02fms)\n", indent,
          dmx.tx.curr, dmx.tx.min, dmx.tx.max);
-  printf("%sbusy_wait=%lld object_size=%u\n", indent, dmx.busy_wait,
+  printf("%sbusy_wait(%lld) object_size(%u)\n", indent, dmx.busy_wait,
          dmx.object_size);
+
+  // i2s
+  printf("\n");
+  const float raw_kbps = i2s.rate.raw_bps / 1024.0;
+  const float samples_kbps = i2s.rate.samples_per_sec / 1000;
+  printf("%-*srate: %.02fKbps %9.2fksps\n", indent_size, "i2s:", raw_kbps,
+         samples_kbps);
+
+  const float fft_ms = (float)i2s.durations.fft_avg_us / 1000.0;
+  const float i2s_rx_ms = (float)i2s.durations.rx_avg_us / 1000.0;
+  printf("%sdurations: fft(%0.2fms) rx(%0.2fms)\n", indent, fft_ms, i2s_rx_ms);
+
+  printf("%sraw min(%8d) max(%8d)\n", indent, i2s.raw_val.min24,
+         i2s.raw_val.max24);
+
+  printf("%sfft: magnitude(%.2f,%.2f) bin_width(%.2fHz)\n", indent,
+         i2s.magnitude.min, i2s.magnitude.max, i2s.config.freq_bin_width);
+
+  printf("%sobject_size(%u)\n", indent, i2s.object_size);
+
+  // pinspots
 
   const uint32_t last_pinspot = static_cast<uint32_t>(PINSPOT_FILL);
 

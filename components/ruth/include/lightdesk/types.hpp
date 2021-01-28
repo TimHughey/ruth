@@ -23,6 +23,7 @@
 
 #include "lightdesk/enums.hpp"
 #include "local/types.hpp"
+#include "misc/elapsed.hpp"
 
 namespace ruth {
 namespace lightdesk {
@@ -90,7 +91,8 @@ struct I2sStats {
   } temp;
 
   struct {
-    uint32_t kbps = 0;
+    float raw_bps = 0;
+    float samples_per_sec = 0;
   } rate;
 
   struct {
@@ -99,8 +101,21 @@ struct I2sStats {
   } raw_val;
 
   struct {
+    elapsedMillis window;
+    float min = 0;
+    float max = 0;
+  } magnitude;
+
+  struct {
+    float freq_bin_width = 0.0;
+  } config;
+
+  struct {
     uint32_t fft_us[6] = {};
+    float fft_avg_us = 0;
+
     uint32_t rx_us[6] = {};
+    float rx_avg_us = 0;
   } durations;
 
   size_t object_size = 0;
@@ -121,6 +136,7 @@ struct LightDeskStats {
 
   DmxStats_t dmx;
   FxStats_t fx;
+  I2sStats_t i2s;
   PinSpotStats_t pinspot[2];
 
   size_t object_size = 0;

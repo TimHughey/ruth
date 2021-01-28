@@ -106,12 +106,15 @@ void LightDeskFx::start() { execute(fxColorBars); }
 
 bool IRAM_ATTR LightDeskFx::withinRange(const float val, const float low,
                                         const float high, const float mag,
-                                        const float mag_floor) const {
+                                        const float mag_floor,
+                                        float &scale) const {
   bool rc = false;
 
   if ((mag >= mag_floor) && ((val >= low) && (val < high))) {
     rc = true;
   }
+
+  scale = ((high - low) / 255.0);
 
   return rc;
 }
@@ -285,41 +288,92 @@ bool IRAM_ATTR LightDeskFx::majorPeak() {
     _fx_active = fxMajorPeak;
   }
 
-  Color_t color_choice = Color::black();
+  Color_t fill_color = Color::black();
+  Color_t main_color = Color::black();
 
   float mpeak, mag;
 
   _i2s->majorPeak(mpeak, mag);
 
-  const float mag_low_freq = 15.0;
+  const float mag_low_freq = 50.0;
+  const float mag_mid_freq = 15.0;
   const float mag_generic = 0.0;
 
-  if (withinRange(mpeak, 20.0, 200.0, mag, mag_low_freq)) {
-    color_choice = Color(mag, 0, 0, 0);
+  float mag_scaled = (mag / 4.0) > 100.00 ? (mag / 4.0) : 100.0;
 
-  } else if (withinRange(mpeak, 200.0, 300.0, mag, mag_low_freq)) {
-    color_choice = Color(0, mag, 0, 0);
+  float scale;
 
-  } else if (withinRange(mpeak, 300.0, 500.0, mag, mag_generic)) {
-    color_choice = Color(0, mag * 0.25, mag * 0.25, 0);
+  if (withinRange(mpeak, 20.0, 180.4, mag, mag_low_freq, scale)) {
+    // handle bass frequencies
+    main_color = Color(0, 0, 0, mag_scaled);
+  } else if (withinRange(mpeak, 180.0, 525.0, mag, mag_mid_freq, scale)) {
+    constexpr float middle_c = 261.0;
+    int32_t red = 0;
+    int32_t green = 0;
+    int32_t blue = 0;
 
-  } else if (withinRange(mpeak, 500.0, 1000.0, mag, mag_generic)) {
-    color_choice = Color(0, mag * 0.5, mag * 0.5, 0);
+    if (mpeak <= middle_c) {
+      red = 255 - (mpeak - 180.0);
+      blue = mpeak - 180;
+    }
 
-  } else if (withinRange(mpeak, 1000.0, 1500.0, mag, mag_generic)) {
-    color_choice = Color(0, 0, 0, mag);
+    if (mpeak > middle_c) {
+      red = 525.0 - mpeak;
+      blue = 255 - (522.0 - mpeak);
+    }
 
-  } else if (withinRange(mpeak, 1500.0, 2000.0, mag, mag_generic)) {
-    color_choice = Color(0, 0, mag, mag);
+    fill_color = Color(red, green, blue, 0);
+  }
 
-  } else if (withinRange(mpeak, 2000, 17000, mag, mag_generic)) {
-    color_choice = Color(mag * 0.75, mag * 0.45, 0, 0);
+  else if (withinRange(mpeak, 525.0, 1035.0, mag, mag_generic, scale)) {
+    constexpr float midpoint = (1035.0 - 525.0) / 2;
+    const int32_t offset = mpeak - midpoint;
+
+    int32_t red = 0;
+    int32_t green = 0;
+
+    if (offset <= 0) {
+      green = 255 - (mpeak - 525.0);
+      red = mpeak - 525.0;
+    }
+
+    if (offset > 0) {
+      green = 1035 - mpeak;
+      red = 255 - (1035.0 - mpeak);
+    }
+
+    fill_color = Color(red, green, 0, 0);
+  }
+
+  else if (withinRange(mpeak, 1035.0, 1535.0, mag, mag_generic, scale)) {
+    constexpr float midpoint = (1535.0 - 1035.0) / 2;
+    const int32_t offset = mpeak - midpoint;
+
+    int32_t red = 5;
+    int32_t green = 255;
+
+    if (offset >= 0) {
+      red += offset;
+    }
+
+    fill_color = Color(red, green, 0, 0);
+  } else if (withinRange(mpeak, 1535.0, 17000.0, mag, mag_generic, scale)) {
+    int32_t red = log(mpeak);
+    int32_t green = sqrt(sqrt(mpeak));
+    int32_t blue = sqrt(mpeak);
+    int32_t white = 0;
+
+    red = (red > 255) ? 1 : red;
+    green = (green > 255) ? 1 : green;
+    blue = (blue > 255) ? 1 : blue;
+
+    // red and green
+    fill_color = Color(red, green, blue, white);
   }
 
   if (!finished) {
-
-    _main->color(color_choice);
-    _fill->color(color_choice);
+    _main->color(main_color);
+    _fill->color(fill_color);
 
     interval() = 0.022f;
   } else {

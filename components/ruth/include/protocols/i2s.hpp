@@ -21,19 +21,20 @@
 #ifndef _ruth_i2s_hpp
 #define _ruth_i2s_hpp
 
-#include <algorithm>
+#include <vector>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
 #include <driver/i2s.h>
+#include <esp_timer.h>
 
 #include <lwip/err.h>
 #include <lwip/netdb.h>
 #include <lwip/sockets.h>
 #include <lwip/sys.h>
 
-#include "ArduinoFFT/arduinoFFT.h"
+#include "external/arduinoFFT.hpp"
 #include "lightdesk/types.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
@@ -51,37 +52,13 @@ public:
 
   float majorPeak(float &mpeak, float &mag);
 
-  void printFrequencyBins() {
-    printf("FFT Frequency Bins\n");
-    printf("------------------\n");
-
-    printf("Frequency Bins: %.1f  Frequency Interval: %.1f\n\n",
-           _freq_bin_count, _freq_bin_interval);
-
-    uint16_t row_item = 0;
-    for (auto bin = 0; bin < _freq_bin_count; bin++) {
-      float low, high;
-
-      if ((row_item++) == 0) {
-        printf("  ");
-      }
-
-      binToFrequency(bin, low, high);
-      printf("%3d %8.1f ", bin, low);
-
-      if (row_item > 8) {
-        printf("\n");
-        row_item = 0;
-      }
-    }
-
-    printf("\n\n");
-  }
-
   void samplePrint() { taskNotify(NotifySamplePrint); }
   void sampleStopPrint() { taskNotify(NotifySampleStopPrint); }
 
   void setPrintSeconds(uint32_t secs) { _print_ms = secs * 1000; }
+
+  // stats
+  void stats(I2sStats_t &stats) { stats = _stats; }
 
   void start() { taskStart(); }
   void stop() { taskNotify(NotifyStop); }
@@ -90,15 +67,6 @@ private:
   typedef enum { INIT = 0x00, PROCESS_AUDIO, STOP, SHUTDOWN } I2sMode_t;
 
 private:
-  void binToFrequency(uint16_t bin, float &freq_lowside,
-                      float &freq_highside) const {
-    const float lowside = _freq_bin_interval * bin;
-    const float highside = lowside + (_freq_bin_interval - 0.09f);
-
-    freq_lowside = lowside;
-    freq_highside = highside;
-  }
-
   void compute(uint8_t *buffer, size_t len);
 
   void fft(uint8_t *buffer, size_t len);
@@ -120,7 +88,7 @@ private:
   bool handleNotifications();
 
   bool samplesRx();
-  inline void samplesRxElapsed(elapsedMicros &e) {
+  inline void samplesRxElapsed(elapsedMicros &e, const size_t bytes_read) {
     e.freeze();
 
     const size_t slots = sizeof(_stats.durations.rx_us) / sizeof(uint32_t);
@@ -131,10 +99,21 @@ private:
     size_t &slot = _stats.temp.rx_us_idx;
 
     _stats.durations.rx_us[slot++] = (uint32_t)e;
+
+    _stats.temp.byte_count += bytes_read;
   }
   bool samplesUdpTx();
 
   inline bool silence() const { return _noise; }
+
+  void statsCalculate();
+  static void statsCalculateCallback(void *data) {
+    if (data) {
+      I2s_t *i2s = (I2s_t *)data;
+
+      i2s->taskNotify(NotifyStatsCalculate);
+    }
+  }
 
   inline TaskHandle_t task() const { return _task.handle; }
   static void taskCore(void *task_instance);
@@ -142,6 +121,22 @@ private:
   void taskLoop();
   BaseType_t taskNotify(NotifyVal_t nval);
   void taskStart();
+
+  void trackMagMinMax(const float mag) {
+    if ((_stats.magnitude.window) > 10000) {
+      _stats.magnitude.min = 300000.0;
+      _stats.magnitude.max = 0.0;
+      _stats.magnitude.window.reset();
+    }
+
+    if (mag > _stats.magnitude.max) {
+      _stats.magnitude.max = mag;
+    }
+
+    if (mag < _stats.magnitude.min) {
+      _stats.magnitude.min = mag;
+    }
+  }
 
   void trackValMinMax(const int32_t left_val, const int32_t right_val) {
     const int32_t vmin = (left_val < right_val) ? left_val : right_val;
@@ -188,8 +183,6 @@ private:
   float _vreal_right[_vsamples_chan] = {};
   float _vimag[_vsamples_chan] = {};
   float _wfactors[_vsamples_chan] = {};
-  const float _freq_bin_count = _vsamples_chan / 2.0;
-  const float _freq_bin_interval = _sample_rate / _freq_bin_count;
 
   float _noise_filters[4][3] = {
       // {low_freq, high_freq, mag}
@@ -220,6 +213,9 @@ private:
   int _socket_raw = -1;
   int _socket_text = -1;
   uint32_t _udp_errors = 0;
+
+  esp_timer_handle_t _stats_timer = nullptr;
+  const uint8_t _stats_interval_secs = 3;
 
   Task_t _task = {
       .handle = nullptr, .data = nullptr, .priority = 19, .stackSize = 4096};
