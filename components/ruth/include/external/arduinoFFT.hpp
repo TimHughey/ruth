@@ -285,33 +285,12 @@ public:
   }
 
   T majorPeak() const {
-    T maxY = 0;
-    uint_fast16_t IndexOfMaxY = 0;
-    // If sampling_frequency = 2 * max_frequency in signal,
-    // value would be stored at position samples/2
-    for (uint_fast16_t i = 1; i < ((this->_samples >> 1) + 1); i++) {
-      if ((this->_vReal[i - 1] < this->_vReal[i]) &&
-          (this->_vReal[i] > this->_vReal[i + 1])) {
-        if (this->_vReal[i] > maxY) {
-          maxY = this->_vReal[i];
-          IndexOfMaxY = i;
-        }
-      }
-    }
-    T delta =
-        0.5 *
-        ((this->_vReal[IndexOfMaxY - 1] - this->_vReal[IndexOfMaxY + 1]) /
-         (this->_vReal[IndexOfMaxY - 1] - (2.0 * this->_vReal[IndexOfMaxY]) +
-          this->_vReal[IndexOfMaxY + 1]));
-    T interpolatedX = ((IndexOfMaxY + delta) * this->_samplingFrequency) /
-                      (this->_samples - 1);
-    if (IndexOfMaxY == (this->_samples >> 1)) {
-      // To improve calculation on edge values
-      interpolatedX =
-          ((IndexOfMaxY + delta) * this->_samplingFrequency) / (this->_samples);
-    }
-    // returned value: interpolated frequency peak apex
-    return interpolatedX;
+    T frequency;
+    T value;
+
+    majorPeak(frequency, value);
+
+    return frequency;
   }
 
   void majorPeak(T &frequency, T &value) const {
@@ -345,6 +324,49 @@ public:
     value =
         abs(this->_vReal[IndexOfMaxY - 1] - (2.0 * this->_vReal[IndexOfMaxY]) +
             this->_vReal[IndexOfMaxY + 1]);
+  }
+
+  T binFrequency(size_t y) {
+    T frequency, magnitude;
+
+    binFrequency(y, frequency, magnitude);
+
+    return frequency;
+  }
+
+  void binFrequency(size_t y, T &frequency, T &magnitude) {
+    frequency = 0;
+    magnitude = 0;
+
+    T interpolatedX = 0;
+    T val_at_y = 0;
+
+    if ((y >= ((_samples >> 1) + 1)) || (_vReal[y] < 0)) {
+      frequency = interpolatedX;
+      magnitude = val_at_y;
+      return;
+    }
+
+    T delta = 0.5 * ((_vReal[y - 1] - _vReal[y + 1]) /
+                     (_vReal[y - 1] - (2.0 * _vReal[y]) + _vReal[y + 1]));
+
+    interpolatedX = ((y + delta) * _samplingFrequency) / (_samples - 1);
+
+    if (y == (_samples >> 1)) {
+      // To improve calculation on edge values
+      interpolatedX = ((y + delta) * _samplingFrequency) / _samples;
+    }
+
+    val_at_y = _vReal[y];
+    const T bin_width = _samplingFrequency / (_samples - 1);
+    const T low = (bin_width * y) - (bin_width / 2.0);
+    const T high = (bin_width * y) + (bin_width / 2.0);
+
+    if ((interpolatedX > 0) &&
+        ((interpolatedX >= low) && (interpolatedX <= high))) {
+      frequency = interpolatedX;
+      magnitude = val_at_y;
+    }
   }
 
 private:

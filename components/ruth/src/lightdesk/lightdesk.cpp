@@ -228,7 +228,7 @@ void LightDesk::init() {
   _dmx = (_dmx == nullptr) ? new Dmx() : _dmx;
 
   _i2s->start();
-  vTaskDelay(pdMS_TO_TICKS(100)); // allow time for i2s to start
+  vTaskDelay(pdMS_TO_TICKS(300)); // allow time for i2s to start
 
   _dmx->start();
 

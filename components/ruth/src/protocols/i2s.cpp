@@ -31,6 +31,8 @@ namespace ruth {
 I2s::I2s() {
   _stats.object_size = sizeof(I2s);
   _stats.config.freq_bin_width = (float)_sample_rate / (float)_vsamples_chan;
+
+  _mag_history.resize(30);
 }
 
 I2s::~I2s() {
@@ -108,6 +110,18 @@ void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
 
   _fft.majorPeak(_mpeak, _mpeak_mag);
   _mpeak_mag /= 100000.0;
+
+  float freq;
+  _fft.binFrequency(1, freq, _bass_mag);
+
+  _bass_mag /= 100000.0;
+
+  if ((_bass_mag > 48.0) && (freq > 30.0) && (freq < 130.0)) {
+    _bass = true;
+
+  } else {
+    _bass = false;
+  }
 
   trackMagMinMax(_mpeak_mag);
 
@@ -243,7 +257,7 @@ void I2s::taskCore(void *task_instance) {
 void I2s::taskInit() {
   static const i2s_config_t i2s_config = {
       .mode = i2s_mode_t(I2S_MODE_MASTER | I2S_MODE_RX),
-      .sample_rate = 44100, // or 44100 if you like
+      .sample_rate = _sample_rate,
       .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
       .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
       .communication_format = I2S_COMM_FORMAT_STAND_I2S,

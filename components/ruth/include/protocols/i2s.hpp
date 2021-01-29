@@ -43,12 +43,20 @@ namespace ruth {
 
 typedef class I2s I2s_t;
 
+using std::vector;
+
 class I2s {
   using I2sStats_t = lightdesk::I2sStats_t;
 
 public:
   I2s();
   ~I2s();
+
+  bool bass(float &mag) const {
+    mag = _bass_mag;
+
+    return _bass;
+  }
 
   float majorPeak(float &mpeak, float &mag);
 
@@ -161,23 +169,22 @@ private:
   I2sMode_t _mode = INIT;
   esp_err_t _init_rc = ESP_OK;
 
-  int _bit_shift = 8;
+  static constexpr int _bit_shift = 8;
   bool _sample_print = false;
   uint32_t _print_ms = 15 * 1000;
   elapsedMillis _print_elapsed;
 
-  const i2s_port_t _i2s_port = I2S_NUM_0;
-  const int _dma_buff = 1024;
-  const size_t _data_len = 4;
-
-  uint32_t _eq_max_depth = 4;
+  static constexpr i2s_port_t _i2s_port = I2S_NUM_0;
+  static constexpr int _dma_buff = 1024;
+  static constexpr uint32_t _eq_max_depth = 4;
 
   uint8_t *_raw = nullptr;
 
   I2sStats_t _stats;
 
-  static const size_t _sample_rate = 44100;
-  static const size_t _vsamples = 1024;
+  // static constexpr size_t _sample_rate = 44642;
+  static constexpr size_t _sample_rate = 44100;
+  static const size_t _vsamples = 2048;
   static const size_t _vsamples_chan = _vsamples / 2;
   float _vreal_left[_vsamples_chan] = {};
   float _vreal_right[_vsamples_chan] = {};
@@ -194,6 +201,9 @@ private:
   float _mpeak = 0.0;
   float _mpeak_mag = 0.0;
   bool _noise = true;
+  bool _bass = false;
+  float _bass_mag = 0.0;
+  vector<float> _mag_history;
 
   ArduinoFFT<float> _fft = ArduinoFFT<float>(
       _vreal_left, _vimag, _vsamples_chan, _sample_rate, _wfactors);

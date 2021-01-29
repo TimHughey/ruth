@@ -66,6 +66,15 @@ public:
   static Color_t red() { return Color(255, 0, 0, 0); }
   static Color_t white() { return Color(0, 0, 0, 255); }
 
+  void applyMagnitude(float magnitude) {
+    for (auto k = 0; k < endOfParts(); k++) {
+      if (_parts[k] != 0.0) {
+        const uint8_t adjusted = (int32_t)magnitude % (int32_t)_parts[k];
+        _parts[k] = adjusted;
+      }
+    }
+  }
+
   void copyToByteArray(uint8_t *array) const {
     for (auto i = 0; i < endOfParts(); i++) {
       const float val = rint(colorPartConst(i));

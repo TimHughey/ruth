@@ -26,6 +26,17 @@
 namespace ruth {
 namespace lightdesk {
 
+const static DRAM_ATTR float _frequencies[] = {
+    349.2, 370.0, 392.0, 415.3, 440.0, 466.2, 493.9,
+    523.2, 544.4, 587.3, 622.2, 659.3, 698.5};
+
+const static DRAM_ATTR Color_t _frequencyColors[] = {
+    Color(82, 0, 0, 0),    Color(116, 0, 0, 0),  Color(179, 0, 0, 0),
+    Color(238, 0, 0, 0),   Color(255, 99, 0, 0), Color(255, 236, 0, 0),
+    Color(153, 255, 0, 0), Color(40, 255, 0, 0), Color(0, 255, 232, 0),
+    Color(0, 124, 253, 0), Color(5, 0, 255, 0),  Color(69, 0, 234, 0),
+    Color(87, 0, 158, 0)};
+
 LightDeskFx::LightDeskFx(PinSpot_t *main, PinSpot_t *fill, I2s_t *i2s)
     : _main(main), _fill(fill), _i2s(i2s){};
 
@@ -102,19 +113,45 @@ bool LightDeskFx::execute(bool *finished_ptr) {
   return finished;
 }
 
+bool LightDeskFx::frequencyKnown(float frequency, size_t &index) {
+  bool rc = false;
+
+  for (auto k = 0; k < (sizeof(_frequencies) / sizeof(float)); k++) {
+    const float freq = _frequencies[k];
+    const float slush = (_frequencies[k + 1] - _frequencies[k]) / 2.0;
+    const float low = freq - slush;
+    const float high = freq + slush;
+
+    if ((frequency > low) && (frequency < high)) {
+      rc = true;
+      index = k;
+      break;
+    }
+  }
+
+  return rc;
+}
+
+Color_t LightDeskFx::frequencyMapToColor(size_t index) {
+  Color_t color;
+
+  if ((index < (sizeof(_frequencies) / sizeof(float)))) {
+    color = _frequencyColors[index];
+  }
+
+  return color;
+}
+
 void LightDeskFx::start() { execute(fxColorBars); }
 
 bool IRAM_ATTR LightDeskFx::withinRange(const float val, const float low,
                                         const float high, const float mag,
-                                        const float mag_floor,
-                                        float &scale) const {
+                                        const float mag_floor) const {
   bool rc = false;
 
   if ((mag >= mag_floor) && ((val >= low) && (val < high))) {
     rc = true;
   }
-
-  scale = ((high - low) / 255.0);
 
   return rc;
 }
@@ -295,80 +332,16 @@ bool IRAM_ATTR LightDeskFx::majorPeak() {
 
   _i2s->majorPeak(mpeak, mag);
 
-  const float mag_low_freq = 50.0;
-  const float mag_mid_freq = 15.0;
-  const float mag_generic = 0.0;
-
-  float mag_scaled = (mag / 4.0) > 100.00 ? (mag / 4.0) : 100.0;
-
-  float scale;
-
-  if (withinRange(mpeak, 20.0, 180.4, mag, mag_low_freq, scale)) {
-    // handle bass frequencies
-    main_color = Color(0, 0, 0, mag_scaled);
-  } else if (withinRange(mpeak, 180.0, 525.0, mag, mag_mid_freq, scale)) {
-    constexpr float middle_c = 261.0;
-    int32_t red = 0;
-    int32_t green = 0;
-    int32_t blue = 0;
-
-    if (mpeak <= middle_c) {
-      red = 255 - (mpeak - 180.0);
-      blue = mpeak - 180;
-    }
-
-    if (mpeak > middle_c) {
-      red = 525.0 - mpeak;
-      blue = 255 - (522.0 - mpeak);
-    }
-
-    fill_color = Color(red, green, blue, 0);
+  size_t color_index = 0;
+  if (frequencyKnown(mpeak, color_index)) {
+    fill_color = frequencyMapToColor(color_index);
+    fill_color.applyMagnitude(mag);
   }
 
-  else if (withinRange(mpeak, 525.0, 1035.0, mag, mag_generic, scale)) {
-    constexpr float midpoint = (1035.0 - 525.0) / 2;
-    const int32_t offset = mpeak - midpoint;
-
-    int32_t red = 0;
-    int32_t green = 0;
-
-    if (offset <= 0) {
-      green = 255 - (mpeak - 525.0);
-      red = mpeak - 525.0;
-    }
-
-    if (offset > 0) {
-      green = 1035 - mpeak;
-      red = 255 - (1035.0 - mpeak);
-    }
-
-    fill_color = Color(red, green, 0, 0);
-  }
-
-  else if (withinRange(mpeak, 1035.0, 1535.0, mag, mag_generic, scale)) {
-    constexpr float midpoint = (1535.0 - 1035.0) / 2;
-    const int32_t offset = mpeak - midpoint;
-
-    int32_t red = 5;
-    int32_t green = 255;
-
-    if (offset >= 0) {
-      red += offset;
-    }
-
-    fill_color = Color(red, green, 0, 0);
-  } else if (withinRange(mpeak, 1535.0, 17000.0, mag, mag_generic, scale)) {
-    int32_t red = log(mpeak);
-    int32_t green = sqrt(sqrt(mpeak));
-    int32_t blue = sqrt(mpeak);
-    int32_t white = 0;
-
-    red = (red > 255) ? 1 : red;
-    green = (green > 255) ? 1 : green;
-    blue = (blue > 255) ? 1 : blue;
-
-    // red and green
-    fill_color = Color(red, green, blue, white);
+  float bass_mag;
+  if (_i2s->bass(bass_mag)) {
+    main_color = Color::red();
+    main_color.applyMagnitude(bass_mag);
   }
 
   if (!finished) {
@@ -377,13 +350,8 @@ bool IRAM_ATTR LightDeskFx::majorPeak() {
 
     interval() = 0.022f;
   } else {
-    FaderOpts_t fade_out{.origin = 0x00,
-                         .dest = Color::black(),
-                         .travel_secs = 0.2f,
-                         .use_origin = false};
-
-    _main->fadeTo(fade_out);
-    _fill->fadeTo(fade_out);
+    _main->dark();
+    _fill->dark();
   }
 
   return finished;

@@ -53,16 +53,18 @@ void Core::_loop() {
 
   if (_cli->running() == false) {
     // when the CLI is not running provide a way to start it up
-    uint8_t key_buff[2] = {};
-    auto bytes = uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, key_buff, 1, 0);
 
-    if (bytes > 0) {
-      switch (key_buff[0]) {
-      case 'c':
+    uint8_t key_buff[15] = {0x00}; // sized to allow for spurious chars
+    constexpr size_t max = sizeof(key_buff) - 1;
+    auto bytes = uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, key_buff, max, 0);
+
+    for (auto k = 0; ((bytes > 0) && (k < max)); k++) {
+      const uint8_t key = key_buff[k];
+
+      if (key == 'c') {
         _cli->start();
         break;
-      case ' ':
-      case '\r':
+      } else if ((key == ' ') || (key == '\r')) {
         ESP_LOGI("Core", "hint: press \'c'\' for command line interface");
         break;
       }
