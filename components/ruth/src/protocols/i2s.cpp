@@ -114,9 +114,22 @@ void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
   float freq;
   _fft.binFrequency(1, freq, _bass_mag);
 
-  _bass_mag /= 100000.0;
+  // _bass_mag_hist[_bass_mag_hist_idx++] = bass_mag / 100000.0;
+  // constexpr size_t bass_hist_len = sizeof(_bass_mag_hist) / sizeof(float);
+  //
+  // if (_bass_mag_hist_idx > (bass_hist_len - 1)) {
+  //   _bass_mag_hist_idx = 0;
+  // }
+  //
+  // float bass_mag_sum = 0.0;
+  // for (auto k = 0; k < bass_hist_len; k++) {
+  //   bass_mag_sum += _bass_mag_hist[k];
+  // }
+  //
+  // _bass_mag = bass_mag_sum / (float)bass_hist_len;
 
-  if ((_bass_mag > 48.0) && (freq > 30.0) && (freq < 130.0)) {
+  _bass_mag /= 100000.0;
+  if ((_bass_mag > _bass_mag_floor) && (freq > 30.0) && (freq <= 170.0)) {
     _bass = true;
 
   } else {
@@ -286,6 +299,8 @@ void I2s::taskInit() {
   if (_init_rc != ESP_OK) {
     ESP_LOGW("I2S", "failed setting pins: %s\n", esp_err_to_name(_init_rc));
   }
+
+  vTaskDelay(pdMS_TO_TICKS(250)); // allow microphone to wake up
 
   if (_raw == nullptr) {
     _raw = new uint8_t[_dma_buff];

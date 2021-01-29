@@ -58,6 +58,11 @@ public:
     return _bass;
   }
 
+  void magnitudeMinMax(float &min, float &max) {
+    min = _stats.magnitude.min;
+    max = _stats.magnitude.max;
+  }
+
   float majorPeak(float &mpeak, float &mag);
 
   void samplePrint() { taskNotify(NotifySamplePrint); }
@@ -131,11 +136,11 @@ private:
   void taskStart();
 
   void trackMagMinMax(const float mag) {
-    if ((_stats.magnitude.window) > 10000) {
-      _stats.magnitude.min = 300000.0;
-      _stats.magnitude.max = 0.0;
-      _stats.magnitude.window.reset();
-    }
+    // if ((_stats.magnitude.window) > 10000) {
+    //   _stats.magnitude.min = 300000.0;
+    //   _stats.magnitude.max = 0.0;
+    //   _stats.magnitude.window.reset();
+    // }
 
     if (mag > _stats.magnitude.max) {
       _stats.magnitude.max = mag;
@@ -202,7 +207,10 @@ private:
   float _mpeak_mag = 0.0;
   bool _noise = true;
   bool _bass = false;
+  float _bass_mag_floor = 63.5;
   float _bass_mag = 0.0;
+  // float _bass_mag_hist[2] = {0x00};
+  // size_t _bass_mag_hist_idx = 0;
   vector<float> _mag_history;
 
   ArduinoFFT<float> _fft = ArduinoFFT<float>(

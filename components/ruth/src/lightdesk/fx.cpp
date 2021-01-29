@@ -26,15 +26,32 @@
 namespace ruth {
 namespace lightdesk {
 
-const static DRAM_ATTR float _frequencies[] = {
+const static DRAM_ATTR float _mid_range_frequencies[13] = {
     349.2, 370.0, 392.0, 415.3, 440.0, 466.2, 493.9,
     523.2, 544.4, 587.3, 622.2, 659.3, 698.5};
 
+const static DRAM_ATTR float _frequencies[13][2] = {
+    {150.1, 160.0},      // 00: high bass
+    {160.0, 300.0},      // 01
+    {300.0, 400.0},      // 02
+    {400.0, 500.0},      // 03
+    {500.0, 600.0},      // 04
+    {700.0, 800.0},      // 05
+    {800.0, 900.0},      // 06
+    {900.0, 1000.0},     // 07
+    {1000.0, 2000.0},    // 08
+    {2000.0, 3000.0},    // 09
+    {3000.0, 5000.0},    // 10
+    {5000.0, 10000.0},   // 11
+    {10000.0, 22000.0}}; // 12}
+
+const static DRAM_ATTR float _frequency_count = 13;
+
 const static DRAM_ATTR Color_t _frequencyColors[] = {
-    Color(82, 0, 0, 0),    Color(116, 0, 0, 0),  Color(179, 0, 0, 0),
-    Color(238, 0, 0, 0),   Color(255, 99, 0, 0), Color(255, 236, 0, 0),
-    Color(153, 255, 0, 0), Color(40, 255, 0, 0), Color(0, 255, 232, 0),
-    Color(0, 124, 253, 0), Color(5, 0, 255, 0),  Color(69, 0, 234, 0),
+    Color(204, 102, 0, 0), Color(204, 204, 0, 0), Color(102, 204, 0, 0),
+    Color(0, 204, 102, 0), Color(255, 99, 0, 0),  Color(255, 236, 0, 0),
+    Color(153, 255, 0, 0), Color(40, 255, 0, 0),  Color(0, 255, 232, 0),
+    Color(0, 124, 253, 0), Color(5, 0, 255, 0),   Color(69, 0, 234, 0),
     Color(87, 0, 158, 0)};
 
 LightDeskFx::LightDeskFx(PinSpot_t *main, PinSpot_t *fill, I2s_t *i2s)
@@ -116,13 +133,11 @@ bool LightDeskFx::execute(bool *finished_ptr) {
 bool LightDeskFx::frequencyKnown(float frequency, size_t &index) {
   bool rc = false;
 
-  for (auto k = 0; k < (sizeof(_frequencies) / sizeof(float)); k++) {
-    const float freq = _frequencies[k];
-    const float slush = (_frequencies[k + 1] - _frequencies[k]) / 2.0;
-    const float low = freq - slush;
-    const float high = freq + slush;
+  for (auto k = 0; k < _frequency_count; k++) {
+    const float low = _frequencies[k][0];
+    const float high = _frequencies[k][1];
 
-    if ((frequency > low) && (frequency < high)) {
+    if ((frequency > low) && (frequency <= high)) {
       rc = true;
       index = k;
       break;
@@ -135,7 +150,7 @@ bool LightDeskFx::frequencyKnown(float frequency, size_t &index) {
 Color_t LightDeskFx::frequencyMapToColor(size_t index) {
   Color_t color;
 
-  if ((index < (sizeof(_frequencies) / sizeof(float)))) {
+  if (index < _frequency_count) {
     color = _frequencyColors[index];
   }
 
@@ -332,10 +347,16 @@ bool IRAM_ATTR LightDeskFx::majorPeak() {
 
   _i2s->majorPeak(mpeak, mag);
 
+  float mag_min, mag_max;
+  _i2s->magnitudeMinMax(mag_min, mag_max);
+  Color::setMagnitudeMinMax(mag_min, mag_max);
+
   size_t color_index = 0;
   if (frequencyKnown(mpeak, color_index)) {
     fill_color = frequencyMapToColor(color_index);
     fill_color.applyMagnitude(mag);
+  } else if ((mpeak > 63.5) && (mpeak < 150.0) && (mag > 50.0)) {
+    fill_color = Color::red();
   }
 
   float bass_mag;

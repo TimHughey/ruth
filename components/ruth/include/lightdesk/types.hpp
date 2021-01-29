@@ -21,6 +21,8 @@
 #ifndef _ruth_lightdesk_types_hpp
 #define _ruth_lightdesk_types_hpp
 
+#include <limits>
+
 #include "lightdesk/enums.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
@@ -84,6 +86,8 @@ struct FxStats {
 };
 
 struct I2sStats {
+  using numerical_limits = std::numeric_limits<float>;
+
   struct {
     uint32_t byte_count = 0;
     size_t fft_us_idx = 0;
@@ -102,8 +106,8 @@ struct I2sStats {
 
   struct {
     elapsedMillis window;
-    float min = 0;
-    float max = 0;
+    float min = numerical_limits::max();
+    float max = numerical_limits::min();
   } magnitude;
 
   struct {

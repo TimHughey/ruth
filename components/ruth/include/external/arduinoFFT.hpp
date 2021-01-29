@@ -358,12 +358,8 @@ public:
     }
 
     val_at_y = _vReal[y];
-    const T bin_width = _samplingFrequency / (_samples - 1);
-    const T low = (bin_width * y) - (bin_width / 2.0);
-    const T high = (bin_width * y) + (bin_width / 2.0);
 
-    if ((interpolatedX > 0) &&
-        ((interpolatedX >= low) && (interpolatedX <= high))) {
+    if (interpolatedX > 0) {
       frequency = interpolatedX;
       magnitude = val_at_y;
     }

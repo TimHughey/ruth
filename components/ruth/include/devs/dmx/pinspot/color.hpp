@@ -67,11 +67,14 @@ public:
   static Color_t white() { return Color(0, 0, 0, 255); }
 
   void applyMagnitude(float magnitude) {
+    uint32_t mag_range = (uint32_t)_mag_max - (uint32_t)_mag_min;
+
     for (auto k = 0; k < endOfParts(); k++) {
-      if (_parts[k] != 0.0) {
-        const uint8_t adjusted = (int32_t)magnitude % (int32_t)_parts[k];
-        _parts[k] = adjusted;
-      }
+      const uint32_t color_range = _parts[k];
+      const uint8_t adjusted =
+          (((magnitude - _mag_min) * color_range) / mag_range);
+
+      _parts[k] = adjusted;
     }
   }
 
@@ -182,11 +185,18 @@ public:
     colorPart(WHITE_PART) = static_cast<float>(wht);
   }
 
+  static void setMagnitudeMinMax(const float min, const float max) {
+    _mag_min = min;
+    _mag_max = max;
+  }
+
 private:
   void copy(const Color_t &rhs) { bcopy(rhs._parts, _parts, sizeof(_parts)); }
 
 private:
   float _parts[4] = {};
+  static float _mag_min;
+  static float _mag_max;
 };
 
 class ColorVelocity {
