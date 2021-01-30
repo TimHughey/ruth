@@ -77,6 +77,8 @@ public:
     stats = _stats;
   }
 
+  void eachFrame() {}
+
   void stop() { _stats = FxStats(); }
 
 private:
@@ -136,6 +138,8 @@ private:
   float _fx_interval_default = 17.0f;
   Fx_t _fx_next = fxNone;
   Fx_t _fx_prev = fxNone;
+
+  elapsedMillis _fx_elapsed;
 
   FxStats_t _stats;
 };

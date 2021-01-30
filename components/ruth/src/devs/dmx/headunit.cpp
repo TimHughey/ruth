@@ -27,7 +27,7 @@ namespace ruth {
 HeadUnit::HeadUnit(uint16_t address, size_t frame_len)
     : _address(address), _frame_len(frame_len) {}
 
-void IRAM_ATTR HeadUnit::updateFrame(uint8_t *frame_actual) {
+void IRAM_ATTR HeadUnit::frameUpdate(uint8_t *frame_actual) {
   if (_frame_changed) {
     bcopy(_frame_snippet, (frame_actual + _address), _frame_len);
 

@@ -59,6 +59,9 @@ public:
 
   float framesPerSecond() const { return _stats.fps; }
 
+  void prepareTaskRegister(TaskHandle_t handle) { _prepare_task = handle; }
+  void prepareTaskUnregister() { _prepare_task = nullptr; }
+
   void registerHeadUnit(HeadUnit_t *unit);
 
   // stats
@@ -106,8 +109,14 @@ private:
 
   static void fpsCalculate(void *data);
   void frameApplyUpdates();
+  void framePrepareTaskNotify() {
+    if (_prepare_task) {
+      xTaskNotify(_prepare_task, NotifyPrepareFrame, eSetValueWithOverwrite);
+    }
+  }
+
   static void frameTimerCallback(void *data);
-  esp_err_t frameTimerStart() const;
+  esp_err_t frameTimerStart();
 
   int txBytes();
   void txFrame();
@@ -139,10 +148,10 @@ private:
 
   // except for _frame_break all frame timings are in µs
   const uint32_t _frame_break = 11; // num bits at 250,000 baud (4µs)
-  const uint64_t _frame_mab = 12;
+  const uint64_t _frame_mab = 0;    // was 12
   const uint64_t _frame_byte = 44;
-  const uint64_t _frame_sc = _frame_byte;
-  const uint64_t _frame_mtbf = 44;
+  const uint64_t _frame_sc = _frame_byte / 10; // account for internal latency
+  const uint64_t _frame_mtbf = 0;              // was 44
   const uint64_t _frame_data = _frame_byte * 512;
   // frame interval does not include the BREAK as it is handled by the UART
   uint64_t _frame_us = _frame_mab + _frame_sc + _frame_data + _frame_mtbf;
@@ -156,9 +165,11 @@ private:
   int _fpc_period = 3; // period represents seconds to count frames
   int _fpcp = 0;       // frames per calculate period
 
+  TaskHandle_t _prepare_task = nullptr;
   HeadUnit_t *_headunit[10] = {};
   uint32_t _headunits = 0;
 
+  elapsedMicros _frame_white_space;
   DmxStats_t _stats;
 
   Task_t _task = {

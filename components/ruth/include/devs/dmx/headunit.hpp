@@ -30,8 +30,9 @@ typedef class HeadUnit HeadUnit_t;
 class HeadUnit {
 public:
   HeadUnit(const uint16_t address, size_t frame_len);
-
-  void updateFrame(uint8_t *frame_actual);
+  virtual ~HeadUnit(){};
+  virtual void framePrepare() {}
+  void frameUpdate(uint8_t *frame_actual);
 
 protected:
   inline bool &frameChanged() { return _frame_changed; }

@@ -49,14 +49,6 @@ public:
   LightDesk();
   ~LightDesk();
 
-  inline uint64_t frameInterval() {
-    if (_dmx) {
-      return _dmx->frameInterval();
-    } else {
-      return 0;
-    }
-  }
-
   bool request(const Request_t &r);
 
   const LightDeskStats_t &stats();
@@ -64,8 +56,6 @@ public:
 private:
   void danceExecute();
   void danceStart(LightDeskMode_t mode);
-  static void danceTimerCallback(void *data);
-  uint64_t danceTimerSchedule(float secs) const;
 
   bool command(MsgPayload_t &msg);
 
@@ -79,6 +69,8 @@ private:
 
     return choosen_fx;
   }
+
+  void framePrepare();
 
   void init();
 
@@ -150,7 +142,7 @@ private:
   // 2d6 probabilities
   // 2: 2.78, 3: 5.56, 4: 8.33, 5: 11.11%, 6: 13.89%, 7: 16.67
   // 8: 13.89, 9: 11.11, 10: 9.33, 11: 5.56, 12: 2.78
-  const Fx_t _fx_patterns2[13] = {fxNone,                        // 0
+  const Fx_t _fx_patterns0[13] = {fxNone,                        // 0
                                   fxNone,                        // 1
                                   fxPrimaryColorsCycle,          // 2
                                   fxBlueGreenGradient,           // 3
@@ -180,15 +172,6 @@ private:
 
   // light desk fx controller
   LightDeskFx_t *_fx = nullptr;
-
-  // dance execute timer
-  esp_timer_handle_t _dance_timer = nullptr;
-  esp_timer_create_args_t _dance_timer_args;
-
-  // high-res timers
-  esp_timer_handle_t _timer = nullptr;
-  esp_timer_create_args_t _timer_args;
-  float _timer_interval = 3.0f;
 
   // task
   Task_t _task = {

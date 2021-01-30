@@ -21,6 +21,7 @@
 #ifndef _ruth_lightdesk_types_hpp
 #define _ruth_lightdesk_types_hpp
 
+#include <cstdint>
 #include <limits>
 
 #include "lightdesk/enums.hpp"
@@ -52,6 +53,7 @@ struct DmxStats {
     uint64_t us = 0;
     uint64_t count = 0;
     uint64_t shorts = 0;
+    uint32_t white_space_us = 0;
 
     struct {
       uint64_t curr = 0;
@@ -126,22 +128,23 @@ struct I2sStats {
 };
 
 struct PinSpotStats {
-  struct {
-    uint64_t retries = 0;
-    uint64_t failures = 0;
-    uint64_t count = 0;
-  } notify;
-
   size_t object_size = 0;
 };
 
 struct LightDeskStats {
+  using uint_limit = std::numeric_limits<uint_fast32_t>;
   const char *mode = nullptr;
 
   DmxStats_t dmx;
   FxStats_t fx;
   I2sStats_t i2s;
   PinSpotStats_t pinspot[2];
+
+  struct {
+    uint_fast32_t min = uint_limit::max();
+    uint_fast32_t curr = 0.0;
+    uint_fast32_t max = uint_limit::min();
+  } frame_prepare;
 
   size_t object_size = 0;
 };

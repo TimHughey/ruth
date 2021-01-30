@@ -84,7 +84,12 @@ public:
 
   inline bool stop() {
     _request = Request(STOP);
-    return setMode();
+    auto rc = setMode();
+
+    delete _desk;
+    _desk = nullptr;
+
+    return rc;
   }
 
 private:

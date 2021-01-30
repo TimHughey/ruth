@@ -54,7 +54,7 @@ void IRAM_ATTR Dmx::frameApplyUpdates() {
     HeadUnit_t *unit = _headunit[i];
 
     if (unit) {
-      unit->updateFrame(_frame);
+      unit->frameUpdate(_frame);
     }
   }
 
@@ -77,11 +77,15 @@ void IRAM_ATTR Dmx::frameTimerCallback(void *data) {
   dmx->taskNotify(NotifyFrame);
 }
 
-esp_err_t IRAM_ATTR Dmx::frameTimerStart() const {
+esp_err_t IRAM_ATTR Dmx::frameTimerStart() {
   esp_err_t rc = _init_rc;
 
   if ((_init_rc == ESP_OK) && (_mode == STREAM_FRAMES)) {
+    _frame_white_space.reset();
+
     rc = esp_timer_start_once(_frame_timer, _frame_us);
+    // notify the task responsible for preparing the next frame
+    framePrepareTaskNotify();
   }
 
   return rc;
@@ -154,6 +158,7 @@ void IRAM_ATTR Dmx::taskLoop() {
 
       case NotifyStop:
         _mode = STOP;
+        taskNotify(NotifyShutdown);
         break;
 
       case NotifyStreamFrames:
@@ -244,6 +249,11 @@ void IRAM_ATTR Dmx::txFrame() {
   // always ensure the previous tx has completed which includes
   // the BREAK (low for 88us)
   if (uart_wait_tx_done(_uart_num, frame_ticks) == ESP_OK) {
+    _frame_white_space.freeze();
+    if (_frame_white_space > _stats.frame.white_space_us) {
+      _stats.frame.white_space_us = _frame_white_space;
+    }
+
     txBytes();
     frameApplyUpdates();
   }

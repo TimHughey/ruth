@@ -102,6 +102,9 @@ bool LightDeskControl::stats() {
   printf("\n");
   printf("%-*smode=%s object_size=%u\n", indent_size, "lightdesk:", stats.mode,
          stats.object_size);
+  printf("%sframe prepare min(%4uµs) curr(%4uµs) max(%4uµs)\n", indent,
+         stats.frame_prepare.min, stats.frame_prepare.curr,
+         stats.frame_prepare.max);
 
   printf("\n");
   printf("%-*sbasic=%llu active=%s next=%s prev=%s\n", indent_size,
@@ -116,10 +119,11 @@ bool LightDeskControl::stats() {
   // dmx
   const float frame_ms = (float)dmx.frame.us / 1000.f;
   printf("\n");
-  printf("%-*s%02.02ffps frame=%5.3fms shorts=%llu\n", indent_size,
-         "dmx:", dmx.fps, frame_ms, dmx.frame.shorts);
+  printf("%-*s%02.02ffps frame(%6.3fms) shorts(%llu) white_space(%7.3fms)\n",
+         indent_size, "dmx:", dmx.fps, frame_ms, dmx.frame.shorts,
+         (float)dmx.frame.white_space_us / 1000.0);
 
-  printf("%sframe_update: curr=%lluµs min=%lluµs max=%lluµs\n", indent,
+  printf("%sframe_update: curr(%4lluµs) min(%4lluµs) max(%4lluµs)\n", indent,
          dmx.frame.update.curr, dmx.frame.update.min, dmx.frame.update.max);
   printf("%stx: curr(%02.02fms) min(%02.02fms) max(%02.02fms)\n", indent,
          dmx.tx.curr, dmx.tx.min, dmx.tx.max);
@@ -140,8 +144,8 @@ bool LightDeskControl::stats() {
   printf("%sraw min(%8d) max(%8d)\n", indent, i2s.raw_val.min24,
          i2s.raw_val.max24);
 
-  printf("%sfft: magnitude(%.2f,%.2f) bin_width(%.2fHz)\n", indent,
-         i2s.magnitude.min, i2s.magnitude.max, i2s.config.freq_bin_width);
+  printf("%sfft: bin_width(%6.2fHz) magnitude(%10.2f,%10.2f) \n", indent,
+         i2s.config.freq_bin_width, i2s.magnitude.min, i2s.magnitude.max);
 
   printf("%sobject_size(%u)\n", indent, i2s.object_size);
 
@@ -155,10 +159,8 @@ bool LightDeskControl::stats() {
     TextBuffer<16> name;
     name.printf("pinspot %02d:", i);
 
-    printf("%-*snotify count=%llu retries=%llu failures=%llu\n", indent_size,
-           name.c_str(), pinspot.notify.count, pinspot.notify.retries,
-           pinspot.notify.failures);
-    printf("%sobject_size=%u\n", indent, pinspot.object_size);
+    printf("%-*sobject_size=%u\n", indent_size, name.c_str(),
+           pinspot.object_size);
   }
 
   printf("\n");

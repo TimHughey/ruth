@@ -61,6 +61,7 @@ class Fader {
 public:
   Fader(){};
 
+  inline bool active() const { return _finished; }
   inline bool finished() const { return _finished; }
 
   const Color_t &location() const { return _location; }

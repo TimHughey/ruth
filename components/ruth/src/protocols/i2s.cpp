@@ -36,6 +36,12 @@ I2s::I2s() {
 }
 
 I2s::~I2s() {
+  while (_task.handle != nullptr) {
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  i2s_driver_uninstall(_i2s_port);
+
   if (_raw) {
     delete _raw;
     _raw = nullptr;
@@ -44,11 +50,6 @@ I2s::~I2s() {
   if (_stats_timer) {
     esp_timer_delete(_stats_timer);
     _stats_timer = nullptr;
-  }
-
-  while (_task.handle != nullptr) {
-    printf("%s waiting for task to exit\n", __PRETTY_FUNCTION__);
-    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
@@ -175,9 +176,6 @@ bool I2s::handleNotifications() {
 
     case NotifyShutdown:
       _mode = SHUTDOWN;
-
-      i2s_driver_uninstall(_i2s_port);
-      vTaskDelay(pdMS_TO_TICKS(1));
 
       break;
 
@@ -333,8 +331,9 @@ void IRAM_ATTR I2s::taskLoop() {
 
   // when _mode is SHUTDOWN this function returns
   while (_mode != SHUTDOWN) {
-    handleNotifications();
     samplesRx();
+
+    handleNotifications();
   }
 }
 

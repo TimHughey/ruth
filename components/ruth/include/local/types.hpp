@@ -48,6 +48,8 @@ typedef uint32_t Rgbw_t;
 // type passed to xTaskCreate as the function to run as a task
 typedef void(TaskFunc_t)(void *);
 
+typedef void (*DmxAfterTxCallback_t)(void);
+
 typedef struct {
   TaskHandle_t handle;
   void *data;
@@ -68,10 +70,9 @@ typedef enum {
   NotifyColor,
   NotifyDark,
   NotifyDance,
-  NotifyDanceExecute,
   NotifyFadeTo,
   NotifyMajorPeak,
-  // notifications for changing task operational mode
+  // notifications for changing task operational mode and periodic work
   NotifyStop = 0x3001,
   NotifyOff,
   NotifyPause,
@@ -81,7 +82,7 @@ typedef enum {
   NotifyStreamFrames,
   NotifyDelete,
   NotifyStatsCalculate,
-  NotifyEndOfValues,
+  NotifyPrepareFrame,
   // core task notifications
   NotifyTrackHeap = 0x4001,
   NotifyLightDeskController,

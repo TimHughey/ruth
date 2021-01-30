@@ -31,13 +31,13 @@ const static DRAM_ATTR float _mid_range_frequencies[13] = {
     523.2, 544.4, 587.3, 622.2, 659.3, 698.5};
 
 const static DRAM_ATTR float _frequencies[13][2] = {
-    {150.1, 160.0},      // 00: high bass
-    {160.0, 300.0},      // 01
-    {300.0, 400.0},      // 02
-    {400.0, 500.0},      // 03
-    {500.0, 600.0},      // 04
-    {700.0, 800.0},      // 05
-    {800.0, 900.0},      // 06
+    {170.0, 200.0},      // 00: high bass
+    {200.0, 250.0},      // 01
+    {250.0, 300.0},      // 02
+    {300.0, 350.0},      // 03
+    {350.0, 400.0},      // 04
+    {400.0, 550.0},      // 05
+    {550.0, 900.0},      // 06
     {900.0, 1000.0},     // 07
     {1000.0, 2000.0},    // 08
     {2000.0, 3000.0},    // 09
@@ -48,8 +48,8 @@ const static DRAM_ATTR float _frequencies[13][2] = {
 const static DRAM_ATTR float _frequency_count = 13;
 
 const static DRAM_ATTR Color_t _frequencyColors[] = {
-    Color(204, 102, 0, 0), Color(204, 204, 0, 0), Color(102, 204, 0, 0),
-    Color(0, 204, 102, 0), Color(255, 99, 0, 0),  Color(255, 236, 0, 0),
+    Color(255, 0, 0, 0),   Color(255, 204, 0, 0), Color(102, 255, 0, 0),
+    Color(0, 255, 102, 0), Color(255, 99, 0, 0),  Color(255, 236, 0, 0),
     Color(153, 255, 0, 0), Color(40, 255, 0, 0),  Color(0, 255, 232, 0),
     Color(0, 124, 253, 0), Color(5, 0, 255, 0),   Color(69, 0, 234, 0),
     Color(87, 0, 158, 0)};
@@ -59,11 +59,19 @@ LightDeskFx::LightDeskFx(PinSpot_t *main, PinSpot_t *fill, I2s_t *i2s)
 
 void LightDeskFx::execute(Fx_t next_fx) {
   _fx_next = next_fx;
+  _fx_elapsed.reset();
 
   execute();
 }
 
 bool LightDeskFx::execute(bool *finished_ptr) {
+
+  if (_fx_elapsed.toSeconds() < nextTimerInterval()) {
+    return false;
+  } else {
+    _fx_elapsed.reset();
+  }
+
   bool finished = true;
 
   switch (_fx_next) {
@@ -330,6 +338,7 @@ void LightDeskFx::fullSpectrumCycle() {
 bool IRAM_ATTR LightDeskFx::majorPeak() {
   bool finished = false;
   static elapsedMillis runtime;
+  static bool alternate = false;
 
   if (_fx_active == fxMajorPeak) {
     if (runtime.toSeconds() >= intervalDefault()) {
@@ -340,12 +349,16 @@ bool IRAM_ATTR LightDeskFx::majorPeak() {
     _fx_active = fxMajorPeak;
   }
 
-  Color_t fill_color = Color::black();
-  Color_t main_color = Color::black();
+  Color_t fill_color = _fill->color();
+  Color_t main_color = _main->color();
 
   float mpeak, mag;
 
   _i2s->majorPeak(mpeak, mag);
+
+  if (mag < 50.0) {
+    return false;
+  }
 
   float mag_min, mag_max;
   _i2s->magnitudeMinMax(mag_min, mag_max);
@@ -355,19 +368,33 @@ bool IRAM_ATTR LightDeskFx::majorPeak() {
   if (frequencyKnown(mpeak, color_index)) {
     fill_color = frequencyMapToColor(color_index);
     fill_color.applyMagnitude(mag);
-  } else if ((mpeak > 63.5) && (mpeak < 150.0) && (mag > 50.0)) {
-    fill_color = Color::red();
   }
 
   float bass_mag;
   if (_i2s->bass(bass_mag)) {
     main_color = Color::red();
-    main_color.applyMagnitude(bass_mag);
+    main_color.applyMagnitude(bass_mag / 3.5);
   }
 
   if (!finished) {
-    _main->color(main_color);
-    _fill->color(fill_color);
+    FaderOpts_t main_fade{.origin = main_color,
+                          .dest = Color::black(),
+                          .travel_secs = 1.00,
+                          .use_origin = true};
+
+    FaderOpts_t fill_fade{.origin = fill_color,
+                          .dest = Color::black(),
+                          .travel_secs = 1.00,
+                          .use_origin = true};
+    if (alternate) {
+      _main->fadeTo(main_fade);
+      _fill->fadeTo(fill_fade);
+    } else {
+      _fill->fadeTo(main_fade);
+      _main->fadeTo(fill_fade);
+    }
+
+    alternate = !alternate;
 
     interval() = 0.022f;
   } else {

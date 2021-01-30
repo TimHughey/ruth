@@ -38,10 +38,18 @@ LightDesk::LightDesk() {
 }
 
 LightDesk::~LightDesk() {
+  while (_task.handle != nullptr) {
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
 
   if (_i2s != nullptr) {
-    _i2s->stop();
     delete _i2s;
+    _i2s = nullptr;
+  }
+
+  if (_dmx != nullptr) {
+    delete _dmx;
+    _dmx = nullptr;
   }
 
   if (_fx != nullptr) {
@@ -54,17 +62,12 @@ LightDesk::~LightDesk() {
 
     if (pinspot != nullptr) {
       _pinspots[i] = nullptr;
-      pinspot->stop();
+
       delete pinspot;
     }
   }
 
-  while (_task.handle != nullptr) {
-    printf("LightDesk::~LightDesk() waiting for task to exit\n");
-    vTaskDelay(pdMS_TO_TICKS(10));
-  }
-
-  // printf("LightDesk %p deleted\n", this);
+  TR::rlog("%s complete", __PRETTY_FUNCTION__);
 }
 
 void IRAM_ATTR LightDesk::core() {
@@ -73,8 +76,7 @@ void IRAM_ATTR LightDesk::core() {
   while (_mode != SHUTDOWN) {
     bool stream_frames = true;
     uint32_t v = 0;
-    auto notified =
-        xTaskNotifyWait(0x00, ULONG_MAX, &v, pdMS_TO_TICKS(portMAX_DELAY));
+    auto notified = xTaskNotifyWait(0x00, ULONG_MAX, &v, pdMS_TO_TICKS(100));
 
     if (notified == pdTRUE) {
       NotifyVal_t notify = static_cast<NotifyVal_t>(v);
@@ -104,17 +106,12 @@ void IRAM_ATTR LightDesk::core() {
         danceStart(DANCE);
         break;
 
-      case NotifyDanceExecute:
-        // prevent processing of pending timer events after a mode change
-        if ((_mode == DANCE) || (_mode == MAJOR_PEAK)) {
-          danceExecute();
-        } else if (_mode == STOP) {
-          stream_frames = false;
-        }
-        break;
-
       case NotifyStop:
         stopActual();
+        break;
+
+      case NotifyShutdown:
+        _mode = SHUTDOWN;
         break;
 
       case NotifyReady:
@@ -130,6 +127,10 @@ void IRAM_ATTR LightDesk::core() {
       case NotifyMajorPeak:
         _mode = READY;
         danceStart(MAJOR_PEAK);
+        break;
+
+      case NotifyPrepareFrame:
+        framePrepare();
         break;
 
       default:
@@ -157,7 +158,7 @@ void LightDesk::coreTask(void *task_instance) {
 
 void IRAM_ATTR LightDesk::danceExecute() {
   // NOTE:  when _mode is anything other than DANCE or MAJOR_PEAL  this
-  // J= function is a NOP and the dance execute timer is not rescheduled.
+  // function is a NOP and the dance execute timer is not rescheduled.
 
   if (((_mode == MAJOR_PEAK) || (_mode == DANCE)) && _fx) {
     auto fx_finished = _fx->execute();
@@ -165,13 +166,10 @@ void IRAM_ATTR LightDesk::danceExecute() {
     if (fx_finished == true) {
       _fx->execute(fxRandom());
     }
-
-    danceTimerSchedule(_fx->nextTimerInterval());
   }
 }
 
 void LightDesk::danceStart(LightDeskMode_t mode) {
-  esp_timer_stop(_dance_timer);
 
   // turn on the PulseWidth device that controls the head unit power
   PulseWidth::on(1);
@@ -197,29 +195,30 @@ void LightDesk::danceStart(LightDeskMode_t mode) {
 
   _mode = mode;
 
-  TR::rlog("LightDesk dance with interval=%3.2f started",
-           _request.danceInterval());
-
-  danceTimerSchedule(_fx->nextTimerInterval());
-}
-
-void IRAM_ATTR LightDesk::danceTimerCallback(void *data) {
-  LightDesk_t *lightdesk = (LightDesk_t *)data;
-
-  lightdesk->taskNotify(NotifyDanceExecute);
-}
-
-uint64_t IRAM_ATTR LightDesk::danceTimerSchedule(float secs) const {
-
-  // safety net, prevent runaway task
-  if (secs < 0.0020f) {
-    secs = 0.0020f;
+  if (_mode == DANCE) {
+    TR::rlog("LightDesk dance with interval=%3.2f started",
+             _request.danceInterval());
   }
+}
 
-  const uint64_t interval = secondsToInterval(secs);
-  esp_timer_start_once(_dance_timer, interval);
+void IRAM_ATTR LightDesk::framePrepare() {
+  elapsedMicros e;
 
-  return interval;
+  danceExecute();
+
+  pinSpotMain()->framePrepare();
+  pinSpotFill()->framePrepare();
+
+  e.freeze();
+
+  const uint_fast32_t duration = (uint32_t)e;
+  uint_fast32_t &min = _stats.frame_prepare.min;
+  uint_fast32_t &curr = _stats.frame_prepare.curr;
+  uint_fast32_t &max = _stats.frame_prepare.max;
+
+  min = (duration < min) ? duration : min;
+  curr = duration;
+  max = (duration > max) ? duration : max;
 }
 
 void LightDesk::init() {
@@ -233,30 +232,14 @@ void LightDesk::init() {
   _dmx->start();
 
   // dmx address 1
-  _pinspots[PINSPOT_MAIN] = new PinSpot(1, frameInterval());
+  _pinspots[PINSPOT_MAIN] = new PinSpot(1);
   _dmx->registerHeadUnit(_pinspots[PINSPOT_MAIN]);
 
   // dmx address 7
-  _pinspots[PINSPOT_FILL] = new PinSpot(7, frameInterval());
+  _pinspots[PINSPOT_FILL] = new PinSpot(7);
   _dmx->registerHeadUnit(_pinspots[PINSPOT_FILL]);
 
-  _timer_args = {
-      .callback = timerCallback,
-      .arg = this,
-      .dispatch_method = ESP_TIMER_TASK,
-      .name = "lightd-timer",
-  };
-
-  esp_timer_create(&_timer_args, &_timer);
-
-  _dance_timer_args = {
-      .callback = danceTimerCallback,
-      .arg = this,
-      .dispatch_method = ESP_TIMER_TASK,
-      .name = "lightd-dance",
-  };
-
-  esp_timer_create(&_dance_timer_args, &_dance_timer);
+  _dmx->prepareTaskRegister(task());
 }
 
 uint32_t LightDesk::randomInterval(uint32_t min, uint32_t max) const {
@@ -348,6 +331,8 @@ void LightDesk::stopActual() {
   LightDeskMode_t prev_mode = _mode;
   _mode = STOP;
 
+  _dmx->prepareTaskUnregister();
+
   PulseWidth::off(1);
 
   for (uint32_t i = PINSPOT_MAIN; i < PINSPOT_NONE; i++) {
@@ -368,9 +353,15 @@ void LightDesk::stopActual() {
     _dmx->stop();
   }
 
+  if (_i2s) {
+    _i2s->stop();
+  }
+
   if (prev_mode != STOP) {
     TR::rlog("LightDesk stopped");
   }
+
+  taskNotify(NotifyShutdown);
 }
 
 bool IRAM_ATTR LightDesk::taskNotify(NotifyVal_t val) const {
@@ -386,24 +377,6 @@ bool IRAM_ATTR LightDesk::taskNotify(NotifyVal_t val) const {
   }
 
   return rc;
-}
-
-void LightDesk::timerCallback(void *data) {
-  LightDesk_t *lightdesk = (LightDesk_t *)data;
-
-  lightdesk->taskNotify(NotifyTimer);
-}
-
-uint64_t LightDesk::timerSchedule(float secs) const {
-  const uint64_t us_sec = 1000 * 1000;
-  float integral;
-  const float frac = modf(secs, &integral);
-
-  const uint64_t interval = (integral * us_sec) + (frac * us_sec);
-
-  esp_timer_start_once(_timer, interval);
-
-  return interval;
 }
 
 } // namespace lightdesk

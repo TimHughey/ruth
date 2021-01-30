@@ -136,11 +136,11 @@ private:
   void taskStart();
 
   void trackMagMinMax(const float mag) {
-    // if ((_stats.magnitude.window) > 10000) {
-    //   _stats.magnitude.min = 300000.0;
-    //   _stats.magnitude.max = 0.0;
-    //   _stats.magnitude.window.reset();
-    // }
+    if ((_stats.magnitude.window) > 2300) {
+      _stats.magnitude.min = 300000.0;
+      _stats.magnitude.max = 0.0;
+      _stats.magnitude.window.reset();
+    }
 
     if (mag > _stats.magnitude.max) {
       _stats.magnitude.max = mag;
@@ -189,7 +189,7 @@ private:
 
   // static constexpr size_t _sample_rate = 44642;
   static constexpr size_t _sample_rate = 44100;
-  static const size_t _vsamples = 2048;
+  static const size_t _vsamples = 1024;
   static const size_t _vsamples_chan = _vsamples / 2;
   float _vreal_left[_vsamples_chan] = {};
   float _vreal_right[_vsamples_chan] = {};
@@ -207,7 +207,7 @@ private:
   float _mpeak_mag = 0.0;
   bool _noise = true;
   bool _bass = false;
-  float _bass_mag_floor = 63.5;
+  float _bass_mag_floor = 165.5;
   float _bass_mag = 0.0;
   // float _bass_mag_hist[2] = {0x00};
   // size_t _bass_mag_hist_idx = 0;
