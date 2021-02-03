@@ -37,6 +37,7 @@
 #include "external/arduinoFFT.hpp"
 #include "lightdesk/types.hpp"
 #include "local/types.hpp"
+#include "misc/derivative.hpp"
 #include "misc/elapsed.hpp"
 
 namespace ruth {
@@ -58,9 +59,22 @@ public:
     return _bass;
   }
 
+  void bassMagnitudeFloor(const float floor) { _bass_mag_floor = floor; }
+
   void magnitudeMinMax(float &min, float &max) {
     min = _stats.magnitude.min;
     max = _stats.magnitude.max;
+  }
+
+  inline bool magnitudeRateOfChange(const float floor, float &roc) {
+    bool rc = false;
+    roc = _mag_history.rateOfChange();
+
+    if ((roc > floor) || (roc < (floor * -1.0))) {
+      rc = true;
+    }
+
+    return rc;
   }
 
   float majorPeak(float &mpeak, float &mag);
@@ -71,7 +85,11 @@ public:
   void setPrintSeconds(uint32_t secs) { _print_ms = secs * 1000; }
 
   // stats
-  void stats(I2sStats_t &stats) { stats = _stats; }
+  void stats(I2sStats_t &stats) {
+    _stats.bass_mag_floor = _bass_mag_floor;
+
+    stats = _stats;
+  }
 
   void start() { taskStart(); }
   void stop() { taskNotify(NotifyStop); }
@@ -182,6 +200,7 @@ private:
   static constexpr i2s_port_t _i2s_port = I2S_NUM_0;
   static constexpr int _dma_buff = 1024;
   static constexpr uint32_t _eq_max_depth = 4;
+  bool _need_driver_install = true;
 
   uint8_t *_raw = nullptr;
 
@@ -203,15 +222,16 @@ private:
       {65.0, 150.0, 9.0},
       {150.0, 21000.0, 9.0}};
 
+  static constexpr float _mag_scale = 100000.0;
+
   float _mpeak = 0.0;
   float _mpeak_mag = 0.0;
+  Derivative<float> _mag_history;
+
   bool _noise = true;
   bool _bass = false;
-  float _bass_mag_floor = 165.5;
   float _bass_mag = 0.0;
-  // float _bass_mag_hist[2] = {0x00};
-  // size_t _bass_mag_hist_idx = 0;
-  vector<float> _mag_history;
+  float _bass_mag_floor = 10000.0;
 
   ArduinoFFT<float> _fft = ArduinoFFT<float>(
       _vreal_left, _vimag, _vsamples_chan, _sample_rate, _wfactors);

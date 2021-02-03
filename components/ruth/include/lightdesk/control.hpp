@@ -34,8 +34,18 @@ class LightDeskControl {
 public:
   LightDeskControl(){};
 
+  bool bassMagnitudeFloor(const float floor) {
+    _desk->bassMagnitudeFloor(floor);
+    return true;
+  }
+
   inline bool isRunning();
   bool handleCommand(MsgPayload_t &msg);
+
+  bool majorPeakRocFloor(const float floor) {
+    _desk->majorPeakFxRocFloor(floor);
+    return true;
+  }
 
   bool reportStats() {
     auto rc = true;
@@ -101,7 +111,6 @@ private:
 private:
   LightDeskMode_t _mode = INIT;
   LightDesk *_desk = nullptr;
-  I2s_t *_i2s = nullptr;
   Request_t _request;
 };
 

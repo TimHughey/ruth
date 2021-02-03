@@ -47,12 +47,18 @@ const static DRAM_ATTR float _frequencies[13][2] = {
 
 const static DRAM_ATTR float _frequency_count = 13;
 
+// const static DRAM_ATTR Color_t _frequencyColors[] = {
+//     Color(0, 0, 255, 0),   Color(0, 255, 0, 0),  Color(102, 255, 0, 0),
+//     Color(0, 255, 102, 0), Color(255, 99, 0, 0), Color(255, 236, 0, 0),
+//     Color(153, 255, 0, 0), Color(40, 255, 0, 0), Color(0, 255, 232, 0),
+//     Color(0, 124, 253, 0), Color(5, 0, 255, 0),  Color(69, 0, 234, 0),
+//     Color(87, 0, 158, 0)};
+
 const static DRAM_ATTR Color_t _frequencyColors[] = {
-    Color(255, 0, 0, 0),   Color(255, 204, 0, 0), Color(102, 255, 0, 0),
-    Color(0, 255, 102, 0), Color(255, 99, 0, 0),  Color(255, 236, 0, 0),
-    Color(153, 255, 0, 0), Color(40, 255, 0, 0),  Color(0, 255, 232, 0),
-    Color(0, 124, 253, 0), Color(5, 0, 255, 0),   Color(69, 0, 234, 0),
-    Color(87, 0, 158, 0)};
+    Color::red(),         Color::green(),       Color::blue(),
+    Color::teal(),        Color::violet(),      Color::yellow(),
+    Color::lightBlue(),   Color::lightGreen(),  Color::teal(),
+    Color::lightViolet(), Color::lightYellow(), Color::white()};
 
 LightDeskFx::LightDeskFx(PinSpot_t *main, PinSpot_t *fill, I2s_t *i2s)
     : _main(main), _fill(fill), _i2s(i2s){};
@@ -167,18 +173,6 @@ Color_t LightDeskFx::frequencyMapToColor(size_t index) {
 
 void LightDeskFx::start() { execute(fxColorBars); }
 
-bool IRAM_ATTR LightDeskFx::withinRange(const float val, const float low,
-                                        const float high, const float mag,
-                                        const float mag_floor) const {
-  bool rc = false;
-
-  if ((mag >= mag_floor) && ((val >= low) && (val < high))) {
-    rc = true;
-  }
-
-  return rc;
-}
-
 //
 // Fx Functions
 //
@@ -239,7 +233,7 @@ bool LightDeskFx::colorBars() {
 
   FaderOpts_t fade{.origin = Color::black(),
                    .dest = Color::black(),
-                   .travel_secs = 0.8f,
+                   .travel_secs = 0.3f,
                    .use_origin = true};
 
   const auto pinspot_select = count % 2;
@@ -336,73 +330,79 @@ void LightDeskFx::fullSpectrumCycle() {
 }
 
 bool IRAM_ATTR LightDeskFx::majorPeak() {
-  bool finished = false;
   static elapsedMillis runtime;
-  static bool alternate = false;
+  static bool swap_spots = false;
+  // static uint_fast64_t calls = 1;
+
+  PinSpot_t *spots[2] = {_main, _fill};
+
+  if (swap_spots) {
+    spots[0] = _fill;
+    spots[1] = _main;
+  }
 
   if (_fx_active == fxMajorPeak) {
     if (runtime.toSeconds() >= intervalDefault()) {
-      finished = true;
+      return true;
     }
   } else {
     runtime.reset();
     _fx_active = fxMajorPeak;
   }
 
-  Color_t fill_color = _fill->color();
-  Color_t main_color = _main->color();
+  // adjust color scaling using mpeak magnitude min and max
+  // float mag_min, mag_max;
+  // _i2s->magnitudeMinMax(mag_min, mag_max);
+  // Color::setMagnitudeMinMax(mag_min, mag_max);
+
+  // handle bass
+  // float bass_mag;
+  // if (_i2s->bass(bass_mag)) {
+  //   // const float mag_sqrt = sqrt(bass_mag);
+  //   //
+  //   // Color_t bass_color = Color(mag_sqrt, 0, 0, sqrt(mag_sqrt));
+  //
+  //   FaderOpts_t bass_fade{.origin = Color(0, 0, 0, 16),
+  //                         .dest = Color::black(),
+  //                         .travel_secs = .3,
+  //                         .use_origin = true};
+  //
+  //   spots[0]->fadeTo(bass_fade);
+  // }
 
   float mpeak, mag;
-
   _i2s->majorPeak(mpeak, mag);
 
-  if (mag < 50.0) {
+  // if (mag < 25.0) {
+  //   return false;
+  // }
+
+  size_t color_index = 0;
+  auto freq_known = frequencyKnown(mpeak, color_index);
+
+  if (freq_known == false) {
     return false;
   }
 
-  float mag_min, mag_max;
-  _i2s->magnitudeMinMax(mag_min, mag_max);
-  Color::setMagnitudeMinMax(mag_min, mag_max);
+  float mag_roc;
+  auto mag_ok = _i2s->magnitudeRateOfChange(_major_peak_roc_floor, mag_roc);
 
-  size_t color_index = 0;
-  if (frequencyKnown(mpeak, color_index)) {
-    fill_color = frequencyMapToColor(color_index);
-    fill_color.applyMagnitude(mag);
-  }
+  if (mag_ok) {
+    Color freq_color = frequencyMapToColor(color_index);
+    freq_color.scale(mag);
 
-  float bass_mag;
-  if (_i2s->bass(bass_mag)) {
-    main_color = Color::red();
-    main_color.applyMagnitude(bass_mag / 3.5);
-  }
-
-  if (!finished) {
-    FaderOpts_t main_fade{.origin = main_color,
+    FaderOpts_t freq_fade{.origin = freq_color,
                           .dest = Color::black(),
-                          .travel_secs = 1.00,
+                          .travel_secs = .6,
                           .use_origin = true};
 
-    FaderOpts_t fill_fade{.origin = fill_color,
-                          .dest = Color::black(),
-                          .travel_secs = 1.00,
-                          .use_origin = true};
-    if (alternate) {
-      _main->fadeTo(main_fade);
-      _fill->fadeTo(fill_fade);
-    } else {
-      _fill->fadeTo(main_fade);
-      _main->fadeTo(fill_fade);
-    }
+    spots[0]->fadeTo(freq_fade);
+    swap_spots = !swap_spots;
 
-    alternate = !alternate;
-
-    interval() = 0.022f;
-  } else {
-    _main->dark();
-    _fill->dark();
+    interval() = 0.0f;
   }
 
-  return finished;
+  return false;
 }
 
 void LightDeskFx::primaryColorsCycle() {

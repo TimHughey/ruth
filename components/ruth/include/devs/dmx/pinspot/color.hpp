@@ -65,6 +65,15 @@ public:
   static Color_t green() { return Color(0, 255, 0, 0); }
   static Color_t red() { return Color(255, 0, 0, 0); }
   static Color_t white() { return Color(0, 0, 0, 255); }
+  static Color_t violet() { return Color(255, 0, 255, 0); }
+  static Color_t yellow() { return Color(255, 255, 0, 0); }
+  static Color_t teal() { return Color(0, 255, 255, 0); }
+
+  static Color_t lightBlue() { return Color{0, 0, 255, 0}; }
+  static Color_t lightGreen() { return Color(0, 255, 0, 255); }
+  static Color_t lightRed() { return Color(255, 0, 0, 255); }
+  static Color_t lightViolet() { return Color(255, 255, 0, 255); }
+  static Color_t lightYellow() { return Color(255, 255, 0, 255); }
 
   void applyMagnitude(float magnitude) {
     uint32_t mag_range = (uint32_t)_mag_max - (uint32_t)_mag_min;
@@ -183,6 +192,24 @@ public:
     colorPart(GREEN_PART) = static_cast<float>(grn);
     colorPart(BLUE_PART) = static_cast<float>(blu);
     colorPart(WHITE_PART) = static_cast<float>(wht);
+  }
+
+  void scale(float magnitude) {
+    // printf("%10.2f %10.2f\n", magnitude, log10(magnitude));
+
+    magnitude = log10(magnitude);
+
+    // Result := ((Input - InputLow) / (InputHigh - InputLow))
+    //       * (OutputHigh - OutputLow) + OutputLow;
+
+    const float mag_ranged = ((magnitude - 2.0) / (4.0 - 2.0)) * 255.0;
+
+    for (auto k = 0; k < endOfParts(); k++) {
+      const uint32_t asis_val = _parts[k];
+      const uint8_t adjusted = (mag_ranged / 255.0) * asis_val;
+
+      _parts[k] = adjusted;
+    }
   }
 
   static void setMagnitudeMinMax(const float min, const float max) {

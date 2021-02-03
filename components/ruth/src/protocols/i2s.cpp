@@ -31,8 +31,6 @@ namespace ruth {
 I2s::I2s() {
   _stats.object_size = sizeof(I2s);
   _stats.config.freq_bin_width = (float)_sample_rate / (float)_vsamples_chan;
-
-  _mag_history.resize(30);
 }
 
 I2s::~I2s() {
@@ -110,31 +108,21 @@ void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
   _fft.complexToMagnitude();
 
   _fft.majorPeak(_mpeak, _mpeak_mag);
-  _mpeak_mag /= 100000.0;
+  // _mpeak_mag /= _mag_scale;
+  _mpeak_mag = sqrt(_mpeak_mag);
+
+  _mag_history.addValue(_mpeak_mag);
 
   float freq;
   _fft.binFrequency(1, freq, _bass_mag);
 
-  // _bass_mag_hist[_bass_mag_hist_idx++] = bass_mag / 100000.0;
-  // constexpr size_t bass_hist_len = sizeof(_bass_mag_hist) / sizeof(float);
-  //
-  // if (_bass_mag_hist_idx > (bass_hist_len - 1)) {
-  //   _bass_mag_hist_idx = 0;
-  // }
-  //
-  // float bass_mag_sum = 0.0;
-  // for (auto k = 0; k < bass_hist_len; k++) {
-  //   bass_mag_sum += _bass_mag_hist[k];
-  // }
-  //
-  // _bass_mag = bass_mag_sum / (float)bass_hist_len;
+  _bass = false;
+  if ((freq > 30.0) && (freq <= 170.0)) {
+    const float mag_sqrt = sqrt(_bass_mag);
 
-  _bass_mag /= 100000.0;
-  if ((_bass_mag > _bass_mag_floor) && (freq > 30.0) && (freq <= 170.0)) {
-    _bass = true;
-
-  } else {
-    _bass = false;
+    if (mag_sqrt > _bass_mag_floor) {
+      _bass = true;
+    }
   }
 
   trackMagMinMax(_mpeak_mag);
@@ -287,10 +275,19 @@ void I2s::taskInit() {
       .data_in_num = 34                  // Serial Data (SD)
   };
 
-  _init_rc = i2s_driver_install(_i2s_port, &i2s_config, _eq_max_depth, nullptr);
-  if (_init_rc != ESP_OK) {
-    ESP_LOGW("I2S", "failed installing driver: %s\n",
-             esp_err_to_name(_init_rc));
+  uint_fast16_t retries = 0;
+  while (_need_driver_install) {
+    _init_rc =
+        i2s_driver_install(_i2s_port, &i2s_config, _eq_max_depth, nullptr);
+    if (_init_rc == ESP_OK) {
+      _need_driver_install = false;
+    } else {
+      if ((retries++ % 1000000) == 0) {
+        ESP_LOGW("I2S", "failed attempt %u installing driver: %s\n", retries,
+                 esp_err_to_name(_init_rc));
+      }
+      vTaskDelay(pdMS_TO_TICKS(70));
+    }
   }
 
   _init_rc = i2s_set_pin(_i2s_port, &pin_config);

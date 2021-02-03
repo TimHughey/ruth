@@ -49,6 +49,12 @@ public:
   LightDesk();
   ~LightDesk();
 
+  void bassMagnitudeFloor(const float floor) {
+    _i2s->bassMagnitudeFloor(floor);
+  }
+
+  void majorPeakFxRocFloor(const float floor) { _fx->majorPeakRocFloor(floor); }
+
   bool request(const Request_t &r);
 
   const LightDeskStats_t &stats();

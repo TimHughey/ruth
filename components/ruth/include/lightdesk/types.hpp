@@ -84,6 +84,7 @@ struct FxStats {
     float max = 0.0f;
   } interval;
 
+  float major_peak_roc_floor = 0.0;
   size_t object_size = 0;
 };
 
@@ -124,6 +125,7 @@ struct I2sStats {
     float rx_avg_us = 0;
   } durations;
 
+  float bass_mag_floor = 0.0;
   size_t object_size = 0;
 };
 

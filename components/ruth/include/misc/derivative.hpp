@@ -29,7 +29,6 @@
 namespace ruth {
 
 template <typename T, size_t CAP = 5> class Derivative {
-
   using vector = std::vector<T>;
 
 public:
@@ -48,36 +47,38 @@ public:
       // to the end to prevent realloaction / resizing.
       _points.erase(_points.begin());
       _points.push_back(val);
-
-      _calculate = true;
+      calculate();
     }
   }
 
   bool calculated() const { return _calculated; }
 
-  T rateOfChange() { return _rate_of_change; }
+  T rateOfChange() {
+    if (_calculated) {
+      return _rate_of_change;
+    } else {
+      return 0;
+    }
+  }
 
 private:
   void calculate() {
-    if (_calculate) {
-      _rate_of_change = 0;
+    _rate_of_change = 0;
 
-      for (auto k = 0; k < _num_coeff; k++) {
-        _rate_of_change += _points[k] * static_cast<T>(_coeff[k]);
-      }
-
-      _rate_of_change /= CAP;
-      _calculated = true;
+    for (auto k = 0; k < _num_coeff; k++) {
+      _rate_of_change += _points[k] * static_cast<T>(_coeff[k]);
     }
+
+    _rate_of_change /= CAP;
+    _calculated = true;
   }
 
 private:
   vector _points;
 
-  static constexpr int_fast16_t _coeff[5] = {1, -8, 0, 8, -1};
+  const int_fast16_t _coeff[5] = {1, -8, 0, 8, -1};
   static constexpr size_t _num_coeff = sizeof(_coeff) / sizeof(int_fast16_t);
 
-  bool _calculate = false;
   bool _calculated = false;
 
   T _rate_of_change;

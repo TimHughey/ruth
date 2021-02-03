@@ -114,7 +114,8 @@ bool LightDeskControl::stats() {
   printf("%sinterval curr=%4.2fs min=%4.2fs max=%4.2fs base=%4.2fs\n", indent,
          fx.interval.current, fx.interval.min, fx.interval.max,
          fx.interval.base);
-  printf("%sobject_size=%u\n", indent, fx.object_size);
+  printf("%smajor_peak_roc_floor(%8.2f) object_size=%u\n", indent,
+         fx.major_peak_roc_floor, fx.object_size);
 
   // dmx
   const float frame_ms = (float)dmx.frame.us / 1000.f;
@@ -147,7 +148,8 @@ bool LightDeskControl::stats() {
   printf("%sfft: bin_width(%6.2fHz) magnitude(%10.2f,%10.2f) \n", indent,
          i2s.config.freq_bin_width, i2s.magnitude.min, i2s.magnitude.max);
 
-  printf("%sobject_size(%u)\n", indent, i2s.object_size);
+  printf("%sbass_mag_floor(%8.2f) object_size(%u)\n", indent,
+         i2s.bass_mag_floor, i2s.object_size);
 
   // pinspots
 

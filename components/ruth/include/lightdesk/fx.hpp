@@ -51,6 +51,8 @@ public:
     _fx_interval_default = interval;
   }
 
+  void majorPeakRocFloor(const float floor) { _major_peak_roc_floor = floor; }
+
   inline float nextTimerInterval() {
     if (_fx_interval < _stats.interval.min) {
       _stats.interval.min = _fx_interval;
@@ -73,6 +75,8 @@ public:
     _stats.fx.prev = _fx_prev;
     _stats.interval.base = _fx_interval_default;
     _stats.object_size = sizeof(LightDeskFx_t);
+
+    _stats.major_peak_roc_floor = _major_peak_roc_floor;
 
     stats = _stats;
   }
@@ -140,6 +144,8 @@ private:
   Fx_t _fx_prev = fxNone;
 
   elapsedMillis _fx_elapsed;
+
+  float _major_peak_roc_floor = 1500.0;
 
   FxStats_t _stats;
 };
