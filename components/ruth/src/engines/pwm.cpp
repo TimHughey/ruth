@@ -106,11 +106,8 @@ void PulseWidth::core(void *task_data) {
 
   // discovering the pwm devices is ultimately creating and adding them
   // to the known device list since they are onboard hardware.
-  for (uint8_t i = 1; i <= 4; i++) {
-    DeviceAddress_t addr(i);
-    PwmDevice_t dev(addr);
-
-    PwmDevice *new_dev = new PwmDevice(dev);
+  for (uint8_t num = 1; num <= 4; num++) {
+    PwmDevice *new_dev = new PwmDevice(num);
     unique_ptr<PwmDevice> new_dev_ptr(new_dev);
 
     new_dev->configureChannel();
