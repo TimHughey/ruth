@@ -26,9 +26,17 @@ HeadUnit::HeadUnit(uint16_t address, size_t frame_len)
     : _address(address), _frame_len(frame_len) {}
 
 void IRAM_ATTR HeadUnit::frameUpdate(uint8_t *frame_actual) {
-  if (_frame_changed) {
+
+  // HeadUnit subclasses that require their state to be reflected
+  // in the DMX frame will have set _frame_len > 0
+  if (_frame_changed && (_frame_len > 0)) {
     bcopy(_frame_snippet, (frame_actual + _address), _frame_len);
 
+    _frame_changed = false;
+  } else if (_frame_len == 0) {
+    // this is a pseudo headunit that is not included in the DMX frame
+    // so make no changes to the frame however be certain _frame_changed
+    // is set to false
     _frame_changed = false;
   }
 }
