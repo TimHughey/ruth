@@ -1,5 +1,5 @@
 /*
-    devs/pinspot/color.cpp - Ruth Pin Spot Color
+    devs/pinspot]/base.cpp - Ruth Pinspot Device
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,13 +18,19 @@
     https://www.wisslanding.com
 */
 
-#include "devs/dmx/pinspot/color.hpp"
+#include "lightdesk/headunit.hpp"
 
 namespace ruth {
-namespace lightdesk {
 
-float DRAM_ATTR Color::_mag_min = 0;
-float DRAM_ATTR Color::_mag_max = 0;
+HeadUnit::HeadUnit(uint16_t address, size_t frame_len)
+    : _address(address), _frame_len(frame_len) {}
 
-} // namespace lightdesk
+void IRAM_ATTR HeadUnit::frameUpdate(uint8_t *frame_actual) {
+  if (_frame_changed) {
+    bcopy(_frame_snippet, (frame_actual + _address), _frame_len);
+
+    _frame_changed = false;
+  }
+}
+
 } // namespace ruth

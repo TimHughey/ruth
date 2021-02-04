@@ -26,8 +26,8 @@
 #include <freertos/task.h>
 #include <freertos/timers.h>
 
-#include "devs/dmx/pinspot/base.hpp"
 #include "lightdesk/fx_defs.hpp"
+#include "lightdesk/headunits/pinspot/base.hpp"
 #include "lightdesk/types.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"

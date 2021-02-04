@@ -27,10 +27,10 @@
 #include <freertos/task.h>
 #include <freertos/timers.h>
 
-#include "devs/dmx/headunit.hpp"
-#include "devs/dmx/pinspot/color.hpp"
-#include "devs/dmx/pinspot/fader.hpp"
 #include "lightdesk/fx_defs.hpp"
+#include "lightdesk/headunit.hpp"
+#include "lightdesk/headunits/pinspot/color.hpp"
+#include "lightdesk/headunits/pinspot/fader.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
 #include "protocols/dmx.hpp"

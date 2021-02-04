@@ -17,7 +17,7 @@
 
 #include <esp_log.h>
 
-#include "devs/dmx/pinspot/base.hpp"
+#include "lightdesk/headunits/pinspot/base.hpp"
 
 namespace ruth {
 namespace lightdesk {

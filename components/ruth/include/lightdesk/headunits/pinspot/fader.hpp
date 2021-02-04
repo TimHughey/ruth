@@ -21,7 +21,7 @@
 #ifndef _ruth_pinspot_fader_hpp
 #define _ruth_pinspot_fader_hpp
 
-#include "devs/dmx/pinspot/color.hpp"
+#include "lightdesk/headunits/pinspot/color.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
 

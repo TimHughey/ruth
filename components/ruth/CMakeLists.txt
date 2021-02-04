@@ -7,10 +7,9 @@ set(RUTH_DEVS_BASE "src/devs/base/addr" "src/devs/base/base")
 set(RUTH_DEVS_DS "src/devs/ds/base")
 set(RUTH_DEVS_I2C "src/devs/i2c/base" "src/devs/i2c/mcp23008" "src/devs/i2c/mplex" "src/devs/i2c/sht31")
 set(RUTH_DEVS_PWM "src/devs/pwm/pwm" "src/devs/pwm/cmds/cmd" "src/devs/pwm/cmds/basic" "src/devs/pwm/cmds/random")
-set(RUTH_DEVS_DMX "src/devs/dmx/headunit" "src/devs/dmx/pinspot/base" "src/devs/dmx/pinspot/color")
 
 set(RUTH_ENGINES "src/engines/i2c" "src/engines/ds" "src/engines/pwm")
-set(RUTH_LIGHTDESK "src/lightdesk/control" "src/lightdesk/lightdesk" "src/lightdesk/fx" "src/lightdesk/types")
+set(RUTH_LIGHTDESK "src/lightdesk/control" "src/lightdesk/lightdesk" "src/lightdesk/fx" "src/lightdesk/types" "src/lightdesk/headunit.cpp" "src/lightdesk/headunits/pinspot/base" "src/lightdesk/headunits/pinspot/color")
 
 set(RUTH_READINGS "src/readings/sensor" "src/readings/reading" "src/readings/startup" "src/readings/pwm" "src/readings/text" "src/readings/positions" "src/readings/remote")
 set(RUTH_PROTOCOLS "src/protocols/dmx" "src/protocols/mqtt" "src/protocols/payload" "src/protocols/i2s")
@@ -22,7 +21,7 @@ set(RUTH_DRIVERS "src/drivers/owb_gpio.c" "src/drivers/owb_rmt.c" "src/drivers/o
 idf_component_register(
   SRCS
     ${RUTH_CORE} ${RUTH_CLI} ${RUTH_MISC} ${RUTH_NET}
-    ${RUTH_DEVS_BASE} ${RUTH_DEVS_DS} ${RUTH_DEVS_I2C} ${RUTH_DEVS_PWM} ${RUTH_DEVS_DMX}
+    ${RUTH_DEVS_BASE} ${RUTH_DEVS_DS} ${RUTH_DEVS_I2C} ${RUTH_DEVS_PWM}
     ${RUTH_ENGINES} ${RUTH_READINGS} ${RUTH_PROTOCOLS} ${RUTH_DRIVERS} ${RUTH_LIGHTDESK}
   INCLUDE_DIRS
     "include" "include/external"
