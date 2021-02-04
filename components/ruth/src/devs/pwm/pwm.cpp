@@ -52,7 +52,7 @@ const char *PwmDevice::PwmDeviceDesc(const DeviceAddress_t &addr) {
 }
 
 // construct a new PwmDevice with a known address and compute the id
-PwmDevice::PwmDevice(DeviceAddress_t &num) : Device(num) {
+PwmDevice::PwmDevice(uint8_t num) : Device(num) {
   _gpio_pin = mapNumToGPIO(num);
 
   _ledc_channel.gpio_num = _gpio_pin;
@@ -61,7 +61,7 @@ PwmDevice::PwmDevice(DeviceAddress_t &num) : Device(num) {
   setDescription(PwmDeviceDesc(num));
 
   makeID();
-};
+}
 
 void PwmDevice::makeID() {
   setID("pwm/%s.%s", Net::hostname(), PwmDeviceDesc(firstAddressByte()));
@@ -136,6 +136,8 @@ bool PwmDevice::updateDuty(uint32_t new_duty) {
   if (esp_rc == ESP_OK) {
     _duty = new_duty;
     return true;
+  } else {
+    printf("%s failed duty %u\n", id(), new_duty);
   }
 
   return false;

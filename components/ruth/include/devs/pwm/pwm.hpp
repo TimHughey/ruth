@@ -47,7 +47,7 @@ public:
   static void allOff();
 
 public:
-  PwmDevice(DeviceAddress_t &num);
+  PwmDevice(uint8_t num);
 
   uint8_t devAddr() { return firstAddressByte(); };
 
@@ -62,8 +62,8 @@ public:
   ledc_channel_t channel() { return _ledc_channel.channel; };
   ledc_mode_t speedMode() { return _ledc_channel.speed_mode; };
   uint32_t duty();
-  uint32_t dutyMax() { return _duty_max; };
-  uint32_t dutyMin() { return _duty_min; };
+  uint32_t dutyMax() const { return _duty_max; };
+  uint32_t dutyMin() const { return _duty_min; };
 
   gpio_num_t gpioPin() { return _gpio_pin; };
 
@@ -71,8 +71,8 @@ public:
   bool cmd(uint32_t pwm_cmd, JsonDocument &doc);
   bool cmdKill();
 
-  void off() { updateDuty(dutyMin()); }
-  void on() { updateDuty(dutyMax()); }
+  bool off() { return updateDuty(dutyMin()); }
+  bool on() { return updateDuty(dutyMax()); }
 
   bool updateDuty(uint32_t duty);
   bool updateDuty(JsonDocument &doc);
