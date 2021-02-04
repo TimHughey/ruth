@@ -282,7 +282,7 @@ void I2s::taskInit() {
     if (_init_rc == ESP_OK) {
       _need_driver_install = false;
     } else {
-      if ((retries++ % 1000000) == 0) {
+      if (((retries++ > 2) % 1000000) == 0) {
         ESP_LOGW("I2S", "failed attempt %u installing driver: %s\n", retries,
                  esp_err_to_name(_init_rc));
       }
