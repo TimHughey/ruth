@@ -1,6 +1,6 @@
 /*
-    devs/dmx/headunit.hpp - Ruth Dmx Head Unit Device
-    Copyright (C) 2020  Tim Hughey
+    lightdesk/fx/factory.hpp -- LightDesk Effect Factory
+    Copyright (C) 2021  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,29 +18,49 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_dmx_headunit_device_hpp
-#define _ruth_dmx_headunit_device_hpp
+#ifndef _ruth_lightdesk_fx_factory_hpp
+#define _ruth_lightdesk_fx_factory_hpp
 
-#include "lightdesk/types.hpp"
-#include "local/types.hpp"
-#include "protocols/dmx.hpp"
+#include "lightdesk/fx/all.hpp"
 
 namespace ruth {
 namespace lightdesk {
+namespace fx {
 
-class HeadUnit : public DmxClient {
+typedef class FxFactory FxFactory_t;
+
+class FxFactory {
 public:
-  HeadUnit() {}
+  inline static FxBase_t *create(FxType_t type) {
+    FxBase_t *fx = nullptr;
 
-  HeadUnit(const uint16_t address, size_t frame_len)
-      : DmxClient(address, frame_len){};
-  virtual ~HeadUnit() {}
+    switch (type) {
+    case fxSimpleStrobe:
+      fx = new SimpleStrobe();
+      break;
 
-  virtual void dark() {}
+    case fxFastStrobeSound:
+      fx = new SoundFastStrobe();
+      break;
 
-  // virtual void framePrepare() {}
-  // virtual void frameUpdate(uint8_t *frame_actual);
+    case fxWashedSound:
+      fx = new WashedSound();
+      break;
+
+    case fxMajorPeak:
+      fx = new MajorPeak();
+      break;
+
+    default:
+      fx = new Basic(type);
+      break;
+    }
+
+    return fx;
+  }
 };
+
+} // namespace fx
 } // namespace lightdesk
 } // namespace ruth
 

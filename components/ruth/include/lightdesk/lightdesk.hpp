@@ -26,8 +26,11 @@
 #include <freertos/task.h>
 #include <freertos/timers.h>
 
-#include "lightdesk/fx.hpp"
-#include "lightdesk/fx_defs.hpp"
+#include "lightdesk/fx/factory.hpp"
+#include "lightdesk/headunits/ac_power.hpp"
+#include "lightdesk/headunits/discoball.hpp"
+#include "lightdesk/headunits/elwire.hpp"
+#include "lightdesk/headunits/ledforest.hpp"
 #include "lightdesk/headunits/pinspot/base.hpp"
 #include "lightdesk/request.hpp"
 #include "lightdesk/types.hpp"
@@ -49,38 +52,31 @@ public:
   LightDesk();
   ~LightDesk();
 
+  float bassMagnitudeFloor() { return _i2s->bassMagnitudeFloor(); }
+
   void bassMagnitudeFloor(const float floor) {
     _i2s->bassMagnitudeFloor(floor);
   }
 
-  void majorPeakFxRocFloor(const float floor) { _fx->majorPeakRocFloor(floor); }
+  float majorPeakMagFloor() { return _i2s->magFloor(); }
+  void majorPeakMagFloor(const float floor) { _i2s->magFloor(floor); }
+
+  static void preStart() {
+    using TR = reading::Text;
+
+    PulseWidthHeadUnit::preStart();
+
+    TR::rlog("lightdesk enabled, prestart executed");
+  }
 
   bool request(const Request_t &r);
 
   const LightDeskStats_t &stats();
 
-private:
-  void danceExecute();
-  void danceStart(LightDeskMode_t mode);
-
-  bool command(MsgPayload_t &msg);
-
-  inline Fx_t fxRandom() const {
-    const uint8_t roll = roll2D6();
-    Fx_t choosen_fx = _fx_patterns[roll];
-
-    if (_mode == MAJOR_PEAK) {
-      choosen_fx = fxMajorPeak;
-    }
-
-    return choosen_fx;
-  }
-
-  void framePrepare();
-
-  void init();
-
-  void majorPeakStart();
+private: // headunits
+  inline DiscoBall_t *discoball() { return _discoball; }
+  inline ElWire_t *elWireDanceFloor() { return _elwire[ELWIRE_DANCE_FLOOR]; }
+  inline ElWire_t *elWireEntry() { return _elwire[ELWIRE_ENTRY]; }
 
   inline PinSpot *pinSpotObject(PinSpotFunction_t func) {
     PinSpot_t *spot = nullptr;
@@ -96,7 +92,17 @@ private:
   inline PinSpot_t *pinSpotMain() { return pinSpotObject(PINSPOT_MAIN); }
   inline PinSpot_t *pinSpotFill() { return pinSpotObject(PINSPOT_FILL); }
 
-  inline uint32_t randomInterval(uint32_t min, uint32_t max) const;
+private:
+  void danceExecute();
+  void danceStart(LightDeskMode_t mode);
+
+  bool command(MsgPayload_t &msg);
+
+  void framePrepare();
+
+  void init();
+
+  void majorPeakStart();
 
   inline uint64_t secondsToInterval(const float secs) const {
     const uint64_t us_sec = 1000 * 1000;
@@ -139,7 +145,11 @@ private:
   Request_t _request = {};
   LightDeskStats_t _stats = {};
 
-  PinSpot_t *_pinspots[2];
+  AcPower_t *_ac_power = nullptr;
+  PinSpot_t *_pinspots[2] = {};
+  ElWire_t *_elwire[2] = {};
+  LedForest_t *_led_forest = nullptr;
+  DiscoBall_t *_discoball = nullptr;
 
   // map of 2d6 roll to fx patterns
   // note index 0 and 1 are impossible to roll but are included to
@@ -148,36 +158,51 @@ private:
   // 2d6 probabilities
   // 2: 2.78, 3: 5.56, 4: 8.33, 5: 11.11%, 6: 13.89%, 7: 16.67
   // 8: 13.89, 9: 11.11, 10: 9.33, 11: 5.56, 12: 2.78
-  const Fx_t _fx_patterns0[13] = {fxNone,                        // 0
-                                  fxNone,                        // 1
-                                  fxPrimaryColorsCycle,          // 2
-                                  fxBlueGreenGradient,           // 3
-                                  fxFullSpectrumCycle,           // 4
-                                  fxSimpleStrobe,                // 5
-                                  fxWashedSound,                 // 6
-                                  fxMajorPeak,                   // 7
-                                  fxFastStrobeSound,             // 8
-                                  fxCrossFadeFast,               // 9
-                                  fxRgbwGradientFast,            // 10
-                                  fxWhiteFadeInOut,              // 11
-                                  fxGreenOnRedBlueWhiteJumping}; // 12
+  const FxType_t _fx_patterns[13] = {fxNone,            // 0
+                                     fxNone,            // 1
+                                     fxMajorPeak,       // 2
+                                     fxMajorPeak,       // 3
+                                     fxMajorPeak,       // 4
+                                     fxMajorPeak,       // 5
+                                     fxWashedSound,     // 6
+                                     fxMajorPeak,       // 7
+                                     fxFastStrobeSound, // 8
+                                     fxMajorPeak,       // 9
+                                     fxMajorPeak,       // 10
+                                     fxMajorPeak,       // 11
+                                     fxMajorPeak};      // 12
 
-  const Fx_t _fx_patterns[13] = {fxNone,       // 0
-                                 fxNone,       // 1
-                                 fxMajorPeak,  // 2
-                                 fxMajorPeak,  // 3
-                                 fxMajorPeak,  // 4
-                                 fxMajorPeak,  // 5
-                                 fxMajorPeak,  // 6
-                                 fxMajorPeak,  // 7
-                                 fxMajorPeak,  // 8
-                                 fxMajorPeak,  // 9
-                                 fxMajorPeak,  // 10
-                                 fxMajorPeak,  // 11
-                                 fxMajorPeak}; // 12
+  const FxType_t _fx_patterns0[13] = {fxNone,       // 0
+                                      fxNone,       // 1
+                                      fxMajorPeak,  // 2
+                                      fxMajorPeak,  // 3
+                                      fxMajorPeak,  // 4
+                                      fxMajorPeak,  // 5
+                                      fxMajorPeak,  // 6
+                                      fxMajorPeak,  // 7
+                                      fxMajorPeak,  // 8
+                                      fxMajorPeak,  // 9
+                                      fxMajorPeak,  // 10
+                                      fxMajorPeak,  // 11
+                                      fxMajorPeak}; // 12
 
-  // light desk fx controller
-  LightDeskFx_t *_fx = nullptr;
+  const FxType_t _fx_patterns1[13] = {fxNone,                        // 0
+                                      fxNone,                        // 1
+                                      fxPrimaryColorsCycle,          // 2
+                                      fxBlueGreenGradient,           // 3
+                                      fxFullSpectrumCycle,           // 4
+                                      fxSimpleStrobe,                // 5
+                                      fxWashedSound,                 // 6
+                                      fxMajorPeak,                   // 7
+                                      fxFastStrobeSound,             // 8
+                                      fxMajorPeak,                   // 9
+                                      fxRgbwGradientFast,            // 10
+                                      fxWhiteFadeInOut,              // 11
+                                      fxGreenOnRedBlueWhiteJumping}; // 12
+
+  // active Lightdesk Effect
+  fx::FxBase *_fx = nullptr;
+  fx::MajorPeak *_major_peak = nullptr;
 
   // task
   Task_t _task = {

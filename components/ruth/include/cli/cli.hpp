@@ -26,7 +26,6 @@
 #include <linenoise/linenoise.h>
 
 #include "cli/binder.hpp"
-#include "cli/i2s.hpp"
 #include "cli/lightdesk.hpp"
 #include "cli/ota.hpp"
 #include "cli/random.hpp"
@@ -88,7 +87,6 @@ private:
   OtaCli_t ota;
   ShellCli_t shell;
   RandomCli_t random;
-  I2sCli_t i2s;
 
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,

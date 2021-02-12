@@ -48,6 +48,7 @@ typedef uint32_t Rgbw_t;
 // type passed to xTaskCreate as the function to run as a task
 typedef void(TaskFunc_t)(void *);
 
+typedef class Dmx Dmx_t;
 typedef void (*DmxAfterTxCallback_t)(void);
 
 typedef struct {

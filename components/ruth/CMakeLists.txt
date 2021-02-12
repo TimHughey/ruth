@@ -1,6 +1,6 @@
 set(RUTH_CORE "src/core/binder" "src/core/core" "src/core/ota")
-set(RUTH_CLI "src/cli/cli" "src/cli/binder" "src/cli/lightdesk" "src/cli/ota" "src/cli/shell" "src/cli/random" "src/cli/i2s")
-set(RUTH_MISC "src/misc/random" "src/misc/status_led")
+set(RUTH_CLI "src/cli/cli" "src/cli/binder" "src/cli/lightdesk" "src/cli/ota" "src/cli/shell" "src/cli/random")
+set(RUTH_MISC "src/misc/arduinoFFT" "src/misc/random" "src/misc/status_led" "src/misc/statics")
 set(RUTH_NET "src/net/net" "src/net/profile/profile")
 
 set(RUTH_DEVS_BASE "src/devs/base/addr" "src/devs/base/base")
@@ -9,7 +9,7 @@ set(RUTH_DEVS_I2C "src/devs/i2c/base" "src/devs/i2c/mcp23008" "src/devs/i2c/mple
 set(RUTH_DEVS_PWM "src/devs/pwm/pwm" "src/devs/pwm/cmds/cmd" "src/devs/pwm/cmds/basic" "src/devs/pwm/cmds/random")
 
 set(RUTH_ENGINES "src/engines/i2c" "src/engines/ds" "src/engines/pwm")
-set(RUTH_LIGHTDESK "src/lightdesk/control" "src/lightdesk/lightdesk" "src/lightdesk/fx" "src/lightdesk/types" "src/lightdesk/headunit.cpp" "src/lightdesk/headunits/pinspot/base" "src/lightdesk/headunits/pinspot/color")
+set(RUTH_LIGHTDESK "src/lightdesk/control" "src/lightdesk/lightdesk" "src/lightdesk/types" "src/lightdesk/headunits/pinspot/base")
 
 set(RUTH_READINGS "src/readings/sensor" "src/readings/reading" "src/readings/startup" "src/readings/pwm" "src/readings/text" "src/readings/positions" "src/readings/remote")
 set(RUTH_PROTOCOLS "src/protocols/dmx" "src/protocols/mqtt" "src/protocols/payload" "src/protocols/i2s")

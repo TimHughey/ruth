@@ -1,5 +1,5 @@
 /*
-    cli/i2s.hpp - Ruth CLI for I2s
+    lightdesk/fx/washsound.hpp -- PinSpot Auto Sound with White Fade
     Copyright (C) 2021  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,28 +18,36 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_cli_i2s_hpp
-#define _ruth_cli_i2s_hpp
+#ifndef _ruth_lightdesk_fx_washedsound_hpp
+#define _ruth_lightdesk_fx_washedsound_hpp
 
-#include <esp_console.h>
+#include "lightdesk/fx/base.hpp"
 
 namespace ruth {
+namespace lightdesk {
+namespace fx {
 
-typedef class I2sCli I2sCli_t;
-
-class I2sCli {
-
+class WashedSound : public FxBase {
 public:
-  I2sCli(){};
+  WashedSound() : FxBase(fxWashedSound) { runtimeReduceTo(0.50f); }
 
-  void init() { registerArgTable(); }
+  void executeEffect() {
+    if (onetime()) {
+      const FaderOpts fo{.origin = Color::white(),
+                         .dest = Color::black(),
+                         .travel_secs = 3.1f,
+                         .use_origin = true};
+
+      pinSpotFill()->fadeTo(fo);
+      pinSpotMain()->autoRun(fxFastStrobeSound);
+    }
+  }
 
 private:
-  static int execute(int argc, char **argv);
-
-  void registerArgTable();
 };
 
+} // namespace fx
+} // namespace lightdesk
 } // namespace ruth
 
 #endif

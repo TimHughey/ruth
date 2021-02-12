@@ -31,8 +31,11 @@
 namespace ruth {
 namespace lightdesk {
 
+typedef class HeadUnit HeadUnit_t;
+
 typedef enum ColorPart ColorPart_t;
-typedef enum Fx Fx_t;
+typedef enum ElWireFunction ElWireFunction_t;
+typedef enum FxType FxType_t;
 typedef enum LightDeskMode LightDeskMode_t;
 typedef enum PinSpotFunction PinSpotFunction_t;
 
@@ -41,13 +44,11 @@ typedef struct DmxStats DmxStats_t;
 typedef struct FxStats FxStats_t;
 typedef struct I2sStats I2sStats_t;
 typedef struct LightDeskStats LightDeskStats_t;
-typedef struct PinSpotStats PinSpotStats_t;
 
 struct DmxStats {
   float fps = 0.0;
   uint64_t busy_wait = 0;
   uint64_t frame_update_us = 0;
-  size_t object_size = 0;
 
   struct {
     uint64_t us = 0;
@@ -72,9 +73,9 @@ struct DmxStats {
 struct FxStats {
   struct {
     uint64_t basic = 0;
-    Fx_t active = lightdesk::fxNone;
-    Fx_t next = lightdesk::fxNone;
-    Fx_t prev = lightdesk::fxNone;
+    FxType_t active = lightdesk::fxNone;
+    FxType_t next = lightdesk::fxNone;
+    FxType_t prev = lightdesk::fxNone;
   } fx;
 
   struct {
@@ -85,7 +86,6 @@ struct FxStats {
   } interval;
 
   float major_peak_roc_floor = 0.0;
-  size_t object_size = 0;
 };
 
 struct I2sStats {
@@ -126,11 +126,6 @@ struct I2sStats {
   } durations;
 
   float bass_mag_floor = 0.0;
-  size_t object_size = 0;
-};
-
-struct PinSpotStats {
-  size_t object_size = 0;
 };
 
 struct LightDeskStats {
@@ -140,7 +135,8 @@ struct LightDeskStats {
   DmxStats_t dmx;
   FxStats_t fx;
   I2sStats_t i2s;
-  PinSpotStats_t pinspot[2];
+
+  bool ac_power = false;
 
   struct {
     uint_fast32_t min = uint_limit::max();
@@ -148,10 +144,15 @@ struct LightDeskStats {
     uint_fast32_t max = uint_limit::min();
   } frame_prepare;
 
-  size_t object_size = 0;
+  struct {
+    uint32_t dance_floor = 0;
+    uint32_t entry = 0;
+  } elwire;
+
+  uint32_t led_forest = 0;
 };
 
-const char *fxDesc(const Fx_t fx);
+const char *fxDesc(const FxType_t fx);
 const char *modeDesc(const LightDeskMode_t mode);
 
 } // namespace lightdesk

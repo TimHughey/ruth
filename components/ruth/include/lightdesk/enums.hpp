@@ -32,7 +32,9 @@ enum ColorPart {
   END_OF_PARTS
 };
 
-enum Fx {
+enum ElWireFunction { ELWIRE_ENTRY = 0, ELWIRE_DANCE_FLOOR, ELWIRE_LAST };
+
+enum FxType {
   fxNone = 0x00,
   fxPrimaryColorsCycle = 0x01,
   fxRedOnGreenBlueWhiteJumping = 0x02,
@@ -49,12 +51,13 @@ enum Fx {
   fxColorCycleSound = 0x0d,
   fxColorStrobeSound = 0x0e,
   fxFastStrobeSound = 0x0f,
-  fxUnknown = 0x10,
+  fxBeginCustom = 0x10,
   fxColorBars = 0x11,
   fxWashedSound,
   fxSimpleStrobe,
-  fxCrossFadeFast,
   fxMajorPeak,
+  fxMajorPeakAlternate,
+  fxEndOfList
 };
 
 enum LightDeskMode {

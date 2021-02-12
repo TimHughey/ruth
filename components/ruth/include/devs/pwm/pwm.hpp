@@ -74,6 +74,20 @@ public:
   bool off() { return updateDuty(dutyMin()); }
   bool on() { return updateDuty(dutyMax()); }
 
+  bool stop(uint32_t duty = 0) {
+    auto rc = true;
+    auto const esp_rc = ledc_stop(speedMode(), channel(), duty);
+
+    if (esp_rc != ESP_OK) {
+      rc = false;
+
+      using TR = reading::Text;
+      TR::rlog("[%s] %s stop failed", esp_err_to_name(esp_rc), debug().get());
+    }
+
+    return rc;
+  }
+
   bool updateDuty(uint32_t duty);
   bool updateDuty(JsonDocument &doc);
 

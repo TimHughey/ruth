@@ -39,15 +39,9 @@ public:
   void init() { registerArgTable(); }
 
 private:
-  typedef enum { STROBE } Args_t;
-
-private:
-  static uint32_t convertHex(const char *str);
   static int execute(int argc, char **argv);
   static int invertReturnCode(bool rc) { return (rc == true) ? 0 : 1; }
   void registerArgTable();
-
-  static bool validate(Args_t arg);
 };
 
 } // namespace ruth

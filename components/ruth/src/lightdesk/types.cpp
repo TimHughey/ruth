@@ -39,12 +39,13 @@ static const DRAM_ATTR char *_fx_desc[] = {"fxNone",
                                            "fxColorCycleSound",
                                            "fxColorStrobeSound",
                                            "fxFastStrobeSound",
-                                           "fxUnkown", // 0x10
+                                           "fxBeginCustom", // 0x10
                                            "fxColorBars",
                                            "fxWashedSound",
                                            "fxSimpleStrobe",
-                                           "fxCrossFadeFast",
-                                           "fxMajorPeak"};
+                                           "fxMajorPeak",
+                                           "fxMajorPeakAlternate",
+                                           "fxEndofList"};
 
 static const DRAM_ATTR char *_fx_oorange = "fxOutOfRange";
 
@@ -54,7 +55,7 @@ static const DRAM_ATTR char *_mode_desc[] = {"invalid", "init", "color",
 
 static const DRAM_ATTR char *_mode_oorange = "out of range";
 
-const char *fxDesc(const Fx_t fx) {
+const char *fxDesc(const FxType_t fx) {
   if (fx < (sizeof(_fx_desc) / sizeof(const char *))) {
     return _fx_desc[fx];
   } else {

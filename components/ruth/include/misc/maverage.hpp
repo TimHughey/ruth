@@ -1,5 +1,5 @@
 /*
-    misc/derivative.hpp -- Derivative (rate of change)
+    misc/maverage.hpp -- Moving Average
     Copyright (C) 2021  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_derivative_hpp
-#define _ruth_derivative_hpp
+#ifndef _ruth_moving_average_hpp
+#define _ruth_moving_average_hpp
 
 #include <cstdint>
 #include <vector>
@@ -28,48 +28,38 @@
 
 namespace ruth {
 
-template <typename T, size_t CAP = 5> class Derivative {
+template <typename T, size_t CAP = 5> class MovingAverage {
   using vector = std::vector<T>;
 
 public:
-  Derivative() {
-    _points.resize(CAP);
-    _associated_value.resize(CAP);
+  MovingAverage() {
+    _values.resize(CAP);
+    _values.assign(1.0);
   };
 
-  void addValue(T val, T associated_value) {
+  void addValue(T val) {
 
-    // the _points vector contains a history of values constrained to the
+    // the _values vector contains a history of values constrained to the
     // initial capacity. the values are ordered by time with the latest
     // at the end and the oldest at the front.
-    if (_points.size() < CAP) {
+    if (_values.size() < CAP) {
       // simply add values to _points until it reaches capacity
-      _points.push_back(val);
-      _associated_value.push_back(associated_value);
+      _values.push_back(val);
     } else {
       // once capacity is reached, remove the first value then add the latest
       // to the end to prevent realloaction / resizing.
-      _points.erase(_points.begin());
-      _points.push_back(val);
+      _values.erase(_values.begin());
+      _values.push_back(val);
 
-      _associated_value.erase(_associated_value.begin());
-      _associated_value.push_back(associated_value);
       calculate();
     }
   }
 
   bool calculated() const { return _calculated; }
 
-  // return the current rate of change and the value associated with the
-  // rate of change (now/2)
-  T rateOfChange(T &val, T &associated_value) {
-    val = 0;
-    associated_value = 0;
-
+  T latest() {
     if (_calculated) {
-      associated_value = _associated_value[2];
-      val = _points[2];
-      return _rate_of_change;
+      return _latest;
     } else {
       return 0;
     }
@@ -77,26 +67,21 @@ public:
 
 private:
   void calculate() {
-    _rate_of_change = 0;
+    _latest = 0;
 
-    for (auto k = 0; k < _num_coeff; k++) {
-      _rate_of_change += _points[k] * static_cast<T>(_coeff[k]);
+    for (auto k = 0; k < _values.size(); k++) {
+      _latest += _values[k];
     }
 
-    _rate_of_change /= CAP;
+    _latest /= _values.size();
     _calculated = true;
   }
 
 private:
-  vector _points = {1};
-  vector _associated_value = {};
-
-  const int_fast16_t _coeff[5] = {1, -8, 0, 8, -1};
-  static constexpr size_t _num_coeff = sizeof(_coeff) / sizeof(int_fast16_t);
-
+  vector _values = {1};
   bool _calculated = false;
 
-  T _rate_of_change;
+  T _latest;
 };
 
 } // namespace ruth

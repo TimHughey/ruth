@@ -87,6 +87,12 @@ void Core::_loop() {
     } else if (payload->matchSubtopic("restart")) {
       Restart("restart requested", __PRETTY_FUNCTION__);
     } else if (payload->matchSubtopic("ota")) {
+
+      if (_lightdesk_ctrl && _lightdesk_ctrl->isRunning()) {
+        // stop the LightDesk to free resources for OTA, just in case
+        _lightdesk_ctrl->stop();
+      }
+
       if (_ota == nullptr) {
         _ota = new OTA();
         _ota->start();

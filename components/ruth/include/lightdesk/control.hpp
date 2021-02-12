@@ -32,20 +32,24 @@ using namespace lightdesk;
 
 class LightDeskControl {
 public:
-  LightDeskControl(){};
+  LightDeskControl() { LightDesk::preStart(); };
 
   bool bassMagnitudeFloor(const float floor) {
     _desk->bassMagnitudeFloor(floor);
     return true;
   }
 
-  inline bool isRunning();
+  bool config();
+
+  bool isRunning();
   bool handleCommand(MsgPayload_t &msg);
 
-  bool majorPeakRocFloor(const float floor) {
-    _desk->majorPeakFxRocFloor(floor);
+  bool majorPeakMagFloor(const float floor) {
+    _desk->majorPeakMagFloor(floor);
     return true;
   }
+
+  static bool objectSizes();
 
   bool reportStats() {
     auto rc = true;

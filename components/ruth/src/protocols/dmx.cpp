@@ -25,6 +25,10 @@ namespace ruth {
 Dmx::Dmx() {
   _init_rc = uart_driver_install(_uart_num, 129, _tx_buff_len, 0, NULL, 0);
   _init_rc = uartInit();
+
+  if (_init_rc == ESP_OK) {
+    DmxClient::setDmx(this);
+  }
 }
 
 Dmx::~Dmx() {
@@ -50,11 +54,11 @@ void IRAM_ATTR Dmx::fpsCalculate(void *data) {
 void IRAM_ATTR Dmx::frameApplyUpdates() {
   // update the next frame with registered head unit staged frame updates
   elapsedMicros e;
-  for (auto i = 0; i < _headunits; i++) {
-    HeadUnit_t *unit = _headunit[i];
+  for (auto i = 0; i < _clients; i++) {
+    DmxClient *client = _client[i];
 
-    if (unit) {
-      unit->frameUpdate(_frame);
+    if (client) {
+      client->frameUpdate(_frame);
     }
   }
 
@@ -83,7 +87,8 @@ esp_err_t IRAM_ATTR Dmx::frameTimerStart() {
   if ((_init_rc == ESP_OK) && (_mode == STREAM_FRAMES)) {
     _frame_white_space.reset();
 
-    rc = esp_timer_start_once(_frame_timer, _frame_us);
+    rc =
+        esp_timer_start_once(_frame_timer, _frame_us - _stats.frame.update.max);
     // notify the task responsible for preparing the next frame
     framePrepareTaskNotify();
   }
@@ -91,10 +96,10 @@ esp_err_t IRAM_ATTR Dmx::frameTimerStart() {
   return rc;
 }
 
-void Dmx::registerHeadUnit(HeadUnit_t *unit) {
-  if (_headunits < 10) {
-    _headunit[_headunits] = unit;
-    _headunits++;
+void Dmx::clientRegister(DmxClient_t *client) {
+  if (_clients < 10) {
+    _client[_clients] = client;
+    _clients++;
   }
 }
 
@@ -302,6 +307,27 @@ void Dmx::waitForStop() {
     uart_installed = uart_is_driver_installed(_uart_num);
 
   } while (uart_installed);
+}
+
+//
+// DMX Client
+//
+
+void IRAM_ATTR DmxClient::frameUpdate(uint8_t *frame_actual) {
+  if (_frame_changed) {
+
+    // DmxClient is subclassed for multiple purposes:
+    //
+    // 1. when frame_len > 0 the state must be included in the frame
+    // 2. when frame_len == 0 the subclass is using Dmx as the clock
+    //    to perform it's own internal non-DMX updates
+    //
+    if (_frame_len > 0) {
+      bcopy(_frame_snippet, (frame_actual + _address), _frame_len);
+    }
+
+    _frame_changed = false;
+  }
 }
 
 } // namespace ruth

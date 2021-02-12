@@ -22,19 +22,17 @@
 namespace ruth {
 namespace lightdesk {
 
-PinSpot::PinSpot(uint16_t address) : HeadUnit(address, 6) {
-  _stats.object_size = sizeof(PinSpot_t);
-}
+PinSpot::PinSpot(uint16_t address) : HeadUnit(address, 6) {}
 
 PinSpot::~PinSpot() {}
 
-void PinSpot::autoRun(Fx_t fx) {
+void PinSpot::autoRun(FxType_t fx) {
   _fx = fx;
   _mode = AUTORUN;
   frameUpdate();
 }
 
-uint8_t IRAM_ATTR PinSpot::autorunMap(Fx_t fx) const {
+uint8_t IRAM_ATTR PinSpot::autorunMap(FxType_t fx) const {
   static const uint8_t model_codes[] = {0,   31,  63,  79,  95,  111, 127, 143,
                                         159, 175, 191, 207, 223, 239, 249, 254};
 

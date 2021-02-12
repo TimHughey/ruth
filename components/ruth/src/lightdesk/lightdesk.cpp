@@ -21,7 +21,6 @@
 #include <esp_log.h>
 #include <math.h>
 
-#include "engines/pwm.hpp"
 #include "external/ArduinoJson.h"
 #include "lightdesk/lightdesk.hpp"
 #include "protocols/dmx.hpp"
@@ -30,6 +29,7 @@
 namespace ruth {
 namespace lightdesk {
 
+using namespace fx;
 using TR = reading::Text;
 
 LightDesk::LightDesk() {
@@ -57,6 +57,11 @@ LightDesk::~LightDesk() {
     _fx = nullptr;
   }
 
+  if (_major_peak != nullptr) {
+    delete _major_peak;
+    _major_peak = nullptr;
+  }
+
   for (uint32_t i = PINSPOT_MAIN; i < PINSPOT_NONE; i++) {
     PinSpot_t *pinspot = _pinspots[i];
 
@@ -67,10 +72,43 @@ LightDesk::~LightDesk() {
     }
   }
 
+  if (_ac_power != nullptr) {
+    delete _ac_power;
+    _ac_power = nullptr;
+  }
+
+  for (uint32_t i = ELWIRE_ENTRY; i < ELWIRE_LAST; i++) {
+    ElWire_t *elwire = _elwire[i];
+
+    if (_elwire != nullptr) {
+      _elwire[i] = nullptr;
+
+      elwire->stop();
+
+      delete elwire;
+    }
+  }
+
+  if (_led_forest != nullptr) {
+    delete _led_forest;
+    _led_forest = nullptr;
+  }
+
+  if (_discoball != nullptr) {
+    delete _discoball;
+    _discoball = nullptr;
+  }
+
   TR::rlog("%s complete", __PRETTY_FUNCTION__);
 }
 
 void IRAM_ATTR LightDesk::core() {
+
+  // turn on the headunits
+  if (_ac_power->on() == false) {
+    printf("failed to turn on headunit ac power\n");
+  };
+
   _mode = READY;
 
   while (_mode != SHUTDOWN) {
@@ -126,6 +164,11 @@ void IRAM_ATTR LightDesk::core() {
 
       case NotifyMajorPeak:
         _mode = READY;
+
+        if (_major_peak == nullptr) {
+          _major_peak = new MajorPeak();
+        }
+
         danceStart(MAJOR_PEAK);
         break;
 
@@ -160,38 +203,61 @@ void IRAM_ATTR LightDesk::danceExecute() {
   // NOTE:  when _mode is anything other than DANCE or MAJOR_PEAL  this
   // function is a NOP and the dance execute timer is not rescheduled.
 
-  if (((_mode == MAJOR_PEAK) || (_mode == DANCE)) && _fx) {
+  if (_mode == MAJOR_PEAK) {
+    _major_peak->execute();
+  } else if ((_mode == DANCE) && _fx) {
     auto fx_finished = _fx->execute();
 
     if (fx_finished == true) {
-      _fx->execute(fxRandom());
+      const auto roll = roll2D6();
+      FxType_t choosen_fx = _fx_patterns[roll];
+
+      if (_fx != nullptr) {
+        FxBase_t *to_delete = _fx;
+        _fx = nullptr;
+        delete to_delete;
+      }
+
+      _fx = FxFactory::create(choosen_fx);
+      _fx->begin();
     }
   }
 }
 
 void LightDesk::danceStart(LightDeskMode_t mode) {
+  elWireEntry()->percent(35);
+  discoball()->spin();
 
-  // turn on the PulseWidth device that controls the head unit power
-  PulseWidth::on(1);
   pinSpotMain()->dark();
   pinSpotFill()->dark();
 
   // anytime the LightDesk is requested to start DANCE mode
-  // completely reset the LightDeskFx controller.
+  // delete the existing effect
+
   if (_fx) {
-    delete _fx;
+    FxBase_t *to_delete = _fx;
     _fx = nullptr;
+    delete to_delete;
   }
 
   if (_fx == nullptr) {
-    _fx = new LightDeskFx(pinSpotMain(), pinSpotFill(), _i2s);
+    FxConfig cfg;
+    cfg.i2s = _i2s;
+    cfg.pinspot.main = pinSpotMain();
+    cfg.pinspot.fill = pinSpotFill();
+    cfg.elwire.dance_floor = elWireDanceFloor();
+    cfg.elwire.entry = elWireEntry();
+    cfg.led_forest = _led_forest;
+
+    FxBase::setConfig(cfg);
   }
 
   if (mode == DANCE) {
-    _fx->intervalDefault(_request.danceInterval());
+    FxBase::setRuntimeMax(_request.danceInterval());
   }
 
-  _fx->start();
+  _fx = new ColorBars();
+  _fx->begin();
 
   _mode = mode;
 
@@ -199,12 +265,16 @@ void LightDesk::danceStart(LightDeskMode_t mode) {
     TR::rlog("LightDesk dance with interval=%3.2f started",
              _request.danceInterval());
   }
-}
+} // namespace lightdesk
 
 void IRAM_ATTR LightDesk::framePrepare() {
   elapsedMicros e;
 
   danceExecute();
+
+  discoball()->framePrepare();
+  elWireDanceFloor()->framePrepare();
+  elWireEntry()->framePrepare();
 
   pinSpotMain()->framePrepare();
   pinSpotFill()->framePrepare();
@@ -226,27 +296,26 @@ void LightDesk::init() {
   _i2s = (_i2s == nullptr) ? new I2s() : _i2s;
   _dmx = (_dmx == nullptr) ? new Dmx() : _dmx;
 
+  PinSpot::setDmx(_dmx);
+  PulseWidthHeadUnit::setDmx(_dmx);
+
   _i2s->start();
   vTaskDelay(pdMS_TO_TICKS(300)); // allow time for i2s to start
 
   _dmx->start();
 
-  // dmx address 1
-  _pinspots[PINSPOT_MAIN] = new PinSpot(1);
-  _dmx->registerHeadUnit(_pinspots[PINSPOT_MAIN]);
+  _ac_power = new AcPower();
 
-  // dmx address 7
-  _pinspots[PINSPOT_FILL] = new PinSpot(7);
-  _dmx->registerHeadUnit(_pinspots[PINSPOT_FILL]);
+  _pinspots[PINSPOT_MAIN] = new PinSpot(1); // dmx address 1
+  _pinspots[PINSPOT_FILL] = new PinSpot(7); // dmx address 7
+
+  // pwm headunits
+  _discoball = new DiscoBall(1);               // pwm 1
+  _elwire[ELWIRE_DANCE_FLOOR] = new ElWire(2); // pwm 2
+  _elwire[ELWIRE_ENTRY] = new ElWire(3);       // pwm 3
+  _led_forest = new LedForest(4);              // pwm 4
 
   _dmx->prepareTaskRegister(task());
-}
-
-uint32_t LightDesk::randomInterval(uint32_t min, uint32_t max) const {
-  const uint32_t modulo = max - min;
-  const uint32_t interval = (esp_random() % modulo) + min;
-
-  return interval;
 }
 
 bool LightDesk::request(const Request_t &r) {
@@ -291,7 +360,6 @@ bool LightDesk::request(const Request_t &r) {
 }
 
 void LightDesk::start() {
-
   if (_task.handle == nullptr) {
     // this (object) is passed as the data to the task creation and is
     // used by the static coreTask method to call cpre()
@@ -302,27 +370,19 @@ void LightDesk::start() {
 
 const LightDeskStats_t &LightDesk::stats() {
   _stats.mode = modeDesc(_mode);
-  _stats.object_size = sizeof(LightDesk_t);
 
   if (_dmx) {
     _dmx->stats(_stats.dmx);
-  }
-
-  if (_fx) {
-    _fx->stats(_stats.fx);
   }
 
   if (_i2s) {
     _i2s->stats(_stats.i2s);
   }
 
-  const uint32_t last_pinspot = static_cast<uint32_t>(PINSPOT_FILL);
-  for (auto i = 0; i <= last_pinspot; i++) {
-    PinSpot_t *pinspot = _pinspots[i];
-    PinSpotStats_t &stats = _stats.pinspot[i];
+  _stats.elwire.dance_floor = elWireDanceFloor()->duty();
+  _stats.elwire.entry = elWireEntry()->duty();
 
-    pinspot->stats(stats);
-  }
+  _stats.ac_power = _ac_power->status();
 
   return _stats;
 }
@@ -333,8 +393,6 @@ void LightDesk::stopActual() {
 
   _dmx->prepareTaskUnregister();
 
-  PulseWidth::off(1);
-
   for (uint32_t i = PINSPOT_MAIN; i < PINSPOT_NONE; i++) {
     PinSpot_t *pinspot = _pinspots[i];
 
@@ -343,19 +401,33 @@ void LightDesk::stopActual() {
     }
   }
 
-  vTaskDelay(10); // allow time for PinSpots to set dark
+  for (uint32_t i = ELWIRE_ENTRY; i < ELWIRE_LAST; i++) {
+    ElWire_t *elwire = _elwire[i];
 
-  if (_fx) {
-    _fx->stop();
+    if (elwire) {
+      elwire->dark();
+    }
   }
 
+  _led_forest->dark();
+
   if (_dmx) {
+    // wait for two frames ensure any pending head unit changes are reflected.
+    // the goal is a graceful and visually pleasing shutdown.
+    const TickType_t ticks = pdMS_TO_TICKS((_dmx->frameInterval() * 2) / 1000);
+    vTaskDelay(ticks);
     _dmx->stop();
   }
 
   if (_i2s) {
     _i2s->stop();
   }
+
+  if (discoball()) {
+    discoball()->still();
+  }
+
+  _ac_power->off();
 
   if (prev_mode != STOP) {
     TR::rlog("LightDesk stopped");

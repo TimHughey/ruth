@@ -29,64 +29,46 @@
 namespace ruth {
 using namespace lightdesk;
 
-static struct arg_dbl *dance, *a_bass_mag_floor, *a_roc_floor, *secs, *strobe;
-static struct arg_end *end;
-static struct arg_lit *dark, *fill, *a_help, *main, *a_major_peak, *ready,
-    *stop, *stats, *test;
-static struct arg_str *color, *fadeto;
+static struct arg_dbl *a_dance, *a_bass_mag_floor, *a_mag_floor;
+
+static struct arg_lit *a_config, *a_help, *a_major_peak, *a_object_sizes,
+    *a_stop, *a_stats, *a_test;
+static struct arg_end *a_end;
 
 static CSTR SECS = "<seconds>";
 static CSTR FLOAT = "<float>";
-static CSTR RGBW = "RR,GG,BB,WW";
 
 static void *argtable[] = {
-    fill = arg_litn(nullptr, "main", 0, 1, "target main pinspot"),
-    main = arg_litn(nullptr, "fill", 0, 1, "target fill pinspot"),
-    dance = arg_dbln("D", "dance", SECS, 0, 1, "start dance mode"),
-    color = arg_strn("C", "color", RGBW, 0, 1, "set color"),
-    dark = arg_litn("d", "dark", 0, 1, "set to dark"),
-    ready = arg_litn(nullptr, "ready", 0, 1, "set ready"),
-    fadeto = arg_strn("F", "fade-to", RGBW, 0, 1, "fade to specified color"),
+    a_config = arg_litn("c", "config", 0, 1, "display configurable values"),
+    a_dance = arg_dbln("D", "dance", SECS, 0, 1, "start dance mode"),
     a_major_peak = arg_litn("M", "major-peak", 0, 1, "set major peak mode"),
-    secs = arg_dbln("t", "secs", FLOAT, 0, 1, nullptr),
-    a_roc_floor = arg_dbln(nullptr, "roc-floor", FLOAT, 0, 1,
-                           "set fxMajorPeak rate of change threshold"),
+    a_object_sizes = arg_litn("O", "object-sizes", 0, 1,
+                              "display LightDesk related object sizes"),
+    // secs = arg_dbln("t", "secs", FLOAT, 0, 1, nullptr),
+    a_mag_floor = arg_dbln(nullptr, "mag-floor", FLOAT, 0, 1,
+                           "set fxMajorPeak magnitude floor"),
     a_bass_mag_floor = arg_dbln(nullptr, "bass-mag-floor", FLOAT, 0, 1,
                                 "set i2s bass detection magnitude"),
-    a_help = arg_litn("h", "help", 0, 1, "display help"),
-    strobe = arg_dbln("S", "strobe", FLOAT, 0, 1, "set strobe"),
-    stats = arg_litn(nullptr, "stats", 0, 1, nullptr),
-    stop = arg_litn(nullptr, "stop", 0, 1, nullptr),
-    test = arg_litn("T", "test", 0, 1, nullptr),
-    end = arg_end(12),
+    a_help = arg_litn("h", "help", 0, 1, "display help glossary"),
+    a_stats = arg_litn(nullptr, "stats", 0, 1, "display LightDesk stats"),
+    a_stop = arg_litn(nullptr, "stop", 0, 1, "stop and deallocate LightDesk"),
+    a_test = arg_litn("T", "test", 0, 1, "special tests"),
+    a_end = arg_end(12),
 };
-
-uint32_t LightDeskCli::convertHex(const char *str) {
-  uint8_t red, green, blue, white = 0;
-  uint32_t color = 0;
-  auto matches =
-      sscanf(str, "%2hhx,%2hhx,%2hhx,%2hhx", &red, &green, &blue, &white);
-
-  if (matches < 1) {
-    printf("warning: unable to parse color\n");
-  }
-
-  color = (red << 24) + (green << 16) + (blue << 8) + white;
-
-  return color;
-}
 
 int LightDeskCli::execute(int argc, char **argv) {
   LightDeskControl_t *desk_ctrl = Core::lightDeskControl();
   auto rc = true;
 
-  secs->dval[0] = 1.0;
-
   int nerrors = arg_parse(argc, argv, argtable);
 
   if (nerrors > 0) {
-    arg_print_errors(stdout, end, "pinspot");
+    arg_print_errors(stdout, a_end, "pinspot");
     return 1;
+  }
+
+  if (a_object_sizes->count > 0) {
+    rc = LightDeskControl::objectSizes();
   }
 
   if (desk_ctrl == nullptr) {
@@ -94,53 +76,28 @@ int LightDeskCli::execute(int argc, char **argv) {
     return 1;
   }
 
-  if (stats->count > 0) {
-    rc = desk_ctrl->reportStats();
-    return invertReturnCode(rc);
-  }
-
-  PinSpotFunction_t func = PINSPOT_MAIN;
-  if (fill->count > 0) {
-    func = PINSPOT_FILL;
-  }
-
   if (a_help->count > 0) {
     arg_print_syntax(stdout, argtable, "\n");
     arg_print_glossary(stdout, argtable, "  %-25s %s\n");
     rc = true;
-  } else if (dark->count > 0) {
-    rc = desk_ctrl->dark();
-  } else if (dance->count > 0) {
-    const float secs = dance->dval[0];
+  } else if (a_stats->count > 0) {
+    rc = desk_ctrl->reportStats();
+  } else if (a_config->count > 0) {
+    rc = desk_ctrl->config();
+  } else if (a_dance->count > 0) {
+    const float secs = a_dance->dval[0];
     rc = desk_ctrl->dance(secs);
-  } else if (color->count > 0) {
-    uint32_t rgbw = convertHex(color->sval[0]);
-
-    if (validate(STROBE)) {
-      if (strobe->count > 0) {
-        rc = desk_ctrl->color(func, rgbw, strobe->dval[0]);
-      } else {
-        rc = desk_ctrl->color(func, rgbw);
-      }
-    }
-  } else if (fadeto->count > 0) {
-    uint32_t rgbw = convertHex(fadeto->sval[0]);
-    auto secs_val = secs->dval[0];
-
-    rc = desk_ctrl->fadeTo(func, rgbw, secs_val);
   } else if (a_major_peak->count > 0) {
     rc = desk_ctrl->majorPeak();
-  } else if (ready->count > 0) {
-    rc = desk_ctrl->ready();
-  } else if (stop->count > 0) {
+  } else if (a_stop->count > 0) {
     rc = desk_ctrl->stop();
-  } else if (a_roc_floor->count > 0) {
-    const float floor = (float)a_roc_floor->dval[0];
-    rc = desk_ctrl->majorPeakRocFloor(floor);
+  } else if (a_mag_floor->count > 0) {
+    const float floor = (float)a_mag_floor->dval[0];
+    rc = desk_ctrl->majorPeakMagFloor(floor);
   } else if (a_bass_mag_floor->count > 0) {
     const float floor = (float)a_bass_mag_floor->dval[0];
     rc = desk_ctrl->bassMagnitudeFloor(floor);
-  } else if (test->count > 0) {
+  } else if (a_test->count > 0) {
     printf("test not available\n");
     rc = false;
   } else {
@@ -161,20 +118,4 @@ void LightDeskCli::registerArgTable() {
   esp_console_cmd_register(&cmd);
 }
 
-bool LightDeskCli::validate(Args_t arg) {
-  float fval;
-  switch (arg) {
-  case STROBE:
-    if (strobe->count > 0) {
-      fval = strobe->dval[0];
-
-      if ((fval < 0.0) && (fval > 1.00)) {
-        printf("strobe must be >= 0.0 and <= 1.00 (a percentage)\n");
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
 }; // namespace ruth

@@ -53,22 +53,25 @@ public:
   I2s();
   ~I2s();
 
-  bool bass(float &mag) const {
+  inline bool bass(float &mag) const {
     mag = _bass_mag;
 
     return _bass;
   }
 
+  float bassMagnitudeFloor() const { return _bass_mag_floor; }
+
   void bassMagnitudeFloor(const float floor) { _bass_mag_floor = floor; }
 
-  void magnitudeMinMax(float &min, float &max) {
+  inline void magnitudeMinMax(float &min, float &max) {
     min = _stats.magnitude.min;
     max = _stats.magnitude.max;
   }
 
-  inline bool magnitudeRateOfChange(const float floor, float &roc) {
+  inline bool magnitudeRateOfChange(const float floor, float &roc, float &mag,
+                                    float &freq) {
     bool rc = false;
-    roc = _mag_history.rateOfChange();
+    roc = _mag_history.rateOfChange(mag, freq);
 
     if ((roc > floor) || (roc < (floor * -1.0))) {
       rc = true;
@@ -77,12 +80,22 @@ public:
     return rc;
   }
 
-  float majorPeak(float &mpeak, float &mag);
+  float magFloor() const { return _mag_floor; }
+  void magFloor(const float floor) { _mag_floor = floor; }
 
-  void samplePrint() { taskNotify(NotifySamplePrint); }
-  void sampleStopPrint() { taskNotify(NotifySampleStopPrint); }
+  inline float meanMagnitude() { return _fft.meanMagnitude(); }
 
-  void setPrintSeconds(uint32_t secs) { _print_ms = secs * 1000; }
+  inline float majorPeak(float &mpeak, float &mag) {
+    mpeak = 0;
+    mag = 0;
+
+    if (_mpeak_mag >= _mag_floor) {
+      mpeak = _mpeak;
+      mag = _mpeak_mag;
+    }
+
+    return mpeak;
+  }
 
   // stats
   void stats(I2sStats_t &stats) {
@@ -186,6 +199,7 @@ private:
   }
 
   bool udpInit();
+  void udpPrint();
   void udpSend(uint8_t *data, size_t len);
 
 private:
@@ -193,9 +207,7 @@ private:
   esp_err_t _init_rc = ESP_OK;
 
   static constexpr int _bit_shift = 8;
-  bool _sample_print = false;
-  uint32_t _print_ms = 15 * 1000;
-  elapsedMillis _print_elapsed;
+  TextBuffer<1000> _print_buffer;
 
   static constexpr i2s_port_t _i2s_port = I2S_NUM_0;
   static constexpr int _dma_buff = 1024;
@@ -206,7 +218,6 @@ private:
 
   I2sStats_t _stats;
 
-  // static constexpr size_t _sample_rate = 44642;
   static constexpr size_t _sample_rate = 44100;
   static const size_t _vsamples = 1024;
   static const size_t _vsamples_chan = _vsamples / 2;
@@ -222,8 +233,6 @@ private:
       {65.0, 150.0, 9.0},
       {150.0, 21000.0, 9.0}};
 
-  static constexpr float _mag_scale = 100000.0;
-
   float _mpeak = 0.0;
   float _mpeak_mag = 0.0;
   Derivative<float> _mag_history;
@@ -231,18 +240,16 @@ private:
   bool _noise = true;
   bool _bass = false;
   float _bass_mag = 0.0;
-  float _bass_mag_floor = 10000.0;
+  float _bass_mag_floor = 42.5;
+  float _mag_floor = 38.5;
 
-  ArduinoFFT<float> _fft = ArduinoFFT<float>(
-      _vreal_left, _vimag, _vsamples_chan, _sample_rate, _wfactors);
-
-  uint8_t _cols = 20;
-  uint8_t _row_items = 0;
+  ArduinoFFT _fft =
+      ArduinoFFT(_vreal_left, _vimag, _vsamples_chan, _sample_rate, _wfactors);
 
   // UDP client
   const int _addr_family = AF_INET;
   const int _ip_protocol = IPPROTO_IP;
-  const char *_host_ip = "192.168.2.53";
+  const char *_host_ip = "192.168.2.67";
   const int _port_raw = 44100;
   const int _port_text = 44101;
 

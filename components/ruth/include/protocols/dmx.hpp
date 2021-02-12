@@ -32,9 +32,9 @@
 #include <esp_timer.h>
 #include <soc/uart_reg.h>
 
-#include "lightdesk/headunit.hpp"
-#include "lightdesk/types.hpp"
 #include "local/types.hpp"
+
+#include "lightdesk/types.hpp"
 #include "misc/elapsed.hpp"
 
 namespace ruth {
@@ -42,6 +42,7 @@ namespace ruth {
 using namespace lightdesk;
 
 typedef class Dmx Dmx_t;
+typedef class DmxClient DmxClient_t;
 
 class Dmx {
 
@@ -57,19 +58,20 @@ public:
     return frame_secs;
   }
 
+  float fpsExpected() const { return _fps_expected; }
+
   float framesPerSecond() const { return _stats.fps; }
 
   void prepareTaskRegister(TaskHandle_t handle) { _prepare_task = handle; }
   void prepareTaskUnregister() { _prepare_task = nullptr; }
 
-  void registerHeadUnit(HeadUnit_t *unit);
+  void clientRegister(DmxClient_t *client);
 
   // stats
   void stats(DmxStats_t &stats) {
     stats = _stats;
 
     stats.frame.us = _frame_us;
-    stats.object_size = sizeof(Dmx_t);
   }
 
   // task control
@@ -155,6 +157,7 @@ private:
   const uint64_t _frame_data = _frame_byte * 512;
   // frame interval does not include the BREAK as it is handled by the UART
   uint64_t _frame_us = _frame_mab + _frame_sc + _frame_data + _frame_mtbf;
+  const float _fps_expected = 44.0;
 
   const size_t _tx_buff_len = (_frame_len < 128) ? 0 : _frame_len + 1;
 
@@ -166,14 +169,54 @@ private:
   int _fpcp = 0;       // frames per calculate period
 
   TaskHandle_t _prepare_task = nullptr;
-  HeadUnit_t *_headunit[10] = {};
-  uint32_t _headunits = 0;
+  DmxClient *_client[10] = {};
+  size_t _clients = 0;
 
   elapsedMicros _frame_white_space;
   DmxStats_t _stats;
 
   Task_t _task = {
       .handle = nullptr, .data = nullptr, .priority = 19, .stackSize = 4096};
+};
+
+class DmxClient {
+public:
+  DmxClient() { registerSelf(); }
+  DmxClient(const uint16_t address, size_t frame_len)
+      : _address(address), _frame_len(frame_len) {
+    registerSelf();
+  }
+  ~DmxClient() {}
+
+public:
+  virtual void framePrepare() {}
+  virtual void frameUpdate(uint8_t *frame_actual);
+
+  static void setDmx(Dmx_t *dmx) { DmxClient::_dmx = dmx; }
+
+protected:
+  static float fps() {
+    if (_dmx) {
+      return _dmx->fpsExpected();
+    } else {
+      return 44.0;
+    }
+  }
+  inline bool &frameChanged() { return _frame_changed; }
+  inline uint8_t *frameData() { return _frame_snippet; }
+  static Dmx_t *dmx() { return _dmx; }
+  void registerSelf() { _dmx->clientRegister(this); }
+
+private:
+  // class members, defined and initialized in misc/statics.cpp
+  static Dmx_t *_dmx;
+
+  uint16_t _address = 0;
+
+  bool _frame_changed = false;
+  size_t _frame_len = 0;
+
+  uint8_t _frame_snippet[10] = {};
 };
 
 } // namespace ruth

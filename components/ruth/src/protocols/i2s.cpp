@@ -29,7 +29,6 @@
 namespace ruth {
 
 I2s::I2s() {
-  _stats.object_size = sizeof(I2s);
   _stats.config.freq_bin_width = (float)_sample_rate / (float)_vsamples_chan;
 }
 
@@ -101,33 +100,23 @@ void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
   // zero out vimag
   memset(_vimag, 0x00, sizeof(_vimag));
 
-  _fft.setArrays(_vreal_left, _vimag);
-  _fft.dcRemoval();
-  _fft.windowing(FFTWindow::Hamming, FFTDirection::Forward);
-  _fft.compute(FFTDirection::Forward);
-  _fft.complexToMagnitude();
+  _fft.process(_vreal_left, _vimag, _mpeak, _mpeak_mag);
 
-  _fft.majorPeak(_mpeak, _mpeak_mag);
-  // _mpeak_mag /= _mag_scale;
-  _mpeak_mag = sqrt(_mpeak_mag);
+  _mag_history.addValue(_mpeak_mag, _mpeak);
 
-  _mag_history.addValue(_mpeak_mag);
-
-  float freq;
-  _fft.binFrequency(1, freq, _bass_mag);
+  float low_freq;
+  _fft.binFrequency(1, low_freq, _bass_mag);
 
   _bass = false;
-  if ((freq > 30.0) && (freq <= 170.0)) {
-    const float mag_sqrt = sqrt(_bass_mag);
-
-    if (mag_sqrt > _bass_mag_floor) {
+  if ((low_freq > 30.0) && (low_freq <= 170.0)) {
+    if (_bass_mag > _bass_mag_floor) {
       _bass = true;
     }
   }
 
   trackMagMinMax(_mpeak_mag);
 
-  filterNoise();
+  // filterNoise();
 
   fftRecordElapsed(e);
 }
@@ -142,15 +131,6 @@ bool I2s::handleNotifications() {
     const NotifyVal_t notify_val = static_cast<NotifyVal_t>(val);
 
     switch (notify_val) {
-    case NotifySamplePrint:
-      _sample_print = true;
-      _print_elapsed.reset();
-      break;
-
-    case NotifySampleStopPrint:
-      _sample_print = false;
-      break;
-
     case NotifyStop:
       _mode = STOP;
       // prevent further stats timer callbacks
@@ -179,17 +159,17 @@ bool I2s::handleNotifications() {
   return rc;
 }
 
-float IRAM_ATTR I2s::majorPeak(float &mpeak, float &mpeak_mag) {
-  mpeak = 0.0;
-  mpeak_mag = 0.0;
+// float IRAM_ATTR I2s::majorPeak(float &mpeak, float &mpeak_mag) {
+//   mpeak = _mpeak;
+//   mpeak_mag = _mpeak_mag;
 
-  if (_noise == false) {
-    mpeak = _mpeak;
-    mpeak_mag = _mpeak_mag;
-  }
+// if (_noise == false) {
+//   mpeak = _mpeak;
+//   mpeak_mag = _mpeak_mag;
+// }
 
-  return mpeak;
-}
+//   return mpeak;
+// }
 
 bool IRAM_ATTR I2s::samplesRx() {
   auto rc = false;
@@ -244,6 +224,7 @@ void I2s::taskCore(void *task_instance) {
 
   i2s->taskInit();
   i2s->udpInit();
+
   i2s->taskLoop(); // returns when _mode == SHUTDOWN
 
   // the task is complete, clean up
@@ -326,6 +307,13 @@ void I2s::taskInit() {
 void IRAM_ATTR I2s::taskLoop() {
   _mode = PROCESS_AUDIO;
 
+  _print_buffer.clear();
+  _print_buffer.printf(
+      "seq_diff, _mpeak, mag_orig, mag_4th_rt_roc, mag_4th_rt, low_freq,"
+      "low_mag_4th_rt, mag_diff, bin2_freq, bin2_mag_4th_rt\n");
+
+  udpPrint();
+
   // when _mode is SHUTDOWN this function returns
   while (_mode != SHUTDOWN) {
     samplesRx();
@@ -373,6 +361,16 @@ bool I2s::udpInit() {
   }
 
   return rc;
+}
+
+void I2s::udpPrint() {
+  // dump the raw data to the network
+  if (_socket_text >= 0) {
+    struct sockaddr *dest = (struct sockaddr *)&_dest_text;
+    constexpr size_t addr_size = sizeof(struct sockaddr_in);
+    sendto(_socket_text, _print_buffer.c_str(), _print_buffer.size(), 0, dest,
+           addr_size);
+  }
 }
 
 void I2s::udpSend(uint8_t *data, size_t len) {

@@ -21,13 +21,23 @@
 #include "external/ArduinoJson.h"
 
 #include "lightdesk/control.hpp"
-#include "lightdesk/fx_defs.hpp"
 #include "lightdesk/lightdesk.hpp"
 #include "readings/text.hpp"
 
 namespace ruth {
 
 using TR = reading::Text;
+
+bool LightDeskControl::config() {
+  auto rc = true;
+  const float bass_mag_floor = _desk->bassMagnitudeFloor();
+  const float major_peak_roc_floor = _desk->majorPeakMagFloor();
+
+  printf("\nbass_mag_floor(%10.1f) major_peak_roc_floor(%10.1f)\n\n",
+         bass_mag_floor, major_peak_roc_floor);
+
+  return rc;
+}
 
 bool LightDeskControl::handleCommand(MsgPayload_t &msg) {
   bool rc = false;
@@ -77,6 +87,18 @@ bool LightDeskControl::isRunning() {
   return rc;
 }
 
+bool LightDeskControl::objectSizes() {
+  auto rc = true;
+
+  printf("lightdesk(%5u) fx(%5u) dmx(%u) i2s(%5u) pinspot(%5u) control(%5u)\n",
+         sizeof(LightDesk_t), sizeof(FxType_t), sizeof(Dmx_t), sizeof(I2s_t),
+         sizeof(PinSpot_t), sizeof(LightDeskControl_t));
+
+  printf("\n");
+
+  return rc;
+}
+
 bool LightDeskControl::setMode(LightDeskMode_t mode) {
   _mode = mode;
 
@@ -100,22 +122,24 @@ bool LightDeskControl::stats() {
 
   // lightdesk
   printf("\n");
-  printf("%-*smode=%s object_size=%u\n", indent_size, "lightdesk:", stats.mode,
-         stats.object_size);
+  printf("%-*smode(%3s) ac_power(%3s)\n", indent_size, "lightdesk:", stats.mode,
+         stats.ac_power ? "on" : "off");
   printf("%sframe prepare min(%4uµs) curr(%4uµs) max(%4uµs)\n", indent,
          stats.frame_prepare.min, stats.frame_prepare.curr,
          stats.frame_prepare.max);
 
+  printf("%sel wire dance_floor(%4u) entry(%4u)\n", indent,
+         stats.elwire.dance_floor, stats.elwire.entry);
+
   printf("\n");
-  printf("%-*sbasic=%llu active=%s next=%s prev=%s\n", indent_size,
+  printf("%-*sbasic(%llu) active(%s) next(%s) prev(%s)\n", indent_size,
          "lightdesk_fx:", fx.fx.basic, fxDesc(fx.fx.active), fxDesc(fx.fx.next),
          fxDesc(fx.fx.prev));
 
-  printf("%sinterval curr=%4.2fs min=%4.2fs max=%4.2fs base=%4.2fs\n", indent,
-         fx.interval.current, fx.interval.min, fx.interval.max,
+  printf("%sinterval curr(%4.2fs) min(%4.2fs) max(%4.2fs) base(%4.2fs)\n",
+         indent, fx.interval.current, fx.interval.min, fx.interval.max,
          fx.interval.base);
-  printf("%smajor_peak_roc_floor(%8.2f) object_size=%u\n", indent,
-         fx.major_peak_roc_floor, fx.object_size);
+  printf("%smajor_peak_roc_floor(%8.2f)\n", indent, fx.major_peak_roc_floor);
 
   // dmx
   const float frame_ms = (float)dmx.frame.us / 1000.f;
@@ -128,8 +152,7 @@ bool LightDeskControl::stats() {
          dmx.frame.update.curr, dmx.frame.update.min, dmx.frame.update.max);
   printf("%stx: curr(%02.02fms) min(%02.02fms) max(%02.02fms)\n", indent,
          dmx.tx.curr, dmx.tx.min, dmx.tx.max);
-  printf("%sbusy_wait(%lld) object_size(%u)\n", indent, dmx.busy_wait,
-         dmx.object_size);
+  printf("%sbusy_wait(%lld)\n", indent, dmx.busy_wait);
 
   // i2s
   printf("\n");
@@ -138,37 +161,17 @@ bool LightDeskControl::stats() {
   printf("%-*srate: %.02fKbps %9.2fksps\n", indent_size, "i2s:", raw_kbps,
          samples_kbps);
 
-  const float fft_ms = (float)i2s.durations.fft_avg_us / 1000.0;
   const float i2s_rx_ms = (float)i2s.durations.rx_avg_us / 1000.0;
-  printf("%sdurations: fft(%0.2fms) rx(%0.2fms)\n", indent, fft_ms, i2s_rx_ms);
+  printf("%sdurations: fft(%7.1fµs) rx(%0.2fms)\n", indent,
+         i2s.durations.fft_avg_us, i2s_rx_ms);
 
   printf("%sraw min(%8d) max(%8d)\n", indent, i2s.raw_val.min24,
          i2s.raw_val.max24);
 
-  printf("%sfft: bin_width(%6.2fHz) magnitude(%10.2f,%10.2f) \n", indent,
+  printf("%sfft: bin_width(%7.2fHz) magnitude(%10.2f,%10.2f) \n", indent,
          i2s.config.freq_bin_width, i2s.magnitude.min, i2s.magnitude.max);
 
-  printf("%sbass_mag_floor(%8.2f) object_size(%u)\n", indent,
-         i2s.bass_mag_floor, i2s.object_size);
-
-  // pinspots
-
-  const uint32_t last_pinspot = static_cast<uint32_t>(PINSPOT_FILL);
-
-  for (uint32_t i = 0; i <= last_pinspot; i++) {
-    printf("\n");
-    const PinSpotStats_t &pinspot = stats.pinspot[i];
-    TextBuffer<16> name;
-    name.printf("pinspot %02d:", i);
-
-    printf("%-*sobject_size=%u\n", indent_size, name.c_str(),
-           pinspot.object_size);
-  }
-
-  printf("\n");
-
-  printf("%-*sobject_size=%u\n", indent_size,
-         "lightdeskcontrol:", sizeof(LightDeskControl_t));
+  printf("%sbass_mag_floor(%8.2f)\n", indent, i2s.bass_mag_floor);
 
   printf("\n");
 

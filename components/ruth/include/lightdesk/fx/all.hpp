@@ -1,6 +1,6 @@
 /*
-    lightdesk/fx_defs.hpp - Ruth Light Desk Fx Definitions
-    Copyright (C) 2020  Tim Hughey
+    lightdesk/fx/soundwashed.hpp -- LightDesk Effect PinSpot with White Fade
+    Copyright (C) 2021  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,11 +18,14 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_lightdesk_fx_defs_hpp
-#define _ruth_lightdesk_fx_defs_hpp
+#ifndef _ruth_lightdesk_fx_all_hpp
+#define _ruth_lightdesk_fx_all_hpp
 
-namespace ruth {
-namespace lightdesk {}
-} // namespace ruth
+#include "lightdesk/fx/basic.hpp"
+#include "lightdesk/fx/colorbars.hpp"
+#include "lightdesk/fx/majorpeak.hpp"
+#include "lightdesk/fx/simpleStrobe.hpp"
+#include "lightdesk/fx/soundfaststrobe.hpp"
+#include "lightdesk/fx/washedsound.hpp"
 
 #endif

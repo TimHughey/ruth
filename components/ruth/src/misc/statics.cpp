@@ -1,6 +1,6 @@
 /*
-    devs/dmx/headunit.hpp - Ruth Dmx Head Unit Device
-    Copyright (C) 2020  Tim Hughey
+    misc/statics.cpp - Ruth Generic Class Static Data
+    Copyright (C) 2021  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,30 +18,33 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_dmx_headunit_device_hpp
-#define _ruth_dmx_headunit_device_hpp
-
-#include "lightdesk/types.hpp"
-#include "local/types.hpp"
+#include "lightdesk/fx/base.hpp"
+#include "lightdesk/headunits/pinspot/base.hpp"
+#include "lightdesk/headunits/pinspot/color.hpp"
+#include "lightdesk/headunits/pwm.hpp"
 #include "protocols/dmx.hpp"
 
 namespace ruth {
+
+Dmx_t DRAM_ATTR *DmxClient::_dmx = nullptr;
+
 namespace lightdesk {
 
-class HeadUnit : public DmxClient {
-public:
-  HeadUnit() {}
+float DRAM_ATTR Color::_mag_min = 0;
+float DRAM_ATTR Color::_mag_max = 0;
 
-  HeadUnit(const uint16_t address, size_t frame_len)
-      : DmxClient(address, frame_len){};
-  virtual ~HeadUnit() {}
+bool DRAM_ATTR PulseWidthHeadUnit::_timer_configured = false;
+const ledc_timer_config_t DRAM_ATTR PulseWidthHeadUnit::_ledc_timer = {
+    .speed_mode = LEDC_HIGH_SPEED_MODE,
+    .duty_resolution = LEDC_TIMER_13_BIT,
+    .timer_num = LEDC_TIMER_1,
+    .freq_hz = 5000,
+    .clk_cfg = LEDC_AUTO_CLK};
 
-  virtual void dark() {}
+namespace fx {
+FxConfig_t DRAM_ATTR FxBase::_cfg;
+}
 
-  // virtual void framePrepare() {}
-  // virtual void frameUpdate(uint8_t *frame_actual);
-};
 } // namespace lightdesk
-} // namespace ruth
 
-#endif
+} // namespace ruth

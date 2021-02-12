@@ -59,6 +59,7 @@ public:
   Color(const Color_t &rhs) = default;
 
   // specific colors
+  static Color_t amber() { return Color(255, 191, 0, 0); }
   static Color_t black() { return Color(0); }
   static Color_t bright() { return Color(255, 255, 255, 255); }
   static Color_t blue() { return Color(0, 0, 255, 0); }
@@ -69,7 +70,7 @@ public:
   static Color_t yellow() { return Color(255, 255, 0, 0); }
   static Color_t teal() { return Color(0, 255, 255, 0); }
 
-  static Color_t lightBlue() { return Color{0, 0, 255, 0}; }
+  static Color_t lightBlue() { return Color{0, 0, 255, 255}; }
   static Color_t lightGreen() { return Color(0, 255, 0, 255); }
   static Color_t lightRed() { return Color(255, 0, 0, 255); }
   static Color_t lightViolet() { return Color(255, 255, 0, 255); }
@@ -194,15 +195,15 @@ public:
     colorPart(WHITE_PART) = static_cast<float>(wht);
   }
 
-  void scale(float magnitude) {
+  inline void scale(float magnitude) {
     // printf("%10.2f %10.2f\n", magnitude, log10(magnitude));
 
-    magnitude = log10(magnitude);
+    // magnitude = log10(magnitude);
 
     // Result := ((Input - InputLow) / (InputHigh - InputLow))
     //       * (OutputHigh - OutputLow) + OutputLow;
 
-    const float mag_ranged = ((magnitude - 2.0) / (4.0 - 2.0)) * 255.0;
+    const float mag_ranged = ((magnitude - 20.0) / 80.0 - 20.00) * 255.0;
 
     for (auto k = 0; k < endOfParts(); k++) {
       const uint32_t asis_val = _parts[k];
