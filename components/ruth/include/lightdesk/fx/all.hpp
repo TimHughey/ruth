@@ -24,7 +24,7 @@
 #include "lightdesk/fx/basic.hpp"
 #include "lightdesk/fx/colorbars.hpp"
 #include "lightdesk/fx/majorpeak.hpp"
-#include "lightdesk/fx/simpleStrobe.hpp"
+#include "lightdesk/fx/simplestrobe.hpp"
 #include "lightdesk/fx/soundfaststrobe.hpp"
 #include "lightdesk/fx/washedsound.hpp"
 
