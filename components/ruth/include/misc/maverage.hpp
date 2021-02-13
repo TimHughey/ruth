@@ -22,66 +22,42 @@
 #define _ruth_moving_average_hpp
 
 #include <cstdint>
-#include <vector>
 
 #include "local/types.hpp"
+#include "misc/elapsed.hpp"
 
 namespace ruth {
 
-template <typename T, size_t CAP = 5> class MovingAverage {
-  using vector = std::vector<T>;
+template <typename T, uint32_t SECONDS> class MovingAverage {
 
 public:
-  MovingAverage() {
-    _values.resize(CAP);
-    _values.assign(1.0);
-  };
+  MovingAverage() { _avg_elapsed.reset(); };
 
   void addValue(T val) {
+    constexpr uint32_t ms = SECONDS * 1000;
 
-    // the _values vector contains a history of values constrained to the
-    // initial capacity. the values are ordered by time with the latest
-    // at the end and the oldest at the front.
-    if (_values.size() < CAP) {
-      // simply add values to _points until it reaches capacity
-      _values.push_back(val);
+    if ((uint32_t)_avg_elapsed <= ms) {
+      _sum += val;
+      _count++;
+
+      _latest = _sum / _count;
     } else {
-      // once capacity is reached, remove the first value then add the latest
-      // to the end to prevent realloaction / resizing.
-      _values.erase(_values.begin());
-      _values.push_back(val);
+      _sum = _latest;
+      _count = 1;
 
-      calculate();
+      _avg_elapsed.reset();
     }
   }
 
-  bool calculated() const { return _calculated; }
-
-  T latest() {
-    if (_calculated) {
-      return _latest;
-    } else {
-      return 0;
-    }
-  }
+  T latest() const { return _latest; }
 
 private:
-  void calculate() {
-    _latest = 0;
+  elapsedMillis _avg_elapsed;
 
-    for (auto k = 0; k < _values.size(); k++) {
-      _latest += _values[k];
-    }
+  double _sum = 0;
+  uint64_t _count = 0;
 
-    _latest /= _values.size();
-    _calculated = true;
-  }
-
-private:
-  vector _values = {1};
-  bool _calculated = false;
-
-  T _latest;
+  T _latest = 0;
 };
 
 } // namespace ruth

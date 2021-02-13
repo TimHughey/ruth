@@ -78,6 +78,8 @@ void IRAM_ATTR Dmx::frameApplyUpdates() {
 void IRAM_ATTR Dmx::frameTimerCallback(void *data) {
   Dmx_t *dmx = (Dmx_t *)data;
 
+  dmx->_ftbf.reset();
+
   dmx->taskNotify(NotifyFrame);
 }
 
@@ -87,8 +89,11 @@ esp_err_t IRAM_ATTR Dmx::frameTimerStart() {
   if ((_init_rc == ESP_OK) && (_mode == STREAM_FRAMES)) {
     _frame_white_space.reset();
 
-    rc =
-        esp_timer_start_once(_frame_timer, _frame_us - _stats.frame.update.max);
+    // subtract the elapsed microsecs from when the frame timer fired
+    // measured by _ftbf (frame timer between frames)
+    _ftbf.freeze();
+    rc = esp_timer_start_once(_frame_timer, _frame_us - (uint32_t)_ftbf);
+
     // notify the task responsible for preparing the next frame
     framePrepareTaskNotify();
   }

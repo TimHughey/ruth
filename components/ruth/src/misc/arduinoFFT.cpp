@@ -146,57 +146,6 @@ void IRAM_ATTR ArduinoFFT::majorPeak(float &frequency, float &value) const {
   freqAndValueAtY(IndexOfMaxY, frequency, value);
 }
 
-float IRAM_ATTR ArduinoFFT::meanMagnitude() {
-  // calculate the mean of vData
-  uint_fast16_t zero = 0;
-  uint_fast16_t pos = 0;
-  ruth::elapsedMicros e;
-
-  portENTER_CRITICAL_SAFE(&_spinlock);
-
-  for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
-    const float a = _vReal[i - 1];
-    const float b = _vReal[i];
-    const float c = _vReal[i + 1];
-
-    const float mag = abs(a - (2.0 * b) + c);
-    // const auto pos_threshold = 100000;
-    // const auto neg_threshold = -25000;
-
-    if (mag > 10000) {
-      pos++;
-    } else {
-      zero++;
-    }
-  }
-
-  portEXIT_CRITICAL_SAFE(&_spinlock);
-
-  e.freeze();
-
-  // if (zero < 252) {
-  printf("%10u %10u %10u", (uint32_t)e, zero, pos);
-  // }
-
-  printf("\n");
-
-  // neg = (neg == 0) ? 1 : neg;
-  //
-  // if ((pos > 0) && (neg > 0)) {
-  //   const float ratio = (T)pos / (T)neg;
-  //
-  //   if (ratio > 5) {
-  //     printf("%10f", ratio);
-  //   }
-  // }
-  //
-  // printf("\n");
-
-  _mean_mag = 0;
-
-  return _mean_mag;
-}
-
 void IRAM_ATTR ArduinoFFT::windowing(FFTWindow windowType, FFTDirection dir,
                                      bool withCompensation) {
   // check if values are already pre-computed for the correct window type and

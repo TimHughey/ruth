@@ -31,6 +31,7 @@
 
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
+#include "misc/maverage.hpp"
 
 enum class FFTDirection { Reverse, Forward };
 
@@ -71,6 +72,8 @@ public:
 
   // Computes in-place complex-to-complex FFT
   void compute(FFTDirection dir) const;
+  inline float complexity() const { return _complexity; }
+  inline float complexityAvg() const { return _complexity_mavg.latest(); }
   void complexToMagnitude() const;
 
   void dcRemoval() const;
@@ -79,7 +82,6 @@ public:
 
   void windowing(FFTWindow windowType, FFTDirection dir,
                  bool withCompensation = false);
-  float meanMagnitude();
 
   inline float majorPeak() const {
     float frequency;
@@ -102,6 +104,7 @@ public:
     compute(FFTDirection::Forward);
     complexToMagnitude();
     majorPeak(mpeak, mpeak_mag);
+    complexity();
 
     portEXIT_CRITICAL_SAFE(&_spinlock);
   }
@@ -151,6 +154,10 @@ private:
 
   float _mpeak = 0;
   float _mpeak_mag = 0;
+
+  float _complexity_floor = 50000;
+  float _complexity = 0;
+  ruth::MovingAverage<float, 7> _complexity_mavg;
 };
 
 #endif

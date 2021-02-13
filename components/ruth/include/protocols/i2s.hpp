@@ -63,6 +63,9 @@ public:
 
   void bassMagnitudeFloor(const float floor) { _bass_mag_floor = floor; }
 
+  float complexity() const { return _fft.complexity(); }
+  float complexityAvg() const { return _fft.complexityAvg(); }
+
   inline void magnitudeMinMax(float &min, float &max) {
     min = _stats.magnitude.min;
     max = _stats.magnitude.max;
@@ -83,7 +86,7 @@ public:
   float magFloor() const { return _mag_floor; }
   void magFloor(const float floor) { _mag_floor = floor; }
 
-  inline float meanMagnitude() { return _fft.meanMagnitude(); }
+  // inline float meanMagnitude() { return _fft.meanMagnitude(); }
 
   inline float majorPeak(float &mpeak, float &mag) {
     mpeak = 0;

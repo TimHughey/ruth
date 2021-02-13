@@ -149,15 +149,16 @@ private:
   esp_timer_handle_t _frame_timer = nullptr;
 
   // except for _frame_break all frame timings are in µs
-  const uint32_t _frame_break = 11; // num bits at 250,000 baud (4µs)
-  const uint64_t _frame_mab = 0;    // was 12
+  const uint32_t _frame_break = 22; // num bits at 250,000 baud (8µs) was 11
+  const uint64_t _frame_mab = 12;   // was 0
   const uint64_t _frame_byte = 44;
-  const uint64_t _frame_sc = _frame_byte / 10; // account for internal latency
-  const uint64_t _frame_mtbf = 0;              // was 44
+  const uint64_t _frame_sc = _frame_byte; // was divided by 10
+  const uint64_t _frame_mtbf = 44;        // was 0
   const uint64_t _frame_data = _frame_byte * 512;
   // frame interval does not include the BREAK as it is handled by the UART
   uint64_t _frame_us = _frame_mab + _frame_sc + _frame_data + _frame_mtbf;
   const float _fps_expected = 44.0;
+  elapsedMicros _ftbf; // microsecs elapsed after frameTimerCallback invoked
 
   const size_t _tx_buff_len = (_frame_len < 128) ? 0 : _frame_len + 1;
 
@@ -165,7 +166,7 @@ private:
 
   esp_timer_handle_t _fps_timer = nullptr;
   uint64_t _frame_count_mark = 0;
-  int _fpc_period = 3; // period represents seconds to count frames
+  int _fpc_period = 2; // period represents seconds to count frames
   int _fpcp = 0;       // frames per calculate period
 
   TaskHandle_t _prepare_task = nullptr;
