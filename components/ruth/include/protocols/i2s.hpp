@@ -243,7 +243,7 @@ private:
   bool _noise = true;
   bool _bass = false;
   float _bass_mag = 0.0;
-  float _bass_mag_floor = 42.5;
+  float _bass_mag_floor = 63.5;
   float _mag_floor = 38.5;
 
   ArduinoFFT _fft =

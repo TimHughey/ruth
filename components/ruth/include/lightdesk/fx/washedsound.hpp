@@ -29,7 +29,10 @@ namespace fx {
 
 class WashedSound : public FxBase {
 public:
-  WashedSound() : FxBase(fxWashedSound) { runtimeReduceTo(0.50f); }
+  WashedSound() : FxBase(fxWashedSound) {
+    runtimeReduceTo(0.50f);
+    complexityMinimum() = 0.60;
+  }
 
   void executeEffect() {
     if (onetime()) {

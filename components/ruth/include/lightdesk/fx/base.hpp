@@ -63,7 +63,12 @@ public:
   virtual void begin() {}
 
   bool execute() {
-    executeEffect();
+    if (checkComplexity()) {
+      executeEffect();
+    } else {
+      completed();
+    }
+
     return isComplete();
   }
 
@@ -88,7 +93,16 @@ public:
   FxType_t type() const { return _type; }
 
 protected:
+  inline bool checkComplexity() const {
+    const float complexity = i2s()->complexityAvg();
+    if ((_complexity_min > 0.0) && (complexity < _complexity_min)) {
+      return false;
+    }
+
+    return true;
+  }
   inline void completed() { _complete = true; }
+  inline float &complexityMinimum() { return _complexity_min; }
   inline uint_fast16_t &count() { return _count; }
   inline uint_fast16_t &countMax() { return _count_max; }
   virtual void executeEffect() {}
@@ -134,6 +148,8 @@ private:
   float _runtime_secs = 0.0;
   uint_fast16_t _count = 0;
   uint_fast16_t _count_max = 0;
+
+  float _complexity_min = 0.0;
 
   bool _complete = false;
   bool _onetime = true;

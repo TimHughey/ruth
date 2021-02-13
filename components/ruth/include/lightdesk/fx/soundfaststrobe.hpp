@@ -32,6 +32,10 @@ public:
   SoundFastStrobe() : FxBase(fxFastStrobeSound) {
     _roll = roll2D6();
     runtimeReduceTo(_runtimes[_roll]);
+
+    // this effect requires music with enough complexity to activate the
+    // built in pinspot sound detection
+    complexityMinimum() = 0.60;
   }
 
   void executeEffect() {

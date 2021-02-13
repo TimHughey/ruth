@@ -70,6 +70,8 @@ public:
   float binFrequency(size_t y);
   void binFrequency(size_t y, float &frequency, float &magnitude);
 
+  void calculateComplexity();
+
   // Computes in-place complex-to-complex FFT
   void compute(FFTDirection dir) const;
   inline float complexity() const { return _complexity; }
@@ -104,7 +106,7 @@ public:
     compute(FFTDirection::Forward);
     complexToMagnitude();
     majorPeak(mpeak, mpeak_mag);
-    complexity();
+    calculateComplexity();
 
     portEXIT_CRITICAL_SAFE(&_spinlock);
   }

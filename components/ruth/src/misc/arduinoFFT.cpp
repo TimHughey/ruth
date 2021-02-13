@@ -30,6 +30,27 @@ void IRAM_ATTR ArduinoFFT::binFrequency(size_t y, float &frequency,
   freqAndValueAtY(y, frequency, magnitude);
 }
 
+void IRAM_ATTR ArduinoFFT::calculateComplexity() {
+  uint_fast16_t pos = 0;
+
+  for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
+    const float a = _vReal[i - 1];
+    const float b = _vReal[i];
+    const float c = _vReal[i + 1];
+
+    const float mag = abs(a - (2.0 * b) + c);
+    // const auto pos_threshold = 100000;
+    // const auto neg_threshold = -25000;
+
+    if (mag > _complexity_floor) {
+      pos++;
+    }
+  }
+
+  _complexity = float(pos) / float((_samples >> 1) + 1);
+  _complexity_mavg.addValue(_complexity);
+}
+
 void IRAM_ATTR ArduinoFFT::complexToMagnitude() const {
   // vM is half the size of vReal and vImag
   for (uint_fast16_t i = 0; i < _samples; i++) {
