@@ -41,7 +41,7 @@ public:
 
   bool config();
 
-  bool isRunning();
+  bool isRunning() const { return (_desk == nullptr) ? false : true; }
   bool handleCommand(MsgPayload_t &msg);
 
   bool majorPeakMagFloor(const float floor) {
@@ -97,11 +97,17 @@ public:
   }
 
   inline bool stop() {
-    _request = Request(STOP);
-    auto rc = setMode();
+    auto rc = true;
 
-    delete _desk;
-    _desk = nullptr;
+    if (isRunning()) {
+      _request = Request(STOP);
+      rc = setMode();
+
+      if (_desk != nullptr) {
+        delete _desk;
+        _desk = nullptr;
+      }
+    }
 
     return rc;
   }

@@ -58,12 +58,14 @@ public:
   FxBase() {}
   FxBase(const FxType type) : _type(type) {}
 
-  virtual ~FxBase() {}
+  virtual ~FxBase() { _stats.prev = _type; }
 
-  virtual void begin() {}
+  virtual void begin() { _stats.next = _type; }
 
   bool execute() {
     if (checkComplexity()) {
+      _stats.active = _type;
+      _stats.next = fxNone;
       executeEffect();
     } else {
       completed();
@@ -90,6 +92,8 @@ public:
     _cfg.runtime_max_secs = max_secs;
   }
 
+  static void stats(FxStats_t &stats) { stats = _stats; }
+
   FxType_t type() const { return _type; }
 
 protected:
@@ -101,7 +105,12 @@ protected:
 
     return true;
   }
-  inline void completed() { _complete = true; }
+
+  inline void completed() {
+    _complete = true;
+    _stats.active = fxNone;
+  }
+
   inline float &complexityMinimum() { return _complexity_min; }
   inline uint_fast16_t &count() { return _count; }
   inline uint_fast16_t &countMax() { return _count_max; }
@@ -144,8 +153,9 @@ protected:
 private:
   FxType_t _type = fxNone;
   static FxConfig_t _cfg;
+  static FxStats_t _stats;
 
-  float _runtime_secs = 0.0;
+  float _runtime_secs = _cfg.runtime_max_secs;
   uint_fast16_t _count = 0;
   uint_fast16_t _count_max = 0;
 

@@ -88,7 +88,7 @@ void Core::_loop() {
       Restart("restart requested", __PRETTY_FUNCTION__);
     } else if (payload->matchSubtopic("ota")) {
 
-      if (_lightdesk_ctrl && _lightdesk_ctrl->isRunning()) {
+      if (_lightdesk_ctrl) {
         // stop the LightDesk to free resources for OTA, just in case
         _lightdesk_ctrl->stop();
       }

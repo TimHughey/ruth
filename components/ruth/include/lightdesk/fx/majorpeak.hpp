@@ -29,7 +29,7 @@ namespace fx {
 
 class MajorPeak : public FxBase {
 public:
-  MajorPeak() : FxBase(fxMajorPeak) { runtimeUseDefault(); }
+  MajorPeak() : FxBase(fxMajorPeak) { selectFrequencyColors(); }
 
 protected:
   void executeEffect() {
@@ -48,20 +48,8 @@ protected:
       ledForest()->pulse();
     }
 
-    // float mpeak, mag;
-    // i2s()->majorPeak(mpeak, mag);
-
-    // printf("freq: %10.4f  mag: %10.4f\n", mpeak, mag);
-
-    // float mag_roc, mag, freq;
-    // auto mag_ok =
-    //     i2s()->magnitudeRateOfChange(_major_peak_roc_floor, mag_roc, mag,
-    //     freq);
-
     float freq, mag;
     i2s()->majorPeak(freq, mag);
-
-    // i2s()->meanMagnitude();
 
     if (mag > 0) {
       size_t color_index;
@@ -107,10 +95,40 @@ private:
     Color_t color;
 
     if (index < _frequency_count) {
-      color = _frequencyColors[index];
+      color = _frequency_colors[_frequency_color_selected_idx][index];
     }
 
     return color;
+  }
+
+  void selectFrequencyColors() {
+    const auto roll = roll2D6();
+
+    switch (roll) {
+
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+      _frequency_color_selected_idx = 0;
+      break;
+
+    case 2:
+    case 12:
+      _frequency_color_selected_idx = 3;
+      runtimeReduceTo(0.50);
+      break;
+
+    case 3:
+    case 4:
+      _frequency_color_selected_idx = 1;
+      break;
+
+    case 9:
+    case 10:
+      _frequency_color_selected_idx = 2;
+      break;
+    }
   }
 
 private:
@@ -120,22 +138,23 @@ private:
                                             466.2, 493.9, 523.2, 544.4, 587.3,
                                             622.2, 659.3, 698.5};
   static constexpr size_t _frequency_count = 14;
+  size_t _frequency_color_selected_idx = 0;
 
   const float _frequencies[_frequency_count][2] = {
-      {70.0, 170},         // 00: low bass
-      {170.0, 200.0},      // 01: high bass
-      {200.0, 250.0},      // 02
-      {250.0, 300.0},      // 03
-      {300.0, 350.0},      // 04
-      {350.0, 400.0},      // 05
-      {400.0, 550.0},      // 06
-      {550.0, 900.0},      // 07
-      {900.0, 1000.0},     // 08
-      {1000.0, 2000.0},    // 09
-      {2000.0, 3000.0},    // 10
-      {3000.0, 5000.0},    // 11
-      {5000.0, 10000.0},   // 12
-      {10000.0, 22000.0}}; // 13}
+      {70.0, 170},        // 00: low bass
+      {170.0, 200.0},     // 01: high bass
+      {200.0, 250.0},     // 02
+      {250.0, 300.0},     // 03
+      {300.0, 350.0},     // 04
+      {350.0, 400.0},     // 05
+      {400.0, 550.0},     // 06
+      {550.0, 900.0},     // 07
+      {900.0, 1000.0},    // 08
+      {1000.0, 2000.0},   // 09
+      {2000.0, 3000.0},   // 10
+      {3000.0, 5000.0},   // 11
+      {5000.0, 8000.0},   // 12
+      {8000.0, 22000.0}}; // 13}
 
   // const static DRAM_ATTR Color_t _frequencyColors[] = {
   //     Color(0, 0, 255, 0),   Color(0, 255, 0, 0),  Color(102, 255, 0, 0),
@@ -144,12 +163,28 @@ private:
   //     Color(0, 124, 253, 0), Color(5, 0, 255, 0),  Color(69, 0, 234, 0),
   //     Color(87, 0, 158, 0)};
 
-  const Color_t _frequencyColors[_frequency_count] = {
-      Color(128, 0, 0, 0), Color::red(),         Color::green(),
-      Color::blue(),       Color::violet(),      Color::yellow(),
-      Color::amber(),      Color::lightBlue(),   Color::lightGreen(),
-      Color::lightRed(),   Color::lightViolet(), Color::lightYellow(),
-      Color::bright()};
+  const Color_t _frequency_colors[4][_frequency_count] = {
+      {Color(128, 0, 0, 0), Color::red(), Color::green(), Color::blue(),
+       Color::violet(), Color::yellow(), Color::amber(), Color::lightBlue(),
+       Color::lightGreen(), Color::lightRed(), Color::lightViolet(),
+       Color::lightYellow(), Color::bright()},
+
+      {Color(0, 128, 0, 0), Color::green(), Color::blue(), Color::red(),
+       Color::yellow(), Color::violet(), Color::lightBlue(), Color::amber(),
+       Color::lightRed(), Color::lightGreen(), Color::lightYellow(),
+       Color::lightViolet(), Color::bright()},
+
+      {Color(0, 0, 128, 0), Color::blue(), Color::red(), Color::green(),
+       Color::lightBlue(), Color::violet(), Color::yellow(), Color::amber(),
+       Color::lightYellow(), Color::lightGreen(), Color::lightRed(),
+       Color::lightViolet(), Color::bright()},
+
+      {Color(0, 0, 0, 128), Color::white(), Color::bright(), Color::bright(),
+       Color::bright(), Color::bright(), Color::bright(), Color::bright(),
+       Color::bright(), Color::bright(), Color::bright(), Color::bright(),
+       Color::bright()}
+
+  };
 };
 
 } // namespace fx

@@ -98,8 +98,6 @@ LightDesk::~LightDesk() {
     delete _discoball;
     _discoball = nullptr;
   }
-
-  TR::rlog("%s complete", __PRETTY_FUNCTION__);
 }
 
 void IRAM_ATTR LightDesk::core() {
@@ -200,8 +198,8 @@ void LightDesk::coreTask(void *task_instance) {
 }
 
 void IRAM_ATTR LightDesk::danceExecute() {
-  // NOTE:  when _mode is anything other than DANCE or MAJOR_PEAL  this
-  // function is a NOP and the dance execute timer is not rescheduled.
+  // NOTE:  when _mode is anything other than DANCE or MAJOR_PEAK this
+  // function is a NOP
 
   if (_mode == MAJOR_PEAK) {
     _major_peak->execute();
@@ -225,6 +223,7 @@ void IRAM_ATTR LightDesk::danceExecute() {
 }
 
 void LightDesk::danceStart(LightDeskMode_t mode) {
+  elWireDanceFloor()->percent(35);
   elWireEntry()->percent(35);
   discoball()->spin();
 
@@ -252,6 +251,8 @@ void LightDesk::danceStart(LightDeskMode_t mode) {
     FxBase::setConfig(cfg);
   }
 
+  Color::setMagnitudeMinMax(20.0, 80.0);
+
   if (mode == DANCE) {
     FxBase::setRuntimeMax(_request.danceInterval());
   }
@@ -265,7 +266,7 @@ void LightDesk::danceStart(LightDeskMode_t mode) {
     TR::rlog("LightDesk dance with interval=%3.2f started",
              _request.danceInterval());
   }
-} // namespace lightdesk
+}
 
 void IRAM_ATTR LightDesk::framePrepare() {
   elapsedMicros e;
@@ -378,6 +379,8 @@ const LightDeskStats_t &LightDesk::stats() {
   if (_i2s) {
     _i2s->stats(_stats.i2s);
   }
+
+  FxBase::stats(_stats.fx);
 
   _stats.elwire.dance_floor = elWireDanceFloor()->duty();
   _stats.elwire.entry = elWireEntry()->duty();

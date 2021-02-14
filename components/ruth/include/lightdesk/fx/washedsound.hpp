@@ -31,7 +31,7 @@ class WashedSound : public FxBase {
 public:
   WashedSound() : FxBase(fxWashedSound) {
     runtimeReduceTo(0.50f);
-    complexityMinimum() = 0.60;
+    complexityMinimum() = 0.53;
   }
 
   void executeEffect() {

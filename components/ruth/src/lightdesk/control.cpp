@@ -77,16 +77,6 @@ bool LightDeskControl::handleCommand(MsgPayload_t &msg) {
   return rc;
 }
 
-bool LightDeskControl::isRunning() {
-  auto rc = false;
-
-  if ((_mode == DANCE) || (_mode == READY)) {
-    rc = true;
-  }
-
-  return rc;
-}
-
 bool LightDeskControl::objectSizes() {
   auto rc = true;
 
@@ -131,22 +121,16 @@ bool LightDeskControl::stats() {
   printf("%sel wire dance_floor(%4u) entry(%4u)\n", indent,
          stats.elwire.dance_floor, stats.elwire.entry);
 
-  printf("\n");
-  printf("%-*sbasic(%llu) active(%s) next(%s) prev(%s)\n", indent_size,
-         "lightdesk_fx:", fx.fx.basic, fxDesc(fx.fx.active), fxDesc(fx.fx.next),
-         fxDesc(fx.fx.prev));
-
-  printf("%sinterval curr(%4.2fs) min(%4.2fs) max(%4.2fs) base(%4.2fs)\n",
-         indent, fx.interval.current, fx.interval.min, fx.interval.max,
-         fx.interval.base);
-  printf("%smajor_peak_roc_floor(%8.2f)\n", indent, fx.major_peak_roc_floor);
+  printf("%sfx: active(%s) next(%s) prev(%s)\n", indent, fxDesc(fx.active),
+         fxDesc(fx.next), fxDesc(fx.prev));
 
   // dmx
   const float frame_ms = (float)dmx.frame.us / 1000.f;
   printf("\n");
-  printf("%-*s%02.02ffps frame(%6.3fms) shorts(%llu) white_space(%7.3fms)\n",
-         indent_size, "dmx:", dmx.fps, frame_ms, dmx.frame.shorts,
-         (float)dmx.frame.white_space_us / 1000.0);
+  printf("%-*s%02.02ffps frame(%6.3fms) expected_fps(%02.02f) shorts(%llu) "
+         "white_space(%7.3fms)\n",
+         indent_size, "dmx:", dmx.fps, frame_ms, dmx.frame.fps_expected,
+         dmx.frame.shorts, (float)dmx.frame.white_space_us / 1000.0);
 
   printf("%sframe_update: curr(%4lluµs) min(%4lluµs) max(%4lluµs)\n", indent,
          dmx.frame.update.curr, dmx.frame.update.min, dmx.frame.update.max);
@@ -157,9 +141,10 @@ bool LightDeskControl::stats() {
   // i2s
   printf("\n");
   const float raw_kbps = i2s.rate.raw_bps / 1024.0;
-  const float samples_kbps = i2s.rate.samples_per_sec / 1000;
-  printf("%-*srate: %.02fKbps %9.2fksps\n", indent_size, "i2s:", raw_kbps,
-         samples_kbps);
+  const uint32_t samples_ps = i2s.rate.samples_per_sec;
+  const float pps = i2s.rate.fft_per_sec;
+  printf("%-*s%.02f Kb/s %11u samples/s %11.2f fft/s\n", indent_size,
+         "i2s:", raw_kbps, samples_ps, pps);
 
   const float i2s_rx_ms = (float)i2s.durations.rx_avg_us / 1000.0;
   printf("%sdurations: fft(%7.1fµs) rx(%0.2fms)\n", indent,
@@ -171,7 +156,11 @@ bool LightDeskControl::stats() {
   printf("%sfft: bin_width(%7.2fHz) magnitude(%10.2f,%10.2f) \n", indent,
          i2s.config.freq_bin_width, i2s.magnitude.min, i2s.magnitude.max);
 
-  printf("%sbass_mag_floor(%8.2f)\n", indent, i2s.bass_mag_floor);
+  printf("%smag_floor: generic(%8.2f) bass(%8.2f)\n", indent, i2s.mag_floor,
+         i2s.bass_mag_floor);
+
+  printf("%smpeak: freq(%8.2f) mag(%8.2f)\n", indent, i2s.mpeak.freq,
+         i2s.mpeak.mag);
 
   printf("\n");
 

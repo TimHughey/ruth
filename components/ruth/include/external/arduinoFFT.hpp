@@ -98,7 +98,14 @@ public:
 
   inline void process(float *vreal, float *vimag, float &mpeak,
                       float &mpeak_mag) {
-    portENTER_CRITICAL_SAFE(&_spinlock);
+    constexpr uint32_t one_sec_us = 1000 * 1000;
+    if (_per_second >= one_sec_us) {
+      _pps = _pp;
+      _pp = 0;
+      _per_second.reset();
+    } else {
+      _pp++;
+    }
 
     setArrays(vreal, vimag);
     dcRemoval();
@@ -107,9 +114,9 @@ public:
     complexToMagnitude();
     majorPeak(mpeak, mpeak_mag);
     calculateComplexity();
-
-    portEXIT_CRITICAL_SAFE(&_spinlock);
   }
+
+  inline uint_fast16_t processPerSecond() { return _pps; }
 
   // Get library revision
   static uint8_t revision() { return 0x19; }
@@ -139,8 +146,6 @@ private:
 
   inline float sq(const float x) const { return x * x; }
 
-  portMUX_TYPE _spinlock = portMUX_INITIALIZER_UNLOCKED;
-
   /* Variables */
   float *_vReal = nullptr;
   float *_vImag = nullptr;
@@ -160,6 +165,10 @@ private:
   float _complexity_floor = 50000;
   float _complexity = 0;
   ruth::MovingAverage<float, 7> _complexity_mavg;
+
+  ruth::elapsedMicros _per_second;
+  uint_fast16_t _pp = 0;
+  uint_fast16_t _pps = 0;
 };
 
 #endif

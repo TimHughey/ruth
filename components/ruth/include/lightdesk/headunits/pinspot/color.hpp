@@ -196,14 +196,11 @@ public:
   }
 
   inline void scale(float magnitude) {
-    // printf("%10.2f %10.2f\n", magnitude, log10(magnitude));
-
-    // magnitude = log10(magnitude);
-
     // Result := ((Input - InputLow) / (InputHigh - InputLow))
     //       * (OutputHigh - OutputLow) + OutputLow;
 
-    const float mag_ranged = ((magnitude - 20.0) / 80.0 - 20.00) * 255.0;
+    const float mag_ranged =
+        ((magnitude - _mag_min) / _mag_max - _mag_min) * 255.0;
 
     for (auto k = 0; k < endOfParts(); k++) {
       const uint32_t asis_val = _parts[k];

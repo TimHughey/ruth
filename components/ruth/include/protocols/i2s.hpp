@@ -86,8 +86,6 @@ public:
   float magFloor() const { return _mag_floor; }
   void magFloor(const float floor) { _mag_floor = floor; }
 
-  // inline float meanMagnitude() { return _fft.meanMagnitude(); }
-
   inline float majorPeak(float &mpeak, float &mag) {
     mpeak = 0;
     mag = 0;
@@ -102,7 +100,11 @@ public:
 
   // stats
   void stats(I2sStats_t &stats) {
+    _stats.mpeak.freq = _mpeak;
+    _stats.mpeak.mag = _mpeak_mag;
+    _stats.mag_floor = _mag_floor;
     _stats.bass_mag_floor = _bass_mag_floor;
+    _stats.rate.fft_per_sec = _fft.processPerSecond();
 
     stats = _stats;
   }
@@ -264,6 +266,9 @@ private:
 
   esp_timer_handle_t _stats_timer = nullptr;
   const uint8_t _stats_interval_secs = 3;
+
+  // protects shared access to mpeak and frequency
+  portMUX_TYPE _spinlock = portMUX_INITIALIZER_UNLOCKED;
 
   Task_t _task = {
       .handle = nullptr, .data = nullptr, .priority = 19, .stackSize = 4096};

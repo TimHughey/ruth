@@ -100,7 +100,9 @@ void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
   // zero out vimag
   memset(_vimag, 0x00, sizeof(_vimag));
 
+  portENTER_CRITICAL_SAFE(&_spinlock);
   _fft.process(_vreal_left, _vimag, _mpeak, _mpeak_mag);
+  portEXIT_CRITICAL_SAFE(&_spinlock);
 
   _mag_history.addValue(_mpeak_mag, _mpeak);
 

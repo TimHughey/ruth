@@ -43,7 +43,8 @@ const ledc_timer_config_t DRAM_ATTR PulseWidthHeadUnit::_ledc_timer = {
 
 namespace fx {
 FxConfig_t DRAM_ATTR FxBase::_cfg;
-}
+FxStats_t DRAM_ATTR FxBase::_stats;
+} // namespace fx
 
 } // namespace lightdesk
 

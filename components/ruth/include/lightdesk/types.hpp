@@ -41,8 +41,8 @@ typedef enum PinSpotFunction PinSpotFunction_t;
 
 typedef float Strobe_t;
 typedef struct DmxStats DmxStats_t;
-typedef struct FxStats FxStats_t;
 typedef struct I2sStats I2sStats_t;
+typedef struct FxStats FxStats_t;
 typedef struct LightDeskStats LightDeskStats_t;
 
 struct DmxStats {
@@ -55,6 +55,7 @@ struct DmxStats {
     uint64_t count = 0;
     uint64_t shorts = 0;
     uint32_t white_space_us = 0;
+    float fps_expected = 0.0;
 
     struct {
       uint64_t curr = 0;
@@ -71,21 +72,9 @@ struct DmxStats {
 };
 
 struct FxStats {
-  struct {
-    uint64_t basic = 0;
-    FxType_t active = lightdesk::fxNone;
-    FxType_t next = lightdesk::fxNone;
-    FxType_t prev = lightdesk::fxNone;
-  } fx;
-
-  struct {
-    float base = 0.0f;
-    float current = 0.0f;
-    float min = 9999.9f;
-    float max = 0.0f;
-  } interval;
-
-  float major_peak_roc_floor = 0.0;
+  FxType_t active = lightdesk::fxNone;
+  FxType_t next = lightdesk::fxNone;
+  FxType_t prev = lightdesk::fxNone;
 };
 
 struct I2sStats {
@@ -100,6 +89,7 @@ struct I2sStats {
   struct {
     float raw_bps = 0;
     float samples_per_sec = 0;
+    float fft_per_sec = 0;
   } rate;
 
   struct {
@@ -125,6 +115,12 @@ struct I2sStats {
     float rx_avg_us = 0;
   } durations;
 
+  struct {
+    float freq = 0.0;
+    float mag = 0.0;
+  } mpeak;
+
+  float mag_floor = 0.0;
   float bass_mag_floor = 0.0;
 };
 
@@ -133,7 +129,7 @@ struct LightDeskStats {
   const char *mode = nullptr;
 
   DmxStats_t dmx;
-  FxStats_t fx;
+  FxStats fx;
   I2sStats_t i2s;
 
   bool ac_power = false;
