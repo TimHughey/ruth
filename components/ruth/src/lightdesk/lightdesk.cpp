@@ -101,7 +101,6 @@ LightDesk::~LightDesk() {
 }
 
 void IRAM_ATTR LightDesk::core() {
-
   // turn on the headunits
   if (_ac_power->on() == false) {
     printf("failed to turn on headunit ac power\n");
@@ -171,7 +170,8 @@ void IRAM_ATTR LightDesk::core() {
         break;
 
       case NotifyPrepareFrame:
-        framePrepare();
+        danceExecute();
+        _dmx->framePrepareCallback();
         break;
 
       default:
@@ -223,8 +223,8 @@ void IRAM_ATTR LightDesk::danceExecute() {
 }
 
 void LightDesk::danceStart(LightDeskMode_t mode) {
-  elWireDanceFloor()->percent(35);
-  elWireEntry()->percent(35);
+  elWireDanceFloor()->dim();
+  elWireEntry()->dim();
   discoball()->spin();
 
   pinSpotMain()->dark();
@@ -251,7 +251,7 @@ void LightDesk::danceStart(LightDeskMode_t mode) {
     FxBase::setConfig(cfg);
   }
 
-  Color::setMagnitudeMinMax(20.0, 80.0);
+  Color::setMagnitudeMinMax(30.0, 75.0);
 
   if (mode == DANCE) {
     FxBase::setRuntimeMax(_request.danceInterval());
@@ -266,30 +266,6 @@ void LightDesk::danceStart(LightDeskMode_t mode) {
     TR::rlog("LightDesk dance with interval=%3.2f started",
              _request.danceInterval());
   }
-}
-
-void IRAM_ATTR LightDesk::framePrepare() {
-  elapsedMicros e;
-
-  danceExecute();
-
-  discoball()->framePrepare();
-  elWireDanceFloor()->framePrepare();
-  elWireEntry()->framePrepare();
-
-  pinSpotMain()->framePrepare();
-  pinSpotFill()->framePrepare();
-
-  e.freeze();
-
-  const uint_fast32_t duration = (uint32_t)e;
-  uint_fast32_t &min = _stats.frame_prepare.min;
-  uint_fast32_t &curr = _stats.frame_prepare.curr;
-  uint_fast32_t &max = _stats.frame_prepare.max;
-
-  min = (duration < min) ? duration : min;
-  curr = duration;
-  max = (duration > max) ? duration : max;
 }
 
 void LightDesk::init() {
@@ -316,7 +292,7 @@ void LightDesk::init() {
   _elwire[ELWIRE_ENTRY] = new ElWire(3);       // pwm 3
   _led_forest = new LedForest(4);              // pwm 4
 
-  _dmx->prepareTaskRegister(task());
+  _dmx->prepareTaskRegister();
 }
 
 bool LightDesk::request(const Request_t &r) {

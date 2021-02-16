@@ -64,6 +64,9 @@ public:
   uint32_t duty();
   uint32_t dutyMax() const { return _duty_max; };
   uint32_t dutyMin() const { return _duty_min; };
+  uint32_t dutyPercent(const float percent) const {
+    return uint32_t((float)_duty_max * percent);
+  }
 
   gpio_num_t gpioPin() { return _gpio_pin; };
 

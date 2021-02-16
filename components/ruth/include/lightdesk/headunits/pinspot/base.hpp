@@ -40,7 +40,7 @@ public:
   PinSpot(uint16_t address = 1);
   ~PinSpot();
 
-  void framePrepare();
+  void framePrepare() override;
   bool isFading() const { return faderActive(); }
 
   // modes

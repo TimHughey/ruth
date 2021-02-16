@@ -75,6 +75,27 @@ void IRAM_ATTR Dmx::frameApplyUpdates() {
   }
 }
 
+void IRAM_ATTR Dmx::framePrepareCallback() {
+  elapsedMicros e;
+
+  for (auto k = 0; k < _clients; k++) {
+    DmxClient *client = _client[k];
+
+    if (client) {
+      client->framePrepare();
+    }
+  }
+
+  const uint_fast32_t duration = (uint32_t)e;
+  uint_fast32_t &min = _stats.frame.prepare.min;
+  uint_fast32_t &curr = _stats.frame.prepare.curr;
+  uint_fast32_t &max = _stats.frame.prepare.max;
+
+  min = (duration < min) ? duration : min;
+  curr = duration;
+  max = (duration > max) ? duration : max;
+}
+
 void IRAM_ATTR Dmx::frameTimerCallback(void *data) {
   Dmx_t *dmx = (Dmx_t *)data;
 
@@ -99,13 +120,6 @@ esp_err_t IRAM_ATTR Dmx::frameTimerStart() {
   }
 
   return rc;
-}
-
-void Dmx::clientRegister(DmxClient_t *client) {
-  if (_clients < 10) {
-    _client[_clients] = client;
-    _clients++;
-  }
 }
 
 void Dmx::taskCore(void *task_instance) {

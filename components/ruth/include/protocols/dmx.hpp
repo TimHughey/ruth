@@ -50,29 +50,49 @@ public:
   Dmx();
   ~Dmx();
 
+  void clientRegister(DmxClient_t *client) {
+    // SHORT TERM implementation, needs:
+    //  1. check to prevent duplicate registrations
+    //  2. unregister
+    //  3. error when max clients exceeded
+    if (_clients < 10) {
+      _client[_clients] = client;
+      _clients++;
+    }
+  }
+
+  inline float fpsExpected() const {
+    constexpr float seconds_us = 1000.0f * 1000.0f;
+    const float frame_us = static_cast<float>(_frame_us);
+    return (seconds_us / frame_us);
+  }
+
   inline uint64_t frameInterval() const { return _frame_us; }
   inline float frameIntervalAsSeconds() {
-    const double frame_us = static_cast<double>(_frame_us);
+    const float frame_us = static_cast<float>(_frame_us);
     const float frame_secs = (frame_us / (1000.0f * 1000.0f));
 
     return frame_secs;
   }
 
-  float fpsExpected() const { return _fps_expected; }
-
   float framesPerSecond() const { return _stats.fps; }
 
-  void prepareTaskRegister(TaskHandle_t handle) { _prepare_task = handle; }
-  void prepareTaskUnregister() { _prepare_task = nullptr; }
+  // this member function is called by the prepareTask with the goal
+  // of offloading frame preparation from the DMX task.
+  void framePrepareCallback();
 
-  void clientRegister(DmxClient_t *client);
+  inline void prepareTaskRegister() {
+    _prepare_task = xTaskGetCurrentTaskHandle();
+  }
+
+  inline void prepareTaskUnregister() { _prepare_task = nullptr; }
 
   // stats
   void stats(DmxStats_t &stats) {
     stats = _stats;
 
     stats.frame.us = _frame_us;
-    stats.frame.fps_expected = _fps_expected;
+    stats.frame.fps_expected = fpsExpected();
   }
 
   // task control
@@ -85,12 +105,14 @@ public:
     }
   }
 
-  void streamFrames(bool stream = true) {
+  inline void streamFrames(bool stream = true) {
     if ((_mode != STREAM_FRAMES) && stream) {
       taskNotify(NotifyStreamFrames);
 
-      // allow time for initial frames to be sent}
-      vTaskDelay(pdMS_TO_TICKS(10));
+      // allow time for initial frames to be sent
+      // frameInterval() is in µs so multiple by 1000 and then by three
+      // to ensure three frames are sent
+      vTaskDelay(frameInterval() * 1000.0 * 3);
     }
   }
 
@@ -158,7 +180,6 @@ private:
   const uint_fast32_t _frame_data = _frame_byte * 512;
   // frame interval does not include the BREAK as it is handled by the UART
   uint64_t _frame_us = _frame_mab + _frame_sc + _frame_data + _frame_mtbf;
-  const float _fps_expected = 1000.0 / (float)_frame_us;
   elapsedMicros _ftbf; // µs elapsed after frameTimerCallback invoked
 
   const size_t _tx_buff_len = (_frame_len < 128) ? 0 : _frame_len + 1;
@@ -191,7 +212,7 @@ public:
   ~DmxClient() {}
 
 public:
-  virtual void framePrepare() {}
+  virtual void framePrepare() { printf("%s\n", __PRETTY_FUNCTION__); }
   virtual void frameUpdate(uint8_t *frame_actual);
 
   static void setDmx(Dmx_t *dmx) { DmxClient::_dmx = dmx; }

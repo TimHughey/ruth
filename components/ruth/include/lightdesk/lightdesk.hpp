@@ -58,6 +58,8 @@ public:
     _i2s->bassMagnitudeFloor(floor);
   }
 
+  void complexityFloor(const float floor) { _i2s->complexityFloor(floor); }
+
   float majorPeakMagFloor() { return _i2s->magFloor(); }
   void majorPeakMagFloor(const float floor) { _i2s->magFloor(floor); }
 
@@ -98,32 +100,9 @@ private:
 
   bool command(MsgPayload_t &msg);
 
-  void framePrepare();
-
   void init();
 
   void majorPeakStart();
-
-  // inline uint64_t secondsToInterval(const float secs) const {
-  //   const uint64_t us_sec = 1000 * 1000;
-  //   float integral;
-  //   const float frac = modf(secs, &integral);
-  //
-  //   const uint64_t interval = (integral * us_sec) + (frac * us_sec);
-  //   return interval;
-  // }
-
-  // static void timerCallback(void *data);
-  // void timerDelete(esp_timer_handle_t &timer) {
-  //   if (timer != nullptr) {
-  //     esp_timer_handle_t x = timer;
-  //     timer = nullptr;
-  //     esp_timer_stop(x);
-  //     esp_timer_delete(x);
-  //   }
-  // }
-  //
-  // uint64_t timerSchedule(float secs) const;
 
   // task
   void core();

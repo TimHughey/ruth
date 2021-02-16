@@ -46,6 +46,8 @@ typedef struct FxStats FxStats_t;
 typedef struct LightDeskStats LightDeskStats_t;
 
 struct DmxStats {
+  using uint32_limit = std::numeric_limits<uint_fast32_t>;
+
   float fps = 0.0;
   uint64_t busy_wait = 0;
   uint64_t frame_update_us = 0;
@@ -62,6 +64,13 @@ struct DmxStats {
       uint64_t min = 0;
       uint64_t max = 0;
     } update;
+
+    struct {
+      uint_fast32_t min = uint32_limit::max();
+      uint_fast32_t curr = 0.0;
+      uint_fast32_t max = uint32_limit::min();
+    } prepare;
+
   } frame;
 
   struct {
@@ -78,7 +87,7 @@ struct FxStats {
 };
 
 struct I2sStats {
-  using numerical_limits = std::numeric_limits<float>;
+  using float_limit = std::numeric_limits<float>;
 
   struct {
     uint32_t byte_count = 0;
@@ -99,12 +108,20 @@ struct I2sStats {
 
   struct {
     elapsedMillis window;
-    float min = numerical_limits::max();
-    float max = numerical_limits::min();
+    float min = float_limit::max();
+    float max = float_limit::min();
   } magnitude;
 
   struct {
-    float freq_bin_width = 0.0;
+    float instant = 0;
+    float avg7sec = 0;
+  } complexity;
+
+  struct {
+    float freq_bin_width = 0;
+    float mag_floor = 0;
+    float bass_mag_floor = 0;
+    float complexity_floor = 0;
   } config;
 
   struct {
@@ -119,13 +136,10 @@ struct I2sStats {
     float freq = 0.0;
     float mag = 0.0;
   } mpeak;
-
-  float mag_floor = 0.0;
-  float bass_mag_floor = 0.0;
 };
 
 struct LightDeskStats {
-  using uint_limit = std::numeric_limits<uint_fast32_t>;
+
   const char *mode = nullptr;
 
   DmxStats_t dmx;
@@ -133,12 +147,6 @@ struct LightDeskStats {
   I2sStats_t i2s;
 
   bool ac_power = false;
-
-  struct {
-    uint_fast32_t min = uint_limit::max();
-    uint_fast32_t curr = 0.0;
-    uint_fast32_t max = uint_limit::min();
-  } frame_prepare;
 
   struct {
     uint32_t dance_floor = 0;

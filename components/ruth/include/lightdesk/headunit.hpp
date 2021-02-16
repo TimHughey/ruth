@@ -37,9 +37,6 @@ public:
   virtual ~HeadUnit() {}
 
   virtual void dark() {}
-
-  // virtual void framePrepare() {}
-  // virtual void frameUpdate(uint8_t *frame_actual);
 };
 } // namespace lightdesk
 } // namespace ruth

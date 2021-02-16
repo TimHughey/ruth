@@ -67,8 +67,17 @@ public:
   // Destructor
   ~ArduinoFFT() {}
 
-  float binFrequency(size_t y);
-  void binFrequency(size_t y, float &frequency, float &magnitude);
+  inline float binFrequency(size_t y) {
+    float frequency, magnitude;
+
+    binFrequency(y, frequency, magnitude);
+
+    return frequency;
+  }
+
+  inline void binFrequency(size_t y, float &frequency, float &magnitude) {
+    freqAndValueAtY(y, frequency, magnitude);
+  }
 
   void calculateComplexity();
 
@@ -76,11 +85,39 @@ public:
   void compute(FFTDirection dir) const;
   inline float complexity() const { return _complexity; }
   inline float complexityAvg() const { return _complexity_mavg.latest(); }
+  inline float complexityFloor() const { return _complexity_floor; }
+  inline void complexityFloor(const float floor) { _complexity_floor = floor; }
+
   void complexToMagnitude() const;
+
+  inline float dbAtIndex(const size_t i) const {
+    const float a = _vReal[i - 1];
+    const float b = _vReal[i];
+    const float c = _vReal[i + 1];
+
+    const float db = 10 * log10(abs(a - (2.0 * b) + c));
+    return db;
+  }
 
   void dcRemoval() const;
 
-  void freqAndValueAtY(size_t y, float &frequency, float &magnitude) const;
+  inline void freqAndValueAtY(size_t y, float &frequency,
+                              float &magnitude) const {
+    const float a = _vReal[y - 1];
+    const float b = _vReal[y];
+    const float c = _vReal[y + 1];
+
+    float delta = 0.5 * ((a - c) / (a - (2.0 * b) + c));
+    frequency = ((y + delta) * _samplingFrequency) / (_samples - 1);
+    if (y == (_samples >> 1)) {
+      // To improve calculation on edge values
+      frequency = ((y + delta) * _samplingFrequency) / _samples;
+    }
+    // returned value: interpolated frequency peak apex
+    // constexpr float fourth = 1.0 / 4.0;
+    // magnitude = pow(abs(a - (2.0 * b) + c), fourth);
+    magnitude = 10 * log10(abs(a - (2.0 * b) + c));
+  }
 
   void windowing(FFTWindow windowType, FFTDirection dir,
                  bool withCompensation = false);
@@ -94,7 +131,28 @@ public:
     return frequency;
   }
 
-  void majorPeak(float &frequency, float &value) const;
+  inline void majorPeak(float &frequency, float &value) const {
+    float maxY = 0;
+    uint_fast16_t IndexOfMaxY = 0;
+    // If sampling_frequency = 2 * max_frequency in signal,
+    // value would be stored at position samples/2
+    for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
+      const float a = _vReal[i - 1];
+      const float b = _vReal[i];
+      const float c = _vReal[i + 1];
+
+      if ((a < b) && (b > c)) {
+        if (b > maxY) {
+          maxY = b;
+          IndexOfMaxY = i;
+        }
+      }
+    }
+
+    freqAndValueAtY(IndexOfMaxY, frequency, value);
+  }
+
+  void minimumReal(float &min) const;
 
   inline void process(float *vreal, float *vimag, float &mpeak,
                       float &mpeak_mag) {
@@ -158,11 +216,10 @@ private:
   uint_fast8_t _power = 0;
 
   float _mean_mag = 0;
-
   float _mpeak = 0;
   float _mpeak_mag = 0;
 
-  float _complexity_floor = 50000;
+  float _complexity_floor = 55.0;
   float _complexity = 0;
   ruth::MovingAverage<float, 7> _complexity_mavg;
 

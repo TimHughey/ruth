@@ -114,9 +114,6 @@ bool LightDeskControl::stats() {
   printf("\n");
   printf("%-*smode(%3s) ac_power(%3s)\n", indent_size, "lightdesk:", stats.mode,
          stats.ac_power ? "on" : "off");
-  printf("%sframe prepare min(%4uµs) curr(%4uµs) max(%4uµs)\n", indent,
-         stats.frame_prepare.min, stats.frame_prepare.curr,
-         stats.frame_prepare.max);
 
   printf("%sel wire dance_floor(%4u) entry(%4u)\n", indent,
          stats.elwire.dance_floor, stats.elwire.entry);
@@ -132,8 +129,11 @@ bool LightDeskControl::stats() {
          indent_size, "dmx:", dmx.fps, frame_ms, dmx.frame.fps_expected,
          dmx.frame.shorts, (float)dmx.frame.white_space_us / 1000.0);
 
-  printf("%sframe_update: curr(%4lluµs) min(%4lluµs) max(%4lluµs)\n", indent,
-         dmx.frame.update.curr, dmx.frame.update.min, dmx.frame.update.max);
+  printf("%sframe prepare: (%4uµs, %4uµs, %4uµs)  update: (%4lluµs, %4lluµs, "
+         "%4lluµs)\n",
+         indent, dmx.frame.prepare.min, dmx.frame.prepare.curr,
+         dmx.frame.prepare.max, dmx.frame.update.min, dmx.frame.update.curr,
+         dmx.frame.update.max);
   printf("%stx: curr(%02.02fms) min(%02.02fms) max(%02.02fms)\n", indent,
          dmx.tx.curr, dmx.tx.min, dmx.tx.max);
   printf("%sbusy_wait(%lld)\n", indent, dmx.busy_wait);
@@ -153,14 +153,18 @@ bool LightDeskControl::stats() {
   printf("%sraw min(%8d) max(%8d)\n", indent, i2s.raw_val.min24,
          i2s.raw_val.max24);
 
-  printf("%sfft: bin_width(%7.2fHz) magnitude(%10.2f,%10.2f) \n", indent,
+  printf("%sfft: bin_width(%7.2fHz) magnitude(%7.2f,%7.2f) \n", indent,
          i2s.config.freq_bin_width, i2s.magnitude.min, i2s.magnitude.max);
 
-  printf("%smag_floor: generic(%8.2f) bass(%8.2f)\n", indent, i2s.mag_floor,
-         i2s.bass_mag_floor);
+  printf("%sfloor: generic(%7.1f) bass(%7.1f) complexity(%7.1f)\n", indent,
+         i2s.config.mag_floor, i2s.config.bass_mag_floor,
+         i2s.config.complexity_floor);
 
   printf("%smpeak: freq(%8.2f) mag(%8.2f)\n", indent, i2s.mpeak.freq,
          i2s.mpeak.mag);
+
+  printf("%scomplexity: instant(%5.2f) avg7sec(%5.2f)\n", indent,
+         i2s.complexity.instant, i2s.complexity.avg7sec);
 
   printf("\n");
 

@@ -65,6 +65,7 @@ public:
 
   float complexity() const { return _fft.complexity(); }
   float complexityAvg() const { return _fft.complexityAvg(); }
+  void complexityFloor(const float floor) { _fft.complexityFloor(floor); }
 
   inline void magnitudeMinMax(float &min, float &max) {
     min = _stats.magnitude.min;
@@ -102,9 +103,12 @@ public:
   void stats(I2sStats_t &stats) {
     _stats.mpeak.freq = _mpeak;
     _stats.mpeak.mag = _mpeak_mag;
-    _stats.mag_floor = _mag_floor;
-    _stats.bass_mag_floor = _bass_mag_floor;
+    _stats.config.mag_floor = _mag_floor;
+    _stats.config.bass_mag_floor = _bass_mag_floor;
+    _stats.config.complexity_floor = _fft.complexityFloor();
     _stats.rate.fft_per_sec = _fft.processPerSecond();
+    _stats.complexity.instant = _fft.complexity();
+    _stats.complexity.avg7sec = _fft.complexityAvg();
 
     stats = _stats;
   }
@@ -245,8 +249,8 @@ private:
   bool _noise = true;
   bool _bass = false;
   float _bass_mag = 0.0;
-  float _bass_mag_floor = 63.5;
-  float _mag_floor = 38.5;
+  float _bass_mag_floor = 77.5;
+  float _mag_floor = 63.5;
 
   ArduinoFFT _fft =
       ArduinoFFT(_vreal_left, _vimag, _vsamples_chan, _sample_rate, _wfactors);

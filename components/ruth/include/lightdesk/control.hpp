@@ -39,6 +39,11 @@ public:
     return true;
   }
 
+  bool complexityFloor(const float floor) {
+    _desk->complexityFloor(floor);
+    return true;
+  }
+
   bool config();
 
   bool isRunning() const { return (_desk == nullptr) ? false : true; }

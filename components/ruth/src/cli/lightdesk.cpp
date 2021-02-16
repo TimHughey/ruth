@@ -29,7 +29,8 @@
 namespace ruth {
 using namespace lightdesk;
 
-static struct arg_dbl *a_dance, *a_bass_mag_floor, *a_mag_floor;
+static struct arg_dbl *a_dance, *a_bass_mag_floor, *a_complexity_floor,
+    *a_mag_floor;
 
 static struct arg_lit *a_config, *a_help, *a_major_peak, *a_object_sizes,
     *a_stop, *a_stats, *a_test;
@@ -45,8 +46,10 @@ static void *argtable[] = {
     a_object_sizes = arg_litn("O", "object-sizes", 0, 1,
                               "display LightDesk related object sizes"),
     // secs = arg_dbln("t", "secs", FLOAT, 0, 1, nullptr),
-    a_mag_floor = arg_dbln(nullptr, "mag-floor", FLOAT, 0, 1,
-                           "set fxMajorPeak magnitude floor"),
+    a_mag_floor =
+        arg_dbln(nullptr, "mag-floor", FLOAT, 0, 1, "set i2s magnitude floor"),
+    a_complexity_floor = arg_dbln(nullptr, "complexity-floor", FLOAT, 0, 1,
+                                  "set i2s complexity floor"),
     a_bass_mag_floor = arg_dbln(nullptr, "bass-mag-floor", FLOAT, 0, 1,
                                 "set i2s bass detection magnitude"),
     a_help = arg_litn("h", "help", 0, 1, "display help glossary"),
@@ -94,6 +97,9 @@ int LightDeskCli::execute(int argc, char **argv) {
   } else if (a_mag_floor->count > 0) {
     const float floor = (float)a_mag_floor->dval[0];
     rc = desk_ctrl->majorPeakMagFloor(floor);
+  } else if (a_complexity_floor->count > 0) {
+    const float floor = (float)a_complexity_floor->dval[0];
+    rc = desk_ctrl->complexityFloor(floor);
   } else if (a_bass_mag_floor->count > 0) {
     const float floor = (float)a_bass_mag_floor->dval[0];
     rc = desk_ctrl->bassMagnitudeFloor(floor);

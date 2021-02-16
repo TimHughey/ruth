@@ -30,6 +30,7 @@ namespace ruth {
 
 I2s::I2s() {
   _stats.config.freq_bin_width = (float)_sample_rate / (float)_vsamples_chan;
+  _fft.complexityFloor(48.5);
 }
 
 I2s::~I2s() {
@@ -103,6 +104,10 @@ void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
   portENTER_CRITICAL_SAFE(&_spinlock);
   _fft.process(_vreal_left, _vimag, _mpeak, _mpeak_mag);
   portEXIT_CRITICAL_SAFE(&_spinlock);
+
+  // float min_real = 0;
+  // _fft.minimumReal(min_real);
+  // printf("%10.2f\n", min_real);
 
   _mag_history.addValue(_mpeak_mag, _mpeak);
 

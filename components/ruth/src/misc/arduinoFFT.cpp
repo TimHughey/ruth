@@ -1,4 +1,4 @@
-
+#include <limits>
 
 #include <local/types.hpp>
 
@@ -17,32 +17,15 @@ const DRAM_ATTR float ArduinoFFT::_WindowCompensationFactors[10] = {
     1.5029392863 * 2.0  // welch
 };
 
-float IRAM_ATTR ArduinoFFT::binFrequency(size_t y) {
-  float frequency, magnitude;
-
-  binFrequency(y, frequency, magnitude);
-
-  return frequency;
-}
-
-void IRAM_ATTR ArduinoFFT::binFrequency(size_t y, float &frequency,
-                                        float &magnitude) {
-  freqAndValueAtY(y, frequency, magnitude);
-}
-
 void IRAM_ATTR ArduinoFFT::calculateComplexity() {
   uint_fast16_t pos = 0;
 
   for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
-    const float a = _vReal[i - 1];
-    const float b = _vReal[i];
-    const float c = _vReal[i + 1];
-
-    const float mag = abs(a - (2.0 * b) + c);
+    const float db = dbAtIndex(i);
     // const auto pos_threshold = 100000;
     // const auto neg_threshold = -25000;
 
-    if (mag > _complexity_floor) {
+    if (db > _complexity_floor) {
       pos++;
     }
   }
@@ -115,25 +98,8 @@ void IRAM_ATTR ArduinoFFT::compute(FFTDirection dir) const {
   }
 }
 
-void IRAM_ATTR ArduinoFFT::freqAndValueAtY(size_t y, float &frequency,
-                                           float &magnitude) const {
-  const float a = _vReal[y - 1];
-  const float b = _vReal[y];
-  const float c = _vReal[y + 1];
-
-  float delta = 0.5 * ((a - c) / (a - (2.0 * b) + c));
-  frequency = ((y + delta) * _samplingFrequency) / (_samples - 1);
-  if (y == (_samples >> 1)) {
-    // To improve calculation on edge values
-    frequency = ((y + delta) * _samplingFrequency) / _samples;
-  }
-  // returned value: interpolated frequency peak apex
-  constexpr float fourth = 1.0 / 4.0;
-  magnitude = pow(abs(a - (2.0 * b) + c), fourth);
-}
-
 void IRAM_ATTR ArduinoFFT::dcRemoval() const {
-  // calculate the mean of vData
+  // calculate the mean of vDatas
   float mean = 0;
   for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
     mean += _vReal[i];
@@ -146,9 +112,13 @@ void IRAM_ATTR ArduinoFFT::dcRemoval() const {
   }
 }
 
-void IRAM_ATTR ArduinoFFT::majorPeak(float &frequency, float &value) const {
-  float maxY = 0;
-  uint_fast16_t IndexOfMaxY = 0;
+void IRAM_ATTR ArduinoFFT::minimumReal(float &min) const {
+  using float_limits = std::numeric_limits<float>;
+
+  min = 0.0f;
+
+  float min_y = float_limits::max();
+  size_t min_y_idx = 0;
   // If sampling_frequency = 2 * max_frequency in signal,
   // value would be stored at position samples/2
   for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
@@ -156,15 +126,16 @@ void IRAM_ATTR ArduinoFFT::majorPeak(float &frequency, float &value) const {
     const float b = _vReal[i];
     const float c = _vReal[i + 1];
 
-    if ((a < b) && (b > c)) {
-      if (b > maxY) {
-        maxY = b;
-        IndexOfMaxY = i;
+    if ((a > b) && (b < c)) {
+      if (b < min_y) {
+        min_y_idx = i;
       }
     }
   }
 
-  freqAndValueAtY(IndexOfMaxY, frequency, value);
+  if (min_y_idx > 1) {
+    min = dbAtIndex(min_y_idx);
+  }
 }
 
 void IRAM_ATTR ArduinoFFT::windowing(FFTWindow windowType, FFTDirection dir,
