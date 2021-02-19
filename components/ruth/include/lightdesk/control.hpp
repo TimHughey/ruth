@@ -28,31 +28,16 @@
 namespace ruth {
 
 typedef class LightDeskControl LightDeskControl_t;
-using namespace lightdesk;
 
 class LightDeskControl {
 public:
   LightDeskControl() { LightDesk::preStart(); };
 
-  bool bassMagnitudeFloor(const float floor) {
-    _desk->bassMagnitudeFloor(floor);
-    return true;
-  }
-
-  bool complexityFloor(const float floor) {
-    _desk->complexityFloor(floor);
-    return true;
-  }
-
   bool config();
 
+  I2s_t *i2s() const { return _desk->i2s(); }
   bool isRunning() const { return (_desk == nullptr) ? false : true; }
   bool handleCommand(MsgPayload_t &msg);
-
-  bool majorPeakMagFloor(const float floor) {
-    _desk->majorPeakMagFloor(floor);
-    return true;
-  }
 
   static bool objectSizes();
 
@@ -91,7 +76,7 @@ public:
     return setMode();
   }
 
-  inline bool majorPeak(float mag_floor = 15.0) {
+  inline bool majorPeak() {
     _request = Request(MAJOR_PEAK);
     return setMode();
   }

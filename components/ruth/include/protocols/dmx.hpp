@@ -91,7 +91,6 @@ public:
   void stats(DmxStats_t &stats) {
     stats = _stats;
 
-    stats.frame.us = _frame_us;
     stats.frame.fps_expected = fpsExpected();
   }
 
@@ -122,10 +121,10 @@ private:
 private:
   inline void busyWait(uint32_t usec, const bool reset = true) {
     if (reset) {
-      _mab_elapsed.reset();
+      _busy_wait.reset();
     }
 
-    while (_mab_elapsed <= usec) {
+    while (_busy_wait <= usec) {
       _stats.busy_wait++;
       // yield to higher priority tasks to minimize impact of busy wait
       taskYIELD();
@@ -166,7 +165,7 @@ private:
   esp_err_t _init_rc = ESP_FAIL;
 
   DmxMode_t _mode = INIT;
-  elapsedMicros _mab_elapsed;
+  elapsedMicros _busy_wait;
   static const size_t _frame_len = 127;
   uint8_t _frame[_frame_len] = {}; // the DMX frame starts as all zeros
   esp_timer_handle_t _frame_timer = nullptr;
@@ -184,8 +183,6 @@ private:
 
   const size_t _tx_buff_len = (_frame_len < 128) ? 0 : _frame_len + 1;
 
-  elapsedMillis runtime_;
-
   esp_timer_handle_t _fps_timer = nullptr;
   uint64_t _frame_count_mark = 0;
   int _fpc_period = 2; // period represents seconds to count frames
@@ -195,7 +192,6 @@ private:
   DmxClient *_client[10] = {};
   size_t _clients = 0;
 
-  elapsedMicros _frame_white_space;
   DmxStats_t _stats;
 
   Task_t _task = {

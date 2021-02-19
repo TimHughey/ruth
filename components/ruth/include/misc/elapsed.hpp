@@ -49,52 +49,20 @@ public:
     return *this;
   }
 
-  bool operator<(const elapsedMillis &rhs) const {
-    elapsedMillis lhs(*this);
-    return lhs.val() < rhs.val();
-  }
+  bool operator<(const elapsedMillis &rhs) const { return val() < rhs.val(); }
+  bool operator<(uint64_t rhs) const { return (val() < rhs) ? true : false; }
+  bool operator<=(uint64_t rhs) const { return (val() <= rhs) ? true : false; }
+  bool operator<(uint32_t rhs) const { return (val() < rhs) ? true : false; }
+  bool operator<=(uint32_t rhs) const { return (val() <= rhs) ? true : false; }
+  bool operator<(int rhs) const { return (val() < rhs) ? true : false; }
+  bool operator<=(int rhs) const { return (val() <= rhs) ? true : false; }
 
-  bool operator<(uint64_t rhs) const {
-    elapsedMillis lhs(*this);
-
-    return (lhs.val() < rhs) ? true : false;
-  }
-
-  bool operator<(uint32_t rhs) const {
-    elapsedMillis lhs(*this);
-
-    return (lhs.val() < rhs) ? true : false;
-  }
-
-  bool operator<(int rhs) const {
-    elapsedMillis lhs(*this);
-
-    return (lhs.val() < rhs) ? true : false;
-  }
-
-  bool operator>(int rhs) const {
-    elapsedMillis lhs(*this);
-
-    return (lhs.val() > rhs) ? true : false;
-  }
-
-  bool operator>(uint32_t rhs) const {
-    elapsedMillis lhs(*this);
-
-    return (lhs.val() > rhs) ? true : false;
-  }
-
-  bool operator>=(uint32_t rhs) const {
-    elapsedMillis lhs(*this);
-
-    return (lhs.val() >= rhs) ? true : false;
-  }
-
-  bool operator>=(int rhs) const {
-    elapsedMillis lhs(*this);
-
-    return (lhs.val() >= rhs) ? true : false;
-  }
+  bool operator>(uint64_t rhs) const { return (val() > rhs) ? true : false; }
+  bool operator>=(uint64_t rhs) const { return (val() >= rhs) ? true : false; }
+  bool operator>(uint32_t rhs) const { return (val() > rhs) ? true : false; }
+  bool operator>=(uint32_t rhs) const { return (val() >= rhs) ? true : false; }
+  bool operator>(int rhs) const { return (val() > rhs) ? true : false; }
+  bool operator>=(int rhs) const { return (val() >= rhs) ? true : false; }
 
   void freeze() {
     _frozen = true;
@@ -106,8 +74,8 @@ public:
     _ms = millis();
   }
 
-  float toSeconds() const { return (float)(millis() - _ms) / (float)1000.0; }
-  static float toSeconds(uint64_t val) { return (float)val / (float)1000.0; }
+  float toSeconds() const { return (double)(millis() - _ms) / 1000.0; }
+  static float toSeconds(uint64_t val) { return (double)val / 1000.0; }
 
 private:
   uint64_t _ms;
@@ -129,6 +97,8 @@ public:
     _us = orig._us;
     _frozen = orig._frozen;
   }
+
+  float asMillis() const { return double(val()) / 1000.0; }
 
   operator float() const { return toSeconds(val()); }
   operator uint64_t() const { return val(); }
@@ -152,34 +122,29 @@ public:
     _us = micros();
   }
 
-  bool operator>(int rhs) const { return (this->val() > rhs) ? true : false; }
-
-  bool operator>(uint32_t rhs) const {
-    return (this->val() > rhs) ? true : false;
-  }
-
-  bool operator<(const elapsedMicros &rhs) const {
-    return this->val() < rhs.val();
-  }
-
+  bool operator>(const elapsedMicros &rhs) const { return val() > rhs.val(); }
+  bool operator>(int rhs) const { return (val() > rhs) ? true : false; }
   bool operator>=(int rhs) const { return (val() >= rhs) ? true : false; }
+  bool operator>(uint32_t rhs) const { return (val() > rhs) ? true : false; }
   bool operator>=(uint32_t rhs) const { return (val() >= rhs) ? true : false; }
+  bool operator>(uint64_t rhs) const { return (val() > rhs) ? true : false; }
+  bool operator>=(uint64_t rhs) const { return (val() >= rhs) ? true : false; }
 
-  bool operator<(uint64_t rhs) const {
-    return (this->val() < rhs) ? true : false;
-  }
+  bool operator<(const elapsedMicros &rhs) const { return val() < rhs.val(); }
+  bool operator<(int rhs) const { return (val() < rhs) ? true : false; }
+  bool operator<=(int rhs) const { return (this->val() <= rhs) ? true : false; }
+  bool operator<(uint32_t rhs) const { return (val() < rhs) ? true : false; }
+  bool operator<=(uint32_t rhs) const { return (val() <= rhs) ? true : false; }
+  bool operator<(uint64_t rhs) const { return (val() < rhs) ? true : false; }
 
-  inline bool operator<=(uint32_t rhs) const {
-    return (this->val() <= rhs) ? true : false;
-  }
-
-  bool operator<(int rhs) const { return (this->val() < rhs) ? true : false; }
-
-  static float toSeconds(uint64_t val) { return (float)val / 1000000.0; }
+  float toSeconds() const { return (double)(micros() - _us) / seconds_us; }
+  static float toSeconds(uint64_t val) { return (double)val / seconds_us; }
 
 private:
   uint64_t _us;
   bool _frozen = false;
+
+  static constexpr double seconds_us = 1000.0 * 1000.0;
 
   inline uint64_t micros() const { return (esp_timer_get_time()); };
   inline uint64_t val() const { return (_frozen) ? (_us) : (micros() - _us); }

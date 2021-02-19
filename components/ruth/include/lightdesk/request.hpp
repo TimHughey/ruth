@@ -28,8 +28,6 @@ namespace lightdesk {
 
 typedef class Request Request_t;
 
-using std::move;
-
 class Request {
 public:
   Request(){};
@@ -44,7 +42,6 @@ public:
       break;
 
     case MAJOR_PEAK:
-      _major_peak.mag_floor = val;
       break;
 
     default:
@@ -100,10 +97,6 @@ public:
       uint32_t rgbw;
       float secs;
     } _fadeto;
-
-    struct {
-      float mag_floor;
-    } _major_peak;
   };
 };
 

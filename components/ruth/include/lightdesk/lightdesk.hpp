@@ -52,16 +52,18 @@ public:
   LightDesk();
   ~LightDesk();
 
-  float bassMagnitudeFloor() { return _i2s->bassMagnitudeFloor(); }
+  // float bassMagnitudeFloor() { return _i2s->bassdBFloor(); }
+  //
+  // void bassMagnitudeFloor(const float floor) {
+  //   _i2s->bassMagnitudeFloor(floor);
+  // }
+  //
+  // void complexityFloor(const float floor) { _i2s->complexitydBFloor(floor); }
+  //
+  // float majorPeakMagFloor() { return _i2s->dBFloor(); }
+  // void majorPeakMagFloor(const float floor) { _i2s->dBFloor(floor); }
 
-  void bassMagnitudeFloor(const float floor) {
-    _i2s->bassMagnitudeFloor(floor);
-  }
-
-  void complexityFloor(const float floor) { _i2s->complexityFloor(floor); }
-
-  float majorPeakMagFloor() { return _i2s->magFloor(); }
-  void majorPeakMagFloor(const float floor) { _i2s->magFloor(floor); }
+  I2s_t *i2s() const { return _i2s; }
 
   static void preStart() {
     using TR = reading::Text;

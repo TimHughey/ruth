@@ -37,8 +37,8 @@
 #include "external/arduinoFFT.hpp"
 #include "lightdesk/types.hpp"
 #include "local/types.hpp"
-#include "misc/derivative.hpp"
-#include "misc/elapsed.hpp"
+#include "misc/maverage.hpp"
+#include "misc/valminmax.hpp"
 
 namespace ruth {
 
@@ -47,68 +47,91 @@ typedef class I2s I2s_t;
 using std::vector;
 
 class I2s {
-  using I2sStats_t = lightdesk::I2sStats_t;
 
 public:
   I2s();
   ~I2s();
 
-  inline bool bass(float &mag) const {
-    mag = _bass_mag;
+  inline bool bass() const {
+    bool bass = false;
 
-    return _bass;
+    constexpr TickType_t wait_ticks = pdMS_TO_TICKS(3);
+    if (xSemaphoreTake(_mutex, wait_ticks) == pdTRUE) {
+      for (const PeakInfo &peak : _peaks) {
+        // peaks are sorted in descending dB so it is safe to break
+        // out of the loop once the first fails the check
+        if (peak.dB < _bass_dB_floor) {
+          break;
+        } else if ((peak.freq > 30.0) && (peak.freq <= 170.0)) {
+          bass = true;
+          break;
+        }
+      }
+
+      xSemaphoreGive(_mutex);
+    }
+
+    return bass;
   }
 
-  float bassMagnitudeFloor() const { return _bass_mag_floor; }
+  float bassdBFloor() const { return _bass_dB_floor; }
+  void bassdBFloor(const float floor) { _bass_dB_floor = floor; }
 
-  void bassMagnitudeFloor(const float floor) { _bass_mag_floor = floor; }
+  void calculateComplexity();
+  float complexity() const { return _complexity_mavg.lastValue(); }
+  float complexityAvg() const { return _complexity_mavg.latest(); }
+  size_t complexityAvgSize() const { return _complexity_mavg.size(); }
+  float complexitydBFloor() const { return _complexity_dB_floor; }
+  void complexitydBFloor(const float floor) { _complexity_dB_floor = floor; }
 
-  float complexity() const { return _fft.complexity(); }
-  float complexityAvg() const { return _fft.complexityAvg(); }
-  void complexityFloor(const float floor) { _fft.complexityFloor(floor); }
-
-  inline void magnitudeMinMax(float &min, float &max) {
-    min = _stats.magnitude.min;
-    max = _stats.magnitude.max;
+  float dBFloor() const { return _dB_floor; }
+  void dBFloor(const float floor) { _dB_floor = floor; }
+  inline bool dBResetTracking() {
+    _stats.dB.reset();
+    return true;
   }
 
-  inline bool magnitudeRateOfChange(const float floor, float &roc, float &mag,
-                                    float &freq) {
-    bool rc = false;
-    roc = _mag_history.rateOfChange(mag, freq);
+  inline PeakInfo majorPeak() {
+    constexpr TickType_t wait_ticks = pdMS_TO_TICKS(3);
+    if (xSemaphoreTake(_mutex, wait_ticks) == pdTRUE) {
+      PeakInfo &peak = ArduinoFFT::majorPeak(_peaks);
+      xSemaphoreGive(_mutex);
 
-    if ((roc > floor) || (roc < (floor * -1.0))) {
-      rc = true;
+      const dB_t dB = peak.dB;
+      _stats.dB.track(dB);
+
+      if (dB > _dB_floor) {
+        return std::move(peak);
+      }
+
+    } else {
+      printf("%s mutex timeout\n", __PRETTY_FUNCTION__);
+    }
+
+    return PeakInfo();
+  }
+
+  bool silence() const {
+    bool rc = true;
+
+    if (complexityAvg() < 5.8) {
+      rc = false;
     }
 
     return rc;
   }
 
-  float magFloor() const { return _mag_floor; }
-  void magFloor(const float floor) { _mag_floor = floor; }
-
-  inline float majorPeak(float &mpeak, float &mag) {
-    mpeak = 0;
-    mag = 0;
-
-    if (_mpeak_mag >= _mag_floor) {
-      mpeak = _mpeak;
-      mag = _mpeak_mag;
-    }
-
-    return mpeak;
-  }
-
   // stats
-  void stats(I2sStats_t &stats) {
-    _stats.mpeak.freq = _mpeak;
-    _stats.mpeak.mag = _mpeak_mag;
-    _stats.config.mag_floor = _mag_floor;
-    _stats.config.bass_mag_floor = _bass_mag_floor;
-    _stats.config.complexity_floor = _fft.complexityFloor();
-    _stats.rate.fft_per_sec = _fft.processPerSecond();
-    _stats.complexity.instant = _fft.complexity();
-    _stats.complexity.avg7sec = _fft.complexityAvg();
+  void stats(lightdesk::I2sStats_t &stats) {
+    PeakInfo mpeak = majorPeak();
+
+    _stats.mpeak.freq = mpeak.freq;
+    _stats.mpeak.dB = mpeak.dB;
+    _stats.config.dB_floor = _dB_floor;
+    _stats.config.bass_dB_floor = _bass_dB_floor;
+    _stats.config.complexity_dB_floor = _complexity_dB_floor;
+    _stats.complexity.instant = complexity();
+    _stats.complexity.avg7sec = complexityAvg();
 
     stats = _stats;
   }
@@ -120,44 +143,12 @@ private:
   typedef enum { INIT = 0x00, PROCESS_AUDIO, STOP, SHUTDOWN } I2sMode_t;
 
 private:
-  void compute(uint8_t *buffer, size_t len);
-
   void fft(uint8_t *buffer, size_t len);
-  inline void fftRecordElapsed(elapsedMicros &e) {
-    e.freeze();
-
-    const size_t slots = sizeof(_stats.durations.fft_us) / sizeof(uint32_t);
-    if (_stats.temp.fft_us_idx >= slots) {
-      _stats.temp.fft_us_idx = 0;
-    }
-
-    size_t &slot = _stats.temp.fft_us_idx;
-
-    _stats.durations.fft_us[slot++] = (uint32_t)e;
-  }
-
-  void filterNoise();
 
   bool handleNotifications();
 
   bool samplesRx();
-  inline void samplesRxElapsed(elapsedMicros &e, const size_t bytes_read) {
-    e.freeze();
-
-    const size_t slots = sizeof(_stats.durations.rx_us) / sizeof(uint32_t);
-    if (_stats.temp.rx_us_idx >= slots) {
-      _stats.temp.rx_us_idx = 0;
-    }
-
-    size_t &slot = _stats.temp.rx_us_idx;
-
-    _stats.durations.rx_us[slot++] = (uint32_t)e;
-
-    _stats.temp.byte_count += bytes_read;
-  }
   bool samplesUdpTx();
-
-  inline bool silence() const { return _noise; }
 
   void statsCalculate();
   static void statsCalculateCallback(void *data) {
@@ -175,38 +166,6 @@ private:
   BaseType_t taskNotify(NotifyVal_t nval);
   void taskStart();
 
-  void trackMagMinMax(const float mag) {
-    if ((_stats.magnitude.window) > 2300) {
-      _stats.magnitude.min = 300000.0;
-      _stats.magnitude.max = 0.0;
-      _stats.magnitude.window.reset();
-    }
-
-    if (mag > _stats.magnitude.max) {
-      _stats.magnitude.max = mag;
-    }
-
-    if (mag < _stats.magnitude.min) {
-      _stats.magnitude.min = mag;
-    }
-  }
-
-  void trackValMinMax(const int32_t left_val, const int32_t right_val) {
-    const int32_t vmin = (left_val < right_val) ? left_val : right_val;
-    const int32_t vmax = (left_val > right_val) ? left_val : right_val;
-
-    int32_t &min = _stats.raw_val.min24;
-    int32_t &max = _stats.raw_val.max24;
-
-    if (vmin < min) {
-      min = vmin;
-    }
-
-    if (vmax > max) {
-      max = vmax;
-    }
-  }
-
   bool udpInit();
   void udpPrint();
   void udpSend(uint8_t *data, size_t len);
@@ -220,12 +179,12 @@ private:
 
   static constexpr i2s_port_t _i2s_port = I2S_NUM_0;
   static constexpr int _dma_buff = 1024;
-  static constexpr uint32_t _eq_max_depth = 4;
+  static constexpr uint32_t _evq_max_depth = 4;
   bool _need_driver_install = true;
 
   uint8_t *_raw = nullptr;
 
-  I2sStats_t _stats;
+  lightdesk::I2sStats_t _stats;
 
   static constexpr size_t _sample_rate = 44100;
   static const size_t _vsamples = 1024;
@@ -235,22 +194,11 @@ private:
   float _vimag[_vsamples_chan] = {};
   float _wfactors[_vsamples_chan] = {};
 
-  float _noise_filters[4][3] = {
-      // {low_freq, high_freq, mag}
-      {20.0, 58.0, 10.0},
-      {58.0, 65.0, 9.0},
-      {65.0, 150.0, 9.0},
-      {150.0, 21000.0, 9.0}};
+  float _bass_dB_floor = 77.5;
+  float _complexity_dB_floor = 48.5;
+  float _dB_floor = 65.5;
 
-  float _mpeak = 0.0;
-  float _mpeak_mag = 0.0;
-  Derivative<float> _mag_history;
-
-  bool _noise = true;
-  bool _bass = false;
-  float _bass_mag = 0.0;
-  float _bass_mag_floor = 77.5;
-  float _mag_floor = 63.5;
+  MovingAverage<float, 7> _complexity_mavg;
 
   ArduinoFFT _fft =
       ArduinoFFT(_vreal_left, _vimag, _vsamples_chan, _sample_rate, _wfactors);
@@ -269,10 +217,15 @@ private:
   uint32_t _udp_errors = 0;
 
   esp_timer_handle_t _stats_timer = nullptr;
-  const uint8_t _stats_interval_secs = 3;
+  const uint8_t _stats_interval_secs = 1;
+
+  Peaks_t _peaks;
 
   // protects shared access to mpeak and frequency
   portMUX_TYPE _spinlock = portMUX_INITIALIZER_UNLOCKED;
+
+  StaticSemaphore_t _mutex_buff;
+  SemaphoreHandle_t _mutex;
 
   Task_t _task = {
       .handle = nullptr, .data = nullptr, .priority = 19, .stackSize = 4096};

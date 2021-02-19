@@ -68,6 +68,8 @@ public:
       _stats.next = fxNone;
       executeEffect();
     } else {
+      pinSpotMain()->autoRun(fxWhiteFadeInOut);
+      pinSpotFill()->autoRun(fxWhiteFadeInOut);
       completed();
     }
 

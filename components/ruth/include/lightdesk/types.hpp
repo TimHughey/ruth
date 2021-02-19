@@ -22,11 +22,12 @@
 #define _ruth_lightdesk_types_hpp
 
 #include <cstdint>
-#include <limits>
 
 #include "lightdesk/enums.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
+#include "misc/tracked.hpp"
+#include "misc/valminmax.hpp"
 
 namespace ruth {
 namespace lightdesk {
@@ -46,38 +47,21 @@ typedef struct FxStats FxStats_t;
 typedef struct LightDeskStats LightDeskStats_t;
 
 struct DmxStats {
-  using uint32_limit = std::numeric_limits<uint_fast32_t>;
-
   float fps = 0.0;
   uint64_t busy_wait = 0;
-  uint64_t frame_update_us = 0;
 
   struct {
-    uint64_t us = 0;
+    uint_fast64_t us;
     uint64_t count = 0;
     uint64_t shorts = 0;
-    uint32_t white_space_us = 0;
+    elapsedMicrosTracked white_space_us;
     float fps_expected = 0.0;
 
-    struct {
-      uint64_t curr = 0;
-      uint64_t min = 0;
-      uint64_t max = 0;
-    } update;
-
-    struct {
-      uint_fast32_t min = uint32_limit::max();
-      uint_fast32_t curr = 0.0;
-      uint_fast32_t max = uint32_limit::min();
-    } prepare;
-
+    elapsedMicrosTracked update_us;
+    elapsedMicrosTracked prepare_us;
   } frame;
 
-  struct {
-    float curr = 0.0f;
-    float min = 0.0f;
-    float max = 0.0f;
-  } tx;
+  ValMinMaxFloat_t tx_ms;
 };
 
 struct FxStats {
@@ -87,30 +71,16 @@ struct FxStats {
 };
 
 struct I2sStats {
-  using float_limit = std::numeric_limits<float>;
 
   struct {
-    uint32_t byte_count = 0;
-    size_t fft_us_idx = 0;
-    size_t rx_us_idx = 0;
-  } temp;
-
-  struct {
-    float raw_bps = 0;
-    float samples_per_sec = 0;
-    float fft_per_sec = 0;
+    CountPerInterval raw_bps;
+    float samples_per_sec;
+    CountPerInterval fft_per_sec;
   } rate;
 
-  struct {
-    int32_t min24 = INT_MAX;
-    int32_t max24 = min24 * -1;
-  } raw_val;
-
-  struct {
-    elapsedMillis window;
-    float min = float_limit::max();
-    float max = float_limit::min();
-  } magnitude;
+  ValMinMax<int_fast32_t> raw_val_left;
+  ValMinMax<int_fast32_t> raw_val_right;
+  ValMinMaxFloat_t dB;
 
   struct {
     float instant = 0;
@@ -119,22 +89,19 @@ struct I2sStats {
 
   struct {
     float freq_bin_width = 0;
-    float mag_floor = 0;
-    float bass_mag_floor = 0;
-    float complexity_floor = 0;
+    float dB_floor = 0;
+    float bass_dB_floor = 0;
+    float complexity_dB_floor = 0;
   } config;
 
   struct {
-    uint32_t fft_us[6] = {};
-    float fft_avg_us = 0;
-
-    uint32_t rx_us[6] = {};
-    float rx_avg_us = 0;
-  } durations;
+    elapsedMicrosTracked fft_us;
+    elapsedMicrosTracked rx_us;
+  } elapsed;
 
   struct {
     float freq = 0.0;
-    float mag = 0.0;
+    float dB = 0.0;
   } mpeak;
 };
 

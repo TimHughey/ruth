@@ -22,7 +22,6 @@
 
 #include <esp_log.h>
 #include <esp_netif.h>
-#include <soc/i2s_reg.h>
 
 #include "protocols/i2s.hpp"
 
@@ -30,7 +29,8 @@ namespace ruth {
 
 I2s::I2s() {
   _stats.config.freq_bin_width = (float)_sample_rate / (float)_vsamples_chan;
-  _fft.complexityFloor(48.5);
+
+  _mutex = xSemaphoreCreateMutexStatic(&_mutex_buff);
 }
 
 I2s::~I2s() {
@@ -51,27 +51,28 @@ I2s::~I2s() {
   }
 }
 
-void IRAM_ATTR I2s::filterNoise() {
-  _noise = false;
-
-  const size_t num_filters = sizeof(_noise_filters) / (sizeof(float) * 3);
-  for (auto k = 0; k < num_filters; k++) {
-    const float low = _noise_filters[k][0];
-    const float high = _noise_filters[k][1];
-    const float mag = _noise_filters[k][2];
-
-    if (((_mpeak >= low) && (_mpeak < high)) && (_mpeak_mag < mag)) {
-      _noise = true;
+void IRAM_ATTR I2s::calculateComplexity() {
+  uint_fast32_t complexity = 0;
+  for (const Peak_t &x : _peaks) {
+    if (x.dB >= _complexity_dB_floor) {
+      complexity++;
+    } else {
+      // peaks are sorted highest to lowest so we can safely
+      // ignore the rest if this one fails the
+      // the complexity threshold
       break;
     }
   }
+
+  _complexity_mavg.addValue(complexity);
 }
 
 void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
-  elapsedMicros e;
   const size_t raw_samples = _vsamples_chan;
   const size_t num_int32 = len / sizeof(int32_t);
-  static size_t raw_count = 0;
+  static DRAM_ATTR size_t raw_count = 0;
+  static DRAM_ATTR float chan_left_sum = 0;
+  static DRAM_ATTR float chan_right_sum = 0;
 
   // populate vreal left and right channels
   int32_t *val32 = (int32_t *)buffer;
@@ -80,12 +81,16 @@ void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
   for (auto j = 0; j < num_int32; j = j + 2) {
     // shift to 24 bits
     const int32_t left = val32[j] >> 8;
-    const int32_t right = val32[j + 1] >> 8;
-
     _vreal_left[raw_count] = left;
-    _vreal_right[raw_count] = right;
+    chan_left_sum += left;
 
-    trackValMinMax(left, right);
+    _stats.raw_val_left.track(left);
+
+    const int32_t right = val32[j + 1] >> 8;
+    _vreal_right[raw_count] = right;
+    chan_right_sum += right;
+
+    _stats.raw_val_right.track(right);
 
     raw_count++;
   }
@@ -95,37 +100,38 @@ void IRAM_ATTR I2s::fft(uint8_t *buffer, size_t len) {
     return;
   }
 
-  // we have enough data, reset buffer count and do FFT
-  raw_count = 0;
+  // we have enough data for FFT
+  _stats.elapsed.fft_us.track();
+
+  // save the extra loop by computing the mean for dc
+  // removal using the sum created while receiving the
+  // samples.
+  const float chan_left_mean = chan_left_sum / (float)raw_count;
 
   // zero out vimag
   memset(_vimag, 0x00, sizeof(_vimag));
 
-  portENTER_CRITICAL_SAFE(&_spinlock);
-  _fft.process(_vreal_left, _vimag, _mpeak, _mpeak_mag);
-  portEXIT_CRITICAL_SAFE(&_spinlock);
+  _fft.process(_vreal_left, _vimag, chan_left_mean);
 
-  // float min_real = 0;
-  // _fft.minimumReal(min_real);
-  // printf("%10.2f\n", min_real);
+  // portENTER_CRITICAL_SAFE(&_spinlock);
+  constexpr TickType_t wait_ticks = 3; // 1.5ms @ 500Hz
+  if (xSemaphoreTake(_mutex, wait_ticks) == pdTRUE) {
+    _peaks = _fft.peaks();
+    calculateComplexity();
 
-  _mag_history.addValue(_mpeak_mag, _mpeak);
-
-  float low_freq;
-  _fft.binFrequency(1, low_freq, _bass_mag);
-
-  _bass = false;
-  if ((low_freq > 30.0) && (low_freq <= 170.0)) {
-    if (_bass_mag > _bass_mag_floor) {
-      _bass = true;
-    }
+    _stats.rate.fft_per_sec.track();
+    xSemaphoreGive(_mutex);
+  } else {
+    printf("%s mutex timeout\n", __PRETTY_FUNCTION__);
   }
+  // portEXIT_CRITICAL_SAFE(&_spinlock);
 
-  trackMagMinMax(_mpeak_mag);
+  _stats.elapsed.fft_us.record();
 
-  // filterNoise();
-
-  fftRecordElapsed(e);
+  // we're finished with this buffer, reset tracking info
+  raw_count = 0;
+  chan_left_sum = 0;
+  chan_right_sum = 0;
 }
 
 bool I2s::handleNotifications() {
@@ -166,18 +172,6 @@ bool I2s::handleNotifications() {
   return rc;
 }
 
-// float IRAM_ATTR I2s::majorPeak(float &mpeak, float &mpeak_mag) {
-//   mpeak = _mpeak;
-//   mpeak_mag = _mpeak_mag;
-
-// if (_noise == false) {
-//   mpeak = _mpeak;
-//   mpeak_mag = _mpeak_mag;
-// }
-
-//   return mpeak;
-// }
-
 bool IRAM_ATTR I2s::samplesRx() {
   auto rc = false;
   auto esp_rc = ESP_OK;
@@ -185,9 +179,10 @@ bool IRAM_ATTR I2s::samplesRx() {
   const TickType_t ticks = pdMS_TO_TICKS(20);
   uint8_t *buffer = _raw;
 
-  elapsedMicros e;
+  _stats.elapsed.rx_us.track();
   esp_rc = i2s_read(_i2s_port, buffer, _dma_buff, &bytes_read, ticks);
-  samplesRxElapsed(e, bytes_read);
+  _stats.elapsed.rx_us.record();
+  _stats.rate.raw_bps.track(bytes_read);
 
   if ((esp_rc == ESP_OK) && (bytes_read == _dma_buff)) {
     rc = true;
@@ -203,27 +198,9 @@ bool IRAM_ATTR I2s::samplesRx() {
 }
 
 void IRAM_ATTR I2s::statsCalculate() {
-  _stats.rate.raw_bps =
-      (float)_stats.temp.byte_count / (float)_stats_interval_secs;
-  _stats.rate.samples_per_sec = _stats.rate.raw_bps / sizeof(int32_t);
-
-  // reset byte count
-  _stats.temp.byte_count = 0;
-
-  const size_t durations = sizeof(_stats.durations.fft_us) / sizeof(uint32_t);
-  uint64_t duration_sum = 0;
-  for (auto k = 0; k < durations; k++) {
-    duration_sum += _stats.durations.fft_us[k];
-  }
-
-  _stats.durations.fft_avg_us = (float)duration_sum / (float)durations;
-
-  duration_sum = 0;
-  for (auto k = 0; k < durations; k++) {
-    duration_sum += _stats.durations.rx_us[k];
-  }
-
-  _stats.durations.rx_avg_us = (float)duration_sum / (float)durations;
+  _stats.rate.raw_bps.calculate();
+  _stats.rate.samples_per_sec =
+      _stats.rate.raw_bps.current() / (sizeof(int32_t) * 4);
 }
 
 void I2s::taskCore(void *task_instance) {
@@ -266,7 +243,7 @@ void I2s::taskInit() {
   uint_fast16_t retries = 0;
   while (_need_driver_install) {
     _init_rc =
-        i2s_driver_install(_i2s_port, &i2s_config, _eq_max_depth, nullptr);
+        i2s_driver_install(_i2s_port, &i2s_config, _evq_max_depth, nullptr);
     if (_init_rc == ESP_OK) {
       _need_driver_install = false;
     } else {
@@ -314,17 +291,9 @@ void I2s::taskInit() {
 void IRAM_ATTR I2s::taskLoop() {
   _mode = PROCESS_AUDIO;
 
-  _print_buffer.clear();
-  _print_buffer.printf(
-      "seq_diff, _mpeak, mag_orig, mag_4th_rt_roc, mag_4th_rt, low_freq,"
-      "low_mag_4th_rt, mag_diff, bin2_freq, bin2_mag_4th_rt\n");
-
-  udpPrint();
-
   // when _mode is SHUTDOWN this function returns
   while (_mode != SHUTDOWN) {
     samplesRx();
-
     handleNotifications();
   }
 }

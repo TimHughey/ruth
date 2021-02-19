@@ -41,23 +41,21 @@ protected:
     }
 
     // handle bass
-    float bass_mag;
-    if (i2s()->bass(bass_mag)) {
+    if (i2s()->bass()) {
       elWireDanceFloor()->pulse();
       elWireEntry()->pulse();
       ledForest()->pulse();
     }
 
-    float freq, mag;
-    i2s()->majorPeak(freq, mag);
+    PeakInfo peak = i2s()->majorPeak();
 
-    if (mag > 0) {
+    if (peak.dB > 0) {
       size_t color_index;
-      auto freq_known = frequencyKnown(freq, color_index);
+      auto freq_known = frequencyKnown(peak.freq, color_index);
 
       if (freq_known) {
         Color freq_color = frequencyMapToColor(color_index);
-        freq_color.scale(mag);
+        freq_color.scale(peak.dB);
 
         FaderOpts_t freq_fade{.origin = freq_color,
                               .dest = Color::black(),

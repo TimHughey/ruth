@@ -22,6 +22,7 @@
 #define _ruth_moving_average_hpp
 
 #include <cstdint>
+#include <deque>
 
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
@@ -30,34 +31,51 @@ namespace ruth {
 
 template <typename T, uint32_t SECONDS> class MovingAverage {
 
+  typedef std::deque<T> maDeque_t;
+
 public:
-  MovingAverage() { _avg_elapsed.reset(); };
+  MovingAverage() { _e.reset(); };
 
   void addValue(T val) {
-    constexpr uint32_t ms = SECONDS * 1000;
-
-    if ((uint32_t)_avg_elapsed <= ms) {
-      _sum += val;
-      _count++;
-
-      _latest = _sum / _count;
+    if (_e.toSeconds() <= SECONDS) {
+      // add to container until we've the duration requested
+      _dq.emplace_back(val);
     } else {
-      _sum = _latest;
-      _count = 1;
-
-      _avg_elapsed.reset();
+      // we now know the total number of items that represent the requested
+      // duration (assuming frequency of adding values is a constant).
+      // instead of adding more values we remove the oldest (at the front) and
+      // add the new (to the back)
+      _dq.pop_front();
+      _dq.emplace_back(val);
     }
   }
 
-  T latest() const { return _latest; }
+  T latest() const { return calculate(); }
+  T lastValue() const {
+    T val = 0;
+    if (_dq.empty() == false) {
+      val = _dq.back();
+    }
+    return val;
+  }
+
+  size_t size() const { return _dq.size(); }
 
 private:
-  elapsedMillis _avg_elapsed;
+  T calculate() const {
+    T sum = 0;
 
-  double _sum = 0;
-  uint64_t _count = 0;
+    for (const T &val : _dq) {
+      sum += val;
+    }
 
-  T _latest = 0;
+    return sum / (T)_dq.size();
+  }
+
+private:
+  elapsedMillis _e;
+
+  maDeque_t _dq = {};
 };
 
 } // namespace ruth

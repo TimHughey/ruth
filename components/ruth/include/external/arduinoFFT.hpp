@@ -24,13 +24,15 @@
 #ifndef ArduinoFFT_h /* Prevent loading library twice */
 #define ArduinoFFT_h
 
+#include <algorithm>
+#include <functional>
+#include <vector>
+
 #include <math.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "local/types.hpp"
-#include "misc/elapsed.hpp"
 #include "misc/maverage.hpp"
 
 enum class FFTDirection { Reverse, Forward };
@@ -48,6 +50,27 @@ enum class FFTWindow {
   Welch             // welch
 };
 
+typedef struct Peak Peak_t;
+typedef float Freq_t;
+typedef float dB_t;
+
+struct Peak {
+  uint_fast16_t index;
+  Freq_t freq;
+  dB_t dB;
+
+  static bool higherdB(const Peak_t &lhs, const Peak_t &rhs) {
+    return lhs.dB > rhs.dB;
+  }
+};
+
+typedef std::vector<Peak_t> Peaks_t;
+typedef const Peaks_t PeaksConst_t;
+typedef const Peaks_t &PeaksRef_t;
+typedef const uint_fast16_t PeakN_t; // represents peak of interest 1..max_peaks
+typedef const Peak PeakInfo;
+typedef const Peak BinInfo;
+
 // template <typename T> class ArduinoFFT {
 class ArduinoFFT {
 public:
@@ -62,32 +85,21 @@ public:
     while (((samples >> _power) & 1) != 1) {
       _power++;
     }
+
+    _peaks.reserve(_peaks_max);
   }
 
   // Destructor
   ~ArduinoFFT() {}
 
-  inline float binFrequency(size_t y) {
-    float frequency, magnitude;
+  inline BinInfo binInfo(size_t y) {
+    BinInfo x = {.index = y, .freq = freqAtIndex(y), .dB = dbAtIndex(y)};
 
-    binFrequency(y, frequency, magnitude);
-
-    return frequency;
+    return std::move(x);
   }
-
-  inline void binFrequency(size_t y, float &frequency, float &magnitude) {
-    freqAndValueAtY(y, frequency, magnitude);
-  }
-
-  void calculateComplexity();
 
   // Computes in-place complex-to-complex FFT
   void compute(FFTDirection dir) const;
-  inline float complexity() const { return _complexity; }
-  inline float complexityAvg() const { return _complexity_mavg.latest(); }
-  inline float complexityFloor() const { return _complexity_floor; }
-  inline void complexityFloor(const float floor) { _complexity_floor = floor; }
-
   void complexToMagnitude() const;
 
   inline float dbAtIndex(const size_t i) const {
@@ -99,82 +111,59 @@ public:
     return db;
   }
 
-  void dcRemoval() const;
+  // void dcRemoval() const;
+  void dcRemoval(const float mean) const;
+  void findPeaks();
 
-  inline void freqAndValueAtY(size_t y, float &frequency,
-                              float &magnitude) const {
+  inline float freqAtIndex(size_t y) {
     const float a = _vReal[y - 1];
     const float b = _vReal[y];
     const float c = _vReal[y + 1];
 
     float delta = 0.5 * ((a - c) / (a - (2.0 * b) + c));
-    frequency = ((y + delta) * _samplingFrequency) / (_samples - 1);
+    float frequency = ((y + delta) * _samplingFrequency) / (_samples - 1);
     if (y == (_samples >> 1)) {
       // To improve calculation on edge values
       frequency = ((y + delta) * _samplingFrequency) / _samples;
     }
-    // returned value: interpolated frequency peak apex
-    // constexpr float fourth = 1.0 / 4.0;
-    // magnitude = pow(abs(a - (2.0 * b) + c), fourth);
-    magnitude = 10 * log10(abs(a - (2.0 * b) + c));
-  }
-
-  void windowing(FFTWindow windowType, FFTDirection dir,
-                 bool withCompensation = false);
-
-  inline float majorPeak() const {
-    float frequency;
-    float value;
-
-    majorPeak(frequency, value);
 
     return frequency;
   }
 
-  inline void majorPeak(float &frequency, float &value) const {
-    float maxY = 0;
-    uint_fast16_t IndexOfMaxY = 0;
-    // If sampling_frequency = 2 * max_frequency in signal,
-    // value would be stored at position samples/2
-    for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
-      const float a = _vReal[i - 1];
-      const float b = _vReal[i];
-      const float c = _vReal[i + 1];
+  static inline bool hasPeak(PeaksRef_t p, PeakN_t n) {
+    bool rc = false;
 
-      if ((a < b) && (b > c)) {
-        if (b > maxY) {
-          maxY = b;
-          IndexOfMaxY = i;
-        }
-      }
+    // PeakN_t reprexents the peak of interest in the range of 1..max_peaks
+    if (p.size() && (p.size() >= (n - 1))) {
+      rc = true;
     }
 
-    freqAndValueAtY(IndexOfMaxY, frequency, value);
+    return rc;
   }
 
-  void minimumReal(float &min) const;
+  static inline bool hasMajorPeak(PeaksRef_t p) { return hasPeak(p, 1); }
+  static inline PeakInfo majorPeak(PeaksConst_t &p) { return peakN(p, 1); }
 
-  inline void process(float *vreal, float *vimag, float &mpeak,
-                      float &mpeak_mag) {
-    constexpr uint32_t one_sec_us = 1000 * 1000;
-    if (_per_second >= one_sec_us) {
-      _pps = _pp;
-      _pp = 0;
-      _per_second.reset();
-    } else {
-      _pp++;
+  static inline PeakInfo peakN(PeaksConst_t &p, PeakN_t n) {
+    Peak peak = {.index = 0, .freq = 0, .dB = 0};
+
+    if (hasPeak(p, n)) {
+      peak = p.at(n - 1);
     }
 
+    return std::move(peak);
+  }
+
+  inline const Peaks_t &peaks() const { return _peaks; }
+
+  inline void process(float *vreal, float *vimag, const float mean) {
     setArrays(vreal, vimag);
-    dcRemoval();
+    dcRemoval(mean);
     windowing(FFTWindow::Hamming, FFTDirection::Forward);
     compute(FFTDirection::Forward);
     complexToMagnitude();
-    majorPeak(mpeak, mpeak_mag);
-    calculateComplexity();
+    findPeaks();
   }
-
-  inline uint_fast16_t processPerSecond() { return _pps; }
 
   // Get library revision
   static uint8_t revision() { return 0x19; }
@@ -185,19 +174,20 @@ public:
     _vImag = vImag;
   }
 
+  void windowing(FFTWindow windowType, FFTDirection dir,
+                 bool withCompensation = false);
+
 private:
   static const float _WindowCompensationFactors[10];
 
   // Mathematial constants
-#ifndef TWO_PI
-  static constexpr float TWO_PI =
-      6.28318531; // might already be defined in Arduino.h
-#endif
+
+  static constexpr float TWO_PI = 6.28318531;
   static constexpr float FOUR_PI = 12.56637061;
   static constexpr float SIX_PI = 18.84955593;
 
-  static inline void Swap(float &x, float &y) {
-    float temp = x;
+  static inline void swap(float &x, float &y) {
+    const float temp = x;
     x = y;
     y = temp;
   }
@@ -215,17 +205,9 @@ private:
   bool _weighingFactorsComputed = false;
   uint_fast8_t _power = 0;
 
-  float _mean_mag = 0;
-  float _mpeak = 0;
-  float _mpeak_mag = 0;
+  Peaks_t _peaks;
 
-  float _complexity_floor = 55.0;
-  float _complexity = 0;
-  ruth::MovingAverage<float, 7> _complexity_mavg;
-
-  ruth::elapsedMicros _per_second;
-  uint_fast16_t _pp = 0;
-  uint_fast16_t _pps = 0;
+  const size_t _peaks_max = (_samples >> 1) + (_samples >> 2);
 };
 
 #endif

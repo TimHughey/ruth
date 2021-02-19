@@ -17,23 +17,6 @@ const DRAM_ATTR float ArduinoFFT::_WindowCompensationFactors[10] = {
     1.5029392863 * 2.0  // welch
 };
 
-void IRAM_ATTR ArduinoFFT::calculateComplexity() {
-  uint_fast16_t pos = 0;
-
-  for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
-    const float db = dbAtIndex(i);
-    // const auto pos_threshold = 100000;
-    // const auto neg_threshold = -25000;
-
-    if (db > _complexity_floor) {
-      pos++;
-    }
-  }
-
-  _complexity = float(pos) / float((_samples >> 1) + 1);
-  _complexity_mavg.addValue(_complexity);
-}
-
 void IRAM_ATTR ArduinoFFT::complexToMagnitude() const {
   // vM is half the size of vReal and vImag
   for (uint_fast16_t i = 0; i < _samples; i++) {
@@ -46,9 +29,9 @@ void IRAM_ATTR ArduinoFFT::compute(FFTDirection dir) const {
   uint_fast16_t j = 0;
   for (uint_fast16_t i = 0; i < (_samples - 1); i++) {
     if (i < j) {
-      Swap(_vReal[i], _vReal[j]);
+      swap(_vReal[i], _vReal[j]);
       if (dir == FFTDirection::Reverse) {
-        Swap(_vImag[i], _vImag[j]);
+        swap(_vImag[i], _vImag[j]);
       }
     }
     uint_fast16_t k = (_samples >> 1);
@@ -98,44 +81,38 @@ void IRAM_ATTR ArduinoFFT::compute(FFTDirection dir) const {
   }
 }
 
-void IRAM_ATTR ArduinoFFT::dcRemoval() const {
-  // calculate the mean of vDatas
-  float mean = 0;
-  for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
-    mean += _vReal[i];
-  }
-
-  mean /= _samples;
-  // Subtract the mean from vData
+void IRAM_ATTR ArduinoFFT::dcRemoval(const float mean) const {
   for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
     _vReal[i] -= mean;
   }
 }
 
-void IRAM_ATTR ArduinoFFT::minimumReal(float &min) const {
-  using float_limits = std::numeric_limits<float>;
+void IRAM_ATTR ArduinoFFT::findPeaks() {
+  _peaks.clear();
 
-  min = 0.0f;
-
-  float min_y = float_limits::max();
-  size_t min_y_idx = 0;
-  // If sampling_frequency = 2 * max_frequency in signal,
-  // value would be stored at position samples/2
   for (uint_fast16_t i = 1; i < ((_samples >> 1) + 1); i++) {
     const float a = _vReal[i - 1];
     const float b = _vReal[i];
     const float c = _vReal[i + 1];
 
-    if ((a > b) && (b < c)) {
-      if (b < min_y) {
-        min_y_idx = i;
+    if ((a < b) && (b > c)) {
+
+      // once
+      if (_peaks.size() == (_peaks.capacity() - 1)) {
+        break;
+      }
+
+      float freq = freqAtIndex(i);
+      float db = dbAtIndex(i);
+
+      if (db > 20.0f) {
+        const Peak_t tuple = {.index = i, .freq = freq, .dB = db};
+        _peaks.push_back(tuple);
       }
     }
   }
 
-  if (min_y_idx > 1) {
-    min = dbAtIndex(min_y_idx);
-  }
+  std::sort(_peaks.begin(), _peaks.end(), Peak_t::higherdB);
 }
 
 void IRAM_ATTR ArduinoFFT::windowing(FFTWindow windowType, FFTDirection dir,

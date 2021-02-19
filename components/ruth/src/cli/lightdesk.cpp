@@ -29,11 +29,10 @@
 namespace ruth {
 using namespace lightdesk;
 
-static struct arg_dbl *a_dance, *a_bass_mag_floor, *a_complexity_floor,
-    *a_mag_floor;
+static struct arg_dbl *a_dance, *a_bass_floor, *a_complexity_floor, *a_dB_floor;
 
 static struct arg_lit *a_config, *a_help, *a_major_peak, *a_object_sizes,
-    *a_stop, *a_stats, *a_test;
+    *a_dB_reset_tracking, *a_stop, *a_stats, *a_test;
 static struct arg_end *a_end;
 
 static CSTR SECS = "<seconds>";
@@ -46,15 +45,17 @@ static void *argtable[] = {
     a_object_sizes = arg_litn("O", "object-sizes", 0, 1,
                               "display LightDesk related object sizes"),
     // secs = arg_dbln("t", "secs", FLOAT, 0, 1, nullptr),
-    a_mag_floor =
-        arg_dbln(nullptr, "mag-floor", FLOAT, 0, 1, "set i2s magnitude floor"),
-    a_complexity_floor = arg_dbln(nullptr, "complexity-floor", FLOAT, 0, 1,
-                                  "set i2s complexity floor"),
-    a_bass_mag_floor = arg_dbln(nullptr, "bass-mag-floor", FLOAT, 0, 1,
-                                "set i2s bass detection magnitude"),
+    a_dB_floor =
+        arg_dbln(nullptr, "dB-floor", FLOAT, 0, 1, "set i2s generic dB floor"),
+    a_complexity_floor = arg_dbln(nullptr, "comp-floor", FLOAT, 0, 1,
+                                  "set i2s complexity dB floor"),
+    a_bass_floor = arg_dbln(nullptr, "bass-floor", FLOAT, 0, 1,
+                            "set i2s bass detection dB"),
     a_help = arg_litn("h", "help", 0, 1, "display help glossary"),
     a_stats = arg_litn(nullptr, "stats", 0, 1, "display LightDesk stats"),
     a_stop = arg_litn(nullptr, "stop", 0, 1, "stop and deallocate LightDesk"),
+    a_dB_reset_tracking =
+        arg_litn(nullptr, "dB-reset", 0, 1, "reset i2s dB min max tracking"),
     a_test = arg_litn("T", "test", 0, 1, "special tests"),
     a_end = arg_end(12),
 };
@@ -79,6 +80,8 @@ int LightDeskCli::execute(int argc, char **argv) {
     return 1;
   }
 
+  I2s_t *i2s = desk_ctrl->i2s();
+
   if (a_help->count > 0) {
     arg_print_syntax(stdout, argtable, "\n");
     arg_print_glossary(stdout, argtable, "  %-25s %s\n");
@@ -94,15 +97,20 @@ int LightDeskCli::execute(int argc, char **argv) {
     rc = desk_ctrl->majorPeak();
   } else if (a_stop->count > 0) {
     rc = desk_ctrl->stop();
-  } else if (a_mag_floor->count > 0) {
-    const float floor = (float)a_mag_floor->dval[0];
-    rc = desk_ctrl->majorPeakMagFloor(floor);
+  } else if (a_dB_floor->count > 0) {
+    const float floor = (float)a_dB_floor->dval[0];
+    i2s->dBFloor(floor);
+    rc = true;
+  } else if (a_dB_reset_tracking->count > 0) {
+    rc = i2s->dBResetTracking();
   } else if (a_complexity_floor->count > 0) {
     const float floor = (float)a_complexity_floor->dval[0];
-    rc = desk_ctrl->complexityFloor(floor);
-  } else if (a_bass_mag_floor->count > 0) {
-    const float floor = (float)a_bass_mag_floor->dval[0];
-    rc = desk_ctrl->bassMagnitudeFloor(floor);
+    i2s->complexitydBFloor(floor);
+    rc = true;
+  } else if (a_bass_floor->count > 0) {
+    const float floor = (float)a_bass_floor->dval[0];
+    i2s->bassdBFloor(floor);
+    rc = true;
   } else if (a_test->count > 0) {
     printf("test not available\n");
     rc = false;

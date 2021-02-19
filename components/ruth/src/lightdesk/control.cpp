@@ -29,12 +29,15 @@ namespace ruth {
 using TR = reading::Text;
 
 bool LightDeskControl::config() {
+  I2s_t *i2s = _desk->i2s();
   auto rc = true;
-  const float bass_mag_floor = _desk->bassMagnitudeFloor();
-  const float major_peak_roc_floor = _desk->majorPeakMagFloor();
 
-  printf("\nbass_mag_floor(%10.1f) major_peak_roc_floor(%10.1f)\n\n",
-         bass_mag_floor, major_peak_roc_floor);
+  const float generic = i2s->dBFloor();
+  const float bass = i2s->bassdBFloor();
+  const float complexity = i2s->complexitydBFloor();
+
+  printf("\ndB floor: generic(%10.1f) bass(%10.1f) complexity(%10.1f)\n\n",
+         generic, bass, complexity);
 
   return rc;
 }
@@ -122,46 +125,51 @@ bool LightDeskControl::stats() {
          fxDesc(fx.next), fxDesc(fx.prev));
 
   // dmx
-  const float frame_ms = (float)dmx.frame.us / 1000.f;
   printf("\n");
-  printf("%-*s%02.02ffps frame(%6.3fms) expected_fps(%02.02f) shorts(%llu) "
-         "white_space(%7.3fms)\n",
-         indent_size, "dmx:", dmx.fps, frame_ms, dmx.frame.fps_expected,
-         dmx.frame.shorts, (float)dmx.frame.white_space_us / 1000.0);
 
-  printf("%sframe prepare: (%4uµs, %4uµs, %4uµs)  update: (%4lluµs, %4lluµs, "
-         "%4lluµs)\n",
-         indent, dmx.frame.prepare.min, dmx.frame.prepare.curr,
-         dmx.frame.prepare.max, dmx.frame.update.min, dmx.frame.update.curr,
-         dmx.frame.update.max);
-  printf("%stx: curr(%02.02fms) min(%02.02fms) max(%02.02fms)\n", indent,
-         dmx.tx.curr, dmx.tx.min, dmx.tx.max);
-  printf("%sbusy_wait(%lld)\n", indent, dmx.busy_wait);
+  printf("%-*s%02.02fframes/s frame_µs(%6llu) expected_fps(%02.02f)\n",
+         indent_size, "dmx:", dmx.fps, dmx.frame.us, dmx.frame.fps_expected);
+
+  printf("%sframe: prepare_ms(%4.1f,%5.1f) update_ms(%4.1f,%5.1f) "
+         "white_space_ms(%4.1f,%5.1f)\n",
+         indent, dmx.frame.prepare_us.currentAsMillis(),
+         dmx.frame.prepare_us.maxAsMillis(),
+         dmx.frame.update_us.currentAsMillis(),
+         dmx.frame.update_us.maxAsMillis(),
+         dmx.frame.white_space_us.currentAsMillis(),
+         dmx.frame.white_space_us.maxAsMillis());
+
+  printf("%stx_ms(%5.2f,%5.2f,%5.2f) busy_wait(%llu) shorts(%llu)\n", indent,
+         dmx.tx_ms.min(), dmx.tx_ms.current(), dmx.tx_ms.max(), dmx.busy_wait,
+         dmx.frame.shorts);
 
   // i2s
   printf("\n");
-  const float raw_kbps = i2s.rate.raw_bps / 1024.0;
-  const uint32_t samples_ps = i2s.rate.samples_per_sec;
-  const float pps = i2s.rate.fft_per_sec;
-  printf("%-*s%.02f Kb/s %11u samples/s %11.2f fft/s\n", indent_size,
-         "i2s:", raw_kbps, samples_ps, pps);
+  const float raw_kbps = i2s.rate.raw_bps.current() / 1024.0;
+  printf("%-*s%.02f Kb/s %11.2f samples/s %11.2f fft/s\n", indent_size,
+         "i2s:", raw_kbps, i2s.rate.samples_per_sec,
+         i2s.rate.fft_per_sec.current());
 
-  const float i2s_rx_ms = (float)i2s.durations.rx_avg_us / 1000.0;
-  printf("%sdurations: fft(%7.1fµs) rx(%0.2fms)\n", indent,
-         i2s.durations.fft_avg_us, i2s_rx_ms);
+  printf("%sdurations: fft_µs(%7llu,%7llu) rx_µs(%7llu,%7llu,%7llu)\n", indent,
+         i2s.elapsed.fft_us.current(), i2s.elapsed.fft_us.max(),
+         i2s.elapsed.rx_us.min(), i2s.elapsed.rx_us.current(),
+         i2s.elapsed.rx_us.max());
 
-  printf("%sraw min(%8d) max(%8d)\n", indent, i2s.raw_val.min24,
-         i2s.raw_val.max24);
+  printf("%sraw left(%8d, %8d, %8d) right(%8d, %8d, %8d)\n", indent,
+         i2s.raw_val_left.min(), i2s.raw_val_left.current(),
+         i2s.raw_val_left.max(), i2s.raw_val_right.min(),
+         i2s.raw_val_right.current(), i2s.raw_val_right.max());
 
-  printf("%sfft: bin_width(%7.2fHz) magnitude(%7.2f,%7.2f) \n", indent,
-         i2s.config.freq_bin_width, i2s.magnitude.min, i2s.magnitude.max);
+  printf("%sfft: bin_width(%7.2fHz) dB(%8.2f,%8.2f,%8.2f) \n", indent,
+         i2s.config.freq_bin_width, i2s.dB.min(), i2s.dB.current(),
+         i2s.dB.max());
 
-  printf("%sfloor: generic(%7.1f) bass(%7.1f) complexity(%7.1f)\n", indent,
-         i2s.config.mag_floor, i2s.config.bass_mag_floor,
-         i2s.config.complexity_floor);
+  printf("%sdB floor: generic(%6.1f) bass(%6.1f) complexity(%6.1f)\n", indent,
+         i2s.config.dB_floor, i2s.config.bass_dB_floor,
+         i2s.config.complexity_dB_floor);
 
-  printf("%smpeak: freq(%8.2f) mag(%8.2f)\n", indent, i2s.mpeak.freq,
-         i2s.mpeak.mag);
+  printf("%smpeak: freq(%8.2f) dB(%8.2f)\n", indent, i2s.mpeak.freq,
+         i2s.mpeak.dB);
 
   printf("%scomplexity: instant(%5.2f) avg7sec(%5.2f)\n", indent,
          i2s.complexity.instant, i2s.complexity.avg7sec);

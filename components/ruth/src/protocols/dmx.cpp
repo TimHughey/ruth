@@ -29,6 +29,8 @@ Dmx::Dmx() {
   if (_init_rc == ESP_OK) {
     DmxClient::setDmx(this);
   }
+
+  _stats.frame.us = _frame_us;
 }
 
 Dmx::~Dmx() {
@@ -53,7 +55,7 @@ void IRAM_ATTR Dmx::fpsCalculate(void *data) {
 
 void IRAM_ATTR Dmx::frameApplyUpdates() {
   // update the next frame with registered head unit staged frame updates
-  elapsedMicros e;
+  _stats.frame.update_us.track();
   for (auto i = 0; i < _clients; i++) {
     DmxClient *client = _client[i];
 
@@ -62,21 +64,11 @@ void IRAM_ATTR Dmx::frameApplyUpdates() {
     }
   }
 
-  const uint64_t v = (uint64_t)e;
-
-  _stats.frame.update.curr = v;
-
-  if (v > _stats.frame.update.max) {
-    _stats.frame.update.max = v;
-  }
-
-  if ((_stats.frame.update.min == 0) || (v < _stats.frame.update.min)) {
-    _stats.frame.update.min = v;
-  }
+  _stats.frame.update_us.record();
 }
 
 void IRAM_ATTR Dmx::framePrepareCallback() {
-  elapsedMicros e;
+  _stats.frame.prepare_us.track();
 
   for (auto k = 0; k < _clients; k++) {
     DmxClient *client = _client[k];
@@ -86,14 +78,7 @@ void IRAM_ATTR Dmx::framePrepareCallback() {
     }
   }
 
-  const uint_fast32_t duration = (uint32_t)e;
-  uint_fast32_t &min = _stats.frame.prepare.min;
-  uint_fast32_t &curr = _stats.frame.prepare.curr;
-  uint_fast32_t &max = _stats.frame.prepare.max;
-
-  min = (duration < min) ? duration : min;
-  curr = duration;
-  max = (duration > max) ? duration : max;
+  _stats.frame.prepare_us.record();
 }
 
 void IRAM_ATTR Dmx::frameTimerCallback(void *data) {
@@ -108,7 +93,7 @@ esp_err_t IRAM_ATTR Dmx::frameTimerStart() {
   esp_err_t rc = _init_rc;
 
   if ((_init_rc == ESP_OK) && (_mode == STREAM_FRAMES)) {
-    _frame_white_space.reset();
+    _stats.frame.white_space_us.track();
 
     // subtract the elapsed microsecs from when the frame timer fired
     // measured by _ftbf (frame timer between frames)
@@ -245,16 +230,7 @@ int IRAM_ATTR Dmx::txBytes() {
   auto bytes = uart_write_bytes_with_break(_uart_num, (const char *)_frame,
                                            _frame_len, _frame_break);
 
-  const float v = (uint64_t)e / 1000.0f;
-
-  _stats.tx.curr = v;
-  if ((_stats.tx.min == 0.0f) || (v < _stats.tx.min)) {
-    _stats.tx.min = v;
-  }
-
-  if (v > _stats.tx.max) {
-    _stats.tx.max = v;
-  }
+  _stats.tx_ms.track(e.asMillis());
 
   if (bytes == _frame_len) {
     _stats.frame.count++;
@@ -273,10 +249,7 @@ void IRAM_ATTR Dmx::txFrame() {
   // always ensure the previous tx has completed which includes
   // the BREAK (low for 88us)
   if (uart_wait_tx_done(_uart_num, frame_ticks) == ESP_OK) {
-    _frame_white_space.freeze();
-    if (_frame_white_space > _stats.frame.white_space_us) {
-      _stats.frame.white_space_us = _frame_white_space;
-    }
+    _stats.frame.white_space_us.record();
 
     txBytes();
     frameApplyUpdates();
