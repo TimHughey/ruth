@@ -64,7 +64,7 @@ protected:
 
     case 3:
     case 4:
-      _fade.origin = Color::white();
+      _fade.origin = Color::bright();
       break;
 
     case 5:

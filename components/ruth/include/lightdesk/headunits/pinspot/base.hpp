@@ -40,18 +40,25 @@ public:
   PinSpot(uint16_t address = 1);
   ~PinSpot();
 
-  void framePrepare() override;
-  bool isFading() const { return faderActive(); }
+  inline void framePrepare() override {
+    if (_mode == FADER) {
+      faderMove();
+    }
+  }
+
+  inline bool isFading() const { return faderActive(); }
 
   // modes
   void autoRun(FxType_t fx);
-  void black();
+  inline void black() { dark(); }
   const Color_t &color() const { return _color; }
   void color(int r, int g, int b, int w) { color(Color(r, g, b, w)); }
   void color(const Color_t &color, float strobe = 0.0);
+
   void dark();
   void fadeTo(const Color_t &color, float secs = 1.0, float accel = 0.0);
   void fadeTo(const FaderOpts_t &opts);
+  bool fadeToIfGreater(const FaderOpts_t &opts);
 
   typedef enum { AUTORUN = 0x3000, DARK, COLOR, FADER, HOLD } Mode_t;
 
@@ -62,6 +69,15 @@ private:
   inline bool faderActive() const { return _fader.active(); }
   inline bool faderFinished() const { return _fader.finished(); };
   void faderMove();
+
+  inline const Color_t &faderOrigin(const FaderOpts_t &fo) const {
+    if (fo.use_origin) {
+      return fo.origin;
+    }
+
+    return _color;
+  }
+
   void faderStart(const FaderOpts &opts);
 
   void frameUpdate();

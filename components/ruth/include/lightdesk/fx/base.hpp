@@ -62,16 +62,10 @@ public:
 
   virtual void begin() { _stats.next = _type; }
 
-  bool execute() {
-    if (checkComplexity()) {
-      _stats.active = _type;
-      _stats.next = fxNone;
-      executeEffect();
-    } else {
-      pinSpotMain()->autoRun(fxWhiteFadeInOut);
-      pinSpotFill()->autoRun(fxWhiteFadeInOut);
-      completed();
-    }
+  virtual bool execute() {
+    _stats.active = _type;
+    _stats.next = fxNone;
+    executeEffect();
 
     return isComplete();
   }
@@ -89,6 +83,8 @@ public:
     return _complete;
   }
 
+  inline bool isRunning() { return !isComplete(); }
+
   static void setConfig(const FxConfig_t &cfg) { _cfg = cfg; }
   static void setRuntimeMax(const float max_secs) {
     _cfg.runtime_max_secs = max_secs;
@@ -99,21 +95,11 @@ public:
   FxType_t type() const { return _type; }
 
 protected:
-  inline bool checkComplexity() const {
-    const float complexity = i2s()->complexityAvg();
-    if ((_complexity_min > 0.0) && (complexity < _complexity_min)) {
-      return false;
-    }
-
-    return true;
-  }
-
   inline void completed() {
     _complete = true;
     _stats.active = fxNone;
   }
 
-  inline float &complexityMinimum() { return _complexity_min; }
   inline uint_fast16_t &count() { return _count; }
   inline uint_fast16_t &countMax() { return _count_max; }
   virtual void executeEffect() {}
@@ -160,8 +146,6 @@ private:
   float _runtime_secs = _cfg.runtime_max_secs;
   uint_fast16_t _count = 0;
   uint_fast16_t _count_max = 0;
-
-  float _complexity_min = 0.0;
 
   bool _complete = false;
   bool _onetime = true;

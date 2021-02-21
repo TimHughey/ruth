@@ -18,34 +18,10 @@
     https://www.wisslanding.com
 */
 
-#include "lightdesk/fx/base.hpp"
-#include "lightdesk/headunits/pinspot/base.hpp"
-#include "lightdesk/headunits/pinspot/color.hpp"
-#include "lightdesk/headunits/pwm.hpp"
 #include "protocols/dmx.hpp"
 
 namespace ruth {
 
 Dmx_t DRAM_ATTR *DmxClient::_dmx = nullptr;
-
-namespace lightdesk {
-
-float DRAM_ATTR Color::_mag_min = 0;
-float DRAM_ATTR Color::_mag_max = 0;
-
-bool DRAM_ATTR PulseWidthHeadUnit::_timer_configured = false;
-const ledc_timer_config_t DRAM_ATTR PulseWidthHeadUnit::_ledc_timer = {
-    .speed_mode = LEDC_HIGH_SPEED_MODE,
-    .duty_resolution = LEDC_TIMER_13_BIT,
-    .timer_num = LEDC_TIMER_1,
-    .freq_hz = 5000,
-    .clk_cfg = LEDC_AUTO_CLK};
-
-namespace fx {
-FxConfig_t DRAM_ATTR FxBase::_cfg;
-FxStats_t DRAM_ATTR FxBase::_stats;
-} // namespace fx
-
-} // namespace lightdesk
 
 } // namespace ruth

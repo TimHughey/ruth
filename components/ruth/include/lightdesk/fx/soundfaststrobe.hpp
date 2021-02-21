@@ -21,21 +21,15 @@
 #ifndef _ruth_lightdesk_fx_soundfaststrobe_hpp
 #define _ruth_lightdesk_fx_soundfaststrobe_hpp
 
-#include "lightdesk/fx/base.hpp"
+#include "lightdesk/fx/complexity.hpp"
 
 namespace ruth {
 namespace lightdesk {
 namespace fx {
 
-class SoundFastStrobe : public FxBase {
+class SoundFastStrobe : public Complexity {
 public:
-  SoundFastStrobe() : FxBase(fxFastStrobeSound) {
-    _roll = roll2D6();
-
-    // this effect requires music with enough complexity to activate the
-    // built in pinspot sound detection
-    complexityMinimum() = 35.0;
-  }
+  SoundFastStrobe() : Complexity(fxFastStrobeSound) { _roll = roll2D6(); }
 
   void executeEffect() {
     if (onetime()) {

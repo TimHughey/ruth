@@ -22,6 +22,7 @@
 #define _ruth_lightdesk_types_hpp
 
 #include <cstdint>
+#include <deque>
 
 #include "lightdesk/enums.hpp"
 #include "local/types.hpp"
@@ -34,7 +35,10 @@ namespace lightdesk {
 
 typedef class HeadUnit HeadUnit_t;
 
+typedef class Color Color_t;
 typedef enum ColorPart ColorPart_t;
+typedef std::deque<Color_t> ColorList_t;
+typedef class ColorVelocity ColorVelocity_t;
 typedef enum ElWireFunction ElWireFunction_t;
 typedef enum FxType FxType_t;
 typedef enum LightDeskMode LightDeskMode_t;
@@ -45,6 +49,8 @@ typedef struct DmxStats DmxStats_t;
 typedef struct I2sStats I2sStats_t;
 typedef struct FxStats FxStats_t;
 typedef struct LightDeskStats LightDeskStats_t;
+
+typedef uint32_t Freq_t;
 
 struct DmxStats {
   float fps = 0.0;

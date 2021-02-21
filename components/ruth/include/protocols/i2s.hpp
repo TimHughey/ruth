@@ -44,8 +44,6 @@ namespace ruth {
 
 typedef class I2s I2s_t;
 
-using std::vector;
-
 class I2s {
 
 public:
@@ -187,7 +185,7 @@ private:
   lightdesk::I2sStats_t _stats;
 
   static constexpr size_t _sample_rate = 44100;
-  static const size_t _vsamples = 1024;
+  static const size_t _vsamples = 2048;
   static const size_t _vsamples_chan = _vsamples / 2;
   float _vreal_left[_vsamples_chan] = {};
   float _vreal_right[_vsamples_chan] = {};

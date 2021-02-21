@@ -251,7 +251,7 @@ void LightDesk::danceStart(LightDeskMode_t mode) {
     FxBase::setConfig(cfg);
   }
 
-  Color::setMagnitudeMinMax(30.0, 75.0);
+  Color::setScaleMinMax(50.0, 100.0);
 
   if (mode == DANCE) {
     FxBase::setRuntimeMax(_request.danceInterval());

@@ -21,6 +21,8 @@
 #ifndef _ruth_lightdesk_fx_majorpeak_hpp
 #define _ruth_lightdesk_fx_majorpeak_hpp
 
+#include <deque>
+
 #include "lightdesk/fx/base.hpp"
 
 namespace ruth {
@@ -29,15 +31,35 @@ namespace fx {
 
 class MajorPeak : public FxBase {
 public:
-  MajorPeak() : FxBase(fxMajorPeak) { selectFrequencyColors(); }
+  MajorPeak() : FxBase(fxMajorPeak) { // selectFrequencyColors();
+
+    // initialize static frequency to color mapping
+    if (_freq_colors.size() == 0) {
+      initializeFrequencyColors();
+    }
+  }
+
+  struct FreqColor {
+    struct {
+      Freq_t low;
+      Freq_t high;
+    } freq;
+
+    Color_t color;
+  };
+
+  typedef std::deque<FreqColor> FreqColorList_t;
 
 protected:
   void executeEffect() {
-    PinSpot_t *spots[2] = {pinSpotMain(), pinSpotFill()};
+    PinSpot_t *spots[2] = {};
 
     if (_swap_spots) {
       spots[0] = pinSpotFill();
       spots[1] = pinSpotMain();
+    } else {
+      spots[0] = pinSpotMain();
+      spots[1] = pinSpotFill();
     }
 
     // handle bass
@@ -50,84 +72,105 @@ protected:
     PeakInfo peak = i2s()->majorPeak();
 
     if (peak.dB > 0) {
-      size_t color_index;
-      auto freq_known = frequencyKnown(peak.freq, color_index);
+      Color_t color = frequencyMapToColor(peak);
 
-      if (freq_known) {
-        Color freq_color = frequencyMapToColor(color_index);
-        freq_color.scale(peak.dB);
+      if (color.notBlack()) {
+        color.scale(peak.dB);
 
-        FaderOpts_t freq_fade{.origin = freq_color,
+        FaderOpts_t freq_fade{.origin = color,
                               .dest = Color::black(),
                               .travel_secs = .6,
                               .use_origin = true};
 
-        spots[0]->fadeTo(freq_fade);
-        _swap_spots = !_swap_spots;
+        if (spots[0]->fadeToIfGreater(freq_fade)) {
+          _swap_spots = !_swap_spots;
+        }
       }
     }
-
-    return;
   }
 
 private:
-  bool frequencyKnown(float frequency, size_t &index) {
-    bool rc = false;
-    index = 0;
+  Color_t frequencyMapToColor(PeakInfo &peak) {
+    Color_t mapped_color;
 
-    for (auto k = 0; k < _frequency_count; k++) {
-      const float low = _frequencies[k][0];
-      const float high = _frequencies[k][1];
+    for (const FreqColor &colors : _freq_colors) {
+      const Freq_t freq = peak.freq;
 
-      if ((frequency > low) && (frequency <= high)) {
-        rc = true;
-        index = k;
+      if ((freq > colors.freq.low) && (freq <= colors.freq.high)) {
+        mapped_color = colors.color;
+      }
+
+      if (mapped_color.notBlack()) {
         break;
       }
     }
 
-    return rc;
+    return mapped_color;
   }
 
-  Color_t frequencyMapToColor(size_t index) {
-    Color_t color;
+  void initializeFrequencyColors() {
+    _freq_colors.emplace_back(FreqColor{.freq = {.low = 29, .high = 110},
+                                        .color = Color::fireBrick()});
 
-    if (index < _frequency_count) {
-      color = _frequency_colors[_frequency_color_selected_idx][index];
-    }
-
-    return color;
+    pushFrequencyColor(180, Color::crimson());
+    pushFrequencyColor(220, Color::red());
+    pushFrequencyColor(290, Color::deepPink());
+    pushFrequencyColor(330, Color::dodgerBlue());
+    pushFrequencyColor(490, Color::gold());
+    pushFrequencyColor(550, Color::forestGreen());
+    pushFrequencyColor(610, Color::lawnGreen());
+    pushFrequencyColor(680, Color::green());
+    pushFrequencyColor(750, Color::seaGreen());
+    pushFrequencyColor(850, Color::blue());
+    pushFrequencyColor(950, Color::teal());
+    pushFrequencyColor(1050, Color::deepSkyBlue());
+    pushFrequencyColor(1500, Color::cadetBlue());
+    pushFrequencyColor(3000, Color::steelBlue());
+    pushFrequencyColor(5000, Color::powderBlue());
+    pushFrequencyColor(7000, Color::darkViolet());
+    pushFrequencyColor(10000, Color::magenta());
+    pushFrequencyColor(12000, Color::yellow());
+    pushFrequencyColor(15000, Color::hotPink());
+    pushFrequencyColor(22000, Color::bright());
   }
 
-  void selectFrequencyColors() {
-    const auto roll = roll2D6();
+  void pushFrequencyColor(Freq_t high, const Color_t &color) {
+    const FreqColor &last = _freq_colors.back();
+    const FreqColor &next = FreqColor{
+        .freq = {.low = last.freq.high, .high = high}, .color = color};
 
-    switch (roll) {
-
-    case 5:
-    case 6:
-    case 7:
-    case 8:
-      _frequency_color_selected_idx = 0;
-      break;
-
-    case 2:
-    case 12:
-      _frequency_color_selected_idx = 3;
-      runtimeReduceTo(0.50);
-      break;
-
-    case 3:
-    case 4:
-      _frequency_color_selected_idx = 1;
-      break;
-
-    case 9:
-    case 10:
-      _frequency_color_selected_idx = 2;
-      break;
-    }
+    _freq_colors.emplace_back(next);
   }
+
+  // void selectFrequencyColors() {
+  //   const auto roll = roll2D6();
+  //
+  //   switch (roll) {
+  //
+  //   case 5:
+  //   case 6:
+  //   case 7:
+  //   case 8:
+  //     _frequency_color_selected_idx = 0;
+  //     break;
+  //
+  //   case 2:
+  //   case 12:
+  //     _frequency_color_selected_idx = 3;
+  //     runtimeReduceTo(0.50);
+  //     break;
+  //
+  //   case 3:
+  //   case 4:
+  //     _frequency_color_selected_idx = 1;
+  //     break;
+  //
+  //   case 9:
+  //   case 10:
+  //     _frequency_color_selected_idx = 2;
+  //     break;
+  //   }
+  // }
 
 private:
   bool _swap_spots = false;
@@ -135,55 +178,10 @@ private:
   const float _mid_range_frequencies[13] = {349.2, 370.0, 392.0, 415.3, 440.0,
                                             466.2, 493.9, 523.2, 544.4, 587.3,
                                             622.2, 659.3, 698.5};
-  static constexpr size_t _frequency_count = 14;
-  size_t _frequency_color_selected_idx = 0;
 
-  const float _frequencies[_frequency_count][2] = {
-      {70.0, 170},        // 00: low bass
-      {170.0, 200.0},     // 01: high bass
-      {200.0, 250.0},     // 02
-      {250.0, 300.0},     // 03
-      {300.0, 350.0},     // 04
-      {350.0, 400.0},     // 05
-      {400.0, 550.0},     // 06
-      {550.0, 900.0},     // 07
-      {900.0, 1000.0},    // 08
-      {1000.0, 2000.0},   // 09
-      {2000.0, 3000.0},   // 10
-      {3000.0, 5000.0},   // 11
-      {5000.0, 8000.0},   // 12
-      {8000.0, 22000.0}}; // 13}
+  static FreqColorList_t _freq_colors;
 
-  // const static DRAM_ATTR Color_t _frequencyColors[] = {
-  //     Color(0, 0, 255, 0),   Color(0, 255, 0, 0),  Color(102, 255, 0, 0),
-  //     Color(0, 255, 102, 0), Color(255, 99, 0, 0), Color(255, 236, 0, 0),
-  //     Color(153, 255, 0, 0), Color(40, 255, 0, 0), Color(0, 255, 232, 0),
-  //     Color(0, 124, 253, 0), Color(5, 0, 255, 0),  Color(69, 0, 234, 0),
-  //     Color(87, 0, 158, 0)};
-
-  const Color_t _frequency_colors[4][_frequency_count] = {
-      {Color(128, 0, 0, 0), Color::red(), Color::green(), Color::blue(),
-       Color::violet(), Color::yellow(), Color::amber(), Color::lightBlue(),
-       Color::lightGreen(), Color::lightRed(), Color::lightViolet(),
-       Color::lightYellow(), Color::bright()},
-
-      {Color(0, 128, 0, 0), Color::green(), Color::blue(), Color::red(),
-       Color::yellow(), Color::violet(), Color::lightBlue(), Color::amber(),
-       Color::lightRed(), Color::lightGreen(), Color::lightYellow(),
-       Color::lightViolet(), Color::bright()},
-
-      {Color(0, 0, 128, 0), Color::blue(), Color::red(), Color::green(),
-       Color::lightBlue(), Color::violet(), Color::yellow(), Color::amber(),
-       Color::lightYellow(), Color::lightGreen(), Color::lightRed(),
-       Color::lightViolet(), Color::bright()},
-
-      {Color(0, 0, 0, 128), Color::white(), Color::bright(), Color::bright(),
-       Color::bright(), Color::bright(), Color::bright(), Color::bright(),
-       Color::bright(), Color::bright(), Color::bright(), Color::bright(),
-       Color::bright()}
-
-  };
-};
+}; // namespace fx
 
 } // namespace fx
 } // namespace lightdesk

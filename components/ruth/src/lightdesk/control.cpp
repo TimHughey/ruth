@@ -130,7 +130,7 @@ bool LightDeskControl::stats() {
   printf("%-*s%02.02fframes/s frame_µs(%6llu) expected_fps(%02.02f)\n",
          indent_size, "dmx:", dmx.fps, dmx.frame.us, dmx.frame.fps_expected);
 
-  printf("%sframe: prepare_ms(%4.1f,%5.1f) update_ms(%4.1f,%5.1f) "
+  printf("%sframe: prepare_ms(%4.3f,%5.3f) update_ms(%4.1f,%5.1f) "
          "white_space_ms(%4.1f,%5.1f)\n",
          indent, dmx.frame.prepare_us.currentAsMillis(),
          dmx.frame.prepare_us.maxAsMillis(),

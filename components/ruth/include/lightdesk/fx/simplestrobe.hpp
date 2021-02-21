@@ -21,19 +21,19 @@
 #ifndef _ruth_lightdesk_fx_simplestrobe_hpp
 #define _ruth_lightdesk_fx_simplestrobe_hpp
 
-#include "lightdesk/fx/base.hpp"
+#include "lightdesk/fx/complexity.hpp"
 
 namespace ruth {
 namespace lightdesk {
 namespace fx {
 
-class SimpleStrobe : public FxBase {
+class SimpleStrobe : public Complexity {
 public:
-  SimpleStrobe() : FxBase(fxSimpleStrobe) { runtimeReduceTo(0.37); }
+  SimpleStrobe() : Complexity(fxSimpleStrobe) { runtimeReduceTo(0.37); }
 
   void executeEffect() {
     if (onetime()) {
-      pinSpotMain()->color(Color::white(), 0.55);
+      pinSpotMain()->color(Color::bright(), 0.55);
 
       switch (roll1D6()) {
       case 1:

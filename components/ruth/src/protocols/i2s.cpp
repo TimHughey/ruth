@@ -31,6 +31,13 @@ I2s::I2s() {
   _stats.config.freq_bin_width = (float)_sample_rate / (float)_vsamples_chan;
 
   _mutex = xSemaphoreCreateMutexStatic(&_mutex_buff);
+
+  const size_t len = _vsamples_chan * sizeof(float);
+
+  memset(_vreal_left, 0x00, len);
+  memset(_vreal_right, 0x00, len);
+  memset(_vimag, 0x00, len);
+  memset(_wfactors, 0x00, len);
 }
 
 I2s::~I2s() {

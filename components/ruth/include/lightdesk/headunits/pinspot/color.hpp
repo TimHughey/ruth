@@ -30,9 +30,6 @@
 namespace ruth {
 namespace lightdesk {
 
-typedef class Color Color_t;
-typedef class ColorVelocity ColorVelocity_t;
-
 class Color {
 public:
   Color(){};
@@ -48,6 +45,8 @@ public:
     rgbw(red, grn, blu, wht);
   }
 
+  Color(uint8_t red, uint8_t grn, uint8_t blu) { rgbw(red, grn, blu, 0); }
+
   Color(int r, int g, int b, int w) {
     const uint8_t red = static_cast<uint8_t>(r);
     const uint8_t grn = static_cast<uint8_t>(g);
@@ -59,34 +58,40 @@ public:
   Color(const Color_t &rhs) = default;
 
   // specific colors
-  static Color_t amber() { return Color(255, 191, 0, 0); }
   static Color_t black() { return Color(0); }
   static Color_t bright() { return Color(255, 255, 255, 255); }
-  static Color_t blue() { return Color(0, 0, 255, 0); }
+
+  static Color_t crimson() { return Color(220, 10, 30); }
+  static Color_t red() { return Color(255, 0, 0); }
+  static Color_t salmon() { return Color(250, 128, 114); }
+  static Color_t fireBrick() { return Color(178, 34, 34); }
+  static Color_t gold() { return Color(255, 215, 0); }
+  static Color_t yellow() { return Color(255, 255, 0); }
   static Color_t green() { return Color(0, 255, 0, 0); }
-  static Color_t red() { return Color(255, 0, 0, 0); }
-  static Color_t white() { return Color(0, 0, 0, 255); }
-  static Color_t violet() { return Color(255, 0, 255, 0); }
-  static Color_t yellow() { return Color(255, 255, 0, 0); }
-  static Color_t teal() { return Color(0, 255, 255, 0); }
+  static Color_t lawnGreen() { return Color(124, 252, 0); }
+  static Color_t seaGreen() { return Color(46, 139, 87); }
+  static Color_t lightGreen() { return Color(144, 238, 144); }
+  static Color_t limeGreen() { return Color(50, 205, 50); }
+  static Color_t forestGreen() { return Color(34, 139, 34); }
+  static Color_t teal() { return Color(0, 128, 128); }
+  static Color_t cyan() { return Color(0, 255, 255, 0); }
+  static Color_t blue() { return Color(0, 0, 255, 0); }
+  static Color_t powderBlue() { return Color(176, 224, 230); }
+  static Color_t cadetBlue() { return Color(95, 158, 160); }
+  static Color_t steelBlue() { return Color(70, 130, 180); }
+  static Color_t deepSkyBlue() { return Color(0, 191, 255); }
+  static Color_t dodgerBlue() { return Color(30, 144, 255); }
+  static Color_t magenta() { return Color(255, 0, 255, 0); }
+  static Color_t blueViolet() { return Color(138, 43, 226); }
+  static Color_t darkViolet() { return Color(148, 0, 211); }
+  static Color_t deepPink() { return Color(255, 20, 74); }
+  static Color_t hotPink() { return Color(255, 105, 180); }
+  static Color_t pink() { return Color(255, 192, 203); }
 
   static Color_t lightBlue() { return Color{0, 0, 255, 255}; }
-  static Color_t lightGreen() { return Color(0, 255, 0, 255); }
   static Color_t lightRed() { return Color(255, 0, 0, 255); }
   static Color_t lightViolet() { return Color(255, 255, 0, 255); }
   static Color_t lightYellow() { return Color(255, 255, 0, 255); }
-
-  void applyMagnitude(float magnitude) {
-    uint32_t mag_range = (uint32_t)_mag_max - (uint32_t)_mag_min;
-
-    for (auto k = 0; k < endOfParts(); k++) {
-      const uint32_t color_range = _parts[k];
-      const uint8_t adjusted =
-          (((magnitude - _mag_min) * color_range) / mag_range);
-
-      _parts[k] = adjusted;
-    }
-  }
 
   void copyToByteArray(uint8_t *array) const {
     for (auto i = 0; i < endOfParts(); i++) {
@@ -125,6 +130,18 @@ public:
     return static_cast<uint8_t>(END_OF_PARTS);
   }
 
+  bool notBlack() const {
+    bool rc = false;
+
+    for (auto k = 0; (k < endOfParts()) && (rc == false); k++) {
+      if (_parts[k] > 0) {
+        rc = true;
+      }
+    }
+
+    return rc;
+  }
+
   Color_t operator=(const Rgbw_t val) {
     rgbw(val);
     return *this;
@@ -133,6 +150,30 @@ public:
   Color_t operator=(const Color_t &rhs) {
     copy(rhs);
     return *this;
+  }
+
+  bool operator<(const Color_t &rhs) const {
+    bool rc = false;
+
+    for (auto k = 0; (k < endOfParts()) && (rc == false); k++) {
+      if (_parts[k] < rhs._parts[k]) {
+        rc = true;
+      }
+    }
+
+    return rc;
+  }
+
+  bool operator>(const Color_t &rhs) const {
+    bool rc = false;
+
+    for (auto k = 0; (k < endOfParts()) && (rc == false); k++) {
+      if (_parts[k] > rhs._parts[k]) {
+        rc = true;
+      }
+    }
+
+    return rc;
   }
 
   void print() const {
@@ -195,24 +236,26 @@ public:
     colorPart(WHITE_PART) = static_cast<float>(wht);
   }
 
-  inline void scale(float magnitude) {
+  inline void scale(float tobe_val) {
     // Result := ((Input - InputLow) / (InputHigh - InputLow))
     //       * (OutputHigh - OutputLow) + OutputLow;
 
-    const float mag_ranged =
-        ((magnitude - _mag_min) / _mag_max - _mag_min) * 255.0;
-
     for (auto k = 0; k < endOfParts(); k++) {
       const uint32_t asis_val = _parts[k];
-      const uint8_t adjusted = (mag_ranged / 255.0) * asis_val;
+      const float ranged =
+          ((tobe_val - _scale_min) / (_scale_max - _scale_min)) * asis_val;
 
-      _parts[k] = adjusted;
+      const uint8_t adjusted = (ranged / 255.0) * asis_val;
+
+      if (adjusted < asis_val) {
+        _parts[k] = adjusted;
+      }
     }
   }
 
-  static void setMagnitudeMinMax(const float min, const float max) {
-    _mag_min = min;
-    _mag_max = max;
+  static void setScaleMinMax(const float min, const float max) {
+    _scale_min = min;
+    _scale_max = max;
   }
 
 private:
@@ -220,8 +263,9 @@ private:
 
 private:
   float _parts[4] = {};
-  static float _mag_min;
-  static float _mag_max;
+
+  static float _scale_min;
+  static float _scale_max;
 };
 
 class ColorVelocity {

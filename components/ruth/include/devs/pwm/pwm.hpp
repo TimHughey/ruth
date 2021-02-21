@@ -61,7 +61,13 @@ public:
   void configureChannel();
   ledc_channel_t channel() { return _ledc_channel.channel; };
   ledc_mode_t speedMode() { return _ledc_channel.speed_mode; };
-  uint32_t duty();
+
+  inline uint32_t duty() {
+    _duty = ledc_get_duty(speedMode(), channel());
+
+    return _duty;
+  }
+
   uint32_t dutyMax() const { return _duty_max; };
   uint32_t dutyMin() const { return _duty_min; };
   uint32_t dutyPercent(const float percent) const {

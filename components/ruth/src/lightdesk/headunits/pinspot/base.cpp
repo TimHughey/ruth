@@ -26,7 +26,7 @@ PinSpot::PinSpot(uint16_t address) : HeadUnit(address, 6) {}
 
 PinSpot::~PinSpot() {}
 
-void PinSpot::autoRun(FxType_t fx) {
+void IRAM_ATTR PinSpot::autoRun(FxType_t fx) {
   _fx = fx;
   _mode = AUTORUN;
   frameUpdate();
@@ -47,9 +47,7 @@ uint8_t IRAM_ATTR PinSpot::autorunMap(FxType_t fx) const {
   return selected_model;
 }
 
-void PinSpot::black() { dark(); }
-
-void PinSpot::color(const Color_t &color, float strobe) {
+void IRAM_ATTR PinSpot::color(const Color_t &color, float strobe) {
   _color = color;
 
   if ((strobe >= 0.0) && (strobe <= 1.0)) {
@@ -61,7 +59,7 @@ void PinSpot::color(const Color_t &color, float strobe) {
   frameUpdate();
 }
 
-void PinSpot::dark() {
+void IRAM_ATTR PinSpot::dark() {
   _color = Color::black();
   _fx = fxNone;
   _mode = DARK;
@@ -69,7 +67,7 @@ void PinSpot::dark() {
   frameUpdate();
 }
 
-void PinSpot::faderMove() {
+void IRAM_ATTR PinSpot::faderMove() {
   auto continue_traveling = _fader.travel();
   _color = _fader.location();
   _strobe = 0;
@@ -81,33 +79,33 @@ void PinSpot::faderMove() {
   }
 }
 
-void PinSpot::fadeTo(const Color_t &dest, float secs, float accel) {
+void IRAM_ATTR PinSpot::fadeTo(const Color_t &dest, float secs, float accel) {
   const FaderOpts todo{
       .origin = _color, .dest = dest, .travel_secs = secs, .accel = accel};
   fadeTo(todo);
 }
 
-void PinSpot::fadeTo(const FaderOpts_t &fo) {
-  if (fo.use_origin) {
-    // when use_origin is specified then do not pass the current color
-    _fader.prepare(fo);
-  } else {
-    // otherwise the fader origin is the current color
-    _fader.prepare(_color, fo);
-  }
+void IRAM_ATTR PinSpot::fadeTo(const FaderOpts_t &fo) {
+  const Color_t &origin = faderOrigin(fo);
+
+  _fader.prepare(origin, fo);
 
   _mode = FADER;
 }
 
-void PinSpot::framePrepare() {
-  if (_mode == FADER) {
-    faderMove();
+bool IRAM_ATTR PinSpot::fadeToIfGreater(const FaderOpts_t &fo) {
+  bool rc = false;
+  const Color_t &requested_origin = faderOrigin(fo);
+
+  if (requested_origin > _color) {
+    fadeTo(fo);
+    rc = true;
   }
+
+  return rc;
 }
 
 void IRAM_ATTR PinSpot::frameUpdate() {
-
-  // portENTER_CRITICAL_SAFE(&_spinlock);
 
   uint8_t *data = frameData();   // HeadUnit member function
   auto need_frame_update = true; // true is most common
@@ -147,8 +145,6 @@ void IRAM_ATTR PinSpot::frameUpdate() {
   // frameChanged() will alert Dmx to incorporate the staged changes into the
   // next frame
   frameChanged() = need_frame_update;
-
-  // portEXIT_CRITICAL_SAFE(&_spinlock);
 }
 
 } // namespace lightdesk

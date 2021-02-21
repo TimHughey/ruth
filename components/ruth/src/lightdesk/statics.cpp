@@ -1,5 +1,5 @@
 /*
-    lightdesk/fx/washsound.hpp -- PinSpot Auto Sound with White Fade
+    lightdesk/statics.cpp - Ruth LightDesk Statics Definition
     Copyright (C) 2021  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,36 +18,31 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_lightdesk_fx_washedsound_hpp
-#define _ruth_lightdesk_fx_washedsound_hpp
-
-#include "lightdesk/fx/complexity.hpp"
+#include "lightdesk/fx/majorpeak.hpp"
+#include "lightdesk/headunits/pinspot/base.hpp"
+#include "lightdesk/headunits/pinspot/color.hpp"
+#include "lightdesk/headunits/pwm.hpp"
 
 namespace ruth {
 namespace lightdesk {
+
+float DRAM_ATTR Color::_scale_min = 0;
+float DRAM_ATTR Color::_scale_max = 0;
+
+bool DRAM_ATTR PulseWidthHeadUnit::_timer_configured = false;
+const ledc_timer_config_t DRAM_ATTR PulseWidthHeadUnit::_ledc_timer = {
+    .speed_mode = LEDC_HIGH_SPEED_MODE,
+    .duty_resolution = LEDC_TIMER_13_BIT,
+    .timer_num = LEDC_TIMER_1,
+    .freq_hz = 5000,
+    .clk_cfg = LEDC_AUTO_CLK};
+
 namespace fx {
+FxConfig_t DRAM_ATTR FxBase::_cfg;
+FxStats_t DRAM_ATTR FxBase::_stats;
 
-class WashedSound : public Complexity {
-public:
-  WashedSound() : Complexity(fxWashedSound) { runtimeReduceTo(0.50f); }
-
-  void executeEffect() {
-    if (onetime()) {
-      const FaderOpts fo{.origin = Color::bright(),
-                         .dest = Color::black(),
-                         .travel_secs = 3.1f,
-                         .use_origin = true};
-
-      pinSpotFill()->fadeTo(fo);
-      pinSpotMain()->autoRun(fxFastStrobeSound);
-    }
-  }
-
-private:
-};
+MajorPeak::FreqColorList_t DRAM_ATTR MajorPeak::_freq_colors = {};
 
 } // namespace fx
 } // namespace lightdesk
 } // namespace ruth
-
-#endif

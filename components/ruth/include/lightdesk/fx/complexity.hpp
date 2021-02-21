@@ -1,5 +1,5 @@
 /*
-    lightdesk/fx/washsound.hpp -- PinSpot Auto Sound with White Fade
+    lightdesk/fx/complexity.hpp -- LightDesk Effect With Complexity Threshold
     Copyright (C) 2021  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,32 +18,43 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_lightdesk_fx_washedsound_hpp
-#define _ruth_lightdesk_fx_washedsound_hpp
+#ifndef _ruth_lightdesk_fx_complexity_hpp
+#define _ruth_lightdesk_fx_complexity_hpp
 
-#include "lightdesk/fx/complexity.hpp"
+#include "lightdesk/fx/base.hpp"
 
 namespace ruth {
 namespace lightdesk {
 namespace fx {
 
-class WashedSound : public Complexity {
+class Complexity : public FxBase {
 public:
-  WashedSound() : Complexity(fxWashedSound) { runtimeReduceTo(0.50f); }
+  Complexity(const FxType type) : FxBase(type), _complexity_min(120.0) {}
 
-  void executeEffect() {
-    if (onetime()) {
-      const FaderOpts fo{.origin = Color::bright(),
-                         .dest = Color::black(),
-                         .travel_secs = 3.1f,
-                         .use_origin = true};
-
-      pinSpotFill()->fadeTo(fo);
-      pinSpotMain()->autoRun(fxFastStrobeSound);
+  bool execute() override {
+    if (checkComplexity()) {
+      executeEffect();
+    } else {
+      completed();
     }
+
+    return isComplete();
   }
 
+protected:
+  inline bool checkComplexity() const {
+    const float complexity = i2s()->complexityAvg();
+    if ((_complexity_min > 0.0) && (complexity < _complexity_min)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  inline float &complexityMinimum() { return _complexity_min; }
+
 private:
+  float _complexity_min = 0.0;
 };
 
 } // namespace fx
