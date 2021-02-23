@@ -80,29 +80,17 @@ void IRAM_ATTR PinSpot::faderMove() {
 }
 
 void IRAM_ATTR PinSpot::fadeTo(const Color_t &dest, float secs, float accel) {
-  const FaderOpts todo{
+  const FaderOpts fo{
       .origin = _color, .dest = dest, .travel_secs = secs, .accel = accel};
-  fadeTo(todo);
+  fadeTo(fo);
 }
 
 void IRAM_ATTR PinSpot::fadeTo(const FaderOpts_t &fo) {
-  const Color_t &origin = faderOrigin(fo);
+  const Color_t &origin = faderSelectOrigin(fo);
 
   _fader.prepare(origin, fo);
 
   _mode = FADER;
-}
-
-bool IRAM_ATTR PinSpot::fadeToIfGreater(const FaderOpts_t &fo) {
-  bool rc = false;
-  const Color_t &requested_origin = faderOrigin(fo);
-
-  if (requested_origin > _color) {
-    fadeTo(fo);
-    rc = true;
-  }
-
-  return rc;
 }
 
 void IRAM_ATTR PinSpot::frameUpdate() {

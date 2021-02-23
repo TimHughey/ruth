@@ -194,7 +194,7 @@ private:
 
   float _bass_dB_floor = 77.5;
   float _complexity_dB_floor = 48.5;
-  float _dB_floor = 65.5;
+  float _dB_floor = 64.2;
 
   MovingAverage<float, 7> _complexity_mavg;
 

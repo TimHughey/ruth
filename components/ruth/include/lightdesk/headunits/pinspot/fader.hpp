@@ -64,6 +64,8 @@ public:
   inline bool active() const { return !_finished; }
   inline bool finished() const { return _finished; }
 
+  inline const FaderOpts_t &initialOpts() const { return _opts; }
+
   const Color_t &location() const { return _location; }
   void print() {
     printf("loc[%3.2f %3.2f %3.2f %3.2f]\n"

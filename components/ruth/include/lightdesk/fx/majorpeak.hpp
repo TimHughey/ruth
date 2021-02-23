@@ -52,15 +52,15 @@ public:
 
 protected:
   void executeEffect() {
-    PinSpot_t *spots[2] = {};
-
-    if (_swap_spots) {
-      spots[0] = pinSpotFill();
-      spots[1] = pinSpotMain();
-    } else {
-      spots[0] = pinSpotMain();
-      spots[1] = pinSpotFill();
-    }
+    // PinSpot_t *spots[2] = {};
+    //
+    // if (_swap_spots) {
+    //   spots[0] = pinSpotFill();
+    //   spots[1] = pinSpotMain();
+    // } else {
+    //   spots[0] = pinSpotMain();
+    //   spots[1] = pinSpotFill();
+    // }
 
     // handle bass
     if (i2s()->bass()) {
@@ -79,13 +79,55 @@ protected:
 
         FaderOpts_t freq_fade{.origin = color,
                               .dest = Color::black(),
-                              .travel_secs = .6,
+                              .travel_secs = 0.6f,
                               .use_origin = true};
 
-        if (spots[0]->fadeToIfGreater(freq_fade)) {
-          _swap_spots = !_swap_spots;
+        if (peak.freq <= 180.0) {
+          bool start_fade = true;
+
+          if (pinSpotFill()->isFading()) {
+            const FaderOpts &active_opts = pinSpotFill()->fadeCurrentOpts();
+
+            if (active_opts.origin == freq_fade.origin) {
+              start_fade = false;
+            }
+          }
+
+          if (start_fade) {
+            pinSpotFill()->fadeTo(freq_fade);
+          }
+
+          if (pinSpotMain()->isFading() == false) {
+            pinSpotMain()->fadeTo(freq_fade);
+          }
+        }
+
+        if (peak.freq > 180.0) {
+          bool start_fade = true;
+          freq_fade.travel_secs = 0.6;
+
+          if (pinSpotMain()->isFading()) {
+            const FaderOpts &active_opts = pinSpotMain()->fadeCurrentOpts();
+
+            if (active_opts.origin == freq_fade.origin) {
+              start_fade = false;
+            }
+          }
+
+          if (start_fade) {
+            pinSpotMain()->fadeTo(freq_fade);
+          }
+
+          if (pinSpotFill()->isFading() == false) {
+            pinSpotFill()->fadeTo(freq_fade);
+          }
         }
       }
+
+      // if (start_fade) {
+      //   spots[0]->fadeTo(freq_fade);
+      //   _swap_spots = !_swap_spots;
+      // }
     }
   }
 
@@ -109,13 +151,15 @@ private:
   }
 
   void initializeFrequencyColors() {
-    _freq_colors.emplace_back(FreqColor{.freq = {.low = 29, .high = 110},
+    _freq_colors.emplace_back(FreqColor{.freq = {.low = 29, .high = 60},
                                         .color = Color::fireBrick()});
 
-    pushFrequencyColor(180, Color::crimson());
-    pushFrequencyColor(220, Color::red());
-    pushFrequencyColor(290, Color::deepPink());
-    pushFrequencyColor(330, Color::dodgerBlue());
+    pushFrequencyColor(80, Color::crimson());
+    pushFrequencyColor(120, Color::red());
+    pushFrequencyColor(180, Color::deepPink());
+    pushFrequencyColor(220, Color::dodgerBlue());
+    pushFrequencyColor(280, Color::cyan());
+    pushFrequencyColor(350, Color::powderBlue());
     pushFrequencyColor(490, Color::gold());
     pushFrequencyColor(550, Color::forestGreen());
     pushFrequencyColor(610, Color::lawnGreen());

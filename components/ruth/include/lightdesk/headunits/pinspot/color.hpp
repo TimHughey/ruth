@@ -152,25 +152,31 @@ public:
     return *this;
   }
 
-  bool operator<(const Color_t &rhs) const {
-    bool rc = false;
+  bool operator==(const Color_t &rhs) const {
+    bool rc = true;
 
-    for (auto k = 0; (k < endOfParts()) && (rc == false); k++) {
-      if (_parts[k] < rhs._parts[k]) {
-        rc = true;
-      }
+    for (auto k = 0; k < endOfParts(); k++) {
+      rc &= (_parts[k] == rhs._parts[k]);
     }
 
     return rc;
   }
 
-  bool operator>(const Color_t &rhs) const {
-    bool rc = false;
+  bool operator<=(const Color_t &rhs) const {
+    bool rc = true;
 
-    for (auto k = 0; (k < endOfParts()) && (rc == false); k++) {
-      if (_parts[k] > rhs._parts[k]) {
-        rc = true;
-      }
+    for (auto k = 0; k < endOfParts(); k++) {
+      rc &= (_parts[k] <= rhs._parts[k]);
+    }
+
+    return rc;
+  }
+
+  bool operator>=(const Color_t &rhs) const {
+    bool rc = true;
+
+    for (auto k = 0; k < endOfParts(); k++) {
+      rc &= (_parts[k] >= rhs._parts[k]);
     }
 
     return rc;
