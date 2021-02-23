@@ -77,57 +77,22 @@ protected:
       if (color.notBlack()) {
         color.scale(peak.dB);
 
-        FaderOpts_t freq_fade{.origin = color,
-                              .dest = Color::black(),
-                              .travel_secs = 0.6f,
-                              .use_origin = true};
-
         if (peak.freq <= 180.0) {
-          bool start_fade = true;
-
-          if (pinSpotFill()->isFading()) {
-            const FaderOpts &active_opts = pinSpotFill()->fadeCurrentOpts();
-
-            if (active_opts.origin == freq_fade.origin) {
-              start_fade = false;
-            }
-          }
-
-          if (start_fade) {
-            pinSpotFill()->fadeTo(freq_fade);
-          }
-
-          if (pinSpotMain()->isFading() == false) {
-            pinSpotMain()->fadeTo(freq_fade);
-          }
-        }
-
-        if (peak.freq > 180.0) {
-          bool start_fade = true;
-          freq_fade.travel_secs = 0.6;
-
-          if (pinSpotMain()->isFading()) {
-            const FaderOpts &active_opts = pinSpotMain()->fadeCurrentOpts();
-
-            if (active_opts.origin == freq_fade.origin) {
-              start_fade = false;
-            }
-          }
-
-          if (start_fade) {
-            pinSpotMain()->fadeTo(freq_fade);
-          }
-
-          if (pinSpotFill()->isFading() == false) {
-            pinSpotFill()->fadeTo(freq_fade);
-          }
+          handleLowFreq(color);
+        } else {
+          handleOtherFreq(color);
         }
       }
+    } else {
+      // if a PinSpot isn't busy (aka fading) then start it fading to
+      // black to handle periods of silence
+      if (pinSpotMain()->isFading() == false) {
+        pinSpotMain()->fadeOut();
+      }
 
-      // if (start_fade) {
-      //   spots[0]->fadeTo(freq_fade);
-      //   _swap_spots = !_swap_spots;
-      // }
+      if (pinSpotFill()->isFading() == false) {
+        pinSpotFill()->fadeOut();
+      }
     }
   }
 
@@ -150,31 +115,90 @@ private:
     return mapped_color;
   }
 
-  void initializeFrequencyColors() {
-    _freq_colors.emplace_back(FreqColor{.freq = {.low = 29, .high = 60},
-                                        .color = Color::fireBrick()});
+  void handleLowFreq(const Color_t &color) {
+    bool start_fade = true;
 
-    pushFrequencyColor(80, Color::crimson());
-    pushFrequencyColor(120, Color::red());
-    pushFrequencyColor(180, Color::deepPink());
-    pushFrequencyColor(220, Color::dodgerBlue());
-    pushFrequencyColor(280, Color::cyan());
-    pushFrequencyColor(350, Color::powderBlue());
-    pushFrequencyColor(490, Color::gold());
-    pushFrequencyColor(550, Color::forestGreen());
-    pushFrequencyColor(610, Color::lawnGreen());
-    pushFrequencyColor(680, Color::green());
+    FaderOpts_t freq_fade{.origin = color,
+                          .dest = Color::black(),
+                          .travel_secs = 0.5f,
+                          .use_origin = true};
+
+    if (pinSpotFill()->isFading()) {
+      const FaderOpts &active_opts = pinSpotFill()->fadeCurrentOpts();
+
+      if (active_opts.origin == freq_fade.origin) {
+        start_fade = false;
+      }
+    }
+
+    if (start_fade) {
+      pinSpotFill()->fadeTo(freq_fade);
+    }
+
+    if (pinSpotMain()->isFading() == false) {
+      pinSpotMain()->fadeTo(freq_fade);
+    }
+  }
+
+  void handleOtherFreq(const Color_t &color) {
+    static Color_t last_color = Color::black();
+
+    bool start_fade = true;
+    const FaderOpts_t main_fade{.origin = Color::none(),
+                                .dest = color,
+                                .travel_secs = 0.22f,
+                                .use_origin = false};
+
+    if (pinSpotMain()->isFading()) {
+      if (last_color == main_fade.dest) {
+        start_fade = false;
+      }
+    }
+
+    if (start_fade) {
+      pinSpotMain()->fadeTo(main_fade);
+      last_color = color;
+    }
+
+    if (pinSpotFill()->isFading() == false) {
+      const FaderOpts_t alt_fade{.origin = color,
+                                 .dest = Color::black(),
+                                 .travel_secs = 0.3f,
+                                 .use_origin = true};
+      pinSpotFill()->fadeTo(alt_fade);
+    }
+  }
+
+  void initializeFrequencyColors() {
+    _freq_colors.emplace_back(
+        FreqColor{.freq = {.low = 29, .high = 60}, .color = Color::red()});
+
+    // colors pushed with low = previous color high
+    pushFrequencyColor(120, Color::fireBrick());
+    pushFrequencyColor(180, Color::crimson());
+    pushFrequencyColor(220, Color::blue());
+    pushFrequencyColor(280, Color::yellow25());
+    pushFrequencyColor(290, Color::yellow());
+    pushFrequencyColor(300, Color::yellow50());
+    pushFrequencyColor(310, Color::yellow());
+    pushFrequencyColor(320, Color::yellow75());
+    pushFrequencyColor(330, Color::yellow());
+    pushFrequencyColor(350, Color::steelBlue());
+    pushFrequencyColor(490, Color::green());
+    pushFrequencyColor(550, Color::gold());
+    pushFrequencyColor(610, Color::limeGreen());
+    pushFrequencyColor(680, Color::cadetBlue());
     pushFrequencyColor(750, Color::seaGreen());
-    pushFrequencyColor(850, Color::blue());
-    pushFrequencyColor(950, Color::teal());
+    pushFrequencyColor(850, Color::deepPink());
+    pushFrequencyColor(950, Color::blueViolet());
     pushFrequencyColor(1050, Color::deepSkyBlue());
-    pushFrequencyColor(1500, Color::cadetBlue());
+    pushFrequencyColor(1500, Color::pink());
     pushFrequencyColor(3000, Color::steelBlue());
-    pushFrequencyColor(5000, Color::powderBlue());
+    pushFrequencyColor(5000, Color::hotPink());
     pushFrequencyColor(7000, Color::darkViolet());
     pushFrequencyColor(10000, Color::magenta());
-    pushFrequencyColor(12000, Color::yellow());
-    pushFrequencyColor(15000, Color::hotPink());
+    pushFrequencyColor(12000, Color::deepSkyBlue());
+    pushFrequencyColor(15000, Color::darkViolet());
     pushFrequencyColor(22000, Color::bright());
   }
 

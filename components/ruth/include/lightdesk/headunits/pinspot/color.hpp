@@ -58,6 +58,7 @@ public:
   Color(const Color_t &rhs) = default;
 
   // specific colors
+  static Color_t none() { return Color(0); }
   static Color_t black() { return Color(0); }
   static Color_t bright() { return Color(255, 255, 255, 255); }
 
@@ -67,6 +68,9 @@ public:
   static Color_t fireBrick() { return Color(178, 34, 34); }
   static Color_t gold() { return Color(255, 215, 0); }
   static Color_t yellow() { return Color(255, 255, 0); }
+  static Color_t yellow25() { return Color(64, 64, 0); }
+  static Color_t yellow50() { return Color(128, 128, 0); }
+  static Color_t yellow75() { return Color(191, 191, 0); }
   static Color_t green() { return Color(0, 255, 0, 0); }
   static Color_t lawnGreen() { return Color(124, 252, 0); }
   static Color_t seaGreen() { return Color(46, 139, 87); }

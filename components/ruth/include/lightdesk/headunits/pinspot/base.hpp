@@ -60,6 +60,16 @@ public:
     return _fader.initialOpts();
   }
 
+  void fadeOut(float secs = 0.6f) {
+
+    if (_color.notBlack()) {
+      FaderOpts_t fadeout{.origin = Color::none(),
+                          .dest = Color::black(),
+                          .travel_secs = secs,
+                          .use_origin = false};
+      fadeTo(fadeout);
+    }
+  }
   void fadeTo(const Color_t &color, float secs = 1.0, float accel = 0.0);
   void fadeTo(const FaderOpts_t &opts);
 
