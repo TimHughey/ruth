@@ -75,7 +75,7 @@ protected:
       Color_t color = frequencyMapToColor(peak);
 
       if (color.notBlack()) {
-        color.scale(peak.dB);
+        // color.scale(peak.dB);
 
         if (peak.freq <= 180.0) {
           handleLowFreq(color);
@@ -146,7 +146,7 @@ private:
     bool start_fade = true;
     const FaderOpts_t main_fade{.origin = Color::none(),
                                 .dest = color,
-                                .travel_secs = 0.22f,
+                                .travel_secs = 0.17f,
                                 .use_origin = false};
 
     if (pinSpotMain()->isFading()) {
@@ -163,7 +163,7 @@ private:
     if (pinSpotFill()->isFading() == false) {
       const FaderOpts_t alt_fade{.origin = color,
                                  .dest = Color::black(),
-                                 .travel_secs = 0.3f,
+                                 .travel_secs = 0.7f,
                                  .use_origin = true};
       pinSpotFill()->fadeTo(alt_fade);
     }
