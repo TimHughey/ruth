@@ -37,6 +37,11 @@ public:
   MovingAverage() { _e.reset(); };
 
   void addValue(T val) {
+    if (_first_add) {
+      _e.reset();
+      _first_add = false;
+    }
+
     if (_e.toSeconds() <= SECONDS) {
       // add to container until we've the duration requested
       _dq.emplace_back(val);
@@ -73,6 +78,7 @@ private:
   }
 
 private:
+  bool _first_add = true;
   elapsedMillis _e;
 
   maDeque_t _dq = {};

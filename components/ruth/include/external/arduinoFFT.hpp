@@ -62,6 +62,8 @@ struct Peak {
   static bool higherdB(const Peak_t &lhs, const Peak_t &rhs) {
     return lhs.dB > rhs.dB;
   }
+
+  static const Peak zero() { return Peak{.index = 0, .freq = 0, .dB = 0}; }
 };
 
 typedef std::vector<Peak_t> Peaks_t;
@@ -159,7 +161,7 @@ public:
   inline void process(float *vreal, float *vimag, const float mean) {
     setArrays(vreal, vimag);
     dcRemoval(mean);
-    windowing(FFTWindow::Hamming, FFTDirection::Forward);
+    windowing(FFTWindow::Blackman_Harris, FFTDirection::Forward);
     compute(FFTDirection::Forward);
     complexToMagnitude();
     findPeaks();

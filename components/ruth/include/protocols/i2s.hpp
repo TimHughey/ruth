@@ -77,7 +77,19 @@ public:
 
   void calculateComplexity();
   float complexity() const { return _complexity_mavg.lastValue(); }
-  float complexityAvg() const { return _complexity_mavg.latest(); }
+  float complexityAvg() const {
+
+    float complexity_avg = 0.0f;
+    constexpr TickType_t wait_ticks = pdMS_TO_TICKS(3);
+    if (xSemaphoreTake(_mutex, wait_ticks) == pdTRUE) {
+
+      complexity_avg = _complexity_mavg.latest();
+      xSemaphoreGive(_mutex);
+    }
+
+    return complexity_avg;
+  }
+
   size_t complexityAvgSize() const { return _complexity_mavg.size(); }
   float complexitydBFloor() const { return _complexity_dB_floor; }
   void complexitydBFloor(const float floor) { _complexity_dB_floor = floor; }

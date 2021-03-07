@@ -26,11 +26,11 @@
 namespace ruth {
 namespace lightdesk {
 
-float DRAM_ATTR Color::_scale_min = 0;
-float DRAM_ATTR Color::_scale_max = 0;
+DRAM_ATTR float Color::_scale_min = 0;
+DRAM_ATTR float Color::_scale_max = 0;
 
-bool DRAM_ATTR PulseWidthHeadUnit::_timer_configured = false;
-const ledc_timer_config_t DRAM_ATTR PulseWidthHeadUnit::_ledc_timer = {
+DRAM_ATTR bool PulseWidthHeadUnit::_timer_configured = false;
+DRAM_ATTR const ledc_timer_config_t PulseWidthHeadUnit::_ledc_timer = {
     .speed_mode = LEDC_HIGH_SPEED_MODE,
     .duty_resolution = LEDC_TIMER_13_BIT,
     .timer_num = LEDC_TIMER_1,
@@ -38,10 +38,11 @@ const ledc_timer_config_t DRAM_ATTR PulseWidthHeadUnit::_ledc_timer = {
     .clk_cfg = LEDC_AUTO_CLK};
 
 namespace fx {
-FxConfig_t DRAM_ATTR FxBase::_cfg;
-FxStats_t DRAM_ATTR FxBase::_stats;
+DRAM_ATTR FxConfig_t FxBase::_cfg;
+DRAM_ATTR FxStats_t FxBase::_stats;
 
-MajorPeak::FreqColorList_t DRAM_ATTR MajorPeak::_freq_colors = {};
+DRAM_ATTR MajorPeak::FreqColorList_t MajorPeak::_freq_colors = {};
+DRAM_ATTR MajorPeak::Palette_t MajorPeak::_palette = {};
 
 } // namespace fx
 } // namespace lightdesk
