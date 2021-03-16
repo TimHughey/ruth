@@ -31,11 +31,16 @@ typedef class LedForest LedForest_t;
 class LedForest : public PulseWidthHeadUnit {
 
 public:
-  LedForest(uint8_t pwm_num) : PulseWidthHeadUnit(pwm_num) {
-    config.dim = unitPercent(0.005);
-    config.pulse_start = unitPercent(0.02);
-    config.pulse_end = config.dim;
+  LedForest(uint8_t pwm_num) : PulseWidthHeadUnit(pwm_num) {}
+
+  void handleMsg(const JsonObject &obj) override {
+    const uint32_t duty = obj[_id] | 0;
+
+    updateDuty(duty);
   }
+
+private:
+  const char *_id = "LFR";
 };
 
 } // namespace lightdesk

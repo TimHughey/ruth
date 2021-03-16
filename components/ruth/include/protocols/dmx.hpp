@@ -21,44 +21,112 @@
 #ifndef _ruth_dmx512_hpp
 #define _ruth_dmx512_hpp
 
+#include <driver/gpio.h>
+#include <driver/uart.h>
 #include <esp_event.h>
 #include <esp_log.h>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
-
-#include <driver/gpio.h>
-#include <driver/uart.h>
-#include <esp_timer.h>
 #include <soc/uart_reg.h>
 
-#include "local/types.hpp"
+#include <array>
+#include <asio.hpp>
+#include <iostream>
+#include <string>
+#include <unordered_set>
 
-#include "lightdesk/types.hpp"
+#include "core/binder.hpp"
+#include "external/ArduinoJson.h"
+#include "lightdesk/headunit.hpp"
+#include "local/types.hpp"
 #include "misc/elapsed.hpp"
 
 namespace ruth {
 
-using namespace lightdesk;
-
 typedef class Dmx Dmx_t;
 typedef class DmxClient DmxClient_t;
 
+typedef std::array<uint8_t, 512> NetFrame;
+
 class Dmx {
+  using udp = asio::ip::udp;
+  typedef std::error_code error_code;
+
+  enum { _frame_len = 127, buff_max_len = 512 };
+  typedef std::array<uint8_t, buff_max_len> data_array;
+  typedef enum { INIT = 0x00, STREAM_FRAMES, SHUTDOWN } DmxMode_t;
+
+public:
+  struct Stats {
+    float fps = 0.0;
+
+    struct {
+      uint64_t count = 0;
+      uint64_t shorts = 0;
+    } frame;
+  };
+
+  typedef struct Stats Stats_t;
+
+  // ASIO
+public:
+  class Server {
+  public:
+    Server(asio::io_context &io_ctx, short port)
+        : _socket(io_ctx, udp::endpoint(udp::v4(), port)) {}
+
+    Server(const Server &) = delete;
+    Server &operator=(const Server &) = delete;
+
+    bool receive(data_array &recv_buf) {
+      auto rc = true;
+      error_code ec;
+      _socket.receive_from(asio::buffer(recv_buf), _remote_endpoint, 0, ec);
+
+      if (ec) {
+        rc = false;
+      }
+
+      return rc;
+    }
+
+  private:
+    udp::socket _socket;
+    udp::endpoint _remote_endpoint;
+  };
+
+private:
+  typedef struct {
+    size_t begin;
+    size_t len;
+  } BufferLocation;
+
+  struct {
+    BufferLocation magic = {.begin = 0, .len = 2};
+    BufferLocation dmx_frame_len = {.begin = 2, .len = 2};
+    BufferLocation dmx_frame = {.begin = 4, .len = 0};
+    BufferLocation msgpack = {.begin = 0, .len = 0};
+  } buff_pos;
 
 public:
   Dmx();
   ~Dmx();
+
+  Dmx(const Dmx &) = delete;
+  Dmx &operator=(const Dmx &) = delete;
+  void addHeadUnit(lightdesk::spHeadUnit hu) { _headunits.insert(hu); }
 
   void clientRegister(DmxClient_t *client) {
     // SHORT TERM implementation, needs:
     //  1. check to prevent duplicate registrations
     //  2. unregister
     //  3. error when max clients exceeded
-    if (_clients < 10) {
-      _client[_clients] = client;
-      _clients++;
-    }
+    // if (_clients < 10) {
+    //   _client[_clients] = client;
+    //   _clients++;
+    // }
   }
 
   inline float fpsExpected() const {
@@ -75,87 +143,39 @@ public:
     return frame_secs;
   }
 
+  uint16_t frameLen() { return shortVal(buff_pos.dmx_frame_len); }
+
   float framesPerSecond() const { return _stats.fps; }
+  uint16_t magic() const { return shortVal(buff_pos.magic); }
 
-  // this member function is called by the prepareTask with the goal
-  // of offloading frame preparation from the DMX task.
-  void framePrepareCallback();
+  uint16_t shortVal(const BufferLocation &loc) const {
+    auto pos = _frame.begin() + loc.begin;
+    auto lsb = *pos++;
+    auto msb = *pos++;
+    uint16_t val = lsb + (msb << 8);
 
-  inline void prepareTaskRegister() {
-    _prepare_task = xTaskGetCurrentTaskHandle();
-  }
-
-  inline void prepareTaskUnregister() { _prepare_task = nullptr; }
-
-  // stats
-  void stats(DmxStats_t &stats) {
-    stats = _stats;
-
-    stats.frame.fps_expected = fpsExpected();
+    return val;
   }
 
   // task control
   void start() { taskStart(); }
   void stop() {
-    if (_mode != STOP) {
-      taskNotify(NotifyStop);
-      vTaskDelay(pdMS_TO_TICKS(10)); // allow time for final frames to be sent
-      _stats = DmxStats();
-    }
-  }
-
-  inline void streamFrames(bool stream = true) {
-    if ((_mode != STREAM_FRAMES) && stream) {
-      taskNotify(NotifyStreamFrames);
-
-      // allow time for initial frames to be sent
-      // frameInterval() is in µs so multiple by 1000 and then by three
-      // to ensure three frames are sent
-      vTaskDelay(frameInterval() * 1000.0 * 3);
-    }
+    _mode = SHUTDOWN;
+    vTaskDelay(pdMS_TO_TICKS(250));
   }
 
 private:
-  typedef enum { INIT = 0x00, STREAM_FRAMES, PAUSE, STOP, SHUTDOWN } DmxMode_t;
-
-private:
-  inline void busyWait(uint32_t usec, const bool reset = true) {
-    if (reset) {
-      _busy_wait.reset();
-    }
-
-    while (_busy_wait <= usec) {
-      _stats.busy_wait++;
-      // yield to higher priority tasks to minimize impact of busy wait
-      taskYIELD();
-    };
-  }
-
   static void fpsCalculate(void *data);
-  void frameApplyUpdates();
-  void framePrepareTaskNotify() {
-    if (_prepare_task) {
-      xTaskNotify(_prepare_task, NotifyPrepareFrame, eSetValueWithOverwrite);
-    }
-  }
 
-  static void frameTimerCallback(void *data);
-  esp_err_t frameTimerStart();
-
-  int txBytes();
   void txFrame();
   esp_err_t uartInit();
 
   // task implementation
-
   inline TaskHandle_t task() const { return _task.handle; }
   static void taskCore(void *task_instance);
   void taskInit();
   void taskLoop();
-  BaseType_t taskNotify(NotifyVal_t nval);
   void taskStart();
-
-  void waitForStop();
 
 private:
   uint64_t _pin_sel = GPIO_SEL_17;
@@ -165,10 +185,8 @@ private:
   esp_err_t _init_rc = ESP_FAIL;
 
   DmxMode_t _mode = INIT;
-  elapsedMicros _busy_wait;
-  static const size_t _frame_len = 127;
-  uint8_t _frame[_frame_len] = {}; // the DMX frame starts as all zeros
-  esp_timer_handle_t _frame_timer = nullptr;
+  // static const size_t _frame_len = 127;
+  data_array _frame; // the DMX frame starts as all zeros
 
   // except for _frame_break all frame timings are in µs
   const uint_fast32_t _frame_break = 22; // num bits at 250,000 baud (8µs)
@@ -179,7 +197,6 @@ private:
   const uint_fast32_t _frame_data = _frame_byte * 512;
   // frame interval does not include the BREAK as it is handled by the UART
   uint64_t _frame_us = _frame_mab + _frame_sc + _frame_data + _frame_mtbf;
-  elapsedMicros _ftbf; // µs elapsed after frameTimerCallback invoked
 
   const size_t _tx_buff_len = (_frame_len < 128) ? 0 : _frame_len + 1;
 
@@ -188,11 +205,16 @@ private:
   int _fpc_period = 2; // period represents seconds to count frames
   int _fpcp = 0;       // frames per calculate period
 
-  TaskHandle_t _prepare_task = nullptr;
+  lightdesk::HeadUnitTracker _headunits;
+
   DmxClient *_client[10] = {};
   size_t _clients = 0;
 
-  DmxStats_t _stats;
+  Stats_t _stats;
+
+  asio::io_context _io_ctx;
+  std::shared_ptr<Server> _server =
+      std::make_shared<Server>(_io_ctx, Binder::dmxPort());
 
   Task_t _task = {
       .handle = nullptr, .data = nullptr, .priority = 19, .stackSize = 4096};

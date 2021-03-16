@@ -139,6 +139,7 @@ void Binder::parse() {
 
   _cli = _root["cli"];
   _lightdesk = _root["lightdesk"];
+  _dmx = _lightdesk["dmx"];
   _meta = _root["meta"];
   _mqtt = _root["mqtt"];
   _ntp_servers = _root["ntp"];

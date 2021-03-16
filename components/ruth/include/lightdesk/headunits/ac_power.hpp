@@ -23,14 +23,16 @@
 
 #include <driver/gpio.h>
 
+#include "lightdesk/headunit.hpp"
+
 namespace ruth {
 namespace lightdesk {
 
 typedef class AcPower AcPower_t;
 
-class AcPower {
+class AcPower : public HeadUnit {
 public:
-  AcPower() {
+  AcPower() : HeadUnit() {
     gpio_config_t pins_cfg;
 
     pins_cfg.pin_bit_mask = GPIO_SEL_21;
@@ -43,9 +45,18 @@ public:
 
     gpio_set_level(_pin, 0);
   }
+
   ~AcPower() { gpio_set_level(_pin, 0); }
 
 public:
+  void dark() override { setLevel(false); }
+
+  void handleMsg(const JsonObject &obj) override {
+    const bool state = obj["ACP"] | false;
+
+    setLevel(state);
+  }
+
   bool off() { return setLevel(false); }
 
   bool on() { return setLevel(true); }

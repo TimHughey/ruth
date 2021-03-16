@@ -17,5 +17,13 @@
     "file": "latest.bin"
   },
   "cli": { "enable": true },
-  "lightdesk": { "enable": true }
+  "lightdesk": {
+    "enable": true,
+    "dmx": {
+      "port": 48005,
+      "psk": "psk",
+      "magic": 51666,
+      "version": 1
+    }
+  }
 }

@@ -73,6 +73,13 @@ public:
   // Runtime environment
   static const char *env() { return i()->_meta["env"] | "prod"; }
 
+  // LIghtDesk and DMX
+  static uint16_t dmxMagic() { return i()->_dmx["magic"] | 0xc9d2; }
+  static uint dmxPort() { return i()->_dmx["port"] | 48005; }
+  static const char *dmxPsk() { return i()->_dmx["psk"] | "psk"; }
+  static uint dmxVersion() { return i()->_dmx["version"] | 1; }
+  static bool lightDeskEnabled() { return i()->_lightdesk["enable"] | true; }
+
   // MQTT
   static const char *mqttPasswd() { return i()->_mqtt["passwd"]; };
   static size_t mqttReconnectMs() { return i()->_mqtt["reconnect_ms"]; }
@@ -130,6 +137,7 @@ private:
   StaticJsonDocument<_doc_capacity> _file_doc;
   JsonObject _root;
   JsonObject _cli;
+  JsonObject _dmx;
   JsonObject _lightdesk;
   JsonObject _meta;
   JsonObject _mqtt;

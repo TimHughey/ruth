@@ -35,7 +35,6 @@ typedef TextBuffer<1024> BinderPrettyJson_t;
 typedef TextBuffer<20> Hostname_t;
 typedef TextBuffer<512> MsgPackPayload_t;
 typedef TextBuffer<128> OtaUri_t;
-typedef TextBuffer<20> PinSpotName_t;
 typedef TextBuffer<40> RefID_t; // e.g. eaa7c7fa-361a-4d07-a7fc-fe9681636b36
 typedef TextBuffer<128> RestartMsg_t;
 typedef TextBuffer<CONFIG_FREERTOS_MAX_TASK_NAME_LEN> TaskName_t;
@@ -60,41 +59,5 @@ typedef struct {
 
 typedef enum { BINDER_CLI, BINDER_LIGHTDESK } BinderCategory_t;
 
-typedef enum {
-  NotifyZero = 0x0000,
-  // timers that most likely firing at or near DMX frame rate
-  NotifyTimer = 0x1001,
-  NotifyFrame,
-  NotifyFaderTimer,
-  // notifications for LightDesk commands
-  NotifyQueue = 0x2001,
-  NotifyColor,
-  NotifyDark,
-  NotifyDance,
-  NotifyFadeTo,
-  NotifyMajorPeak,
-  // notifications for changing task operational mode and periodic work
-  NotifyStop = 0x3001,
-  NotifyOff,
-  NotifyPause,
-  NotifyResume,
-  NotifyReady,
-  NotifyShutdown,
-  NotifyStreamFrames,
-  NotifyDelete,
-  NotifyStatsCalculate,
-  NotifyPrepareFrame,
-  // core task notifications
-  NotifyTrackHeap = 0x4001,
-  NotifyLightDeskController,
-  // misc supporting task notifications
-  NotifyOtaStart = 0x5001,
-  NotifyOtaCancel,
-  NotifyOtaFinish,
-  // notifications for I2s
-  NotifySamplePrint = 0x6001,
-  NotifySampleStopPrint
-} NotifyVal_t;
-
 } // namespace ruth
-#endif // ruth_type_hpp
+#endif

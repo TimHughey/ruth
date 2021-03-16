@@ -32,7 +32,6 @@
 
 namespace ruth {
 
-using namespace lightdesk;
 using Text = reading::Text;
 
 void CLI::init() {
@@ -63,7 +62,6 @@ void CLI::init() {
 void CLI::initCommands() {
   esp_console_register_help_command();
   binder.init();
-  lightdesk.init();
   ota.init();
   random.init();
   shell.init();

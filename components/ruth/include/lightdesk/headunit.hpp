@@ -21,23 +21,25 @@
 #ifndef _ruth_dmx_headunit_device_hpp
 #define _ruth_dmx_headunit_device_hpp
 
-#include "lightdesk/types.hpp"
+#include <unordered_set>
+
+#include "external/ArduinoJson.h"
 #include "local/types.hpp"
-#include "protocols/dmx.hpp"
 
 namespace ruth {
 namespace lightdesk {
 
-class HeadUnit : public DmxClient {
+class HeadUnit {
 public:
-  HeadUnit() {}
+  HeadUnit() = default;
+  virtual ~HeadUnit() = default;
 
-  HeadUnit(const uint16_t address, size_t frame_len)
-      : DmxClient(address, frame_len){};
-  virtual ~HeadUnit() {}
-
-  virtual void dark() {}
+  virtual void handleMsg(const JsonObject &obj) = 0;
+  virtual void dark() = 0;
 };
+
+typedef std::shared_ptr<HeadUnit> spHeadUnit;
+typedef std::unordered_set<spHeadUnit> HeadUnitTracker;
 } // namespace lightdesk
 } // namespace ruth
 

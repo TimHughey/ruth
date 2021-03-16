@@ -35,9 +35,9 @@
 #include <lwip/sys.h>
 
 #include "external/arduinoFFT.hpp"
-#include "lightdesk/types.hpp"
 #include "local/types.hpp"
 #include "misc/maverage.hpp"
+#include "misc/tracked.hpp"
 #include "misc/valminmax.hpp"
 
 namespace ruth {
@@ -45,6 +45,50 @@ namespace ruth {
 typedef class I2s I2s_t;
 
 class I2s {
+
+public:
+  struct Stats {
+
+    struct {
+      CountPerInterval raw_bps;
+      float samples_per_sec;
+      CountPerInterval fft_per_sec;
+    } rate;
+
+    ValMinMax<int_fast32_t> raw_val_left;
+    ValMinMax<int_fast32_t> raw_val_right;
+    ValMinMaxFloat_t dB;
+
+    struct {
+      float instant = 0;
+      float avg7sec = 0;
+    } complexity;
+
+    struct {
+      float freq_bin_width = 0;
+      float dB_floor = 0;
+      float bass_dB_floor = 0;
+      float complexity_dB_floor = 0;
+    } config;
+
+    struct {
+      elapsedMicrosTracked fft_us;
+      elapsedMicrosTracked rx_us;
+    } elapsed;
+
+    struct {
+      float freq = 0.0;
+      float dB = 0.0;
+    } mpeak;
+  };
+
+  typedef struct Stats Stats_t;
+
+  typedef enum {
+    NotifyStop = 0x01,
+    NotifyShutdown = 0x02,
+    NotifyStatsCalculate = 0x03
+  } NotifyVal_t;
 
 public:
   I2s();
@@ -120,7 +164,7 @@ public:
   }
 
   // stats
-  void stats(lightdesk::I2sStats_t &stats) {
+  void stats(Stats_t &stats) {
     PeakInfo mpeak = majorPeak();
 
     _stats.mpeak.freq = mpeak.freq;
@@ -182,7 +226,7 @@ private:
 
   uint8_t *_raw = nullptr;
 
-  lightdesk::I2sStats_t _stats;
+  Stats_t _stats;
 
   static constexpr size_t _sample_rate = 44100;
   static const size_t _vsamples = 2048;

@@ -26,18 +26,19 @@
 namespace ruth {
 namespace lightdesk {
 
-typedef class DiscoBall DiscoBall_t;
-
 class DiscoBall : public PulseWidthHeadUnit {
 
 public:
-  DiscoBall(uint8_t pwm_num) : PulseWidthHeadUnit(pwm_num) {
-    config.max = unitPercent(0.75);
+  DiscoBall(uint8_t pwm_num) : PulseWidthHeadUnit(pwm_num){};
+
+  void handleMsg(const JsonObject &obj) override {
+    const uint32_t duty = obj[_id] | 0;
+
+    updateDuty(duty);
   }
 
-public: // effects
-  inline void spin() { fixed(0.63); }
-  inline void still() { dark(); }
+private:
+  const char *_id = "DSB";
 };
 
 } // namespace lightdesk

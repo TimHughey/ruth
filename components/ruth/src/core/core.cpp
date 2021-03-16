@@ -36,9 +36,6 @@ static const char *TAG = "Core";
 
 static Core_t __singleton__;
 
-using std::max;
-using std::min;
-
 Core::Core() {
   _heap_first = heap_caps_get_free_size(MALLOC_CAP_8BIT);
   _heap_avail = heap_caps_get_free_size(MALLOC_CAP_8BIT);
@@ -80,17 +77,14 @@ void Core::_loop() {
     // wrap in a unique_ptr so it is freed when out of scope
     unique_ptr<MsgPayload_t> payload_ptr(payload);
 
-    if (payload->matchSubtopic("lightdesk") && _lightdesk_ctrl) {
-      _lightdesk_ctrl->handleCommand(*payload);
-    } else if (payload->matchSubtopic("raw")) {
+    if (payload->matchSubtopic("raw")) {
       CLI::remoteLine(payload);
     } else if (payload->matchSubtopic("restart")) {
       Restart("restart requested", __PRETTY_FUNCTION__);
     } else if (payload->matchSubtopic("ota")) {
 
-      if (_lightdesk_ctrl) {
-        // stop the LightDesk to free resources for OTA, just in case
-        _lightdesk_ctrl->stop();
+      if (_lightdesk) {
+        _lightdesk->stop();
       }
 
       if (_ota == nullptr) {
@@ -167,8 +161,10 @@ void Core::_start(xTaskHandle app_task) {
   // the engines and performing actual work
   startEngines();
 
-  if (Profile::lightDeskEnabled()) {
-    _lightdesk_ctrl = new LightDeskControl();
+  if (Binder::lightDeskEnabled()) {
+    _lightdesk.reset();
+    _lightdesk = std::make_shared<lightdesk::LightDesk_t>();
+    _lightdesk->start();
   }
 
   trackHeap();
