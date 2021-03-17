@@ -31,13 +31,43 @@
 #include "readings/text.hpp"
 
 using std::make_shared;
+namespace chrono = std::chrono;
 
 namespace ruth {
 namespace lightdesk {
 
-LightDesk::LightDesk() {}
+IRAM_ATTR void LightDesk::idleWatch() {
+  static auto track = chrono::steady_clock::now();
 
-LightDesk::~LightDesk() {}
+  if (_dmx->idle()) {
+    auto now = chrono::steady_clock::now();
+
+    auto idle = now - track;
+
+    if (idle >= _idle_shutdown) {
+      HeadUnitTracker &headunits = _dmx->headunits();
+
+      for (auto hu : headunits) {
+        hu->dark();
+      }
+      track = now;
+    }
+
+  } else {
+    track = chrono::steady_clock::now();
+  }
+}
+
+IRAM_ATTR void LightDesk::idleWatchCallback(TimerHandle_t handle) {
+  LightDesk *desk = (LightDesk *)pvTimerGetTimerID(handle);
+
+  if (desk) {
+    desk->idleWatch();
+  } else {
+    using TR = reading::Text;
+    TR::rlog("%s desk==nullptr", __PRETTY_FUNCTION__);
+  }
+}
 
 void LightDesk::init() {
 
@@ -53,9 +83,13 @@ void LightDesk::init() {
   _dmx->addHeadUnit(make_shared<LedForest>(4)); // pwm 4
 }
 
-void preStart() {}
-
-void LightDesk::start() { init(); }
+void LightDesk::start() {
+  init();
+  _idle_timer = xTimerCreate("dmx_idle", pdMS_TO_TICKS(_idle_check_ms), pdTRUE,
+                             nullptr, &idleWatchCallback);
+  vTimerSetTimerID(_idle_timer, this);
+  xTimerStart(_idle_timer, pdMS_TO_TICKS(_idle_check_ms));
+}
 
 void LightDesk::stop() { _dmx->stop(); }
 

@@ -24,15 +24,10 @@ using namespace asio;
 
 namespace ruth {
 
-Dmx_t *DmxClient::_dmx = nullptr;
-
 Dmx::Dmx() {
   _init_rc = uart_driver_install(_uart_num, 129, _tx_buff_len, 0, NULL, 0);
   _init_rc = uartInit();
 
-  if (_init_rc == ESP_OK) {
-    DmxClient::setDmx(this);
-  }
   _frame.fill(0x00);
 }
 
@@ -54,10 +49,6 @@ IRAM_ATTR void Dmx::fpsCalculate(void *data) {
     auto fps = (float)dmx->_fpcp / (float)dmx->_fpc_period;
 
     dmx->_stats.fps = fps;
-
-    // if ((dmx->_stats.fps < 43.0f) || (dmx->_stats.fps > 45.0f)) {
-    //   printf("fps=%3.1f\n", dmx->_stats.fps);
-    // }
   }
 
   dmx->_frame_count_mark = count;
@@ -203,124 +194,5 @@ esp_err_t Dmx::uartInit() {
 
   return esp_rc;
 }
-
-//
-// DMX Client
-//
-
-IRAM_ATTR void DmxClient::frameUpdate(uint8_t *frame_actual) {
-  if (_frame_changed) {
-
-    // DmxClient is subclassed for multiple purposes:
-    //
-    // 1. when frame_len > 0 the state must be included in the frame
-    // 2. when frame_len == 0 the subclass is using Dmx as the clock
-    //    to perform it's own internal non-DMX updates
-    //
-    if (_frame_len > 0) {
-      bcopy(_frame_snippet, (frame_actual + _address), _frame_len);
-    }
-
-    _frame_changed = false;
-  }
-}
-
-// IRAM_ATTR error_code Dmx::Session::prepareFrame(Dmx_t *dmx) {
-//   error_code ec;
-// drain any residual data on the socket
-// error_code spurious_ec;
-// auto spurious = _socket.available(spurious_ec);
-// if (spurious > 0) {
-//   data_array discard;
-//   auto bytes = _socket.read_some(buffer(discard, spurious));
-//   ESP_LOGW(pcTaskGetTaskName(nullptr), "drained %u spurious bytes", bytes);
-// }
-
-// StaticJsonDocument<256> doc;
-// JsonObject root = doc.to<JsonObject>();
-//
-// JsonObject frame_obj = root.createNestedObject("frame");
-// frame_obj["prepare"] = true;
-// frame_obj["len"] = dmx->_frame_len;
-// frame_obj["num"] = dmx->_stats.frame.count;
-// frame_obj["fps"] = dmx->fpsExpected();
-// frame_obj["us"] = dmx->_frame_us;
-//
-// auto size = serializeMsgPack(doc, _tx_data.data(), _tx_data.max_size());
-//
-// // auto self(shared_from_this());
-// auto buff = buffer(_tx_data, size);
-//
-// auto bytes = _socket.write_some(buff, ec);
-//
-// if (ec) {
-//   return ec;
-// }
-
-// read the frame data + appended msgpack.  note only the
-// number of configured frame length bytes are transmitted as the
-// DMX frame
-// bytes = _socket.read_some(buffer(dmx->_frame, buff_max_len), ec);
-//
-// if (ec) {
-//   return ec;
-// }
-
-//   if (bytes >= _frame_len) {
-//     StaticJsonDocument<256> doc;
-//
-//     auto msg_begin = dmx->_frame.data() + _frame_len;
-//     auto err = deserializeMsgPack(doc, msg_begin, buff_max_len - _frame_len);
-//
-//     if (err) {
-//       cout << "deserializeMsgPack() failed " << err << endl;
-//       return ec;
-//     }
-//
-//     const JsonObject &frame_obj = doc["frame"];
-//
-//     auto out_frame_num = dmx->_stats.frame.count;
-//     uint64_t in_frame_num = frame_obj["num"];
-//
-//     if (in_frame_num != out_frame_num) {
-//       ESP_LOGW(pcTaskGetTaskName(nullptr), "received frame %llu != %llu",
-//                out_frame_num, in_frame_num);
-//     }
-//   }
-//
-//   return ec;
-// }
-
-// async_write(_socket, buff,
-//             [this, self, size, dmx](error_code ec, size_t length) {
-//               _ec = ec;
-//
-//               if (length != size) {
-//                 cout << "only sent " << length << " of " << size << endl;
-//               }
-//
-//               if (_ec) {
-//                 cout << _ec << endl;
-//                 return;
-//               }
-//   auto rx_data = buffer(_rx_data, max_length);
-//   _socket.async_read_some(
-//       rx_data, [this, self, dmx](error_code ec, size_t length) {
-//         if (!ec) {
-//           if (length >= _frame_len) {
-//             auto rx_data = buffer(_rx_data, length);
-//             auto frame_data = buffer(dmx->_frame, _frame_len);
-//
-//             asio::buffer_copy(frame_data, rx_data);
-//           }
-//
-//         } else if (ec != error::operation_aborted) {
-//           // printf("operation aborted socket=%d,
-//           // informing server.\n",
-//           //        _socket.native_handle());
-//           _server.closeSession();
-//         }
-//       });
-// });
 
 } // namespace ruth

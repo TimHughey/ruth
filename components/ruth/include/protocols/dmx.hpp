@@ -118,17 +118,6 @@ public:
   Dmx &operator=(const Dmx &) = delete;
   void addHeadUnit(lightdesk::spHeadUnit hu) { _headunits.insert(hu); }
 
-  void clientRegister(DmxClient_t *client) {
-    // SHORT TERM implementation, needs:
-    //  1. check to prevent duplicate registrations
-    //  2. unregister
-    //  3. error when max clients exceeded
-    // if (_clients < 10) {
-    //   _client[_clients] = client;
-    //   _clients++;
-    // }
-  }
-
   inline float fpsExpected() const {
     constexpr float seconds_us = 1000.0f * 1000.0f;
     const float frame_us = static_cast<float>(_frame_us);
@@ -146,6 +135,11 @@ public:
   uint16_t frameLen() { return shortVal(buff_pos.dmx_frame_len); }
 
   float framesPerSecond() const { return _stats.fps; }
+
+  inline lightdesk::HeadUnitTracker &headunits() { return _headunits; }
+
+  inline float idle() const { return _stats.fps == 0.0f; }
+
   uint16_t magic() const { return shortVal(buff_pos.magic); }
 
   uint16_t shortVal(const BufferLocation &loc) const {
@@ -218,46 +212,6 @@ private:
 
   Task_t _task = {
       .handle = nullptr, .data = nullptr, .priority = 19, .stackSize = 4096};
-};
-
-class DmxClient {
-public:
-  DmxClient() { registerSelf(); }
-  DmxClient(const uint16_t address, size_t frame_len)
-      : _address(address), _frame_len(frame_len) {
-    registerSelf();
-  }
-  ~DmxClient() {}
-
-public:
-  virtual void framePrepare() { printf("%s\n", __PRETTY_FUNCTION__); }
-  virtual void frameUpdate(uint8_t *frame_actual);
-
-  static void setDmx(Dmx_t *dmx) { DmxClient::_dmx = dmx; }
-
-protected:
-  static float fps() {
-    if (_dmx) {
-      return _dmx->fpsExpected();
-    } else {
-      return 44.0;
-    }
-  }
-  inline bool &frameChanged() { return _frame_changed; }
-  inline uint8_t *frameData() { return _frame_snippet; }
-  static Dmx_t *dmx() { return _dmx; }
-  void registerSelf() { _dmx->clientRegister(this); }
-
-private:
-  // class members, defined and initialized in misc/statics.cpp
-  static Dmx_t *_dmx;
-
-  uint16_t _address = 0;
-
-  bool _frame_changed = false;
-  size_t _frame_len = 0;
-
-  uint8_t _frame_snippet[10] = {};
 };
 
 } // namespace ruth

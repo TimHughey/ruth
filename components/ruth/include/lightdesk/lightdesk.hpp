@@ -21,6 +21,7 @@
 #ifndef _ruth_lightdesk_hpp
 #define _ruth_lightdesk_hpp
 
+#include <chrono>
 #include <memory>
 
 #include <esp_timer.h>
@@ -28,8 +29,6 @@
 #include <freertos/task.h>
 #include <freertos/timers.h>
 
-// #include "lightdesk/headunits/elwire.hpp"
-// #include "lightdesk/headunits/ledforest.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
 #include "misc/random.hpp"
@@ -40,20 +39,18 @@ namespace lightdesk {
 
 typedef class LightDesk LightDesk_t;
 
-class LightDesk {
+class LightDesk : public std::enable_shared_from_this<LightDesk> {
 
 public:
-  LightDesk();
-  ~LightDesk();
+  LightDesk() = default;
+  ~LightDesk() = default;
 
   void start();
   void stop();
 
-private: // headunits
-         // inline DiscoBall_t *discoball() { return _discoball; }
-         // inline ElWire_t *elWireDanceFloor() { return
-         // _elwire[ELWIRE_DANCE_FLOOR]; } inline ElWire_t *elWireEntry() {
-         // return _elwire[ELWIRE_ENTRY]; }
+  void idleWatch();
+  static void idleWatchCallback(TimerHandle_t handle);
+
 private:
   void init();
 
@@ -62,10 +59,9 @@ private:
 
   std::shared_ptr<Dmx> _dmx;
 
-  // AcPower_t *_ac_power = nullptr;
-  // ElWire_t *_elwire[2] = {};
-  // LedForest_t *_led_forest = nullptr;
-  // DiscoBall_t *_discoball = nullptr;
+  TimerHandle_t _idle_timer = nullptr;
+  std::chrono::minutes _idle_shutdown = std::chrono::minutes(1);
+  uint32_t _idle_check_ms = 15 * 1000; // 15 seconds
 };
 
 } // namespace lightdesk
