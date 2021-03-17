@@ -42,7 +42,7 @@ public:
   }
 
 private:
-  std::array<char, 5> _id;
+  std::array<char, 7> _id;
 };
 
 } // namespace lightdesk

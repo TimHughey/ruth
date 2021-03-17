@@ -55,11 +55,7 @@ void LightDesk::init() {
 
 void preStart() {}
 
-void LightDesk::start() {
-  // PulseWidthHeadUnit::preStart();
-
-  init();
-}
+void LightDesk::start() { init(); }
 
 void LightDesk::stop() { _dmx->stop(); }
 

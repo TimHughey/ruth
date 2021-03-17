@@ -18,8 +18,6 @@
      https://www.wisslanding.com
  */
 
-#include <iostream>
-
 #include "protocols/dmx.hpp"
 using namespace std;
 using namespace asio;
@@ -53,11 +51,13 @@ IRAM_ATTR void Dmx::fpsCalculate(void *data) {
 
   if (mark && count) {
     dmx->_fpcp = count - mark;
-    dmx->_stats.fps = (float)dmx->_fpcp / (float)dmx->_fpc_period;
+    auto fps = (float)dmx->_fpcp / (float)dmx->_fpc_period;
 
-    if ((dmx->_stats.fps < 43.0f) || (dmx->_stats.fps > 45.0f)) {
-      printf("fps=%3.1f\n", dmx->_stats.fps);
-    }
+    dmx->_stats.fps = fps;
+
+    // if ((dmx->_stats.fps < 43.0f) || (dmx->_stats.fps > 45.0f)) {
+    //   printf("fps=%3.1f\n", dmx->_stats.fps);
+    // }
   }
 
   dmx->_frame_count_mark = count;
@@ -122,8 +122,6 @@ IRAM_ATTR void Dmx::taskLoop() {
         for (auto hu : _headunits) {
           hu->handleMsg(root);
         }
-      } else {
-        std::cerr << err << std::endl;
       }
     }
   }
