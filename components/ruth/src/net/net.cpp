@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "esp_sntp.h"
 #include "lwip/apps/sntp.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
