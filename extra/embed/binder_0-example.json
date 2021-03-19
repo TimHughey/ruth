@@ -1,5 +1,5 @@
 {
-  "meta": { "mtime": 1608681604, "env": "prod" },
+  "meta": { "mtime": 1616161266, "env": "prod" },
   "wifi": { "ssid": "Guest", "passwd": "Guest" },
   "ntp": ["ntp1.local", "ntp2.local"],
   "mqtt": {
