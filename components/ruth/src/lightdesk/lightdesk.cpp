@@ -30,17 +30,18 @@
 #include "protocols/dmx.hpp"
 #include "readings/text.hpp"
 
-using std::make_shared;
-namespace chrono = std::chrono;
+using namespace std::chrono;
 
 namespace ruth {
 namespace lightdesk {
 
+using TR = reading::Text;
+
 IRAM_ATTR void LightDesk::idleWatch() {
-  static auto track = chrono::steady_clock::now();
+  static auto track = steady_clock::now();
 
   if (_dmx->idle()) {
-    auto now = chrono::steady_clock::now();
+    auto now = steady_clock::now();
 
     auto idle = now - track;
 
@@ -54,7 +55,7 @@ IRAM_ATTR void LightDesk::idleWatch() {
     }
 
   } else {
-    track = chrono::steady_clock::now();
+    track = steady_clock::now();
   }
 
   xTimerStart(_idle_timer, pdMS_TO_TICKS(_idle_check_ms));
@@ -76,17 +77,18 @@ IRAM_ATTR void LightDesk::idleWatchCallback(TimerHandle_t handle) {
 }
 
 void LightDesk::init() {
+  TR::rlog("lightdesk enabled, starting up");
 
   if (!_dmx) {
     _dmx = std::make_shared<Dmx>();
   }
 
   _dmx->start();
-  _dmx->addHeadUnit(make_shared<AcPower>());
-  _dmx->addHeadUnit(make_shared<DiscoBall>(1)); // pwm 1
-  _dmx->addHeadUnit(make_shared<ElWire>(2));    // pwm 2
-  _dmx->addHeadUnit(make_shared<ElWire>(3));    // pwm 3
-  _dmx->addHeadUnit(make_shared<LedForest>(4)); // pwm 4
+  _dmx->addHeadUnit(std::make_shared<AcPower>());
+  _dmx->addHeadUnit(std::make_shared<DiscoBall>(1)); // pwm 1
+  _dmx->addHeadUnit(std::make_shared<ElWire>(2));    // pwm 2
+  _dmx->addHeadUnit(std::make_shared<ElWire>(3));    // pwm 3
+  _dmx->addHeadUnit(std::make_shared<LedForest>(4)); // pwm 4
 }
 
 void LightDesk::start() {

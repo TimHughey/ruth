@@ -161,10 +161,8 @@ void Core::_start(xTaskHandle app_task) {
   // the engines and performing actual work
   startEngines();
 
-  if (Binder::lightDeskEnabled()) {
-    _lightdesk.reset();
-    _lightdesk = std::make_shared<lightdesk::LightDesk_t>();
-    _lightdesk->start();
+  if (Binder::lightDeskEnabled() || Profile::lightDeskEnabled()) {
+    _lightdesk = lightdesk::LightDesk::make_shared();
   }
 
   trackHeap();

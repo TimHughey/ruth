@@ -51,6 +51,14 @@ public:
   void idleWatch();
   static void idleWatchCallback(TimerHandle_t handle);
 
+  static std::shared_ptr<LightDesk> make_shared() {
+    auto desk = std::make_shared<LightDesk>();
+
+    desk->start();
+
+    return std::move(desk);
+  }
+
 private:
   void init();
 
