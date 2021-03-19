@@ -32,6 +32,9 @@ namespace ruth {
 typedef class Binder Binder_t;
 
 class Binder {
+public:
+  typedef TextBuffer<512> Raw;
+  typedef TextBuffer<768> PrettyJson;
 
 public:
   Binder(){}; // SINGLETON
@@ -65,7 +68,7 @@ public:
   const char *basePath() const { return _base_path; }
   size_t copyToFilesystem();
   int ls(const char *path = nullptr);
-  size_t pretty(BinderPrettyJson_t &buff);
+  size_t pretty(PrettyJson &buff);
   int print();
   int rm(const char *path = nullptr);
   int versions();
@@ -78,7 +81,7 @@ public:
   static uint dmxPort() { return i()->_dmx["port"] | 48005; }
   static const char *dmxPsk() { return i()->_dmx["psk"] | "psk"; }
   static uint dmxVersion() { return i()->_dmx["version"] | 1; }
-  static bool lightDeskEnabled() { return i()->_lightdesk["enable"] | true; }
+  static bool lightDeskEnabled() { return i()->_lightdesk["enable"] | false; }
 
   // MQTT
   static const char *mqttPasswd() { return i()->_mqtt["passwd"]; };
@@ -107,7 +110,7 @@ private:
   void _init_();
   static Binder *i();
 
-  DeserializationError deserialize(JsonDocument &doc, BinderRaw_t &buff) const;
+  DeserializationError deserialize(JsonDocument &doc, Raw &buff) const;
   void load();
   void parse();
 
@@ -120,18 +123,15 @@ private:
   wl_handle_t _s_wl_handle = WL_INVALID_HANDLE;
   const char *_base_path = "/r";
 
-  const static size_t _doc_capacity =
-      JSON_ARRAY_SIZE(2) + 2 * JSON_OBJECT_SIZE(1) + 2 * JSON_OBJECT_SIZE(2) +
-      JSON_OBJECT_SIZE(3) + 2 * JSON_OBJECT_SIZE(7) + 32;
-
+  static const size_t _doc_capacity = 612;
   static const uint8_t _embed_start_[] asm("_binary_binder_0_mp_start");
   static const uint8_t _embed_end_[] asm("_binary_binder_0_mp_end");
   static const size_t _embed_length_ asm("binder_0_mp_length");
 
   const char *_binder_file = "/r/binder_0.mp";
 
-  BinderRaw_t _embed_raw;
-  BinderRaw_t _file_raw;
+  Raw _embed_raw;
+  Raw _file_raw;
 
   StaticJsonDocument<_doc_capacity> _embed_doc;
   StaticJsonDocument<_doc_capacity> _file_doc;

@@ -29,9 +29,6 @@
 #include "misc/textbuffer.hpp"
 
 namespace ruth {
-
-typedef TextBuffer<576> BinderRaw_t;
-typedef TextBuffer<1024> BinderPrettyJson_t;
 typedef TextBuffer<20> Hostname_t;
 typedef TextBuffer<512> MsgPackPayload_t;
 typedef TextBuffer<128> OtaUri_t;

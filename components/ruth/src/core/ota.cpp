@@ -45,6 +45,13 @@ void OTA::cancel() {
   Core::queuePayload(move(msg));
 }
 
+//
+// STATIC!
+//
+esp_err_t OTA::clientInitCallback(esp_http_client_handle_t client) {
+  return ESP_OK;
+}
+
 void OTA::core() {
   while (_run_task) {
     _run_task = false;
@@ -140,15 +147,21 @@ bool OTA::perform() {
   esp_http_client_config_t http_conf = {};
   http_conf.url = _uri.c_str();
   http_conf.cert_pem = Net::ca_start();
-  http_conf.event_handler = OTA::httpEventHandler;
+  http_conf.keep_alive_enable = true;
   http_conf.timeout_ms = 1000;
 
   ota_config.http_config = &http_conf;
+  ota_config.http_client_init_cb = clientInitCallback;
 
   // track the time it takes to perform ota
   _elapsed.reset();
 
   auto esp_rc = esp_https_ota_begin(&ota_config, &_ota_handle);
+
+  if (esp_rc != ESP_OK) {
+    TR::rlog("%s %s", __PRETTY_FUNCTION__, esp_err_to_name(esp_rc));
+    return false;
+  }
 
   const esp_app_desc_t *app_curr = esp_ota_get_app_description();
   esp_app_desc_t app_new;
@@ -243,24 +256,6 @@ void OTA::partitionMarkValid(TimerHandle_t handle) {
   }
 
   xTimerDelete(handle, 0);
-}
-
-//
-// STATIC!
-//
-esp_err_t OTA::httpEventHandler(esp_http_client_event_t *evt) {
-
-  switch (evt->event_id) {
-  case HTTP_EVENT_ON_HEADER:
-  case HTTP_EVENT_ERROR:
-  case HTTP_EVENT_ON_CONNECTED:
-  case HTTP_EVENT_HEADER_SENT:
-  case HTTP_EVENT_ON_DATA:
-  case HTTP_EVENT_ON_FINISH:
-  case HTTP_EVENT_DISCONNECTED:
-    break;
-  }
-  return ESP_OK;
 }
 
 } // namespace ruth

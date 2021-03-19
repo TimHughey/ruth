@@ -77,7 +77,7 @@ int BinderCli::execute(int argc, char **argv) {
   }
 
   if (print->count > 0) {
-    BinderPrettyJson_t buff;
+    Binder::PrettyJson buff;
     auto bytes = binder->pretty(buff);
 
     printf("used: %4d total: %4d (%0.1f%%)\n", bytes, buff.capacity(),

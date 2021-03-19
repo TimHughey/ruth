@@ -19,6 +19,8 @@
  */
 
 #include "protocols/dmx.hpp"
+#include "readings/text.hpp"
+
 using namespace std;
 using namespace asio;
 
@@ -64,6 +66,9 @@ void Dmx::taskCore(void *task_instance) {
   TaskHandle_t task = dmx->_task.handle;
   dmx->_task.handle = nullptr;
 
+  using TR = reading::Text;
+  TR::rlog("%s finished, calling vTaskDelete()", __PRETTY_FUNCTION__);
+
   vTaskDelete(task); // task is removed the scheduler
 }
 
@@ -102,7 +107,7 @@ IRAM_ATTR void Dmx::taskLoop() {
 
       txFrame();
 
-      StaticJsonDocument<256> doc;
+      StaticJsonDocument<512> doc;
       char *msg = (char *)(_frame.data() + buff_pos.msgpack.begin);
       size_t msg_len_max = _frame.size() - buff_pos.msgpack.begin - 1;
       auto err = deserializeMsgPack(doc, msg, msg_len_max);
@@ -116,6 +121,8 @@ IRAM_ATTR void Dmx::taskLoop() {
       }
     }
   }
+
+  _server.reset();
 
   // run loop is has fallen through, shutdown the task
   esp_timer_stop(_fps_timer);

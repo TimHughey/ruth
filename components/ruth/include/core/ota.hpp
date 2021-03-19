@@ -57,7 +57,7 @@ private:
   void core(); // main task loop
   static void coreTask(void *task_data);
 
-  static esp_err_t httpEventHandler(esp_http_client_event_t *evt);
+  static esp_err_t clientInitCallback(esp_http_client_handle_t client);
 
   bool isNewImage(const esp_app_desc_t *asis, const esp_app_desc_t *tobe);
 

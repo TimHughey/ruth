@@ -56,13 +56,19 @@ IRAM_ATTR void LightDesk::idleWatch() {
   } else {
     track = chrono::steady_clock::now();
   }
+
+  xTimerStart(_idle_timer, pdMS_TO_TICKS(_idle_check_ms));
 }
 
 IRAM_ATTR void LightDesk::idleWatchCallback(TimerHandle_t handle) {
   LightDesk *desk = (LightDesk *)pvTimerGetTimerID(handle);
 
   if (desk) {
-    desk->idleWatch();
+    if (desk->_idle_timer_shutdown == false) {
+      desk->idleWatch();
+    } else {
+      xTimerStop(handle, 0);
+    }
   } else {
     using TR = reading::Text;
     TR::rlog("%s desk==nullptr", __PRETTY_FUNCTION__);
@@ -85,13 +91,17 @@ void LightDesk::init() {
 
 void LightDesk::start() {
   init();
-  _idle_timer = xTimerCreate("dmx_idle", pdMS_TO_TICKS(_idle_check_ms), pdTRUE,
+  _idle_timer = xTimerCreate("dmx_idle", pdMS_TO_TICKS(_idle_check_ms), pdFALSE,
                              nullptr, &idleWatchCallback);
   vTimerSetTimerID(_idle_timer, this);
   xTimerStart(_idle_timer, pdMS_TO_TICKS(_idle_check_ms));
 }
 
-void LightDesk::stop() { _dmx->stop(); }
+void LightDesk::stop() {
+  _idle_timer_shutdown = true;
+
+  _dmx->stop();
+}
 
 // Static Declarations for LightDesk related classes
 DRAM_ATTR bool PulseWidthHeadUnit::_timer_configured = false;

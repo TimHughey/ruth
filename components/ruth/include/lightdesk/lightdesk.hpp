@@ -62,6 +62,7 @@ private:
   TimerHandle_t _idle_timer = nullptr;
   std::chrono::minutes _idle_shutdown = std::chrono::minutes(1);
   uint32_t _idle_check_ms = 15 * 1000; // 15 seconds
+  bool _idle_timer_shutdown = false;
 };
 
 } // namespace lightdesk

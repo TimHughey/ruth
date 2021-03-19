@@ -42,7 +42,7 @@ static const char TAG[] = "Binder";
 
 size_t Binder::copyToFilesystem() {
   StaticJsonDocument<_doc_capacity> doc_cp = _embed_doc;
-  BinderRaw_t mp_buff;
+  Raw mp_buff;
 
   doc_cp["meta"]["mtime"] = time(nullptr);
   auto mp_bytes = serializeMsgPack(doc_cp, mp_buff.data(), mp_buff.capacity());
@@ -59,8 +59,7 @@ size_t Binder::copyToFilesystem() {
   return bytes;
 }
 
-DeserializationError Binder::deserialize(JsonDocument &doc,
-                                         BinderRaw_t &buff) const {
+DeserializationError Binder::deserialize(JsonDocument &doc, Raw &buff) const {
   return deserializeMsgPack(doc, buff.data(), buff.size());
 }
 
@@ -159,7 +158,7 @@ void Binder::parse() {
   }
 }
 
-size_t Binder::pretty(BinderPrettyJson_t &buff) {
+size_t Binder::pretty(PrettyJson &buff) {
   auto bytes = serializeJsonPretty(_root, buff.data(), buff.capacity());
   buff.forceSize(bytes);
 
@@ -177,7 +176,7 @@ int Binder::versions() {
 
   int fd = open(_binder_file, O_RDONLY);
   if (fd >= 0) {
-    BinderRaw_t buff;
+    Raw buff;
     StaticJsonDocument<_doc_capacity> doc_fs;
 
     auto bytes = read(fd, buff.data(), buff.capacity());

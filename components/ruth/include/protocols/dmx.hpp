@@ -77,6 +77,8 @@ public:
     Server(asio::io_context &io_ctx, short port)
         : _socket(io_ctx, udp::endpoint(udp::v4(), port)) {}
 
+    ~Server() { _socket.close(); }
+
     Server(const Server &) = delete;
     Server &operator=(const Server &) = delete;
 

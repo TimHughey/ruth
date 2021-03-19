@@ -54,7 +54,7 @@ idf_component_register(
     "include" "include/external"
   REQUIRES
     asio fatfs esp_http_client esp_https_ota mqtt nvs_flash app_update esp_adc_cal console
-  EMBED_FILES
+  EMBED_TXTFILES
     embed/ca.pem embed/binder_0.mp)
 
 # spiffs_create_partition_image(ruthfs ../../extra/ruthfs/image FLASH_IN_PROJECT)
