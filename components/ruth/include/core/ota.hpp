@@ -36,8 +36,14 @@ namespace ruth {
 typedef class OTA OTA_t;
 
 class OTA {
+  typedef enum {
+    NotifyOtaStart = 0x01,
+    NotifyOtaCancel,
+    NotifyOtaFinish
+  } NotifyVal_t;
+
 public:
-  OTA(){};
+  OTA() = default;
   ~OTA();
 
   bool handleCommand(MsgPayload &payload);

@@ -21,414 +21,86 @@
 #include <esp_log.h>
 #include <math.h>
 
-#include "external/ArduinoJson.h"
+#include "lightdesk/headunit.hpp"
+#include "lightdesk/headunits/ac_power.hpp"
+#include "lightdesk/headunits/discoball.hpp"
+#include "lightdesk/headunits/elwire.hpp"
+#include "lightdesk/headunits/ledforest.hpp"
 #include "lightdesk/lightdesk.hpp"
 #include "protocols/dmx.hpp"
 #include "readings/text.hpp"
 
+using std::make_shared;
+namespace chrono = std::chrono;
+
 namespace ruth {
 namespace lightdesk {
 
-using namespace fx;
-using TR = reading::Text;
+IRAM_ATTR void LightDesk::idleWatch() {
+  static auto track = chrono::steady_clock::now();
 
-LightDesk::LightDesk() {
-  start();
-  vTaskDelay(pdMS_TO_TICKS(100)); // allow time for tasks to start
-}
+  if (_dmx->idle()) {
+    auto now = chrono::steady_clock::now();
 
-LightDesk::~LightDesk() {
-  while (_task.handle != nullptr) {
-    vTaskDelay(pdMS_TO_TICKS(10));
-  }
+    auto idle = now - track;
 
-  if (_i2s != nullptr) {
-    delete _i2s;
-    _i2s = nullptr;
-  }
+    if (idle >= _idle_shutdown) {
+      HeadUnitTracker &headunits = _dmx->headunits();
 
-  if (_dmx != nullptr) {
-    delete _dmx;
-    _dmx = nullptr;
-  }
-
-  if (_fx != nullptr) {
-    delete _fx;
-    _fx = nullptr;
-  }
-
-  if (_major_peak != nullptr) {
-    delete _major_peak;
-    _major_peak = nullptr;
-  }
-
-  for (uint32_t i = PINSPOT_MAIN; i < PINSPOT_NONE; i++) {
-    PinSpot_t *pinspot = _pinspots[i];
-
-    if (pinspot != nullptr) {
-      _pinspots[i] = nullptr;
-
-      delete pinspot;
-    }
-  }
-
-  if (_ac_power != nullptr) {
-    delete _ac_power;
-    _ac_power = nullptr;
-  }
-
-  for (uint32_t i = ELWIRE_ENTRY; i < ELWIRE_LAST; i++) {
-    ElWire_t *elwire = _elwire[i];
-
-    if (_elwire != nullptr) {
-      _elwire[i] = nullptr;
-
-      elwire->stop();
-
-      delete elwire;
-    }
-  }
-
-  if (_led_forest != nullptr) {
-    delete _led_forest;
-    _led_forest = nullptr;
-  }
-
-  if (_discoball != nullptr) {
-    delete _discoball;
-    _discoball = nullptr;
-  }
-}
-
-void IRAM_ATTR LightDesk::core() {
-  // turn on the headunits
-  if (_ac_power->on() == false) {
-    printf("failed to turn on headunit ac power\n");
-  };
-
-  _mode = READY;
-
-  while (_mode != SHUTDOWN) {
-    bool stream_frames = true;
-    uint32_t v = 0;
-    auto notified = xTaskNotifyWait(0x00, ULONG_MAX, &v, pdMS_TO_TICKS(100));
-
-    if (notified == pdTRUE) {
-      NotifyVal_t notify = static_cast<NotifyVal_t>(v);
-
-      PinSpot_t *pinspot = pinSpotObject(_request.func());
-
-      // ensure DMX is streaming frames unless we're stopping or shutting down
-      if ((notify == NotifyStop) || (notify == NotifyShutdown)) {
-        stream_frames = false;
+      for (auto hu : headunits) {
+        hu->dark();
       }
-
-      switch (notify) {
-
-      case NotifyColor:
-        _mode = COLOR;
-        pinspot->color(_request.colorRgbw(), _request.colorStrobe());
-        break;
-
-      case NotifyDark:
-        _mode = DARK;
-        pinSpotMain()->dark();
-        pinSpotFill()->dark();
-        break;
-
-      case NotifyDance:
-        _mode = READY;
-        danceStart(DANCE);
-        break;
-
-      case NotifyStop:
-        stopActual();
-        break;
-
-      case NotifyShutdown:
-        _mode = SHUTDOWN;
-        break;
-
-      case NotifyReady:
-        TR::rlog("LightDesk ready");
-        _mode = READY;
-        break;
-
-      case NotifyFadeTo:
-        _mode = FADE_TO;
-        pinspot->fadeTo(_request.fadeToRgbw(), _request.fadeToSecs());
-        break;
-
-      case NotifyMajorPeak:
-        _mode = READY;
-
-        if (_major_peak == nullptr) {
-          _major_peak = new MajorPeak();
-        }
-
-        danceStart(MAJOR_PEAK);
-        break;
-
-      case NotifyPrepareFrame:
-        danceExecute();
-        _dmx->framePrepareCallback();
-        break;
-
-      default:
-        stream_frames = false;
-        break;
-      }
-
-      _dmx->streamFrames(stream_frames);
+      track = now;
     }
+
+  } else {
+    track = chrono::steady_clock::now();
   }
 }
 
-void LightDesk::coreTask(void *task_instance) {
-  LightDesk_t *lightdesk = (LightDesk_t *)task_instance;
+IRAM_ATTR void LightDesk::idleWatchCallback(TimerHandle_t handle) {
+  LightDesk *desk = (LightDesk *)pvTimerGetTimerID(handle);
 
-  lightdesk->init();
-  lightdesk->core();
-
-  TaskHandle_t task = lightdesk->_task.handle;
-  TR::rlog("LightDesk task %p exiting", task);
-  lightdesk->_task.handle = nullptr;
-
-  vTaskDelete(task); // task removed from the scheduler
-}
-
-void IRAM_ATTR LightDesk::danceExecute() {
-  // NOTE:  when _mode is anything other than DANCE or MAJOR_PEAK this
-  // function is a NOP
-
-  if (_mode == MAJOR_PEAK) {
-    _major_peak->execute();
-  } else if ((_mode == DANCE) && _fx) {
-    auto fx_finished = _fx->execute();
-
-    if (fx_finished == true) {
-      const auto roll = roll2D6();
-      FxType_t choosen_fx = _fx_patterns[roll];
-
-      if (_fx != nullptr) {
-        FxBase_t *to_delete = _fx;
-        _fx = nullptr;
-        delete to_delete;
-      }
-
-      _fx = FxFactory::create(choosen_fx);
-      _fx->begin();
-    }
-  }
-}
-
-void LightDesk::danceStart(LightDeskMode_t mode) {
-  elWireDanceFloor()->dim();
-  elWireEntry()->dim();
-  discoball()->spin();
-
-  pinSpotMain()->dark();
-  pinSpotFill()->dark();
-
-  // anytime the LightDesk is requested to start DANCE mode
-  // delete the existing effect
-
-  if (_fx) {
-    FxBase_t *to_delete = _fx;
-    _fx = nullptr;
-    delete to_delete;
-  }
-
-  if (_fx == nullptr) {
-    FxConfig cfg;
-    cfg.i2s = _i2s;
-    cfg.pinspot.main = pinSpotMain();
-    cfg.pinspot.fill = pinSpotFill();
-    cfg.elwire.dance_floor = elWireDanceFloor();
-    cfg.elwire.entry = elWireEntry();
-    cfg.led_forest = _led_forest;
-
-    FxBase::setConfig(cfg);
-  }
-
-  Color::setScaleMinMax(50.0, 100.0);
-
-  if (mode == DANCE) {
-    FxBase::setRuntimeMax(_request.danceInterval());
-  }
-
-  _fx = new ColorBars();
-  _fx->begin();
-
-  _mode = mode;
-
-  if (_mode == DANCE) {
-    TR::rlog("LightDesk dance with interval=%3.2f started",
-             _request.danceInterval());
+  if (desk) {
+    desk->idleWatch();
+  } else {
+    using TR = reading::Text;
+    TR::rlog("%s desk==nullptr", __PRETTY_FUNCTION__);
   }
 }
 
 void LightDesk::init() {
 
-  _i2s = (_i2s == nullptr) ? new I2s() : _i2s;
-  _dmx = (_dmx == nullptr) ? new Dmx() : _dmx;
-
-  PinSpot::setDmx(_dmx);
-  PulseWidthHeadUnit::setDmx(_dmx);
-
-  _i2s->start();
-  vTaskDelay(pdMS_TO_TICKS(300)); // allow time for i2s to start
-
-  _dmx->start();
-
-  _ac_power = new AcPower();
-
-  _pinspots[PINSPOT_MAIN] = new PinSpot(1); // dmx address 1
-  _pinspots[PINSPOT_FILL] = new PinSpot(7); // dmx address 7
-
-  // pwm headunits
-  _discoball = new DiscoBall(1);               // pwm 1
-  _elwire[ELWIRE_DANCE_FLOOR] = new ElWire(2); // pwm 2
-  _elwire[ELWIRE_ENTRY] = new ElWire(3);       // pwm 3
-  _led_forest = new LedForest(4);              // pwm 4
-
-  _dmx->prepareTaskRegister();
-}
-
-bool LightDesk::request(const Request_t &r) {
-  auto rc = true;
-  _request = r;
-
-  switch (r.mode()) {
-  case COLOR:
-    rc = taskNotify(NotifyColor);
-    break;
-
-  case DANCE:
-    rc = taskNotify(NotifyDance);
-    break;
-
-  case DARK:
-    rc = taskNotify(NotifyDark);
-    break;
-
-  case FADE_TO:
-    rc = taskNotify(NotifyFadeTo);
-    break;
-
-  case MAJOR_PEAK:
-    rc = taskNotify(NotifyMajorPeak);
-    break;
-
-  case READY:
-    rc = taskNotify(NotifyReady);
-    break;
-
-  case STOP:
-    rc = taskNotify(NotifyStop);
-    break;
-
-  default:
-    rc = false;
-    break;
+  if (!_dmx) {
+    _dmx = std::make_shared<Dmx>();
   }
 
-  return rc;
+  _dmx->start();
+  _dmx->addHeadUnit(make_shared<AcPower>());
+  _dmx->addHeadUnit(make_shared<DiscoBall>(1)); // pwm 1
+  _dmx->addHeadUnit(make_shared<ElWire>(2));    // pwm 2
+  _dmx->addHeadUnit(make_shared<ElWire>(3));    // pwm 3
+  _dmx->addHeadUnit(make_shared<LedForest>(4)); // pwm 4
 }
 
 void LightDesk::start() {
-  if (_task.handle == nullptr) {
-    // this (object) is passed as the data to the task creation and is
-    // used by the static coreTask method to call cpre()
-    ::xTaskCreate(&coreTask, "lightdesk", _task.stackSize, this, _task.priority,
-                  &(_task.handle));
-  }
+  init();
+  _idle_timer = xTimerCreate("dmx_idle", pdMS_TO_TICKS(_idle_check_ms), pdTRUE,
+                             nullptr, &idleWatchCallback);
+  vTimerSetTimerID(_idle_timer, this);
+  xTimerStart(_idle_timer, pdMS_TO_TICKS(_idle_check_ms));
 }
 
-const LightDeskStats_t &LightDesk::stats() {
-  _stats.mode = modeDesc(_mode);
+void LightDesk::stop() { _dmx->stop(); }
 
-  if (_dmx) {
-    _dmx->stats(_stats.dmx);
-  }
-
-  if (_i2s) {
-    _i2s->stats(_stats.i2s);
-  }
-
-  FxBase::stats(_stats.fx);
-
-  _stats.elwire.dance_floor = elWireDanceFloor()->duty();
-  _stats.elwire.entry = elWireEntry()->duty();
-
-  _stats.ac_power = _ac_power->status();
-
-  return _stats;
-}
-
-void LightDesk::stopActual() {
-  LightDeskMode_t prev_mode = _mode;
-  _mode = STOP;
-
-  _dmx->prepareTaskUnregister();
-
-  for (uint32_t i = PINSPOT_MAIN; i < PINSPOT_NONE; i++) {
-    PinSpot_t *pinspot = _pinspots[i];
-
-    if (pinspot) {
-      pinspot->dark();
-    }
-  }
-
-  for (uint32_t i = ELWIRE_ENTRY; i < ELWIRE_LAST; i++) {
-    ElWire_t *elwire = _elwire[i];
-
-    if (elwire) {
-      elwire->dark();
-    }
-  }
-
-  _led_forest->dark();
-
-  if (_dmx) {
-    // wait for two frames ensure any pending head unit changes are reflected.
-    // the goal is a graceful and visually pleasing shutdown.
-    const TickType_t ticks = pdMS_TO_TICKS((_dmx->frameInterval() * 2) / 1000);
-    vTaskDelay(ticks);
-    _dmx->stop();
-  }
-
-  if (_i2s) {
-    _i2s->stop();
-  }
-
-  if (discoball()) {
-    discoball()->still();
-  }
-
-  _ac_power->off();
-
-  if (prev_mode != STOP) {
-    TR::rlog("LightDesk stopped");
-  }
-
-  taskNotify(NotifyShutdown);
-}
-
-bool IRAM_ATTR LightDesk::taskNotify(NotifyVal_t val) const {
-  bool rc = true;
-  const uint32_t v = static_cast<uint32_t>(val);
-
-  if (task()) { // prevent attempts to notify the task that does not exist
-    xTaskNotify(task(), v, eSetValueWithOverwrite);
-  } else {
-    TR::rlog("LightDesk: attempt to send NotifyVal_t %u to null task handle",
-             val);
-    rc = false;
-  }
-
-  return rc;
-}
+// Static Declarations for LightDesk related classes
+DRAM_ATTR bool PulseWidthHeadUnit::_timer_configured = false;
+DRAM_ATTR const ledc_timer_config_t PulseWidthHeadUnit::_ledc_timer = {
+    .speed_mode = LEDC_HIGH_SPEED_MODE,
+    .duty_resolution = LEDC_TIMER_13_BIT,
+    .timer_num = LEDC_TIMER_1,
+    .freq_hz = 5000,
+    .clk_cfg = LEDC_AUTO_CLK};
 
 } // namespace lightdesk
 } // namespace ruth

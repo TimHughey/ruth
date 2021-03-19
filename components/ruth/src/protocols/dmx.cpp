@@ -19,6 +19,8 @@
  */
 
 #include "protocols/dmx.hpp"
+using namespace std;
+using namespace asio;
 
 namespace ruth {
 
@@ -26,85 +28,30 @@ Dmx::Dmx() {
   _init_rc = uart_driver_install(_uart_num, 129, _tx_buff_len, 0, NULL, 0);
   _init_rc = uartInit();
 
-  if (_init_rc == ESP_OK) {
-    DmxClient::setDmx(this);
-  }
-
-  _stats.frame.us = _frame_us;
+  _frame.fill(0x00);
 }
 
 Dmx::~Dmx() {
+  stop();
   // note:  the destructor must be called by a separate task
   while (_task.handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
-void IRAM_ATTR Dmx::fpsCalculate(void *data) {
+IRAM_ATTR void Dmx::fpsCalculate(void *data) {
   Dmx_t *dmx = (Dmx_t *)data;
   const auto mark = dmx->_frame_count_mark;
   const auto count = dmx->_stats.frame.count;
 
   if (mark && count) {
     dmx->_fpcp = count - mark;
-    dmx->_stats.fps = (float)dmx->_fpcp / (float)dmx->_fpc_period;
+    auto fps = (float)dmx->_fpcp / (float)dmx->_fpc_period;
+
+    dmx->_stats.fps = fps;
   }
 
   dmx->_frame_count_mark = count;
-}
-
-void IRAM_ATTR Dmx::frameApplyUpdates() {
-  // update the next frame with registered head unit staged frame updates
-  _stats.frame.update_us.track();
-  for (auto i = 0; i < _clients; i++) {
-    DmxClient *client = _client[i];
-
-    if (client) {
-      client->frameUpdate(_frame);
-    }
-  }
-
-  _stats.frame.update_us.record();
-}
-
-void IRAM_ATTR Dmx::framePrepareCallback() {
-  _stats.frame.prepare_us.track();
-
-  for (auto k = 0; k < _clients; k++) {
-    DmxClient *client = _client[k];
-
-    if (client) {
-      client->framePrepare();
-    }
-  }
-
-  _stats.frame.prepare_us.record();
-}
-
-void IRAM_ATTR Dmx::frameTimerCallback(void *data) {
-  Dmx_t *dmx = (Dmx_t *)data;
-
-  dmx->_ftbf.reset();
-
-  dmx->taskNotify(NotifyFrame);
-}
-
-esp_err_t IRAM_ATTR Dmx::frameTimerStart() {
-  esp_err_t rc = _init_rc;
-
-  if ((_init_rc == ESP_OK) && (_mode == STREAM_FRAMES)) {
-    _stats.frame.white_space_us.track();
-
-    // subtract the elapsed microsecs from when the frame timer fired
-    // measured by _ftbf (frame timer between frames)
-    _ftbf.freeze();
-    rc = esp_timer_start_once(_frame_timer, _frame_us - (uint32_t)_ftbf);
-
-    // notify the task responsible for preparing the next frame
-    framePrepareTaskNotify();
-  }
-
-  return rc;
 }
 
 void Dmx::taskCore(void *task_instance) {
@@ -116,8 +63,6 @@ void Dmx::taskCore(void *task_instance) {
   // the task is complete, clean up
   TaskHandle_t task = dmx->_task.handle;
   dmx->_task.handle = nullptr;
-
-  // printf("Dmx task %p ending\n", task);
 
   vTaskDelete(task); // task is removed the scheduler
 }
@@ -136,79 +81,55 @@ void Dmx::taskInit() {
     // _fpc_period is in seconds
     _init_rc = esp_timer_start_periodic(_fps_timer, _fpc_period * 1000 * 1000);
   }
-
-  if (_init_rc == ESP_OK) {
-    timer_args.callback = frameTimerCallback;
-    timer_args.name = "dmx frame";
-
-    _init_rc = esp_timer_create(&timer_args, &_frame_timer);
-  }
 }
 
-void IRAM_ATTR Dmx::taskLoop() {
+IRAM_ATTR void Dmx::taskLoop() {
   _mode = STREAM_FRAMES;
-  frameTimerStart();
+  auto binder_magic = Binder::dmxMagic();
 
   // when _mode is SHUTDOWN this function returns
   while (_mode != SHUTDOWN) {
-    uint32_t val;
-    auto notified =
-        xTaskNotifyWait(0x00, ULONG_MAX, &val, pdMS_TO_TICKS(portMAX_DELAY));
 
-    if (notified == pdPASS) {
-      const NotifyVal_t notify_val = static_cast<NotifyVal_t>(val);
+    if (_server->receive(_frame)) {
+      if (binder_magic != magic()) {
+        printf("binder_magic=%u  net_magic=%u\n", binder_magic, magic());
+        continue;
+      }
 
-      switch (notify_val) {
-      case NotifyFrame:
-        if (_mode == STREAM_FRAMES) {
-          txFrame();
+      buff_pos.dmx_frame.len = frameLen();
+      buff_pos.msgpack.begin =
+          buff_pos.dmx_frame.begin + buff_pos.dmx_frame.len;
+
+      txFrame();
+
+      StaticJsonDocument<256> doc;
+      char *msg = (char *)(_frame.data() + buff_pos.msgpack.begin);
+      size_t msg_len_max = _frame.size() - buff_pos.msgpack.begin - 1;
+      auto err = deserializeMsgPack(doc, msg, msg_len_max);
+
+      if (!err) {
+        JsonObject root = doc.as<JsonObject>();
+
+        for (auto hu : _headunits) {
+          hu->handleMsg(root);
         }
-        break;
-
-      case NotifyStop:
-        _mode = STOP;
-        taskNotify(NotifyShutdown);
-        break;
-
-      case NotifyStreamFrames:
-        _mode = STREAM_FRAMES;
-        frameTimerStart();
-        break;
-
-      case NotifyShutdown:
-        _mode = SHUTDOWN;
-        // wait at least _frame_us to ensure there aren't any pending frame
-        // timers
-        vTaskDelay(pdMS_TO_TICKS(1));
-
-        if (uart_is_driver_installed(_uart_num)) {
-          uart_driver_delete(_uart_num);
-
-          vTaskDelay(pdMS_TO_TICKS(100));
-        }
-
-        esp_timer_delete(_fps_timer);
-        _fps_timer = nullptr;
-
-        break;
-
-      default:
-        break;
       }
     }
   }
-}
 
-BaseType_t IRAM_ATTR Dmx::taskNotify(NotifyVal_t nval) {
-  const uint32_t val = static_cast<uint32_t>(nval);
-  auto rc = true;
+  // run loop is has fallen through, shutdown the task
+  esp_timer_stop(_fps_timer);
 
-  if (task()) {
-    rc = xTaskNotify(task(), val, eSetValueWithOverwrite);
-  } else {
-    rc = false;
+  vTaskDelay(pdMS_TO_TICKS(1));
+
+  if (uart_is_driver_installed(_uart_num)) {
+    uart_driver_delete(_uart_num);
+
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
-  return rc;
+
+  esp_timer_delete(_fps_timer);
+  _fps_timer = nullptr;
 }
 
 void Dmx::taskStart() {
@@ -220,28 +141,7 @@ void Dmx::taskStart() {
   }
 }
 
-int IRAM_ATTR Dmx::txBytes() {
-  elapsedMicros e;
-
-  frameTimerStart();
-
-  // at the end of the TX the UART pulls the TX low to generate the BREAK
-  // once the code reaches this point the BREAK is complete
-  auto bytes = uart_write_bytes_with_break(_uart_num, (const char *)_frame,
-                                           _frame_len, _frame_break);
-
-  _stats.tx_ms.track(e.asMillis());
-
-  if (bytes == _frame_len) {
-    _stats.frame.count++;
-  } else {
-    _stats.frame.shorts++;
-  }
-
-  return bytes;
-}
-
-void IRAM_ATTR Dmx::txFrame() {
+IRAM_ATTR void Dmx::txFrame() {
   // wait up to the max time to transmit a TX frame
   const TickType_t uart_wait_ms = (_frame_us / 1000) + 1;
   TickType_t frame_ticks = pdMS_TO_TICKS(uart_wait_ms);
@@ -249,10 +149,18 @@ void IRAM_ATTR Dmx::txFrame() {
   // always ensure the previous tx has completed which includes
   // the BREAK (low for 88us)
   if (uart_wait_tx_done(_uart_num, frame_ticks) == ESP_OK) {
-    _stats.frame.white_space_us.record();
 
-    txBytes();
-    frameApplyUpdates();
+    // at the end of the TX the UART pulls the TX low to generate the BREAK
+    // once the code reaches this point the BREAK is complete
+    auto frame = (const char *)_frame.data() + buff_pos.dmx_frame.begin;
+    auto bytes =
+        uart_write_bytes_with_break(_uart_num, frame, frameLen(), _frame_break);
+
+    if (bytes == frameLen()) {
+      _stats.frame.count++;
+    } else {
+      _stats.frame.shorts++;
+    }
   }
 }
 
@@ -285,41 +193,6 @@ esp_err_t Dmx::uartInit() {
   }
 
   return esp_rc;
-}
-
-void Dmx::waitForStop() {
-  bool uart_installed = true;
-
-  do {
-    // delay until the uart is uninstalled
-    if (uart_installed) {
-      vTaskDelay(pdMS_TO_TICKS(10));
-    }
-
-    uart_installed = uart_is_driver_installed(_uart_num);
-
-  } while (uart_installed);
-}
-
-//
-// DMX Client
-//
-
-void IRAM_ATTR DmxClient::frameUpdate(uint8_t *frame_actual) {
-  if (_frame_changed) {
-
-    // DmxClient is subclassed for multiple purposes:
-    //
-    // 1. when frame_len > 0 the state must be included in the frame
-    // 2. when frame_len == 0 the subclass is using Dmx as the clock
-    //    to perform it's own internal non-DMX updates
-    //
-    if (_frame_len > 0) {
-      bcopy(_frame_snippet, (frame_actual + _address), _frame_len);
-    }
-
-    _frame_changed = false;
-  }
 }
 
 } // namespace ruth

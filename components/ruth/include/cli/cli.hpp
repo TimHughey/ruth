@@ -26,7 +26,6 @@
 #include <linenoise/linenoise.h>
 
 #include "cli/binder.hpp"
-#include "cli/lightdesk.hpp"
 #include "cli/ota.hpp"
 #include "cli/random.hpp"
 #include "cli/shell.hpp"
@@ -83,7 +82,6 @@ private:
 private:
   // commands
   BinderCli_t binder;
-  LightDeskCli_t lightdesk;
   OtaCli_t ota;
   ShellCli_t shell;
   RandomCli_t random;

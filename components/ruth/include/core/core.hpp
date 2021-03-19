@@ -33,15 +33,14 @@
 #include "cli/cli.hpp"
 #include "core/ota.hpp"
 #include "core/watcher.hpp"
-#include "lightdesk/control.hpp"
+#include "lightdesk/lightdesk.hpp"
 #include "local/types.hpp"
 #include "misc/datetime.hpp"
 #include "misc/elapsed.hpp"
 #include "misc/restart.hpp"
 
 namespace ruth {
-using std::unique_ptr;
-using namespace ruth;
+// using std::unique_ptr;
 
 typedef class Core Core_t;
 
@@ -63,8 +62,6 @@ public:
       TR::rlog("%s core==nullptr", __PRETTY_FUNCTION__);
     }
   }
-
-  static LightDeskControl_t *lightDeskControl() { return i()->_lightdesk_ctrl; }
 
   static bool enginesStarted() { return i()->_engines_started; };
   static TaskHandle_t taskHandle() { return i()->_app_task; }
@@ -113,8 +110,8 @@ private:
   // Task Stack Watcher
   Watcher_t *_watcher = nullptr;
 
-  // Light Desk Controller
-  LightDeskControl_t *_lightdesk_ctrl = nullptr;
+  // LightDesk
+  std::shared_ptr<lightdesk::LightDesk_t> _lightdesk = nullptr;
 
   // Command Line Interface
   CLI_t *_cli = nullptr;

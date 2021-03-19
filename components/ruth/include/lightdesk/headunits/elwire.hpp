@@ -21,21 +21,28 @@
 #ifndef _ruth_lightdesk_headunits_elwire_hpp
 #define _ruth_lightdesk_headunits_elwire_hpp
 
+#include <array>
+
 #include "lightdesk/headunits/pwm.hpp"
 
 namespace ruth {
 namespace lightdesk {
 
-typedef class ElWire ElWire_t;
-
 class ElWire : public PulseWidthHeadUnit {
 
 public:
   ElWire(uint8_t pwm_num) : PulseWidthHeadUnit(pwm_num) {
-    config.dim = unitPercent(0.03);
-    config.pulse_start = unitPercent(0.25);
-    config.pulse_end = config.dim;
+    snprintf(_id.data(), _id.size(), "EL%u", pwm_num);
   }
+
+  void handleMsg(const JsonObject &obj) override {
+    const uint32_t duty = obj[_id.data()] | 0;
+
+    updateDuty(duty);
+  }
+
+private:
+  std::array<char, 7> _id;
 };
 
 } // namespace lightdesk
