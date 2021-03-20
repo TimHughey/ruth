@@ -250,9 +250,9 @@ bool Net::_start_() {
   cfg.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
   cfg.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
   cfg.sta.bssid_set = 0;
-  strncpy((char *)cfg.sta.ssid, Binder::wifiSsid(), sizeof(cfg.sta.ssid));
+  strncpy((char *)cfg.sta.ssid, Binder::wifiSsid(), sizeof(cfg.sta.ssid) - 1);
   strncpy((char *)cfg.sta.password, Binder::wifiPasswd(),
-          sizeof(cfg.sta.password));
+          sizeof(cfg.sta.password) - 1);
 
   rc = esp_wifi_set_config(WIFI_IF_STA, &cfg);
   checkError(__PRETTY_FUNCTION__, rc);

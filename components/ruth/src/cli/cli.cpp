@@ -61,10 +61,11 @@ void CLI::init() {
 
 void CLI::initCommands() {
   esp_console_register_help_command();
+  shell.init();
   binder.init();
   ota.init();
   random.init();
-  shell.init();
+  dmx.init();
 }
 
 void CLI::loop() {

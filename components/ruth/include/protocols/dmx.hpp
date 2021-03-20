@@ -37,17 +37,15 @@
 #include <string>
 #include <unordered_set>
 
-#include "core/binder.hpp"
 #include "external/ArduinoJson.h"
 #include "lightdesk/headunit.hpp"
 #include "local/types.hpp"
 #include "misc/elapsed.hpp"
+#include "protocols/dmx/packet.hpp"
 
 namespace ruth {
 
 typedef class Dmx Dmx_t;
-typedef class DmxClient DmxClient_t;
-
 typedef std::array<uint8_t, 512> NetFrame;
 
 class Dmx {
@@ -82,10 +80,11 @@ public:
     Server(const Server &) = delete;
     Server &operator=(const Server &) = delete;
 
-    bool receive(data_array &recv_buf) {
+    bool receive(dmx::Packet &packet) {
       auto rc = true;
       error_code ec;
-      _socket.receive_from(asio::buffer(recv_buf), _remote_endpoint, 0, ec);
+      auto buff = asio::buffer(packet.rxData(), packet.rxDataLength());
+      _socket.receive_from(buff, _remote_endpoint, 0, ec);
 
       if (ec) {
         rc = false;
@@ -98,19 +97,6 @@ public:
     udp::socket _socket;
     udp::endpoint _remote_endpoint;
   };
-
-private:
-  typedef struct {
-    size_t begin;
-    size_t len;
-  } BufferLocation;
-
-  struct {
-    BufferLocation magic = {.begin = 0, .len = 2};
-    BufferLocation dmx_frame_len = {.begin = 2, .len = 2};
-    BufferLocation dmx_frame = {.begin = 4, .len = 0};
-    BufferLocation msgpack = {.begin = 0, .len = 0};
-  } buff_pos;
 
 public:
   Dmx();
@@ -134,24 +120,13 @@ public:
     return frame_secs;
   }
 
-  uint16_t frameLen() { return shortVal(buff_pos.dmx_frame_len); }
-
   float framesPerSecond() const { return _stats.fps; }
 
   inline lightdesk::HeadUnitTracker &headunits() { return _headunits; }
 
   inline float idle() const { return _stats.fps == 0.0f; }
 
-  uint16_t magic() const { return shortVal(buff_pos.magic); }
-
-  uint16_t shortVal(const BufferLocation &loc) const {
-    auto pos = _frame.begin() + loc.begin;
-    auto lsb = *pos++;
-    auto msb = *pos++;
-    uint16_t val = lsb + (msb << 8);
-
-    return val;
-  }
+  inline static Dmx *instance() { return _instance; }
 
   // task control
   void start() { taskStart(); }
@@ -163,7 +138,7 @@ public:
 private:
   static void fpsCalculate(void *data);
 
-  void txFrame();
+  void txFrame(const dmx::Packet &packet);
   esp_err_t uartInit();
 
   // task implementation
@@ -203,9 +178,6 @@ private:
 
   lightdesk::HeadUnitTracker _headunits;
 
-  DmxClient *_client[10] = {};
-  size_t _clients = 0;
-
   Stats_t _stats;
 
   asio::io_context _io_ctx;
@@ -214,6 +186,8 @@ private:
 
   Task_t _task = {
       .handle = nullptr, .data = nullptr, .priority = 19, .stackSize = 4096};
+
+  static Dmx *_instance;
 };
 
 } // namespace ruth

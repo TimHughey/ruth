@@ -2,7 +2,7 @@ set(RUTH_CORE
   "src/core/binder" "src/core/core" "src/core/ota")
 
 set(RUTH_CLI
-  "src/cli/cli" "src/cli/binder" "src/cli/ota" "src/cli/shell"
+  "src/cli/cli" "src/cli/dmx" "src/cli/binder" "src/cli/ota" "src/cli/shell"
   "src/cli/random")
 
 set(RUTH_MISC

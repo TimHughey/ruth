@@ -23,14 +23,21 @@
 
 using namespace std;
 using namespace asio;
+using namespace ruth::dmx;
+
+using asio::buffer;
 
 namespace ruth {
+
+Dmx *Dmx::_instance = nullptr;
 
 Dmx::Dmx() {
   _init_rc = uart_driver_install(_uart_num, 129, _tx_buff_len, 0, NULL, 0);
   _init_rc = uartInit();
 
   _frame.fill(0x00);
+
+  _instance = this;
 }
 
 Dmx::~Dmx() {
@@ -90,33 +97,22 @@ void Dmx::taskInit() {
 
 IRAM_ATTR void Dmx::taskLoop() {
   _mode = STREAM_FRAMES;
-  auto binder_magic = Binder::dmxMagic();
 
   // when _mode is SHUTDOWN this function returns
   while (_mode != SHUTDOWN) {
+    Packet packet;
 
-    if (_server->receive(_frame)) {
-      if (binder_magic != magic()) {
-        printf("binder_magic=%u  net_magic=%u\n", binder_magic, magic());
-        continue;
-      }
+    if (_server->receive(packet) && packet.validMagic()) {
+      auto rx_frame = buffer(packet.frameData(), packet.frameDataLength());
+      auto tx_frame = buffer(_frame);
+      buffer_copy(tx_frame, rx_frame);
 
-      buff_pos.dmx_frame.len = frameLen();
-      buff_pos.msgpack.begin =
-          buff_pos.dmx_frame.begin + buff_pos.dmx_frame.len;
+      txFrame(packet);
 
-      txFrame();
-
-      StaticJsonDocument<512> doc;
-      char *msg = (char *)(_frame.data() + buff_pos.msgpack.begin);
-      size_t msg_len_max = _frame.size() - buff_pos.msgpack.begin - 1;
-      auto err = deserializeMsgPack(doc, msg, msg_len_max);
-
-      if (!err) {
-        JsonObject root = doc.as<JsonObject>();
+      if (packet.deserializeMsg()) {
 
         for (auto hu : _headunits) {
-          hu->handleMsg(root);
+          hu->handleMsg(packet.rootObj());
         }
       }
     }
@@ -148,7 +144,7 @@ void Dmx::taskStart() {
   }
 }
 
-IRAM_ATTR void Dmx::txFrame() {
+IRAM_ATTR void Dmx::txFrame(const dmx::Packet &packet) {
   // wait up to the max time to transmit a TX frame
   const TickType_t uart_wait_ms = (_frame_us / 1000) + 1;
   TickType_t frame_ticks = pdMS_TO_TICKS(uart_wait_ms);
@@ -159,11 +155,10 @@ IRAM_ATTR void Dmx::txFrame() {
 
     // at the end of the TX the UART pulls the TX low to generate the BREAK
     // once the code reaches this point the BREAK is complete
-    auto frame = (const char *)_frame.data() + buff_pos.dmx_frame.begin;
-    auto bytes =
-        uart_write_bytes_with_break(_uart_num, frame, frameLen(), _frame_break);
+    auto bytes = uart_write_bytes_with_break(
+        _uart_num, packet.frameData(), packet.frameDataLength(), _frame_break);
 
-    if (bytes == frameLen()) {
+    if (bytes == packet.frameDataLength()) {
       _stats.frame.count++;
     } else {
       _stats.frame.shorts++;

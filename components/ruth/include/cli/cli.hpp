@@ -26,6 +26,7 @@
 #include <linenoise/linenoise.h>
 
 #include "cli/binder.hpp"
+#include "cli/dmx.hpp"
 #include "cli/ota.hpp"
 #include "cli/random.hpp"
 #include "cli/shell.hpp"
@@ -85,6 +86,7 @@ private:
   OtaCli_t ota;
   ShellCli_t shell;
   RandomCli_t random;
+  cli::Dmx dmx;
 
   Task_t _task = {.handle = nullptr,
                   .data = nullptr,
