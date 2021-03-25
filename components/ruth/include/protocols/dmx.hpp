@@ -52,8 +52,9 @@ class Dmx {
   using udp = asio::ip::udp;
   typedef std::error_code error_code;
 
-  enum { _frame_len = 127, buff_max_len = 512 };
-  typedef std::array<uint8_t, buff_max_len> data_array;
+  enum { _dmx_frame_len = 384 };
+
+  typedef std::array<uint8_t, _dmx_frame_len> DmxFrame;
   typedef enum { INIT = 0x00, STREAM_FRAMES, SHUTDOWN } DmxMode_t;
 
 public:
@@ -157,7 +158,7 @@ private:
 
   DmxMode_t _mode = INIT;
   // static const size_t _frame_len = 127;
-  data_array _frame; // the DMX frame starts as all zeros
+  DmxFrame _frame; // the DMX frame starts as all zeros
 
   // except for _frame_break all frame timings are in µs
   const uint_fast32_t _frame_break = 22; // num bits at 250,000 baud (8µs)
@@ -169,8 +170,8 @@ private:
   // frame interval does not include the BREAK as it is handled by the UART
   uint64_t _frame_us = _frame_mab + _frame_sc + _frame_data + _frame_mtbf;
 
-  const size_t _tx_buff_len = (_frame_len < 128) ? 0 : _frame_len + 1;
-
+  // UART tx buffer size calculation
+  const size_t _tx_buff_len = (_dmx_frame_len < 128) ? 0 : _dmx_frame_len + 1;
   esp_timer_handle_t _fps_timer = nullptr;
   uint64_t _frame_count_mark = 0;
   int _fpc_period = 2; // period represents seconds to count frames

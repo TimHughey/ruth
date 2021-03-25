@@ -152,11 +152,20 @@ IRAM_ATTR void Dmx::txFrame(const dmx::Packet &packet) {
   // always ensure the previous tx has completed which includes
   // the BREAK (low for 88us)
   if (uart_wait_tx_done(_uart_num, frame_ticks) == ESP_OK) {
-
     // at the end of the TX the UART pulls the TX low to generate the BREAK
     // once the code reaches this point the BREAK is complete
-    auto bytes = uart_write_bytes_with_break(
-        _uart_num, packet.frameData(), packet.frameDataLength(), _frame_break);
+
+    // copy the packet DMX frame to the actual UART tx frame.  the UART tx
+    // frame is larger to ensure enough bytes are sent to minimize flicker
+    // for headunits that turn off between frames.
+
+    const uint8_t *packet_frame = packet.frameData();
+    for (auto k = 0; k < packet.frameDataLength(); k++) {
+      _frame[k] = packet_frame[k];
+    }
+
+    auto bytes = uart_write_bytes_with_break(_uart_num, _frame.data(),
+                                             _frame.size(), _frame_break);
 
     if (bytes == packet.frameDataLength()) {
       _stats.frame.count++;

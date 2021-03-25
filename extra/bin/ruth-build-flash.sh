@@ -79,6 +79,7 @@ case $argv[1] in
 
   erase)
     idf.py erase_flash build
+    sleep 2
     idf.py flash monitor
     ;;
 
