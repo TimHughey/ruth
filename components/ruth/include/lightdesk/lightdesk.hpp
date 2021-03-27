@@ -39,7 +39,7 @@ namespace lightdesk {
 
 typedef class LightDesk LightDesk_t;
 
-class LightDesk : public std::enable_shared_from_this<LightDesk> {
+class LightDesk {
 
 public:
   LightDesk() = default;
@@ -50,6 +50,7 @@ public:
 
   void idleWatch();
   static void idleWatchCallback(TimerHandle_t handle);
+  void idleWatchDelete();
 
   static std::shared_ptr<LightDesk> make_shared() {
     auto desk = std::make_shared<LightDesk>();
@@ -68,9 +69,8 @@ private:
   std::shared_ptr<Dmx> _dmx;
 
   TimerHandle_t _idle_timer = nullptr;
-  std::chrono::minutes _idle_shutdown = std::chrono::minutes(1);
-  uint32_t _idle_check_ms = 15 * 1000; // 15 seconds
-  bool _idle_timer_shutdown = false;
+  std::chrono::minutes _idle_shutdown = std::chrono::minutes(5);
+  uint32_t _idle_check_ms = 1000; // one second
 };
 
 } // namespace lightdesk

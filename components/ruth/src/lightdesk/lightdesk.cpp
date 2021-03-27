@@ -43,9 +43,9 @@ IRAM_ATTR void LightDesk::idleWatch() {
   if (_dmx->idle()) {
     auto now = steady_clock::now();
 
-    auto idle = now - track;
+    auto idle_duration = now - track;
 
-    if (idle >= _idle_shutdown) {
+    if (idle_duration >= _idle_shutdown) {
       HeadUnitTracker &headunits = _dmx->headunits();
 
       for (auto hu : headunits) {
@@ -65,14 +65,30 @@ IRAM_ATTR void LightDesk::idleWatchCallback(TimerHandle_t handle) {
   LightDesk *desk = (LightDesk *)pvTimerGetTimerID(handle);
 
   if (desk) {
-    if (desk->_idle_timer_shutdown == false) {
-      desk->idleWatch();
-    } else {
-      xTimerStop(handle, 0);
-    }
+    desk->idleWatch();
   } else {
-    using TR = reading::Text;
     TR::rlog("%s desk==nullptr", __PRETTY_FUNCTION__);
+  }
+}
+
+void LightDesk::idleWatchDelete() {
+  if (_idle_timer != nullptr) {
+    if (xTimerIsTimerActive(_idle_timer) != pdFALSE) {
+      if (xTimerStop(_idle_timer, pdMS_TO_TICKS(1000)) == pdFAIL) {
+        goto FINISH;
+      }
+    }
+
+    auto to_delete = _idle_timer;
+    _idle_timer = nullptr;
+    if (xTimerDelete(to_delete, pdMS_TO_TICKS(1000)) == pdFAIL) {
+      _idle_timer = to_delete;
+    }
+  }
+
+FINISH:
+  if (_idle_timer) {
+    TR::rlog("lightdesk failed delete idle timer");
   }
 }
 
@@ -100,7 +116,7 @@ void LightDesk::start() {
 }
 
 void LightDesk::stop() {
-  _idle_timer_shutdown = true;
+  idleWatchDelete();
 
   _dmx->stop();
 }

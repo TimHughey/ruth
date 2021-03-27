@@ -167,7 +167,7 @@ IRAM_ATTR void Dmx::txFrame(const dmx::Packet &packet) {
     auto bytes = uart_write_bytes_with_break(_uart_num, _frame.data(),
                                              _frame.size(), _frame_break);
 
-    if (bytes == packet.frameDataLength()) {
+    if (bytes == _frame.size()) {
       _stats.frame.count++;
     } else {
       _stats.frame.shorts++;

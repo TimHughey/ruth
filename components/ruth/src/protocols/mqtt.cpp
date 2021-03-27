@@ -56,9 +56,6 @@ static MQTT __singleton__;
 // _instance_ is used for public API
 static MQTT *_instance_ = nullptr;
 
-// SINGLETON! constructor is private
-MQTT::MQTT() {}
-
 MQTT::~MQTT() { // memory clean up handled by shutdown
 }
 
@@ -77,7 +74,7 @@ void MQTT::connectionClosed() {
   Net::clearTransportReady();
 }
 
-bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
+IRAM_ATTR bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   auto payload_rc = false;
   auto matched = false;
   auto payload = payload_ptr.get();
@@ -139,7 +136,7 @@ bool MQTT::handlePayload(MsgPayload_t_ptr payload_ptr) {
   return payload_rc;
 }
 
-void MQTT::incomingMsg(esp_mqtt_event_t *event) {
+IRAM_ATTR void MQTT::incomingMsg(esp_mqtt_event_t *event) {
 
   // ensure there is actually a payload to handle
   if (event->total_data_len == 0)
@@ -268,15 +265,15 @@ void MQTT::subscribeFeeds(esp_mqtt_client_handle_t client) {
 }
 
 // STATIC
-void MQTT::eventHandler(void *handler_args, esp_event_base_t base,
-                        int32_t event_id, void *event_data) {
+IRAM_ATTR void MQTT::eventHandler(void *handler_args, esp_event_base_t base,
+                                  int32_t event_id, void *event_data) {
 
   esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
 
   eventCallback(event);
 }
 
-esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
+IRAM_ATTR esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
   esp_err_t rc = ESP_OK;
   esp_mqtt_client_handle_t client = event->client;
   esp_mqtt_connect_return_code_t status;
@@ -411,7 +408,7 @@ void MQTT::start() {
 //
 // the wrapper prevents calls to the instance before it is created
 
-void MQTT::publish(Reading_t *reading) {
+IRAM_ATTR void MQTT::publish(Reading_t *reading) {
   if (_instance_) {
     // _instance_->publishMsg(reading->json());
 
@@ -422,7 +419,7 @@ void MQTT::publish(Reading_t *reading) {
   };
 }
 
-void MQTT::publish(Reading_t &reading) {
+IRAM_ATTR void MQTT::publish(Reading_t &reading) {
   if (_instance_) {
     MsgPackPayload_t payload;
     reading.msgPack(payload);
@@ -431,13 +428,13 @@ void MQTT::publish(Reading_t &reading) {
   }
 }
 
-void MQTT::publish(const WatcherPayload_t &payload) {
+IRAM_ATTR void MQTT::publish(const WatcherPayload_t &payload) {
   if (_instance_) {
     _instance_->publishMsg(payload);
   }
 }
 
-bool MQTT::publishActual(const char *msg, size_t len) {
+IRAM_ATTR bool MQTT::publishActual(const char *msg, size_t len) {
   if (_connection == nullptr) {
     return false;
   }
@@ -449,6 +446,6 @@ bool MQTT::publishActual(const char *msg, size_t len) {
   return (_msg_id >= 0) ? true : Restart().now();
 }
 
-TaskHandle_t MQTT::taskHandle() { return __singleton__._task.handle; }
+IRAM_ATTR TaskHandle_t MQTT::taskHandle() { return __singleton__._task.handle; }
 
 } // namespace ruth

@@ -47,7 +47,7 @@ typedef class TextBuffer<30> Feed_t;
 
 class MQTT {
 public:
-  MQTT(); // singleton
+  MQTT() = default; // singleton
   static void start();
 
   ~MQTT();
