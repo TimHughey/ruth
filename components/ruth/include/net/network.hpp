@@ -40,6 +40,8 @@ public:
   static const char *ca_start() { return (const char *)_ca_start_; };
   static const uint8_t *ca_end() { return _ca_end_; };
 
+  static bool hostIdAndNameAreEqual();
+
   // static void resumeNormalOps();
   // static void suspendNormalOps();
   static bool waitForConnection(uint32_t wait_ms = UINT32_MAX);

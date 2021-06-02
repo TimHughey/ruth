@@ -200,6 +200,18 @@ const char *Net::hostID() {
   return _host_id.c_str();
 }
 
+bool Net::hostIdAndNameAreEqual() {
+  bool rc = false;
+  const char *host_id = _instance_()->host_id_.c_str();
+  const char *hostname = _instance_()->name_.c_str();
+
+  if (strcmp(host_id, hostname) == 0) {
+    rc = true;
+  }
+
+  return rc;
+}
+
 const char *Net::macAddress() {
   // must wait for initialization of wifi before providing mac address
   waitForInitialization();

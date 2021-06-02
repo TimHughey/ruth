@@ -80,7 +80,7 @@ uint32_t Profile::engineTaskStack(EngineTypes_t engine_type,
 //
 
 bool Profile::_postParseActions() {
-  Net::setName(_assigned_name.c_str());
+  Net::setName(assignedName());
   return true;
 }
 

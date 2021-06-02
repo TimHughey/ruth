@@ -206,7 +206,15 @@ void Core::bootComplete() {
 }
 
 void Core::startEngines() {
-  if (_engines_started) {
+  // if the engines are already started obviously don't start them again.
+
+  // secondly, if this host hasn't yet been assigned a name (it's new) then
+  // don't engines.  by not starting the engines we prevent sending device
+  // readings which in turn will prevent device creation centrally.
+
+  // in other words, we only want to create devices centrally once this host
+  // has been assigned a name.
+  if (_engines_started || Net::hostIdAndNameAreEqual()) {
     return;
   }
 

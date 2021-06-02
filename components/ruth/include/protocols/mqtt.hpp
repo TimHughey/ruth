@@ -86,7 +86,7 @@ private:
   MqttClientId_t _client_id;
 
   // NOTES:
-  //   1. final feeds are built in the constructor
+  //   1. final feeds are built in start()
   //   2. feeds are always prefixed by the environment
   //   3. should include the actual host ID
   //   4. end with the corresponding suffix
