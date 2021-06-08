@@ -40,7 +40,7 @@ private:
   static int executeClear(int argc, char **argv);
   static int executeDate(int argc, char **argv);
   static int executeExit(int argc, char **argv) { return 255; }
-  static int executeLs(int argc, char **argv);
+  // static int executeLs(int argc, char **argv);
   static int executeReboot(int argc, char **argv);
   static int executeRm(int argc, char **argv);
 

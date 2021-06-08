@@ -67,7 +67,7 @@ public:
   // cli interface
   const char *basePath() const { return _base_path; }
   size_t copyToFilesystem();
-  int ls(const char *path = nullptr);
+  // int ls(const char *path = nullptr);
   size_t pretty(PrettyJson &buff);
   int print();
   int rm(const char *path = nullptr);

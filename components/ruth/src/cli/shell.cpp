@@ -49,9 +49,9 @@ int ShellCli::executeDate(int argc, char **argv) {
   return 0;
 }
 
-int ShellCli::executeLs(int argc, char **argv) {
-  return Binder::instance()->ls();
-}
+// int ShellCli::executeLs(int argc, char **argv) {
+//   return Binder::instance()->ls();
+// }
 
 int ShellCli::executeReboot(int argc, char **argv) {
   Restart("cli initiated reboot", __PRETTY_FUNCTION__).now();
@@ -101,12 +101,12 @@ void ShellCli::registerArgTable() {
   exit.func = &executeExit;
   esp_console_cmd_register(&exit);
 
-  static esp_console_cmd_t ls = {};
-  ls.command = "ls";
-  ls.help = "List files";
-  ls.hint = NULL;
-  ls.func = &executeLs;
-  esp_console_cmd_register(&ls);
+  // static esp_console_cmd_t ls = {};
+  // ls.command = "ls";
+  // ls.help = "List files";
+  // ls.hint = NULL;
+  // ls.func = &executeLs;
+  // esp_console_cmd_register(&ls);
 
   static esp_console_cmd_t rm = {};
   rm.command = "rm";

@@ -95,36 +95,36 @@ void Binder::load() {
   }
 }
 
-int Binder::ls(const char *path) {
-  struct dirent *entry;
-  struct stat entry_stat;
-
-  const char *base_path = (path == nullptr) ? _base_path : path;
-
-  DIR *dir = opendir(base_path);
-
-  if (dir == nullptr) {
-    printf("\nbinder: failed to open directory \"%s\" for read", _base_path);
-    return 1;
-  }
-
-  while ((entry = readdir(dir)) != nullptr) {
-    TextBuffer<32> entry_path;
-
-    entry_path.printf("%s/%s", base_path, entry->d_name);
-    if (stat(entry_path.c_str(), &entry_stat) == 0) {
-      DateTime dt(entry_stat.st_mtime, "%b %e %H:%M");
-
-      const char type = (S_ISDIR(entry_stat.st_mode) ? 'd' : '-');
-      printf("%crw-r--r-- ruth ruth %6ld %s %s\n", type, entry_stat.st_size,
-             dt.c_str(), entry->d_name);
-    }
-  }
-
-  closedir(dir);
-
-  return 0;
-}
+// int Binder::ls(const char *path) {
+//   struct dirent *entry;
+//   struct stat entry_stat;
+//
+//   const char *base_path = (path == nullptr) ? _base_path : path;
+//
+//   DIR *dir = opendir(base_path);
+//
+//   if (dir == nullptr) {
+//     printf("\nbinder: failed to open directory \"%s\" for read", _base_path);
+//     return 1;
+//   }
+//
+//   while ((entry = readdir(dir)) != nullptr) {
+//     TextBuffer<32> entry_path;
+//
+//     entry_path.printf("%s/%s", base_path, entry->d_name);
+//     if (stat(entry_path.c_str(), &entry_stat) == 0) {
+//       DateTime dt(entry_stat.st_mtime, "%b %e %H:%M");
+//
+//       const char type = (S_ISDIR(entry_stat.st_mode) ? 'd' : '-');
+//       printf("%crw-r--r-- ruth ruth %6ld %s %s\n", type, entry_stat.st_size,
+//              dt.c_str(), entry->d_name);
+//     }
+//   }
+//
+//   closedir(dir);
+//
+//   return 0;
+// }
 
 void Binder::parse() {
   DeserializationError embed_err = deserialize(_embed_doc, _embed_raw);

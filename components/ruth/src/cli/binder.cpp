@@ -64,9 +64,9 @@ int BinderCli::execute(int argc, char **argv) {
     }
   }
 
-  if (ls->count > 0) {
-    return binder->ls();
-  }
+  // if (ls->count > 0) {
+  //   return binder->ls();
+  // }
 
   if (rm->count > 0) {
     return binder->rm();
