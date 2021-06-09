@@ -123,7 +123,7 @@ private:
   wl_handle_t _s_wl_handle = WL_INVALID_HANDLE;
   const char *_base_path = "/r";
 
-  static const size_t _doc_capacity = 612;
+  static const size_t _doc_capacity = 768;
   static const uint8_t _embed_start_[] asm("_binary_binder_0_mp_start");
   static const uint8_t _embed_end_[] asm("_binary_binder_0_mp_end");
   static const size_t _embed_length_ asm("binder_0_mp_length");
