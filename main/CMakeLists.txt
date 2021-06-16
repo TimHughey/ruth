@@ -1,4 +1,3 @@
-idf_component_register(SRCS "main.cpp"
-                       INCLUDE_DIRS "../components/ruth/include/")
+idf_component_register(SRCS main.cpp INCLUDE_DIRS . REQUIRES core)
 
-target_compile_options(${COMPONENT_LIB} PRIVATE -DMG_LOCALS -DMG_ENABLE_HTTP=0 -DARDUINOJSON_ENABLE_STD_STREAM -DARDUINOJSON_USE_LONG_LONG)
+set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

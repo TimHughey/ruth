@@ -1,6 +1,6 @@
 /*
-    readings/all.hpp - Readings used within Ruth
-    Copyright (C) 2017  Tim Hughey
+    datetime.hpp - Ruth DateTime
+    Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,9 +18,33 @@
     https://www.wisslanding.com
 */
 
-#include "readings/positions.hpp"
-#include "readings/pwm.hpp"
-#include "readings/remote.hpp"
-#include "readings/sensor.hpp"
-// #include "readings/startup.hpp"
-#include "readings/text.hpp"
+#ifndef misc_datetime_hpp
+#define misc_datetime_hpp
+
+#include <sys/time.h>
+#include <time.h>
+
+#include "textbuffer.hpp"
+
+typedef class DateTime DateTime_t;
+
+class DateTime {
+public:
+  DateTime(time_t t = 0, const char *format = "%c") {
+    time_t mtime = (t == 0) ? time(nullptr) : t;
+
+    struct tm timeinfo = {};
+    localtime_r(&mtime, &timeinfo);
+
+    auto size = strftime(buffer_.data(), buffer_.capacity(), format, &timeinfo);
+
+    buffer_.forceSize(size);
+  }
+
+  const char *c_str() const { return buffer_.c_str(); }
+
+private:
+  TextBuffer<25> buffer_;
+};
+
+#endif

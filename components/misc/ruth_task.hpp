@@ -1,6 +1,6 @@
 /*
-    readings/all.hpp - Readings used within Ruth
-    Copyright (C) 2017  Tim Hughey
+    core.hpp - Ruth Core (C++ version of app_main())
+    Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,9 +18,21 @@
     https://www.wisslanding.com
 */
 
-#include "readings/positions.hpp"
-#include "readings/pwm.hpp"
-#include "readings/remote.hpp"
-#include "readings/sensor.hpp"
-// #include "readings/startup.hpp"
-#include "readings/text.hpp"
+#ifndef ruth_task_hpp
+#define ruth_task_hpp
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+namespace ruth {
+
+typedef struct {
+  TaskHandle_t handle;
+  void *data;
+  UBaseType_t priority;
+  UBaseType_t stackSize;
+} Task_t;
+
+} // namespace ruth
+
+#endif

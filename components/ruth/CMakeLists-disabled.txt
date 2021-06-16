@@ -1,0 +1,44 @@
+set(RUTH_CORE "src/core/core.cpp" "src/core/ota.cpp")
+
+set(RUTH_CLI "src/cli/cli.cpp" "src/cli/dmx.cpp" "src/cli/binder.cpp" "src/cli/ota.cpp" "src/cli/shell.cpp"
+  "src/cli/random.cpp")
+
+set(RUTH_MISC "src/misc/arduinoFFT.cpp" "src/misc/random.cpp" "src/misc/status_led.cpp")
+
+set(RUTH_NET "src/net/profile/profile.cpp")
+
+set(RUTH_DEVS_BASE "src/devs/base/addr.cpp" "src/devs/base/base.cpp")
+
+set(RUTH_DEVS_DS "src/devs/ds/base.cpp")
+
+set(RUTH_DEVS_I2C "src/devs/i2c/base.cpp" "src/devs/i2c/mcp23008.cpp" "src/devs/i2c/mplex.cpp"
+  "src/devs/i2c/sht31.cpp")
+
+set(RUTH_DEVS_PWM "src/devs/pwm/pwm.cpp" "src/devs/pwm/cmds/cmd.cpp" "src/devs/pwm/cmds/basic.cpp"
+  "src/devs/pwm/cmds/random.cpp")
+
+set(RUTH_ENGINES "src/engines/i2c.cpp" "src/engines/ds.cpp" "src/engines/pwm.cpp")
+
+set(RUTH_READINGS "src/readings/sensor.cpp" "src/readings/reading.cpp" "src/readings/pwm.cpp"
+  "src/readings/text.cpp" "src/readings/positions.cpp" "src/readings/remote.cpp")
+
+set(RUTH_PROTOCOLS "src/protocols/dmx.cpp" "src/protocols/mqtt.cpp" "src/protocols/payload.cpp")
+
+set(RUTH_DRIVERS "src/drivers/owb_gpio.c" "src/drivers/owb_rmt.c" "src/drivers/owb.c")
+
+set(RUTH_LIGHTDESK "src/lightdesk/lightdesk.cpp")
+
+# all the above set() statements build up the sources to register as a
+# component for idf to build
+idf_component_register(
+  SRCS
+    ${RUTH_CORE} ${RUTH_MISC} ${RUTH_NET} ${RUTH_LIGHTDESK}
+    ${RUTH_DEVS_BASE} ${RUTH_DEVS_DS} ${RUTH_DEVS_I2C} ${RUTH_DEVS_PWM}
+    ${RUTH_ENGINES} ${RUTH_READINGS} ${RUTH_PROTOCOLS} ${RUTH_DRIVERS}
+  INCLUDE_DIRS
+    "include" "include/external"
+  REQUIRES
+    asio fatfs esp_http_client esp_https_ota mqtt nvs_flash app_update esp_adc_cal binder network)
+
+set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)
+target_compile_definitions(${COMPONENT_LIB} PRIVATE  ARDUINOJSON_USE_LONG_LONG)

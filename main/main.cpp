@@ -25,7 +25,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "core/core.hpp"
+#include "core.hpp"
 
 using namespace ruth;
 
@@ -48,8 +48,7 @@ void app_main() {
   // our implementation begins
   float tick_us = 1000.0 / (float)portTICK_PERIOD_MS;
 
-  ESP_LOGI("Rcore", "portTICK_PERIOD_MS[%u] tick[%0.2fµs]", portTICK_PERIOD_MS,
-           tick_us);
+  ESP_LOGI("Rcore", "portTICK_PERIOD_MS[%u] tick[%0.2fµs]", portTICK_PERIOD_MS, tick_us);
 
   // set timezone to Eastern Standard Time
   // for now we set the timezone here in app_main() since it's foundational
