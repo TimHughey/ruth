@@ -18,36 +18,22 @@
   https://www.wisslanding.com
 */
 
-#include <ctime>
-#include <sys/time.h>
+#include <string.h>
 
 #include <esp_attr.h>
+#include <esp_log.h>
 
-#include "out.hpp"
+#include "filter/subscribe.hpp"
 
-namespace message {
+namespace filter {
 
-IRAM_ATTR Out::Out(const size_t doc_size) : _doc(doc_size) {}
+static const char *TAG = "filter Subscribe";
 
-IRAM_ATTR Packed Out::pack(size_t &length) {
-  JsonObject data = _doc.to<JsonObject>();
-
-  struct timeval time_now {};
-  gettimeofday(&time_now, nullptr);
-
-  uint64_t mtime_ms = ((uint64_t)time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-  data["mtime"] = mtime_ms;
-
-  assembleData(data);
-
-  auto packed_size = measureMsgPack(_doc);
-
-  auto packed = std::make_unique<char[]>(packed_size);
-
-  length = serializeMsgPack(_doc, packed.get(), packed_size);
-
-  return std::move(packed);
+IRAM_ATTR Subscribe::Subscribe(const char *first_level) : Builder(first_level) {
+  addHostId();
+  addChar('#');
 }
 
-} // namespace message
+void Subscribe::dump() const { ESP_LOGI(TAG, "%s", c_str()); }
+
+} // namespace filter

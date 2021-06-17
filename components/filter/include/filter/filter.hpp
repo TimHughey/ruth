@@ -1,5 +1,5 @@
 /*
-  Message
+  Ruth
   (C)opyright 2021  Tim Hughey
 
   This program is free software: you can redistribute it and/or modify
@@ -18,39 +18,43 @@
   https://www.wisslanding.com
 */
 
-#ifndef message_out_hpp
-#define message_out_hpp
+#ifndef ruth_filter_hpp
+#define ruth_filter_hpp
 
-#include <ArduinoJson.h>
 #include <memory>
 
-#include "filter/out.hpp"
+namespace filter {
 
-namespace message {
-
-typedef std::unique_ptr<char[]> Packed;
-
-class Out {
-public:
-  Out(size_t doc_size = 1024);
-  virtual ~Out() {}
-
-  inline const char *filter() const { return _filter.c_str(); }
-
-  Packed pack(size_t &length);
-  inline uint32_t qos() const { return _qos; }
-
-private:
-  virtual void assembleData(JsonObject &data) = 0;
-
-protected:
-  filter::Out _filter;
-
-private:
-  DynamicJsonDocument _doc;
-  uint32_t _qos = 0;
+struct Opts {
+  const char *first_level = nullptr;
+  const char *host_id = nullptr;
+  const char *hostname = nullptr;
 };
 
-} // namespace message
+class Filter {
+
+public:
+  Filter() {}
+  virtual ~Filter() {}
+
+  const char *c_str() const { return _filter; }
+  virtual void dump() const = 0;
+  static void init(const Opts &opts);
+  virtual size_t length() const = 0;
+
+protected:
+  const char *hostID() const { return _host_id; };
+  const char *hostname() const { return _hostname; };
+
+protected:
+  static const char *_first_level;
+  static const char *_host_id;
+  static const char *_hostname;
+
+protected:
+  static constexpr size_t _max_capacity = 128;
+  char _filter[_max_capacity] = {};
+};
+} // namespace filter
 
 #endif

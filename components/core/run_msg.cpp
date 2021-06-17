@@ -26,8 +26,8 @@
 namespace message {
 
 Run::Run() {
-  _filter.append("host");
-  _filter.append("run");
+  _filter.addLevel("host");
+  _filter.addLevel("run");
 }
 
 void Run::assembleData(JsonObject &data) {

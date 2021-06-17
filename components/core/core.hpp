@@ -31,18 +31,10 @@
 #include <sys/time.h>
 #include <time.h>
 
-// #include "cli/cli.hpp"
-// #include "core/ota.hpp"
-// #include "watcher.hpp"
-// #include "lightdesk/lightdesk.hpp"
-// #include "local/types.hpp"
-#include "datetime.hpp"
 #include "elapsed.hpp"
 #include "handler.hpp"
-// #include "misc/restart.hpp"
 
 namespace ruth {
-using std::unique_ptr;
 
 typedef class Core Core_t;
 
@@ -66,8 +58,7 @@ public:
     }
   }
 
-  static void start(TaskHandle_t app_task);
-  static TaskHandle_t taskHandle();
+  static void start();
   void wantMessage(message::InWrapped &msg) override;
 
 private:
@@ -81,10 +72,10 @@ private:
 
 private:
   enum DocKinds : uint32_t { PROFILE = 1, RESTART, OTA, BINDER };
-  enum Notifies : uint32_t { SNTP_COMPLETE = 0xa000, WIFI_READY };
+  enum Notifies : uint32_t { SNTP_COMPLETE = 0xa000, WIFI_READY, MQTT_CONNECTED, MQTT_READY };
 
 private:
-  TaskHandle_t _app_task;
+  // TaskHandle_t _app_task;
   UBaseType_t _priority = 1;
   elapsedMillis _core_elapsed;
 

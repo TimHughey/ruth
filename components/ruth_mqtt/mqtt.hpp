@@ -33,7 +33,7 @@
 #include <mqtt_client.h>
 #include <sdkconfig.h>
 
-#include "filter.hpp"
+#include "filter/subscribe.hpp"
 #include "handler.hpp"
 #include "out.hpp"
 #include "ruth_task.hpp"
@@ -42,50 +42,49 @@ namespace ruth {
 
 class MQTT {
 public:
-  struct Opts {
+  struct ConnOpts {
     const char *client_id;
     const char *uri;
     const char *user;
     const char *passwd;
+    TaskHandle_t notify_task;
+    uint32_t notify_conn_val;
+    uint32_t notify_suback_val;
   };
 
 public:
-  MQTT(const Opts &opts);
-  ~MQTT();
+  MQTT() = default;
+  ~MQTT() = default; // connection clean-up handled by shutdown
 
   MQTT(const MQTT &) = delete;
   void operator=(const MQTT &) = delete;
 
+  static void initAndStart(const ConnOpts &opts);
+
   static void registerHandler(message::Handler *handler, std::string_view category);
   static bool send(message::Out &msg);
+
   static void shutdown();
-  static void start(const Opts &opts);
+  static void subscribe(const filter::Subscribe &filter);
+
   static TaskHandle_t taskHandle();
 
 private:
-  void announceStartup();
-  void brokerAck() { _broker_acks++; }
+  inline void brokerAck() { _broker_acks++; }
+  void connectionClosed();
+  void core(void *data); // actual function that becomes the task main loop
+  static void coreTask(void *task_instance);
 
   static esp_err_t eventCallback(esp_mqtt_event_handle_t event);
   static void eventHandler(void *args, esp_event_base_t base, int32_t id, void *data);
   void incomingMsg(esp_mqtt_event_t *event);
-  void subscribe(esp_mqtt_client_handle_t client);
   void subscribeAck(esp_mqtt_event_handle_t event);
-
-  // void (*esp_event_handler_t)(void *event_handler_arg, esp_event_base_t
-  // event_base, int32_t event_id, void *event_data)
-
-  // instance member functions
-
-  void connectionClosed();
-
-  void core(void *data); // actual function that becomes the task main loop
-  static void coreTask(void *task_instance);
 
 private:
   typedef struct {
     message::Handler *handler = nullptr;
     char category[24] = {};
+    TaskHandle_t notify_task = nullptr;
 
     bool matchCategory(const char *to_match) const {
       if (strncmp(category, to_match, sizeof(category)) == 0)
@@ -96,14 +95,10 @@ private:
   } RegisteredHandler;
 
 private:
-  // Opts _opts = {};
-  message::Filter _rpt_filter;
-  uint32_t _rpt_qos = 0;
-  message::Filter _host_filter;
-
+  ConnOpts _opts;
   bool _run_core = true;
   // the Ruth MQTT task has the singular responsibility of announcing the startup of this host
-  Task_t _task = {.handle = nullptr, .data = nullptr, .priority = 1, .stackSize = 4096};
+  Task_t _task = {.handle = nullptr, .data = nullptr, .priority = 1, .stackSize = 2048};
 
   esp_mqtt_client_handle_t _connection = nullptr;
   uint64_t _broker_acks = 0;

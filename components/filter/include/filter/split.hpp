@@ -18,36 +18,36 @@
   https://www.wisslanding.com
 */
 
-#include <ctime>
-#include <sys/time.h>
+#ifndef ruth_filter_split_hpp
+#define ruth_filter_split_hpp
 
-#include <esp_attr.h>
+#include <cstring>
+#include <memory>
 
-#include "out.hpp"
+#include "filter/filter.hpp"
 
-namespace message {
+namespace filter {
 
-IRAM_ATTR Out::Out(const size_t doc_size) : _doc(doc_size) {}
+class Split : public Filter {
+public:
+  Split(const size_t len);
+  virtual ~Split() = default;
 
-IRAM_ATTR Packed Out::pack(size_t &length) {
-  JsonObject data = _doc.to<JsonObject>();
+  virtual void dump() const override = 0;
+  size_t length() const { return _length; }
+  const char *level(size_t idx) const { return _levels[idx]; }
+  const char *operator[](size_t idx) const { return _levels[idx]; }
 
-  struct timeval time_now {};
-  gettimeofday(&time_now, nullptr);
+protected:
+  void split(const char *filter);
 
-  uint64_t mtime_ms = ((uint64_t)time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+protected:
+  const size_t _length;
 
-  data["mtime"] = mtime_ms;
+  char *_levels[10] = {};
+  size_t _level_count = 0;
+};
 
-  assembleData(data);
+} // namespace filter
 
-  auto packed_size = measureMsgPack(_doc);
-
-  auto packed = std::make_unique<char[]>(packed_size);
-
-  length = serializeMsgPack(_doc, packed.get(), packed_size);
-
-  return std::move(packed);
-}
-
-} // namespace message
+#endif

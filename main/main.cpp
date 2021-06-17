@@ -56,8 +56,8 @@ void app_main() {
   tzset();
 
   // this is where our implementation begins by starting the Core
-  TaskHandle_t app_task = xTaskGetCurrentTaskHandle();
-  Core::start(app_task);
+
+  Core::start();
 
   esp_task_wdt_reset();
 

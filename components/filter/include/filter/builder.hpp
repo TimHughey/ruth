@@ -1,5 +1,5 @@
 /*
-  Message
+  Ruth
   (C)opyright 2021  Tim Hughey
 
   This program is free software: you can redistribute it and/or modify
@@ -18,39 +18,34 @@
   https://www.wisslanding.com
 */
 
-#ifndef message_out_hpp
-#define message_out_hpp
+#ifndef ruth_filter_builder_hpp
+#define ruth_filter_builder_hpp
 
-#include <ArduinoJson.h>
 #include <memory>
 
-#include "filter/out.hpp"
+#include "filter/filter.hpp"
 
-namespace message {
+namespace filter {
 
-typedef std::unique_ptr<char[]> Packed;
-
-class Out {
+class Builder : public Filter {
 public:
-  Out(size_t doc_size = 1024);
-  virtual ~Out() {}
+  Builder(const char *first_level = nullptr);
+  virtual ~Builder() = default;
 
-  inline const char *filter() const { return _filter.c_str(); }
+  void addChar(const char c, bool with_separator = true);
+  void addHostId() { addLevel(_host_id); }
+  void addHostName() { addLevel(_hostname); }
+  void addLevel(const char *, bool with_separator = true);
+  inline void addLevelSeparator() { addChar('/', false); }
 
-  Packed pack(size_t &length);
-  inline uint32_t qos() const { return _qos; }
-
-private:
-  virtual void assembleData(JsonObject &data) = 0;
+  size_t availableCapacity() const { return _capacity; }
+  virtual void dump() const override = 0;
+  size_t length() const override { return _next - _filter; }
 
 protected:
-  filter::Out _filter;
-
-private:
-  DynamicJsonDocument _doc;
-  uint32_t _qos = 0;
+  char *_next = _filter;
+  size_t _capacity = _max_capacity - 1;
 };
 
-} // namespace message
-
+} // namespace filter
 #endif

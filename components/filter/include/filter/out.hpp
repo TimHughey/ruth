@@ -18,36 +18,22 @@
   https://www.wisslanding.com
 */
 
-#include <ctime>
-#include <sys/time.h>
+#ifndef ruth_out_filter_hpp
+#define ruth_out_filter_hpp
 
-#include <esp_attr.h>
+#include <memory>
 
-#include "out.hpp"
+#include "filter/builder.hpp"
 
-namespace message {
+namespace filter {
 
-IRAM_ATTR Out::Out(const size_t doc_size) : _doc(doc_size) {}
+class Out : public Builder {
+public:
+  Out();
+  ~Out() = default;
 
-IRAM_ATTR Packed Out::pack(size_t &length) {
-  JsonObject data = _doc.to<JsonObject>();
+  void dump() const override;
+};
 
-  struct timeval time_now {};
-  gettimeofday(&time_now, nullptr);
-
-  uint64_t mtime_ms = ((uint64_t)time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
-
-  data["mtime"] = mtime_ms;
-
-  assembleData(data);
-
-  auto packed_size = measureMsgPack(_doc);
-
-  auto packed = std::make_unique<char[]>(packed_size);
-
-  length = serializeMsgPack(_doc, packed.get(), packed_size);
-
-  return std::move(packed);
-}
-
-} // namespace message
+} // namespace filter
+#endif

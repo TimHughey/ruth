@@ -26,6 +26,9 @@
 #include "binder.hpp"
 #include "boot.hpp"
 #include "core.hpp"
+#include "datetime.hpp"
+#include "filter/filter.hpp"
+#include "filter/out.hpp"
 #include "mqtt.hpp"
 #include "network.hpp"
 #include "run_msg.hpp"
@@ -108,7 +111,7 @@ void Core::sntp() {
 
   auto ntp_servers = Binder::ntp();
 
-  opts.notify_task = taskHandle();
+  opts.notify_task = xTaskGetCurrentTaskHandle();
   opts.notify_val = SNTP_COMPLETE;
   opts.servers[0] = ntp_servers[0];
   opts.servers[1] = ntp_servers[1];
@@ -126,10 +129,10 @@ void Core::sntp() {
   }
 }
 
-void Core::start(xTaskHandle app_task) {
+void Core::start() {
   Core &core = __singleton__;
 
-  core._app_task = app_task;
+  // core._app_task = app_task;
 
   StatusLED::init();
   Binder::init();
@@ -154,7 +157,12 @@ void Core::start(xTaskHandle app_task) {
 
   core.sntp(); // only returns if SNTP succeeds
 
-  message::Filter::setFirstLevel(Binder::env());
+  filter::Opts opts;
+  opts.first_level = Binder::env();
+  opts.host_id = Net::hostID();
+  opts.hostname = Net::hostname();
+
+  filter::Filter::init(opts);
   core.startMqtt();
 
   StatusLED::brighter();
@@ -223,17 +231,40 @@ void Core::startMqtt() {
 
   StatusLED::brighter();
 
-  MQTT::Opts opts;
+  MQTT::ConnOpts opts;
   opts.client_id = Net::hostID();
   opts.uri = mqtt_cfg["uri"];
   opts.user = mqtt_cfg["user"];
   opts.passwd = mqtt_cfg["passwd"];
+  opts.notify_task = xTaskGetCurrentTaskHandle();
+  opts.notify_conn_val = MQTT_CONNECTED;
+  opts.notify_suback_val = MQTT_READY;
 
-  MQTT::start(opts);
+  MQTT::initAndStart(opts);
+
+  uint32_t notify;
+  xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(60000));
+
+  if (notify == MQTT_CONNECTED) {
+    ESP_LOGI(TAG, "mqtt connected");
+  }
+
+  filter::Subscribe sub_filter;
+  MQTT::subscribe(sub_filter);
+
+  xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(10000));
+
+  if (notify == MQTT_READY) {
+    ESP_LOGI(TAG, "mqtt ready");
+  }
+
   MQTT::registerHandler(this, "host"sv);
-}
 
-TaskHandle_t Core::taskHandle() { return __singleton__._app_task; }
+  message::Boot msg;
+  MQTT::send(msg);
+
+  StatusLED::off();
+}
 
 void Core::trackHeap() {
   message::Run msg;

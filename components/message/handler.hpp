@@ -26,7 +26,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
-#include "filter.hpp"
 #include "in.hpp"
 
 namespace message {

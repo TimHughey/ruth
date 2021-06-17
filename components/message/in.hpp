@@ -24,7 +24,7 @@
 
 #include "ArduinoJson.h"
 
-#include "filter.hpp"
+#include "filter/in.hpp"
 
 namespace message {
 
@@ -52,7 +52,7 @@ private:
   void checkTime(JsonDocument &root);
 
 private:
-  Filter _filter;
+  filter::In _filter;
   uint32_t _kind = 0;
   size_t _packed_len;
   std::unique_ptr<char[]> _packed;

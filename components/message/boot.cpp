@@ -25,8 +25,8 @@
 namespace message {
 
 Boot::Boot() {
-  _filter.append("host");
-  _filter.append("boot");
+  _filter.addLevel("host");
+  _filter.addLevel("boot");
 }
 
 void Boot::assembleData(JsonObject &data) {
