@@ -48,9 +48,10 @@ public:
     const char *user;
     const char *passwd;
     TaskHandle_t notify_task;
-    uint32_t notify_conn_val;
-    uint32_t notify_suback_val;
   };
+
+public:
+  enum Notifies : uint32_t { CONNECTED = (0x01 << 30), DISCONNECTED = (0x01 << 29), READY = (0x01 << 28) };
 
 public:
   MQTT() = default;
@@ -64,7 +65,7 @@ public:
   static void registerHandler(message::Handler *handler, std::string_view category);
   static bool send(message::Out &msg);
 
-  static void shutdown();
+  // static void shutdown();
   static void subscribe(const filter::Subscribe &filter);
 
   static TaskHandle_t taskHandle();
@@ -72,8 +73,8 @@ public:
 private:
   inline void brokerAck() { _broker_acks++; }
   void connectionClosed();
-  void core(void *data); // actual function that becomes the task main loop
-  static void coreTask(void *task_instance);
+  // void core(void *data); // actual function that becomes the task main loop
+  // static void coreTask(void *task_instance);
 
   static esp_err_t eventCallback(esp_mqtt_event_handle_t event);
   static void eventHandler(void *args, esp_event_base_t base, int32_t id, void *data);
@@ -96,9 +97,9 @@ private:
 
 private:
   ConnOpts _opts;
-  bool _run_core = true;
+  // bool _run_core = true;
   // the Ruth MQTT task has the singular responsibility of announcing the startup of this host
-  Task_t _task = {.handle = nullptr, .data = nullptr, .priority = 1, .stackSize = 2048};
+  // Task_t _task = {.handle = nullptr, .data = nullptr, .priority = 1, .stackSize = 2048};
 
   esp_mqtt_client_handle_t _connection = nullptr;
   uint64_t _broker_acks = 0;

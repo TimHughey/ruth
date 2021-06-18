@@ -22,9 +22,7 @@ static const char base_len = 5;
 static const char *TAG = "Net";
 static Net_t __singleton__;
 
-void Net::acquiredIP(void *event_data) {
-  xTaskNotify(_opts.notify_task, _opts.notify_val, eSetValueWithOverwrite);
-}
+void Net::acquiredIP(void *event_data) { xTaskNotify(_opts.notify_task, Net::READY, eSetBits); }
 
 void Net::checkError(const char *func, esp_err_t err) {
   if (err == ESP_OK) {

@@ -24,12 +24,8 @@
 #include <lwip/err.h>
 #include <lwip/sys.h>
 
-#include "datetime.hpp"
-#include "elapsed.hpp"
-
 #include "sntp.hpp"
-
-static const char *TAG = "Sntp";
+#include "status_led.hpp"
 
 namespace ruth {
 
@@ -50,43 +46,26 @@ Sntp::~Sntp() { xTimerDelete(_timer, pdMS_TO_TICKS(100)); }
 void Sntp::checkStatus(TimerHandle_t handle) {
   Sntp *sntp = (Sntp *)pvTimerGetTimerID(handle);
 
+  auto &status_led = sntp->_status_led;
+  if (status_led) {
+    StatusLED::brighter();
+    status_led = false;
+  } else {
+    StatusLED::dimmer();
+    status_led = true;
+  }
+
   // NOTE
   // ensure nothing blocks -- this is a callback
 
   if (sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED) {
     // notify the task waiting for SNTP to complete
-    xTaskNotify(sntp->_opts.notify_task, sntp->_opts.notify_val, eSetValueWithOverwrite);
+    xTaskNotify(sntp->_opts.notify_task, Sntp::READY, eSetValueWithOverwrite);
+    StatusLED::percent(0.05);
 
     // stop the timer from reloading
     xTimerStop(handle, 0);
   }
 }
-
-// void Sntp::ensureTimeIsSet() {
-//   elapsedMillis sntp_elapsed;
-//   const uint32_t wait_max_ms = 30000;
-//   const uint32_t check_ms = 100;
-//   auto wait_sntp = true;
-//
-//   while ((sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET) && wait_sntp) {
-//     // StatusLED::percent(0.05);
-//     // delay(check_ms / 2);
-//     // StatusLED::percent(0.50);
-//
-//     if (sntp_elapsed > wait_max_ms) {
-//       wait_sntp = false;
-//     } else {
-//       // delay(check_ms / 2);
-//     }
-//   }
-//
-//   if (sntp_elapsed > wait_max_ms) {
-//     ESP_LOGE(pcTaskGetTaskName(nullptr), "SNTP failed");
-//     esp_restart();
-//   } else {
-//
-//     ESP_LOGI(TAG, "SNTP complete, %s, elapsed[%0.1fs]", DateTime().c_str(), sntp_elapsed.toSeconds());
-//   }
-// }
 
 } // namespace ruth

@@ -49,46 +49,46 @@ void MQTT::connectionClosed() {
   _mqtt_ready = false;
 }
 
-void MQTT::core(void *data) {
+// void MQTT::core(void *data) {
+//
+//   // core forever loop
+//   for (auto announce = true; _run_core;) {
+//     if (_mqtt_ready && announce) {
+//       // announceStartup();
+//       announce = false;
+//
+//       UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
+//       auto stack_percent = 100.0 - ((float)stack_high_water / (float)_task.stackSize * 100.0);
+//
+//       ESP_LOGI(TAG, "core stack used[%0.1f%%] hw[%u]", stack_percent, stack_high_water);
+//     }
+//
+//     vTaskDelay(1000);
+//   }
+//
+//   // if the core task loop ever exits then a shutdown is underway.
+//
+//   // a. signal mqtt is no longer ready
+//   // b. destroy (free) the client control structure
+//   _mqtt_ready = false;
+//   esp_mqtt_client_destroy(_connection);
+//   _connection = nullptr;
+//
+//   // wait here forever, vTaskDelete will remove us from the scheduler
+//   vTaskDelay(UINT32_MAX);
+// }
 
-  // core forever loop
-  for (auto announce = true; _run_core;) {
-    if (_mqtt_ready && announce) {
-      // announceStartup();
-      announce = false;
-
-      UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
-      auto stack_percent = 100.0 - ((float)stack_high_water / (float)_task.stackSize * 100.0);
-
-      ESP_LOGI(TAG, "core stack used[%0.1f%%] hw[%u]", stack_percent, stack_high_water);
-    }
-
-    vTaskDelay(1000);
-  }
-
-  // if the core task loop ever exits then a shutdown is underway.
-
-  // a. signal mqtt is no longer ready
-  // b. destroy (free) the client control structure
-  _mqtt_ready = false;
-  esp_mqtt_client_destroy(_connection);
-  _connection = nullptr;
-
-  // wait here forever, vTaskDelete will remove us from the scheduler
-  vTaskDelay(UINT32_MAX);
-}
-
-void MQTT::coreTask(void *task_instance) {
-  auto &mqtt = __singleton__;
-  auto &task = __singleton__._task;
-
-  esp_register_shutdown_handler(MQTT::shutdown);
-
-  mqtt.core(task.data);
-
-  // if the core task ever returns then wait forever
-  vTaskDelay(UINT32_MAX);
-}
+// void MQTT::coreTask(void *task_instance) {
+//   auto &mqtt = __singleton__;
+//   auto &task = __singleton__._task;
+//
+//   esp_register_shutdown_handler(MQTT::shutdown);
+//
+//   mqtt.core(task.data);
+//
+//   // if the core task ever returns then wait forever
+//   vTaskDelay(UINT32_MAX);
+// }
 
 IRAM_ATTR esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
   esp_err_t rc = ESP_OK;
@@ -109,7 +109,7 @@ IRAM_ATTR esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
       const ConnOpts &opts = mqtt->_opts;
 
       StatusLED::off();
-      xTaskNotify(opts.notify_task, opts.notify_conn_val, eSetValueWithOverwrite);
+      xTaskNotify(opts.notify_task, MQTT::CONNECTED, eSetBits);
     } else {
 
       ESP_LOGW(ESP_TAG, "mqtt connection error[%d]", status);
@@ -212,9 +212,9 @@ void MQTT::initAndStart(const ConnOpts &opts) {
   esp_mqtt_client_register_event(connection, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, eventHandler, connection);
 
   esp_mqtt_client_start(connection);
-  auto &task = mqtt._task;
-
-  ::xTaskCreate(&coreTask, TAG, task.stackSize, &mqtt, task.priority, &(task.handle));
+  // auto &task = mqtt._task;
+  //
+  // ::xTaskCreate(&coreTask, TAG, task.stackSize, &mqtt, task.priority, &(task.handle));
 }
 
 void MQTT::registerHandler(message::Handler *handler, std::string_view category) {
@@ -232,36 +232,36 @@ void MQTT::registerHandler(message::Handler *handler, std::string_view category)
   }
 }
 
-void MQTT::shutdown() {
-  // make a copy of the instance pointer to delete
-  auto &mqtt = __singleton__;
-
-  // grab the task handle for the vTaskDelete after initial shutdown steps
-  TaskHandle_t handle = mqtt._task.handle;
-
-  // flag that a shutdown is underway so the actual MQTT task will exit it's
-  // core "forever" loop
-  mqtt._run_core = false;
-
-  // poll the MQTT task until it indicates that it is no longer ready
-  // and can be safely removed from the scheduler and deleted
-  while (mqtt._mqtt_ready) {
-    // delay the CALLING task
-    // the MQTT shutdown activities should be "quick"
-    vTaskDelay(pdMS_TO_TICKS(10));
-  }
-
-  // ok, MQTT task has cleanly closed it's connections
-
-  // vTaskDelete removes the task from the scheduler.
-  // so we must call mg_mgr_free() before
-
-  // a. signal FreeRTOS to remove the task from the scheduler
-  // b. the IDLE task will ultimately free the FreeRTOS memory for the task.
-  // the memory allocated by the MQTT instance must be freed in it's
-  // destructor.
-  vTaskDelete(handle);
-}
+// void MQTT::shutdown() {
+//   // make a copy of the instance pointer to delete
+//   auto &mqtt = __singleton__;
+//
+//   // grab the task handle for the vTaskDelete after initial shutdown steps
+//   TaskHandle_t handle = mqtt._task.handle;
+//
+//   // flag that a shutdown is underway so the actual MQTT task will exit it's
+//   // core "forever" loop
+//   mqtt._run_core = false;
+//
+//   // poll the MQTT task until it indicates that it is no longer ready
+//   // and can be safely removed from the scheduler and deleted
+//   while (mqtt._mqtt_ready) {
+//     // delay the CALLING task
+//     // the MQTT shutdown activities should be "quick"
+//     vTaskDelay(pdMS_TO_TICKS(10));
+//   }
+//
+//   // ok, MQTT task has cleanly closed it's connections
+//
+//   // vTaskDelete removes the task from the scheduler.
+//   // so we must call mg_mgr_free() before
+//
+//   // a. signal FreeRTOS to remove the task from the scheduler
+//   // b. the IDLE task will ultimately free the FreeRTOS memory for the task.
+//   // the memory allocated by the MQTT instance must be freed in it's
+//   // destructor.
+//   vTaskDelete(handle);
+// }
 
 // void MQTT::start(const Opts &opts) {
 //   _instance_ = new MQTT(opts);
@@ -282,7 +282,7 @@ void MQTT::subscribeAck(esp_mqtt_event_handle_t event) {
     _mqtt_ready = true;
     auto *mqtt = (MQTT *)event->user_context;
     auto const &opts = mqtt->_opts;
-    xTaskNotify(opts.notify_task, opts.notify_suback_val, eSetValueWithOverwrite);
+    xTaskNotify(opts.notify_task, MQTT::READY, eSetBits);
     // NOTE: do not announce startup here.  doing so creates a race condition
     // that results in occasionally using epoch as the startup time
   } else {
@@ -301,7 +301,7 @@ void MQTT::subscribe(const filter::Subscribe &filter) {
   ESP_LOGI(TAG, "subscribed filter[%s] msg_id[%d]", filter.c_str(), sub_msg_id);
 }
 
-IRAM_ATTR TaskHandle_t MQTT::taskHandle() { return __singleton__._task.handle; }
+// IRAM_ATTR TaskHandle_t MQTT::taskHandle() { return __singleton__._task.handle; }
 
 IRAM_ATTR bool MQTT::send(message::Out &msg) {
   auto &mqtt = __singleton__;

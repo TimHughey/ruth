@@ -68,6 +68,8 @@ void Core::bootComplete() {
   auto stack_used = 100.0 - ((float)stack_high_water / (float)_stack_size * 100.0);
   ESP_LOGI(TAG, "BOOT COMPLETE in %0.2fs tasks[%d] stack used[%0.1f%%] hw[%u]", (float)_core_elapsed,
            _task_count, stack_used, stack_high_water);
+
+  StatusLED::off();
 }
 
 bool Core::enginesStarted() { return __singleton__._engines_started; }
@@ -111,10 +113,9 @@ void Core::sntp() {
 
   auto ntp_servers = Binder::ntp();
 
-  opts.notify_task = xTaskGetCurrentTaskHandle();
-  opts.notify_val = SNTP_COMPLETE;
   opts.servers[0] = ntp_servers[0];
   opts.servers[1] = ntp_servers[1];
+  opts.notify_task = xTaskGetCurrentTaskHandle();
 
   Sntp sntp(opts);
 
@@ -123,7 +124,7 @@ void Core::sntp() {
   xTaskNotifyWait(0, ULONG_MAX, &notify_val, pdMS_TO_TICKS(10000));
   sntp_elapsed.freeze();
 
-  if (notify_val != SNTP_COMPLETE) {
+  if (notify_val != Sntp::READY) {
     ESP_LOGW(TAG, "SNTP exceeded 10s");
     esp_restart();
   }
@@ -145,14 +146,15 @@ void Core::start() {
   net_opts.ssid = wifi["ssid"];
   net_opts.passwd = wifi["passwd"];
   net_opts.notify_task = xTaskGetCurrentTaskHandle();
-  net_opts.notify_val = WIFI_READY;
 
   Net::start(net_opts);
   uint32_t notify;
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(60000));
 
-  if (notify == WIFI_READY) {
-    ESP_LOGI(TAG, "wifi ready");
+  if ((notify & Net::READY) == false) {
+    ESP_LOGW(TAG, "while waiting for net ready received %u instead of %u", notify, Net::READY);
+    vTaskDelay(pdMS_TO_TICKS(10000));
+    esp_restart();
   }
 
   core.sntp(); // only returns if SNTP succeeds
@@ -237,16 +239,16 @@ void Core::startMqtt() {
   opts.user = mqtt_cfg["user"];
   opts.passwd = mqtt_cfg["passwd"];
   opts.notify_task = xTaskGetCurrentTaskHandle();
-  opts.notify_conn_val = MQTT_CONNECTED;
-  opts.notify_suback_val = MQTT_READY;
 
   MQTT::initAndStart(opts);
 
   uint32_t notify;
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(60000));
 
-  if (notify == MQTT_CONNECTED) {
-    ESP_LOGI(TAG, "mqtt connected");
+  if ((notify & MQTT::CONNECTED) == false) {
+    ESP_LOGW(TAG, "while waiting for mqtt connection received %u instead of %u", notify, MQTT::CONNECTED);
+    vTaskDelay(pdMS_TO_TICKS(10000));
+    esp_restart();
   }
 
   filter::Subscribe sub_filter;
@@ -254,8 +256,10 @@ void Core::startMqtt() {
 
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(10000));
 
-  if (notify == MQTT_READY) {
-    ESP_LOGI(TAG, "mqtt ready");
+  if ((notify & MQTT::READY) == false) {
+    ESP_LOGW(TAG, "while waiting for mqtt ready received %u instead of %u", notify, MQTT::READY);
+    vTaskDelay(pdMS_TO_TICKS(10000));
+    esp_restart();
   }
 
   MQTT::registerHandler(this, "host"sv);

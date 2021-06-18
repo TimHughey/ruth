@@ -32,7 +32,7 @@ static const char *TAG = "filter In";
 IRAM_ATTR In::In(const char *filter, const size_t len) : Split(len) {
   split(filter);
 
-  dump();
+  // dump();
 }
 
 IRAM_ATTR void In::dump() const {

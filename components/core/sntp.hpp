@@ -32,11 +32,13 @@ namespace ruth {
 class Sntp {
 public:
   struct Opts {
-    TaskHandle_t notify_task = nullptr;
-    uint32_t notify_val = 0;
     const char *servers[2] = {};
-    uint32_t check_ms = 250;
+    uint32_t check_ms = 150;
+    TaskHandle_t notify_task = nullptr;
   };
+
+public:
+  enum Notifies : uint32_t { READY = 0x01 << 1 };
 
 public:
   Sntp(const Opts &opts);
@@ -49,6 +51,7 @@ private:
 
 private:
   Opts _opts;
+  bool _status_led = true;
 
   TimerHandle_t _timer = nullptr;
 };

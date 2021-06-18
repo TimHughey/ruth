@@ -17,8 +17,10 @@ public:
     const char *ssid = nullptr;
     const char *passwd = nullptr;
     TaskHandle_t notify_task = nullptr;
-    uint32_t notify_val = 0;
   };
+
+public:
+  enum Notifies : uint32_t { READY = 0x01 };
 
 public:
   Net() = default; // SINGLETON

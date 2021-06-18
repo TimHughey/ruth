@@ -72,7 +72,6 @@ private:
 
 private:
   enum DocKinds : uint32_t { PROFILE = 1, RESTART, OTA, BINDER };
-  enum Notifies : uint32_t { SNTP_COMPLETE = 0xa000, WIFI_READY, MQTT_CONNECTED, MQTT_READY };
 
 private:
   // TaskHandle_t _app_task;
