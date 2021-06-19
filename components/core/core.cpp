@@ -24,7 +24,7 @@
 #include "ArduinoJson.h"
 
 #include "binder.hpp"
-#include "boot.hpp"
+#include "boot_msg.hpp"
 #include "core.hpp"
 #include "datetime.hpp"
 #include "filter/filter.hpp"
@@ -33,6 +33,7 @@
 #include "network.hpp"
 #include "run_msg.hpp"
 #include "sntp.hpp"
+#include "startup_msg.hpp"
 #include "status_led.hpp"
 
 using namespace std::string_view_literals;
@@ -50,24 +51,19 @@ Core::Core() : message::Handler(_max_queue_depth) {
 }
 
 void Core::bootComplete() {
-  _task_count = uxTaskGetNumberOfTasks();
+  // send our boot stats
+  message::Boot msg(_stack_size, _core_elapsed);
+  MQTT::send(msg);
 
-  // lower main task priority since it's really just a watcher now
-  UBaseType_t priority = uxTaskPriorityGet(nullptr);
-
-  if (priority > _priority) {
+  // lower our priority to not compete with actual work
+  if (uxTaskPriorityGet(nullptr) > _priority) {
     vTaskPrioritySet(nullptr, _priority);
   }
 
+  // start our scheduled reports
   _report_timer = xTimerCreate("core_report", pdMS_TO_TICKS(_heap_track_ms), pdTRUE, nullptr, &reportTimer);
   vTimerSetTimerID(_report_timer, this);
   xTimerStart(_report_timer, pdMS_TO_TICKS(0));
-
-  UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
-
-  auto stack_used = 100.0 - ((float)stack_high_water / (float)_stack_size * 100.0);
-  ESP_LOGI(TAG, "BOOT COMPLETE in %0.2fs tasks[%d] stack used[%0.1f%%] hw[%u]", (float)_core_elapsed,
-           _task_count, stack_used, stack_high_water);
 
   StatusLED::off();
 }
@@ -264,7 +260,7 @@ void Core::startMqtt() {
 
   MQTT::registerHandler(this, "host"sv);
 
-  message::Boot msg;
+  message::Startup msg;
   MQTT::send(msg);
 
   StatusLED::off();

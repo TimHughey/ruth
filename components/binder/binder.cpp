@@ -62,7 +62,7 @@ DeserializationError Binder::deserialize(JsonDocument &doc, Raw &buff) const {
   return deserializeMsgPack(doc, buff.data(), buff.size());
 }
 
-const char *Binder::env() { return __singleton__._meta["env"] | "prod"; }
+const char *Binder::env() { return __singleton__._meta["env"] | "test"; }
 
 void Binder::init() {
   esp_err_t esp_rc = ESP_OK;
@@ -100,23 +100,17 @@ void Binder::load() {
 const JsonObject Binder::mqtt() {
   JsonObject mqtt = __singleton__._root["mqtt"];
 
-  ESP_LOGI("Binder", "mqtt memoryUsage: %u", mqtt.memoryUsage());
-
   return std::move(mqtt);
 }
 
 const JsonArray Binder::ntp() {
   JsonArray ntp = __singleton__._root["ntp"].as<JsonArray>();
 
-  ESP_LOGI("Binder", "ntp memoryUsage: %u", ntp.memoryUsage());
-
   return std::move(ntp);
 }
 
 const JsonObject Binder::wifi() {
   JsonObject wifi = __singleton__._root["wifi"];
-
-  ESP_LOGI("Binder", "wifi memoryUsage: %u", wifi.memoryUsage());
 
   return std::move(wifi);
 }
@@ -160,15 +154,16 @@ void Binder::parse() {
   _versions[1] = (!file_err) ? _file_doc["meta"]["mtime"] : 0;
 
   _root = (_versions[0] >= _versions[1]) ? _embed_doc.as<JsonObject>() : _file_doc.as<JsonObject>();
-
-  _cli = _root["cli"];
-  _lightdesk = _root["lightdesk"];
-  _dmx = _lightdesk["dmx"];
   _meta = _root["meta"];
-  _mqtt = _root["mqtt"];
-  _ntp_servers = _root["ntp"];
-  _ota = _root["ota"];
-  _wifi = _root["wifi"];
+
+  // _cli = _root["cli"];
+  // _lightdesk = _root["lightdesk"];
+  // _dmx = _lightdesk["dmx"];
+
+  // _mqtt = _root["mqtt"];
+  // _ntp_servers = _root["ntp"];
+  // _ota = _root["ota"];
+  // _wifi = _root["wifi"];
 
   float used_percent = ((float)_root.memoryUsage() / (float)_doc_capacity) * 100.0;
   ESP_LOGI(TAG, "%s doc_used[%2.1f%%] (%d/%d)", DateTime(_meta["mtime"].as<uint32_t>()).c_str(), used_percent,

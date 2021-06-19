@@ -74,7 +74,6 @@ private:
   enum DocKinds : uint32_t { PROFILE = 1, RESTART, OTA, BINDER };
 
 private:
-  // TaskHandle_t _app_task;
   UBaseType_t _priority = 1;
   elapsedMillis _core_elapsed;
 
@@ -89,7 +88,6 @@ private:
   static constexpr int _max_queue_depth = 6;
 
   // task tracking
-  UBaseType_t _task_count;
   bool _engines_started = false;
 
   // host report timer

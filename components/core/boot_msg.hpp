@@ -18,8 +18,8 @@
   https://www.wisslanding.com
 */
 
-#ifndef message_boot_hpp
-#define message_boot_hpp
+#ifndef ruth_core_boot_msg_hpp
+#define ruth_core_boot_msg_hpp
 
 #include <memory>
 
@@ -29,12 +29,16 @@ namespace message {
 
 class Boot : public Out {
 public:
-  Boot();
+  Boot(const size_t stack_size, const uint32_t elapsed_ms);
   ~Boot() = default;
 
 private:
   void assembleData(JsonObject &data);
   const char *resetReason();
+
+private:
+  const size_t _stack_size;
+  const uint32_t _elapsed_ms;
 };
 } // namespace message
 #endif

@@ -27,7 +27,6 @@
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
 
-#include "boot.hpp"
 #include "mqtt.hpp"
 #include "status_led.hpp"
 
@@ -103,7 +102,7 @@ IRAM_ATTR esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
 
   case MQTT_EVENT_CONNECTED:
     status = event->error_handle->connect_return_code;
-    ESP_LOGI(ESP_TAG, "CONNECT msg[%p] err_code[%d]", (void *)event, status);
+    ESP_LOGI(ESP_TAG, "CONNECT err_code[%d]", status);
 
     if (status == MQTT_CONNECTION_ACCEPTED) {
       const ConnOpts &opts = mqtt->_opts;

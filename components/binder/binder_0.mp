@@ -1,1 +1,1 @@
-../../extra/embed/binder_0.mp
+../../../shell/local/ruth/embed/binder_0.mp

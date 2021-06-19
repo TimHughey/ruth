@@ -20,16 +20,16 @@
 #include <esp_ota_ops.h>
 #include <esp_system.h>
 
-#include "boot.hpp"
+#include "startup_msg.hpp"
 
 namespace message {
 
-Boot::Boot() {
+Startup::Startup() {
   _filter.addLevel("host");
-  _filter.addLevel("boot");
+  _filter.addLevel("startup");
 }
 
-void Boot::assembleData(JsonObject &data) {
+void Startup::assembleData(JsonObject &data) {
   constexpr size_t app_sha_length = 12;
   char app_sha[app_sha_length + 1] = {};
 
@@ -45,7 +45,7 @@ void Boot::assembleData(JsonObject &data) {
   data["reset_reason"] = resetReason();
 }
 
-const char *Boot::resetReason() {
+const char *Startup::resetReason() {
   auto reason = esp_reset_reason();
 
   switch (reason) {
