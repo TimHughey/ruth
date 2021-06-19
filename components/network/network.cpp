@@ -5,8 +5,8 @@
 #include <esp_attr.h>
 #include <esp_log.h>
 
+#include "misc/status_led.hpp"
 #include "network.hpp"
-#include "status_led.hpp"
 
 using namespace std::literals;
 

@@ -18,7 +18,7 @@
     https://www.wisslanding.com
 */
 
-#include "status_led.hpp"
+#include "misc/status_led.hpp"
 
 namespace ruth {
 // static const char *TAG = "StatusLED";

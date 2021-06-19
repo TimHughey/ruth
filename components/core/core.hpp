@@ -31,8 +31,8 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "elapsed.hpp"
 #include "message/handler.hpp"
+#include "misc/elapsed.hpp"
 
 namespace ruth {
 

@@ -36,7 +36,7 @@
 #include "filter/subscribe.hpp"
 #include "message/handler.hpp"
 #include "message/out.hpp"
-#include "ruth_task.hpp"
+#include "misc/ruth_task.hpp"
 
 namespace ruth {
 

@@ -27,7 +27,7 @@
 #include <esp_vfs_fat.h>
 
 #include "ArduinoJson.h"
-#include "textbuffer.hpp"
+#include "misc/textbuffer.hpp"
 
 typedef class Binder Binder_t;
 

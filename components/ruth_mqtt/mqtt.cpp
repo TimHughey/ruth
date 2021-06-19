@@ -25,8 +25,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+#include "misc/status_led.hpp"
 #include "mqtt.hpp"
-#include "status_led.hpp"
 
 namespace ruth {
 

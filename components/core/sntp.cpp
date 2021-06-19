@@ -24,8 +24,8 @@
 #include <lwip/err.h>
 #include <lwip/sys.h>
 
+#include "misc/status_led.hpp"
 #include "sntp.hpp"
-#include "status_led.hpp"
 
 namespace ruth {
 

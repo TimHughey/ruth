@@ -24,10 +24,9 @@
 
 #include "ArduinoJson.h"
 
-#include "elapsed.hpp"
-#include "mqtt.hpp"
-#include "network.hpp"
-#include "ruth_task.hpp"
+#include "misc/elapsed.hpp"
+#include "misc/ruth_task.hpp"
+#include "misc/textbuffer.hpp"
 
 namespace ruth {
 typedef class Watcher Watcher_t;
@@ -35,6 +34,12 @@ typedef class Watcher Watcher_t;
 typedef TextBuffer<1024> WatcherPayload_t;
 
 class Watcher {
+public:
+  struct Opts {
+    const char *host_id = nullptr;
+    const char *hostname = nullptr;
+  };
+
 public:
   Watcher(uint32_t seconds = 5) : _seconds(seconds) {}
   ~Watcher() {
@@ -59,8 +64,8 @@ private:
 
       JsonObject root = doc.to<JsonObject>();
 
-      root["host"] = Net::hostID();
-      root["name"] = Net::hostname();
+      root["host"] = _opts.host_id;
+      root["name"] = _opts.hostname;
       root["mtime"] = time(nullptr);
       root["type"] = "watcher";
 
@@ -96,6 +101,7 @@ private:
   }
 
 private:
+  Opts _opts;
   uint32_t _seconds;
   TaskStatus_t _sys_tasks[30];
 
