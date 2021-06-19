@@ -29,42 +29,25 @@
 
 namespace ruth {
 
+static Sntp *_instance_ = nullptr;
+
 Sntp::Sntp(const Opts &opts) : _opts(opts) {
 
   sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
   sntp_setservername(0, opts.servers[0]);
   sntp_setservername(1, opts.servers[1]);
+  sntp_set_time_sync_notification_cb(Sntp::sync_callback);
   sntp_init();
 
-  _timer = xTimerCreate("sntp", pdMS_TO_TICKS(opts.check_ms), pdTRUE, (void *)this, &checkStatus);
-  xTimerStart(_timer, 0);
+  _instance_ = this;
 }
 
-Sntp::~Sntp() { xTimerDelete(_timer, pdMS_TO_TICKS(100)); }
+Sntp::~Sntp() { _instance_ = nullptr; }
 
-void Sntp::checkStatus(TimerHandle_t handle) {
-  Sntp *sntp = (Sntp *)pvTimerGetTimerID(handle);
-
-  auto &status_led = sntp->_status_led;
-  if (status_led) {
-    StatusLED::brighter();
-    status_led = false;
-  } else {
-    StatusLED::dimmer();
-    status_led = true;
-  }
-
-  // NOTE
-  // ensure nothing blocks -- this is a callback
-
-  if (sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED) {
-    // notify the task waiting for SNTP to complete
-    xTaskNotify(sntp->_opts.notify_task, Sntp::READY, eSetValueWithOverwrite);
-    StatusLED::percent(0.05);
-
-    // stop the timer from reloading
-    xTimerStop(handle, 0);
+void Sntp::sync_callback(struct timeval *tv) {
+  if (tv->tv_sec > 1624113088) {
+    xTaskNotify(_instance_->_opts.notify_task, Sntp::READY, eSetValueWithOverwrite);
   }
 }
 

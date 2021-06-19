@@ -44,16 +44,12 @@ public:
   Sntp(const Opts &opts);
   ~Sntp();
 
-  // void ensureTimeIsSet();
-
 private:
-  static void checkStatus(TimerHandle_t handle);
+  static void sync_callback(struct timeval *tv);
 
 private:
   Opts _opts;
   bool _status_led = true;
-
-  TimerHandle_t _timer = nullptr;
 };
 
 }; // namespace ruth
