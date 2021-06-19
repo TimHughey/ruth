@@ -29,10 +29,12 @@ namespace message {
 
 static const char *TAG = "Core";
 
-Boot::Boot(const size_t stack_size, const uint32_t elapsed_ms)
+Boot::Boot(const size_t stack_size, const uint32_t elapsed_ms, const char *profile_name)
     : _stack_size(stack_size), _elapsed_ms(elapsed_ms) {
   _filter.addLevel("host");
   _filter.addLevel("boot");
+  // include the profile name in the filter as confirmation of the received profile
+  _filter.addLevel(profile_name);
 }
 
 void Boot::assembleData(JsonObject &data) {

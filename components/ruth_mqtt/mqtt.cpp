@@ -18,13 +18,11 @@
      https://www.wisslanding.com
  */
 
-#include <algorithm>
-#include <cstdlib>
+// override component logging level (must be #define before including esp_log.h)
+// #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
-
-#include <freertos/event_groups.h>
 #include <freertos/task.h>
 
 #include "mqtt.hpp"
@@ -34,8 +32,6 @@ namespace ruth {
 
 using namespace std;
 using namespace message;
-
-// using TR = ruth::Text_t;
 
 static const char *TAG = "Rmqtt";
 static const char *ESP_TAG = "ESP-MQTT";
@@ -47,47 +43,6 @@ void MQTT::connectionClosed() {
 
   _mqtt_ready = false;
 }
-
-// void MQTT::core(void *data) {
-//
-//   // core forever loop
-//   for (auto announce = true; _run_core;) {
-//     if (_mqtt_ready && announce) {
-//       // announceStartup();
-//       announce = false;
-//
-//       UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
-//       auto stack_percent = 100.0 - ((float)stack_high_water / (float)_task.stackSize * 100.0);
-//
-//       ESP_LOGI(TAG, "core stack used[%0.1f%%] hw[%u]", stack_percent, stack_high_water);
-//     }
-//
-//     vTaskDelay(1000);
-//   }
-//
-//   // if the core task loop ever exits then a shutdown is underway.
-//
-//   // a. signal mqtt is no longer ready
-//   // b. destroy (free) the client control structure
-//   _mqtt_ready = false;
-//   esp_mqtt_client_destroy(_connection);
-//   _connection = nullptr;
-//
-//   // wait here forever, vTaskDelete will remove us from the scheduler
-//   vTaskDelay(UINT32_MAX);
-// }
-
-// void MQTT::coreTask(void *task_instance) {
-//   auto &mqtt = __singleton__;
-//   auto &task = __singleton__._task;
-//
-//   esp_register_shutdown_handler(MQTT::shutdown);
-//
-//   mqtt.core(task.data);
-//
-//   // if the core task ever returns then wait forever
-//   vTaskDelay(UINT32_MAX);
-// }
 
 IRAM_ATTR esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
   esp_err_t rc = ESP_OK;
@@ -102,7 +57,7 @@ IRAM_ATTR esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
 
   case MQTT_EVENT_CONNECTED:
     status = event->error_handle->connect_return_code;
-    ESP_LOGI(ESP_TAG, "CONNECT err_code[%d]", status);
+    ESP_LOGD(ESP_TAG, "CONNECT err_code[%d]", status);
 
     if (status == MQTT_CONNECTION_ACCEPTED) {
       const ConnOpts &opts = mqtt->_opts;
@@ -270,22 +225,27 @@ void MQTT::registerHandler(message::Handler *handler, std::string_view category)
 // }
 
 void MQTT::subscribeAck(esp_mqtt_event_handle_t event) {
-  UBaseType_t stack_high_water = uxTaskGetStackHighWaterMark(nullptr);
 
   if (event->msg_id == _subscribe_msg_id) {
-    auto stack_size = 6 * 1024;
-    auto stack_percent = 100.0 - ((float)stack_high_water / (float)stack_size * 100.0);
-
-    ESP_LOGI(ESP_TAG, "stack[%0.1f%%] SUBSCRIBED msg_id[%u]", stack_percent, event->msg_id);
-
     _mqtt_ready = true;
+
+    // notify the awaiting task
     auto *mqtt = (MQTT *)event->user_context;
     auto const &opts = mqtt->_opts;
     xTaskNotify(opts.notify_task, MQTT::READY, eSetBits);
+
+#ifdef LOG_LOCAL_LEVEL
+    constexpr auto stack = CONFIG_MQTT_TASK_STACK_SIZE;
+    const auto high_water = uxTaskGetStackHighWaterMark(nullptr);
+
+    ESP_LOGD(ESP_TAG, "SUBSCRIBE ACK msg_id[%u]", event->msg_id);
+    ESP_LOGD(ESP_TAG, "MQTT READY stack[%u] highwater[%u]", stack, high_water);
+#endif
+
     // NOTE: do not announce startup here.  doing so creates a race condition
     // that results in occasionally using epoch as the startup time
   } else {
-    ESP_LOGW(TAG, "subAck for UNKNOWN msg_id[%d]", event->msg_id);
+    ESP_LOGW(TAG, "SUBSCRIBE ACK for UNKNOWN msg_id[%d]", event->msg_id);
   }
 }
 
@@ -297,10 +257,8 @@ void MQTT::subscribe(const filter::Subscribe &filter) {
   auto &sub_msg_id = __singleton__._subscribe_msg_id;
   sub_msg_id = esp_mqtt_client_subscribe(connection, filter.c_str(), qos);
 
-  ESP_LOGI(TAG, "subscribed filter[%s] msg_id[%d]", filter.c_str(), sub_msg_id);
+  ESP_LOGD(TAG, "SUBSCRIBE TO filter[%s] msg_id[%d]", filter.c_str(), sub_msg_id);
 }
-
-// IRAM_ATTR TaskHandle_t MQTT::taskHandle() { return __singleton__._task.handle; }
 
 IRAM_ATTR bool MQTT::send(message::Out &msg) {
   auto &mqtt = __singleton__;

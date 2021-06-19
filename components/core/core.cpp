@@ -52,7 +52,8 @@ Core::Core() : message::Handler(_max_queue_depth) {
 
 void Core::bootComplete() {
   // send our boot stats
-  message::Boot msg(_stack_size, _core_elapsed);
+  const char *profile_name = _profile["meta"]["name"] | "unknown";
+  message::Boot msg(_stack_size, _core_elapsed, profile_name);
   MQTT::send(msg);
 
   // lower our priority to not compete with actual work
@@ -61,7 +62,8 @@ void Core::bootComplete() {
   }
 
   // start our scheduled reports
-  _report_timer = xTimerCreate("core_report", pdMS_TO_TICKS(_heap_track_ms), pdTRUE, nullptr, &reportTimer);
+  uint32_t report_ms = _profile["host"]["report_ms"] | 7000;
+  _report_timer = xTimerCreate("core_report", pdMS_TO_TICKS(report_ms), pdTRUE, nullptr, &reportTimer);
   vTimerSetTimerID(_report_timer, this);
   xTimerStart(_report_timer, pdMS_TO_TICKS(0));
 
