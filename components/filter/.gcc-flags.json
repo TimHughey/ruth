@@ -1,8 +1,0 @@
-{
-  "execPath": "/Users/thughey/.espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-g++",
-  "gccErrorLimit": 1000,
-  "gccIncludePaths": "./build/config,./components/filter/include,./esp-idf/components/newlib/platform_include,./esp-idf/components/xtensa/include,./esp-idf/components/xtensa/esp32/include,./esp-idf/components/log/include,./esp-idf/components/esp_rom/include",
-  "gccSuppressarnings": false,
-  "gccDefaultCppFlags": "-fsyntax-only -mlongcalls -Wno-frame-address -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -nostdlib -Wall -Werror=all -Wextra -Wno-unused-parameter -ggdb -Os -freorder-blocks -fstack-protector-strong -std=gnu++17 -fno-rtti -fno-exceptions -DHAVE_CONFIG_H -D_GNU_SOURCE -DESP_PLATFORM -DLINTER",
-  "gccDefaultCppFlags": "-fsyntax-only -mlongcalls -Wno-frame-address -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -nostdlib -Wall -Werror=all -Wextra -Wno-unused-parameter -ggdb -Os -freorder-blocks -fstack-protector-strong -std=gnu++17 -fno-rtti -fno-exceptions -DHAVE_CONFIG_H -D_GNU_SOURCE -DESP_PLATFORM -DLINTER"
-}

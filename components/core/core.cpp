@@ -22,7 +22,6 @@
 #include <esp_log.h>
 
 #include "ArduinoJson.h"
-
 #include "binder.hpp"
 #include "boot_msg.hpp"
 #include "core.hpp"
