@@ -23,7 +23,7 @@
 
 #include <memory>
 
-#include "out.hpp"
+#include "message/out.hpp"
 
 namespace message {
 

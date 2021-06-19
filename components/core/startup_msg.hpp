@@ -21,9 +21,7 @@
 #ifndef ruth_core_startup_msg_hpp
 #define ruth_core_startup_msg_hpp
 
-#include <memory>
-
-#include "out.hpp"
+#include "message/out.hpp"
 
 namespace message {
 

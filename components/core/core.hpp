@@ -32,7 +32,7 @@
 #include <time.h>
 
 #include "elapsed.hpp"
-#include "handler.hpp"
+#include "message/handler.hpp"
 
 namespace ruth {
 

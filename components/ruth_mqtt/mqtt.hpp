@@ -34,8 +34,8 @@
 #include <sdkconfig.h>
 
 #include "filter/subscribe.hpp"
-#include "handler.hpp"
-#include "out.hpp"
+#include "message/handler.hpp"
+#include "message/out.hpp"
 #include "ruth_task.hpp"
 
 namespace ruth {

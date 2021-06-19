@@ -18,7 +18,7 @@
   https://www.wisslanding.com
 */
 
-#include "handler.hpp"
+#include "message/handler.hpp"
 
 namespace message {
 Handler::Handler(size_t max_queue_depth) { _msg_q = xQueueCreate(max_queue_depth, sizeof(In *)); }
