@@ -32,7 +32,7 @@ namespace message {
 
 class Handler {
 public:
-  Handler(size_t max_queue_depth);
+  Handler(size_t max_queue_depth = 5);
   virtual ~Handler() = default;
 
   bool accept(InWrapped msg);

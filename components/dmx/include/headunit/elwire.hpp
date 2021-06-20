@@ -1,5 +1,5 @@
 /*
-    Ruth
+    lightdesk/headunits/elwire.hpp - Ruth LightDesk Headunit EL Wire
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,23 +18,30 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_task_hpp
-#define ruth_task_hpp
+#ifndef _ruth_lightdesk_headunits_elwire_hpp
+#define _ruth_lightdesk_headunits_elwire_hpp
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include <array>
 
-namespace ruth {
+#include "pwm.hpp"
 
-typedef struct {
-  TaskHandle_t handle;
-  void *data;
-  UBaseType_t priority;
-  UBaseType_t stackSize;
-} Task_t;
+namespace dmx {
 
-typedef void(TaskFunc_t)(void *);
+class ElWire : public PulseWidthHeadUnit {
 
-} // namespace ruth
+public:
+  ElWire(uint8_t pwm_num) : PulseWidthHeadUnit(pwm_num) { snprintf(_id.data(), _id.size(), "EL%u", pwm_num); }
+
+  void handleMsg(const JsonObject &obj) override {
+    const uint32_t duty = obj[_id.data()] | 0;
+
+    updateDuty(duty);
+  }
+
+private:
+  std::array<char, 7> _id;
+};
+
+} // namespace dmx
 
 #endif

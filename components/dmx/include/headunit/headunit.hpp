@@ -1,5 +1,5 @@
 /*
-    Ruth
+    devs/dmx/headunit.hpp - Ruth Dmx Head Unit Device
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,23 +18,27 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_task_hpp
-#define ruth_task_hpp
+#ifndef _ruth_dmx_headunit_device_hpp
+#define _ruth_dmx_headunit_device_hpp
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include <memory>
+#include <unordered_set>
 
-namespace ruth {
+#include "ArduinoJson.h"
 
-typedef struct {
-  TaskHandle_t handle;
-  void *data;
-  UBaseType_t priority;
-  UBaseType_t stackSize;
-} Task_t;
+namespace dmx {
 
-typedef void(TaskFunc_t)(void *);
+class HeadUnit {
+public:
+  HeadUnit() = default;
+  virtual ~HeadUnit() = default;
 
-} // namespace ruth
+  virtual void handleMsg(const JsonObject &obj) = 0;
+  virtual void dark() = 0;
+};
+
+typedef std::shared_ptr<HeadUnit> spHeadUnit;
+typedef std::unordered_set<spHeadUnit> HeadUnitTracker;
+} // namespace dmx
 
 #endif

@@ -221,6 +221,11 @@ void Core::startEngines() {
   // I2c::startIfEnabled();
   // PulseWidth::startIfEnabled();
 
+  // if (_profile["dmx"]) {
+  //   dmx::Dmx *dmx = new dmx::Dmx();
+  //   dmx->start();
+  // }
+
   _engines_started = true;
 }
 

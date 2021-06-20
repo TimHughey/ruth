@@ -37,7 +37,7 @@ void DsDevice::makeID() {
   //                 00000000001111111
   //       byte num: 01234567890123456
   //     exmaple id: ds/28ffa442711604
-  // format of name: ds/famil code + 48-bit serial (without the crc)
+  // format of name: ds/family code + 48-bit serial (without the crc)
   //      total len: 18 bytes (id + 0x00 terminator)
   auto addr = address();
   setID("ds/%02x%02x%02x%02x%02x%02x%02x", addr[0], // byte 0: family code
@@ -47,9 +47,7 @@ void DsDevice::makeID() {
 
 uint8_t DsDevice::family() const { return firstAddressByte(); };
 uint8_t DsDevice::crc() { return lastAddressByte(); };
-void DsDevice::copyAddrToCmd(uint8_t *cmd) {
-  memcpy((cmd + 1), (uint8_t *)addrBytes(), address().size());
-}
+void DsDevice::copyAddrToCmd(uint8_t *cmd) { memcpy((cmd + 1), (uint8_t *)addrBytes(), address().size()); }
 
 bool DsDevice::isPowered() { return _power; };
 Reading_t *DsDevice::reading() { return _reading; };
@@ -69,24 +67,14 @@ bool DsDevice::isDS1820() {
 
   return rc;
 }
-bool DsDevice::isDS2406() {
-  return (family() == _family_DS2406) ? true : false;
-};
-bool DsDevice::isDS2408() {
-  return (family() == _family_DS2408) ? true : false;
-};
-bool DsDevice::isDS2413() {
-  return (family() == _family_DS2413) ? true : false;
-};
-bool DsDevice::isDS2438() {
-  return (family() == _family_DS2413) ? true : false;
-};
+bool DsDevice::isDS2406() { return (family() == _family_DS2406) ? true : false; };
+bool DsDevice::isDS2408() { return (family() == _family_DS2408) ? true : false; };
+bool DsDevice::isDS2413() { return (family() == _family_DS2413) ? true : false; };
+bool DsDevice::isDS2438() { return (family() == _family_DS2413) ? true : false; };
 
 bool DsDevice::hasTemperature() { return isDS1820(); }
 
-const char *DsDevice::familyDescription() const {
-  return familyDescription(family());
-}
+const char *DsDevice::familyDescription() const { return familyDescription(family()); }
 
 const char *DsDevice::familyDescription(uint8_t family) const {
   switch (family) {
@@ -118,8 +106,7 @@ const unique_ptr<char[]> DsDevice::debug() {
   const auto max_len = 63;
   unique_ptr<char[]> debug_str(new char[max_len + 1]);
 
-  snprintf(debug_str.get(), max_len, "DsDevice(family=%s %s)",
-           familyDescription(), address().debug().get());
+  snprintf(debug_str.get(), max_len, "DsDevice(family=%s %s)", familyDescription(), address().debug().get());
 
   return move(debug_str);
 }

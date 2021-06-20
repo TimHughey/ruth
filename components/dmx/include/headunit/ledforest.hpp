@@ -1,5 +1,5 @@
 /*
-    Ruth
+    lightdesk/headunits/ledforest.hpp - Ruth LightDesk Headunit LED Forest
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,23 +18,30 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_task_hpp
-#define ruth_task_hpp
+#ifndef _ruth_lightdesk_headunits_ledforest_hpp
+#define _ruth_lightdesk_headunits_ledforest_hpp
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include "pwm.hpp"
 
-namespace ruth {
+namespace dmx {
 
-typedef struct {
-  TaskHandle_t handle;
-  void *data;
-  UBaseType_t priority;
-  UBaseType_t stackSize;
-} Task_t;
+typedef class LedForest LedForest_t;
 
-typedef void(TaskFunc_t)(void *);
+class LedForest : public PulseWidthHeadUnit {
 
-} // namespace ruth
+public:
+  LedForest(uint8_t pwm_num) : PulseWidthHeadUnit(pwm_num) {}
+
+  void handleMsg(const JsonObject &obj) override {
+    const uint32_t duty = obj[_id] | 0;
+
+    updateDuty(duty);
+  }
+
+private:
+  const char *_id = "LFR";
+};
+
+} // namespace dmx
 
 #endif
