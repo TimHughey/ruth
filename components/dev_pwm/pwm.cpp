@@ -18,50 +18,132 @@
     https://www.wisslanding.com
 */
 
+#include <cstring>
+
+#include <driver/gpio.h>
+#include <driver/ledc.h>
+#include <esp_attr.h>
 #include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+// #include <freertos/FreeRTOS.h>
+// #include <freertos/task.h>
 
 // #include "dev_pwm/cmd_random.hpp"
 #include "dev_pwm/pwm.hpp"
 
 namespace device {
 
-char *PulseWidth::_device_base = nullptr;
+bool PulseWidth::_timer_configured = false;
+static ledc_timer_config_t ledc_timer;
+
+static constexpr size_t num_channels = 5;
+bool PulseWidth::_channel_configured[num_channels] = {false};
+static ledc_channel_config_t channel_config[num_channels] = {};
+static ledc_channel_t numToChannelMap[num_channels] = {LEDC_CHANNEL_0, LEDC_CHANNEL_1, LEDC_CHANNEL_2,
+                                                       LEDC_CHANNEL_3, LEDC_CHANNEL_4};
+static gpio_num_t numToGpioMap[num_channels] = {GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33,
+                                                GPIO_NUM_27};
+
+static constexpr uint64_t pwm_gpio_pin_sel =
+    (GPIO_SEL_13 | GPIO_SEL_32 | GPIO_SEL_15 | GPIO_SEL_33 | GPIO_SEL_27);
+
+static const char *pin_name[num_channels] = {"led:0", "pin:1", "pin:2", "pin:3", "pin:4"};
+
+static char base_name[32] = {};
 
 // construct a new PulseWidth with a known address and compute the id
-PulseWidth::PulseWidth(uint8_t num) : device::Base(num) {
-  _gpio_pin = mapNumToGPIO(num);
-
-  _ledc_channel.gpio_num = _gpio_pin;
-  _ledc_channel.channel = mapNumToChannel(num);
-
-  switch (singleByteAddress()) {
-  case 0x01:
-    _desc = "pin:1";
-    break;
-
-  case 0x02:
-    _desc = "pin:2";
-    break;
-
-  case 0x03:
-    _desc = "pin:3";
-    break;
-
-  case 0x04:
-    _desc = "pin:4";
-    break;
-  }
+PulseWidth::PulseWidth(uint8_t num) : _num(num) {
+  _last_rc = allOff();
+  ensureTimer();
+  ensureChannel(num);
 
   makeID();
 }
 
-void PulseWidth::makeID() { setID("pwm/%s.%s", _device_base, description()); }
+esp_err_t PulseWidth::allOff() {
+  gpio_num_t pins[] = {GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
 
-void PulseWidth::configureChannel() {
-  gpio_set_level(_gpio_pin, 0);
-  _last_rc = ledc_channel_config(&_ledc_channel);
+  // ensure all pins to be used as PWM are off
+  gpio_config_t pins_cfg;
+
+  pins_cfg.pin_bit_mask = pwm_gpio_pin_sel;
+  pins_cfg.mode = GPIO_MODE_OUTPUT;
+  pins_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
+  pins_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  pins_cfg.intr_type = GPIO_INTR_DISABLE;
+
+  auto esp_rc = gpio_config(&pins_cfg);
+
+  constexpr size_t num_pins = sizeof(pins) / sizeof(gpio_num_t);
+  for (int i = 0; i < num_pins; i++) {
+    esp_rc = gpio_set_level(pins[i], 0);
+  }
+
+  return esp_rc;
+}
+
+const std::unique_ptr<char[]> PulseWidth::debug() {
+  const auto max_len = 127;
+  std::unique_ptr<char[]> debug_str(new char[max_len + 1]);
+  auto duty_now = duty();
+  auto channel = numToChannelMap[_num];
+  auto gpio = numToGpioMap[_num];
+
+  snprintf(debug_str.get(), max_len, "PulseWidth(%s duty=%d channel=%d pin=%d last_rc=%s)", id(), duty_now,
+           channel, gpio, esp_err_to_name(_last_rc));
+
+  return std::move(debug_str);
+}
+
+const char *PulseWidth::description() const { return pin_name[_num]; }
+
+IRAM_ATTR uint32_t PulseWidth::duty() const {
+  auto chan = numToChannelMap[_num];
+  auto mode = channel_config[_num].speed_mode;
+
+  return ledc_get_duty(mode, chan);
+}
+
+void PulseWidth::ensureChannel(uint8_t num) {
+  if (_channel_configured[num]) return;
+  if (_last_rc != ESP_OK) return;
+
+  auto gpio = numToGpioMap[num];
+
+  gpio_set_level(gpio, 0);
+
+  auto *config = &(channel_config[num]);
+  config->gpio_num = gpio;
+  config->speed_mode = LEDC_HIGH_SPEED_MODE;
+  config->channel = numToChannelMap[num];
+  config->intr_type = LEDC_INTR_DISABLE;
+  config->timer_sel = LEDC_TIMER_0;
+  config->duty = 0;
+  config->hpoint = 0;
+
+  _last_rc = ledc_channel_config(config);
+
+  if (_last_rc == ESP_OK) {
+    _channel_configured[num] = true;
+  }
+}
+
+void PulseWidth::ensureTimer() {
+  if (_timer_configured) return;
+  if (_last_rc != ESP_OK) return;
+
+  ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
+  ledc_timer.duty_resolution = LEDC_TIMER_13_BIT;
+  ledc_timer.timer_num = LEDC_TIMER_0;
+  ledc_timer.freq_hz = 5000;
+  ledc_timer.clk_cfg = LEDC_AUTO_CLK;
+
+  _last_rc = ledc_timer_config(&ledc_timer);
+
+  if (_last_rc == ESP_OK) {
+    _timer_configured = true;
+  }
+
+  _last_rc = ledc_fade_func_install(ESP_INTR_FLAG_LEVEL1);
 }
 
 // bool PulseWidth::cmd(uint32_t pwm_cmd, JsonDocument &doc) {
@@ -106,24 +188,61 @@ void PulseWidth::configureChannel() {
 //   return rc;
 // }
 
+void PulseWidth::makeID() {
+  if (_id[0]) return;
+
+  constexpr size_t capacity = sizeof(_id) / sizeof(char);
+  auto remaining = capacity;
+  auto *p = _id;
+
+  // very efficiently populate the prefix
+  *p++ = 'p';
+  *p++ = 'w';
+  *p++ = 'm';
+  *p++ = '/';
+
+  remaining -= 4;
+  memccpy(p, base_name, 0x00, remaining);
+
+  // back up one, memccpy returns pointer to byte immediately after the copied 0x00
+  p--;
+
+  // add the divider between base name and pin identifier
+  *p++ = ':';
+  remaining -= p - _id;
+
+  memccpy(p, description(), 0x00, remaining);
+}
+
+void PulseWidth::setBaseName(const char *base) {
+  constexpr size_t capacity = sizeof(base_name) / sizeof(char);
+  memccpy(base_name, base, 0x00, capacity);
+}
+
+bool PulseWidth::stop(uint32_t final_duty) {
+  auto mode = channel_config[_num].speed_mode;
+  auto channel = numToChannelMap[_num];
+  _last_rc = ledc_stop(mode, channel, final_duty);
+
+  if (_last_rc == ESP_OK) return true;
+
+  // using TR = reading::Text;
+  // TR::rlog("[%s] %s stop failed", esp_err_to_name(esp_rc), debug().get());
+
+  return false;
+}
+
 IRAM_ATTR bool PulseWidth::updateDuty(uint32_t new_duty) {
   auto esp_rc = ESP_OK;
 
-  const ledc_mode_t mode = _ledc_channel.speed_mode;
-  const ledc_channel_t channel = _ledc_channel.channel;
+  const ledc_mode_t mode = channel_config[_num].speed_mode;
+  const ledc_channel_t channel = numToChannelMap[_num];
 
   if (new_duty > _duty_max) return false;
 
-  writeStart();
   esp_rc = ledc_set_duty_and_update(mode, channel, new_duty, 0);
-  writeStop();
 
-  if (esp_rc == ESP_OK) {
-    _duty = new_duty;
-    return true;
-  } else {
-    printf("%s failed duty %u\n", id(), new_duty);
-  }
+  if (esp_rc == ESP_OK) return true;
 
   return false;
 }
@@ -144,73 +263,5 @@ IRAM_ATTR bool PulseWidth::updateDuty(uint32_t new_duty) {
 // }
 
 // STATIC
-void PulseWidth::allOff() {
-  gpio_num_t pins[4] = {GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
 
-  // ensure all pins to be used as PWM are off
-  gpio_config_t pins_cfg;
-
-  pins_cfg.pin_bit_mask = pwm_gpio_pin_sel;
-  pins_cfg.mode = GPIO_MODE_OUTPUT;
-  pins_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
-  pins_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
-  pins_cfg.intr_type = GPIO_INTR_DISABLE;
-
-  gpio_config(&pins_cfg);
-
-  for (int i = 0; i < 4; i++) {
-    gpio_set_level(pins[i], 0);
-  }
-}
-
-// STATIC
-ledc_channel_t PulseWidth::mapNumToChannel(const Address &num) {
-  switch (num.singleByte()) {
-  case 0x01:
-    // NOTE: LEDC_CHANNEL_0 is used for the onboard red status led
-    return (LEDC_CHANNEL_2);
-
-  case 0x02:
-    return (LEDC_CHANNEL_3);
-
-  case 0x03:
-    return (LEDC_CHANNEL_4);
-
-  case 0x04:
-    return (LEDC_CHANNEL_5);
-
-  default:
-    return (LEDC_CHANNEL_5);
-  }
-}
-
-// STATIC
-gpio_num_t PulseWidth::mapNumToGPIO(const Address &num) {
-  switch (num.singleByte()) {
-  case 0x01:
-    return GPIO_NUM_32;
-
-  case 0x02:
-    return GPIO_NUM_15;
-
-  case 0x03:
-    return GPIO_NUM_33;
-
-  case 0x04:
-    return GPIO_NUM_27;
-
-  default:
-    return GPIO_NUM_32;
-  }
-}
-
-const unique_ptr<char[]> PulseWidth::debug() {
-  const auto max_len = 127;
-  unique_ptr<char[]> debug_str(new char[max_len + 1]);
-
-  snprintf(debug_str.get(), max_len, "PulseWidth(%s duty=%d channel=%d pin=%d last_rc=%s)", id(), _duty,
-           _ledc_channel.channel, _gpio_pin, esp_err_to_name(_last_rc));
-
-  return move(debug_str);
-}
 } // namespace device

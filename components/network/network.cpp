@@ -98,8 +98,6 @@ const char *Net::hostname() { return __singleton__._hostname; }
 void Net::init() {
   esp_err_t rc = ESP_OK;
 
-  //  evg_ = xEventGroupCreate();
-
   esp_netif_init();
 
   rc = esp_event_loop_create_default();

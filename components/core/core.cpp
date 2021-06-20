@@ -25,6 +25,7 @@
 #include "binder.hpp"
 #include "boot_msg.hpp"
 #include "core.hpp"
+#include "dev_pwm/pwm.hpp"
 #include "filter/filter.hpp"
 #include "filter/out.hpp"
 #include "misc/datetime.hpp"
@@ -144,6 +145,7 @@ void Core::start() {
   net_opts.passwd = wifi["passwd"];
   net_opts.notify_task = xTaskGetCurrentTaskHandle();
 
+  StatusLED::brighter();
   Net::start(net_opts);
   uint32_t notify;
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(60000));
@@ -153,6 +155,9 @@ void Core::start() {
     vTaskDelay(pdMS_TO_TICKS(10000));
     esp_restart();
   }
+
+  device::PulseWidth::setBaseName(Net::hostname());
+  StatusLED::brighter();
 
   core.sntp(); // only returns if SNTP succeeds
 
@@ -175,11 +180,13 @@ void Core::start() {
     esp_restart();
   }
 
+  StatusLED::brighter();
   const char *hostname = wrapped_msg->filter(4);
 
   wrapped_msg->unpack(_profile);
 
   Net::setName(hostname);
+
   core.startEngines();
 
   // if (Binder::lightDeskEnabled() || Profile::lightDeskEnabled()) {
@@ -187,6 +194,7 @@ void Core::start() {
   // }
 
   core.trackHeap();
+  StatusLED::percent(75);
   core.bootComplete();
   // OTA::partitionHandlePendingIfNeeded();
 
@@ -201,6 +209,7 @@ void Core::start() {
 }
 
 void Core::startEngines() {
+  StatusLED::brighter();
   // if the engines are already started obviously don't start them again.
 
   // secondly, if this host hasn't yet been assigned a name (it's new) then
@@ -273,6 +282,7 @@ void Core::startMqtt() {
 }
 
 void Core::trackHeap() {
+  StatusLED::bright();
   message::Run msg;
 
   if (msg.isHeapLow()) {
@@ -280,6 +290,8 @@ void Core::trackHeap() {
   }
 
   MQTT::send(msg);
+
+  StatusLED::off();
 }
 
 void Core::wantMessage(message::InWrapped &msg) {

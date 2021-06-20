@@ -18,85 +18,74 @@
     https://www.wisslanding.com
 */
 
+#include <esp_attr.h>
+
 #include "misc/status_led.hpp"
 
 namespace ruth {
-// static const char *TAG = "StatusLED";
-static StatusLED_t __singleton__;
 
-void StatusLED::_init() {
-  auto timer_rc = ESP_FAIL;
-  auto config_rc = ESP_FAIL;
-  auto fade_func_rc = ESP_FAIL;
+static StatusLED *status_led = nullptr;
+static constexpr uint32_t duty_max = 0b1111111111111; // 13 bits, 8191
+static constexpr uint32_t duty_min = 0x00;
 
-  timer_rc = ledc_timer_config(&ledc_timer_);
+StatusLED::StatusLED() : PulseWidth(0), _duty(duty_max / 100) {}
 
-  if (timer_rc == ESP_OK) {
-    config_rc = ledc_channel_config(&ledc_channel_);
+void StatusLED::init() {
+  if (status_led) return;
 
-    if (config_rc == ESP_OK) {
-      fade_func_rc = ledc_fade_func_install(ESP_INTR_FLAG_LEVEL1);
-
-      if (fade_func_rc == ESP_OK) {
-        ledc_set_duty_and_update(ledc_channel_.speed_mode, ledc_channel_.channel, duty_, 0);
-      }
-    }
-  }
+  status_led = new StatusLED();
 }
 
-void StatusLED::_bright_() {
-  duty_ = duty_max_ / 2;
-  activate_duty();
+IRAM_ATTR void StatusLED::bright() {
+  auto &duty = status_led->_duty;
+
+  duty = duty_max / 2;
+  status_led->updateDuty(duty);
 }
 
-void StatusLED::_brighter_() {
-  duty_ += 1024;
+IRAM_ATTR void StatusLED::brighter() {
+  auto &duty = status_led->_duty;
 
-  if (duty_ > duty_max_) {
-    duty_ = duty_max_;
+  duty += 1024;
+
+  if (duty > duty_max) {
+    duty = duty_max;
   }
 
-  activate_duty();
+  status_led->updateDuty(duty);
 }
 
-void StatusLED::_dim_() {
-  duty_ = duty_max_ / 90;
-  activate_duty();
+IRAM_ATTR void StatusLED::dim() {
+  auto &duty = status_led->_duty;
+
+  duty = duty_max / 90;
+  status_led->updateDuty(duty);
 }
 
-void StatusLED::_dimmer_() {
-  if (duty_ > 1025) {
-    duty_ -= 1025;
+IRAM_ATTR void StatusLED::dimmer() {
+  auto &duty = status_led->_duty;
+
+  if (duty > 1025) {
+    duty -= 1025;
   }
 
-  activate_duty();
+  status_led->updateDuty(duty);
 }
 
-void StatusLED::_off_() {
-  duty_ = 0;
-  activate_duty();
+IRAM_ATTR void StatusLED::off() {
+  auto &duty = status_led->_duty;
+
+  duty = 0;
+  status_led->updateDuty(duty);
 }
 
-void StatusLED::_percent_(float p) {
-  uint32_t val = uint32_t(duty_max_ * p);
+IRAM_ATTR void StatusLED::percent(float p) {
+  uint32_t val = duty_max * p;
 
-  duty_ = val;
-  activate_duty();
+  auto &duty = status_led->_duty;
+
+  duty = val;
+  status_led->updateDuty(duty);
 }
 
-void StatusLED::activate_duty() {
-  ledc_set_duty_and_update(ledc_channel_.speed_mode, ledc_channel_.channel, duty_, 0);
-}
-
-void StatusLED::_duty_(uint32_t new_duty) {
-
-  if (new_duty <= duty_max_) {
-    duty_ = new_duty;
-
-    activate_duty();
-  }
-}
-
-// STATIC
-StatusLED_t *StatusLED::_instance_() { return &__singleton__; }
 } // namespace ruth
