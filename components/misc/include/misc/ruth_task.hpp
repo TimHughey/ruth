@@ -21,10 +21,13 @@
 #ifndef ruth_task_hpp
 #define ruth_task_hpp
 
+#include <config.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
 namespace ruth {
+
+constexpr size_t task_max_name_len = CONFIG_FREERTOS_MAX_TASK_NAME_LEN;
 
 typedef struct {
   TaskHandle_t handle;
@@ -32,6 +35,13 @@ typedef struct {
   UBaseType_t priority;
   UBaseType_t stackSize;
 } Task_t;
+
+struct Task {
+  TaskHandle_t handle;
+  void *data;
+  UBaseType_t priority;
+  UBaseType_t stack;
+};
 
 typedef void(TaskFunc_t)(void *);
 

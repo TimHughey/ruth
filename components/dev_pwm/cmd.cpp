@@ -24,10 +24,7 @@
 #include <cstdlib>
 
 #include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 
-#include "ArduinoJson.h"
 #include "dev_pwm/cmd.hpp"
 
 namespace pwm {
@@ -35,16 +32,15 @@ namespace pwm {
 // NOTE:  all members assigned in constructor definition are constants or
 //        statics and do not need to be copied
 
-Command::Command(const char *pin, ledc_channel_config_t *chan, JsonObject &obj) : _pin(pin), _channel(chan) {
+Command::Command(Hardware *hardware, JsonObject &obj) : _hw(hardware) {
 
-#pragma message "command priority is hardcoded"
-  constexpr UBaseType_t priority = 14;
-  _task.priority = (priority < 19) ? priority : 19;
+  // REMINDER: we must always make a local copy of relevant info from the JsonObject
+  auto name = obj["name"].as<const char *>();
+  constexpr size_t name_len = sizeof(_name) / sizeof(char) - 1;
+  memccpy(_name, name, 0x00, name_len);
 
-  // grab a const char * to the name so we can make a
-  // local copy. REMINDER we must always make a local
-  // copy of data from the JsonDocument
-  _name = obj["name"].as<const char *>();
+  _task.priority = obj["pri"] | 15;
+  _task.stack = obj["stack"] | 2560;
 
   // grab the task handle of the caller to use for later task notifications
   _parent = xTaskGetCurrentTaskHandle();
@@ -66,22 +62,12 @@ void Command::fadeTo(uint32_t fade_to) {
 
   auto new_duty = current_duty;
 
-  for (auto i = 0; (i < steps) && keepRunning(); i++) {
+  for (uint32_t i = 0; (i < steps) && keepRunning(); i++) {
     new_duty += (direction * step);
-    setDuty(new_duty);
+    _hw->updateDuty(new_duty);
 
     pause(delay_ms);
   }
-}
-
-uint32_t Command::getDuty() {
-  const ledc_channel_config_t *chan = channel();
-  const ledc_mode_t mode = chan->speed_mode;
-  const ledc_channel_t channel = chan->channel;
-
-  auto duty = ledc_get_duty(mode, channel);
-
-  return duty;
 }
 
 void Command::pause(uint32_t ms) {
@@ -93,17 +79,30 @@ void Command::pause(uint32_t ms) {
   }
 }
 
-bool Command::run() {
-  _start_();
-  return true;
+void Command::run() {
+  if (_loop_func) {
+
+    char task_name[ruth::task_max_name_len];
+
+    auto *p = task_name;
+    *p++ = 'p';
+    *p++ = 'w';
+    *p++ = 'm';
+    *p++ = ':';
+
+    constexpr size_t capacity = sizeof(task_name) / sizeof(char) - 5;
+    memccpy(p, hardware()->shortName(), 0x00, capacity);
+    xTaskCreate(&runTask, task_name, _task.stack, _task.data, _task.priority, &_task.handle);
+  }
 }
 
-esp_err_t Command::setDuty(uint32_t duty) {
-  const ledc_channel_config_t *chan = channel();
-  const ledc_mode_t mode = chan->speed_mode;
-  const ledc_channel_t channel = chan->channel;
+void Command::runTask(void *task_instance) {
+  Command *cmd = (Command *)task_instance;
 
-  return ledc_set_duty_and_update(mode, channel, duty, 0);
+  cmd->_loop_func(cmd->_task.data);
+
+  xTaskNotify(cmd->_parent, 0, eIncrement);
+  cmd->kill();
 }
 
 void Command::kill() {
@@ -116,10 +115,7 @@ void Command::kill() {
   // Text::rlog("\"%s\" killed, task[%s]", name().c_str(), taskName(to_delete));
 
   // inform FreeRTOS to remove this task from the scheduler
-  vTaskDelete(to_delete);
-
-  // NOTE: nothing can be returned from this function as code after
-  //       vTaskDelete is never executed
+  vTaskDelete(to_delete); // end of task
 }
 
 } // namespace pwm

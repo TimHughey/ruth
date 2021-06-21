@@ -24,59 +24,32 @@
 #include <memory>
 
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+#include "dev_pwm/cmd.hpp"
+#include "dev_pwm/hardware.hpp"
 
 namespace device {
-
-class PulseWidth {
+class PulseWidth : public pwm::Hardware {
 
 public:
-  PulseWidth(uint8_t num);
+  PulseWidth(uint8_t pin_num);
 
-  static esp_err_t allOff();
-  uint8_t devAddr() { return _num; };
-  bool available() const { return true; }
-  const char *description() const;
+  inline const char *description() const { return shortName(); }
+  inline uint8_t devAddr() const { return pinNum(); }
   const char *id() const { return _id; }
 
   void makeID();
-  uint32_t duty() const;
-  uint32_t dutyMax() const { return _duty_max; };
-  uint32_t dutyMin() const { return _duty_min; };
-  uint32_t dutyPercent(const float percent) const { return uint32_t((float)_duty_max * (percent / 100)); }
-  bool off() { return updateDuty(dutyMin()); }
-  bool on() { return updateDuty(dutyMax()); }
+  void makeStatus(const char *cmd);
 
   static void setBaseName(const char *base);
-  void setCommand(const char *cmd);
-  bool stop(uint32_t final_duty = 0);
-
-  bool updateDuty(uint32_t duty);
-
-  // info / debug functions
-  const std::unique_ptr<char[]> debug();
+  const char *status() const { return _status; }
 
 private:
-  void ensureChannel(uint8_t num);
-  void ensureTimer();
-
-private:
-  static bool _timer_configured;
-  static bool _channel_configured[5];
-
-  static uint64_t _numToGpioMap[5];
-  static uint32_t _numToChannelMap[5];
-
-  static constexpr uint32_t _duty_max = 0x1fff;
-  static constexpr uint32_t _duty_min = 0;
-  static UBaseType_t _priority;
-
-  uint32_t _num = 0;
   char _id[32] = {};
-  char _cmd[32] = {};
+  char _status[32] = {};
 
-  // Command_t *_cmd = nullptr;
-
-  esp_err_t _last_rc = ESP_OK;
+  std::unique_ptr<pwm::Command> _cmd;
 
 private:
   // Command_t *cmdCreate(JsonObject &obj);

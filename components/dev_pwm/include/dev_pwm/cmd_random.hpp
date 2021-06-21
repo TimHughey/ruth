@@ -26,56 +26,32 @@
 
 namespace pwm {
 
-typedef class Random Random_t;
-
 class Random : public Command {
 public:
-  Random(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd);
+  Random(Hardware *hardware, JsonObject &cmd);
   ~Random();
 
 protected:
-  static void loop(void *task_data) {
-    Random_t *obj = (Random_t *)task_data;
-
-    obj->_loop();
-  }
+  static void loop(void *task_data);
 
 private:
-  void _loop();
-  size_t availablePrimes() const;
-  int32_t directionFromVal(uint32_t val) const {
-
-    switch (val) {
-    case 0:
-      return 0;
-
-    case 1:
-      return -1;
-
-    case 2:
-      return 1;
-
-    default:
-      // favor decreasing brightness
-      return -1;
-    }
-  }
-
-  int32_t randomDirection() const {
-    const uint32_t direction = randomNum(3);
-
-    return directionFromVal(direction);
-  }
-
-  uint32_t randomNum(uint32_t modulo) const;
-  uint32_t randomPrime(uint8_t num_primes = 0) const;
+  struct Opts {
+    uint32_t max = 8191;
+    uint32_t min = 0;
+    uint32_t num_primes = 35;
+    uint32_t step = 7;
+    uint32_t step_ms = 65;
+  };
 
 private:
-  uint32_t _max = 8191;
-  uint32_t _min = 0;
-  uint32_t _num_primes = 35;
-  uint32_t _step = 7;
-  uint32_t _step_ms = 65;
+  static size_t availablePrimes();
+
+  static int32_t randomDirection();
+  static uint32_t randomNum(uint32_t modulo);
+  static uint32_t randomPrime(uint8_t num_primes = 0);
+
+private:
+  Opts opts;
 };
 
 } // namespace pwm

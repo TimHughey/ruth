@@ -33,41 +33,45 @@ static uint32_t _primes[] = {2,   3,   5,   7,   11,  13,  17,  19,  23,  29,  3
                              127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197,
                              199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277};
 
-Random::Random(const char *pin, ledc_channel_config_t *chan, JsonObject &cmd) : Command(pin, chan, cmd) {
+Random::Random(Hardware *hardware, JsonObject &cmd) : Command(hardware, cmd) {
 
   JsonObject obj = cmd["random"];
 
   if (obj) {
     // max duty value permitted
-    _max = obj["max"] | _max;
-    _min = obj["min"] | _min;
+    opts.max = obj["max"] | opts.max;
+    opts.min = obj["min"] | opts.min;
 
-    uint32_t num_primes = obj["primes"] | _num_primes;
+    uint32_t num_primes = obj["primes"] | opts.num_primes;
 
     // prevent the requested primes from exceeding the available primes
-    _num_primes = (num_primes > (availablePrimes() - 1)) ? _num_primes : num_primes;
+    opts.num_primes = (num_primes > (availablePrimes() - 1)) ? opts.num_primes : num_primes;
 
-    _step = obj["step"] | _step;
-    _step_ms = obj["step_ms"] | _step_ms;
+    opts.step = obj["step"] | opts.step;
+    opts.step_ms = obj["step_ms"] | opts.step_ms;
   }
 
   loopData(this);
-  useLoopFunction(&loop);
+  loopFunction(&loop);
 }
 
 Random::~Random() {
   kill(); // kill our process, if running, before freeing the steps
 }
 
-IRAM_ATTR void Random::_loop() {
+IRAM_ATTR void Random::loop(void *task_data) {
+  Random *obj = (Random *)task_data;
   // auto task_name = pcTaskGetTaskName(nullptr);
 
   // Text::rlog("cmd \"%s\" started, task[%s]", name().c_str(), task_name);
 
   // pick a random starting point
-  auto duty = randomNum((_max - _min) + _min);
+  const auto duty_max = obj->opts.max;
+  const auto duty_min = obj->opts.min;
+  const auto step_ms = obj->opts.step_ms;
+  auto duty = randomNum((duty_max - duty_min) + duty_min);
 
-  fadeTo(duty);
+  obj->fadeTo(duty);
 
   do {
     // pick a random initial direction and number of steps
@@ -75,34 +79,40 @@ IRAM_ATTR void Random::_loop() {
     auto steps = randomPrime();
 
     auto in_range = true;
-    auto pause_ms = randomPrime() + _step_ms;
+    auto pause_ms = randomPrime() + step_ms;
 
-    for (uint32_t i = 0; (i < steps) && keepRunning() && in_range; i++) {
-      uint32_t next_duty = duty + (_step * direction);
+    for (uint32_t i = 0; (i < steps) && obj->keepRunning() && in_range; i++) {
+      uint32_t next_duty = duty + (obj->opts.step * direction);
 
-      if ((next_duty >= _max) || (next_duty <= _min)) {
-        pause(randomPrime() * _step_ms);
+      if ((next_duty >= duty_max) || (next_duty <= duty_min)) {
+        obj->pause(randomPrime() * step_ms);
         in_range = false;
         break;
       }
 
       duty = next_duty;
-      setDuty(next_duty);
+      obj->_hw->updateDuty(next_duty);
 
-      pause(pause_ms);
+      obj->pause(pause_ms);
     }
-  } while (keepRunning());
+  } while (obj->keepRunning());
 }
 
-IRAM_ATTR uint32_t Random::availablePrimes() const {
+IRAM_ATTR uint32_t Random::availablePrimes() {
   constexpr size_t num_primes = (sizeof(_primes) / sizeof(uint32_t)) - 1;
 
   return num_primes;
 }
 
-IRAM_ATTR uint32_t Random::randomNum(uint32_t modulo) const { return (esp_random() % modulo) + 1; }
+IRAM_ATTR int32_t Random::randomDirection() {
+  static const int32_t direction[] = {0, -1, 1};
 
-IRAM_ATTR uint32_t Random::randomPrime(uint8_t num_primes) const {
+  return direction[randomNum(3)];
+}
+
+IRAM_ATTR uint32_t Random::randomNum(uint32_t modulo) { return (esp_random() % modulo) + 1; }
+
+IRAM_ATTR uint32_t Random::randomPrime(uint8_t num_primes) {
   uint8_t index; // reminder, next must be >=0 and < availablePrimes()
 
   if ((num_primes == 0) || (num_primes > availablePrimes())) {
