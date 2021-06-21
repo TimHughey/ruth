@@ -76,10 +76,7 @@ void Core::loop() {
   Core &core = __singleton__;
   // using TR = reading::Text;
 
-  bool timeout;
-  auto msg = core.waitForMessage(UINT32_MAX, timeout);
-
-  if (timeout == true) return;
+  auto msg = core.waitForMessage();
 
   ESP_LOGI(TAG, "got message %p", msg.get());
 
@@ -172,7 +169,7 @@ void Core::start() {
   StatusLED::brighter();
 
   bool timeout;
-  auto wrapped_msg = core.waitForMessage(30000, timeout);
+  auto wrapped_msg = core.waitForMessage(30000, &timeout);
 
   if (timeout) {
     ESP_LOGW(TAG, "timeout waiting for profile");

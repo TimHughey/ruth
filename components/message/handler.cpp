@@ -53,7 +53,7 @@ bool Handler::accept(std::unique_ptr<In> msg) {
   return false;
 }
 
-std::unique_ptr<In> Handler::waitForMessage(uint32_t wait_ms, bool &timeout) {
+std::unique_ptr<In> Handler::waitForMessage(uint32_t wait_ms, bool *timeout) {
 
   std::unique_ptr<In> return_msg(nullptr);
   In *received_msg;
@@ -62,14 +62,15 @@ std::unique_ptr<In> Handler::waitForMessage(uint32_t wait_ms, bool &timeout) {
 
   if (q_rc == pdTRUE) {
     // got a message from the queue, wrap it in a unique_ptr and return
-    timeout = false;
+    if (timeout) *timeout = false;
+
     return_msg = std::unique_ptr<In>(received_msg);
 
     return std::move(return_msg);
   }
 
   // note a timeout occurred and return the empty unique_ptr
-  timeout = true;
+  if (timeout) *timeout = true;
   return std::move(return_msg);
 }
 

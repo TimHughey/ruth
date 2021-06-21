@@ -33,11 +33,16 @@ namespace pwm {
 class Engine : public message::Handler {
 public:
   struct Opts {
-    UBaseType_t command_stack = 4096;
-    UBaseType_t command_pri = 13;
-    UBaseType_t report_stack = 3048;
-    UBaseType_t report_pri = 1;
-    uint32_t report_ms = 7000;
+    struct command {
+      UBaseType_t stack = 4096;
+      UBaseType_t priority = 13;
+    };
+
+    struct report {
+      UBaseType_t stack = 3048;
+      UBaseType_t priority = 1;
+      uint32_t send_ms = 7000;
+    };
   };
 
 public:

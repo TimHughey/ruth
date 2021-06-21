@@ -112,8 +112,8 @@ void Engine::command(void *task_data) {
   //  2.  acts on queued command messages
 
   for (;;) {
-    bool timeout;
-    auto msg = waitForMessage(UINT32_MAX, timeout);
+
+    auto msg = waitForMessage();
   }
 }
 

@@ -37,7 +37,8 @@ public:
 
   bool accept(InWrapped msg);
 
-  virtual InWrapped waitForMessage(uint32_t wait_ms, bool &timeout);
+  InWrapped waitForMessage() { return waitForMessage(UINT32_MAX, nullptr); }
+  virtual InWrapped waitForMessage(uint32_t wait_ms, bool *timeout = nullptr);
   virtual void wantMessage(InWrapped &msg) = 0;
 
 protected:
