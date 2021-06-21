@@ -219,6 +219,8 @@ void PulseWidth::setBaseName(const char *base) {
   memccpy(base_name, base, 0x00, capacity);
 }
 
+void PulseWidth::setCommand(const char *cmd) { memccpy(_cmd, cmd, 0x00, sizeof(_cmd) - 1); }
+
 bool PulseWidth::stop(uint32_t final_duty) {
   auto mode = channel_config[_num].speed_mode;
   auto channel = numToChannelMap[_num];

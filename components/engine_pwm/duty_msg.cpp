@@ -18,38 +18,15 @@
   https://www.wisslanding.com
 */
 
-#ifndef core_sntp_hpp
-#define core_sntp_hpp
+#include "duty_msg.hpp"
 
-#include <memory>
+namespace message {
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <freertos/timers.h>
+Duty::Duty(const char *id, uint32_t duty) {
+  _filter.addLevel(id);
+  _duty = duty;
+}
 
-namespace ruth {
+void Duty::assembleData(JsonObject &data) { data["status"] = "foorbar"; }
 
-class Sntp {
-public:
-  struct Opts {
-    const char *servers[2] = {};
-    TaskHandle_t notify_task = nullptr;
-  };
-
-public:
-  enum Notifies : uint32_t { READY = 0x01 << 1 };
-
-public:
-  Sntp(const Opts &opts);
-  ~Sntp();
-
-private:
-  static void sync_callback(struct timeval *tv);
-
-private:
-  Opts _opts;
-};
-
-}; // namespace ruth
-
-#endif
+} // namespace message

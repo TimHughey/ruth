@@ -28,46 +28,26 @@
 namespace device {
 
 class PulseWidth {
-  // public:
-  //   PulseWidth() {}
-  // static const char *DeviceDesc(const Address &addr);
-  // static gpio_num_t mapNumToGPIO(const Address &num);
-  // static ledc_channel_t mapNumToChannel(const Address &num);
 
 public:
   PulseWidth(uint8_t num);
 
   static esp_err_t allOff();
   uint8_t devAddr() { return _num; };
-
-  // override the base class function
-  // pwm devices are always available provided the engine is enabled
   bool available() const { return true; }
   const char *description() const;
   const char *id() const { return _id; }
 
   void makeID();
-
-  // ledc channel
-
-  // ledc_channel_t channel() { return _ledc_channel.channel; };
-  // ledc_mode_t speedMode() { return _ledc_channel.speed_mode; };
-
   uint32_t duty() const;
   uint32_t dutyMax() const { return _duty_max; };
   uint32_t dutyMin() const { return _duty_min; };
   uint32_t dutyPercent(const float percent) const { return uint32_t((float)_duty_max * (percent / 100)); }
-
-  // gpio_num_t gpioPin() { return _gpio_pin; };
-
-  // primary entry point for all cmds except duty
-  // bool cmd(uint32_t pwm_cmd, JsonDocument &doc);
-  // bool cmdKill();
-
   bool off() { return updateDuty(dutyMin()); }
   bool on() { return updateDuty(dutyMax()); }
 
   static void setBaseName(const char *base);
+  void setCommand(const char *cmd);
   bool stop(uint32_t final_duty = 0);
 
   bool updateDuty(uint32_t duty);
@@ -92,6 +72,7 @@ private:
 
   uint32_t _num = 0;
   char _id[32] = {};
+  char _cmd[32] = {};
 
   // Command_t *_cmd = nullptr;
 
