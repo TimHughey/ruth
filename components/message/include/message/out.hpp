@@ -35,6 +35,7 @@ public:
   Out(size_t doc_size = 1024);
   virtual ~Out() {}
 
+  inline JsonDocument &doc() { return _doc; }
   inline const char *filter() const { return _filter.c_str(); }
 
   Packed pack(size_t &length);

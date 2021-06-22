@@ -26,6 +26,7 @@
 #include "boot_msg.hpp"
 #include "core.hpp"
 #include "dev_pwm/pwm.hpp"
+#include "engines.hpp"
 #include "filter/filter.hpp"
 #include "filter/out.hpp"
 #include "misc/datetime.hpp"
@@ -66,8 +67,6 @@ void Core::bootComplete() {
   _report_timer = xTimerCreate("core_report", pdMS_TO_TICKS(report_ms), pdTRUE, nullptr, &reportTimer);
   vTimerSetTimerID(_report_timer, this);
   xTimerStart(_report_timer, pdMS_TO_TICKS(0));
-
-  StatusLED::off();
 }
 
 bool Core::enginesStarted() { return __singleton__._engines_started; }
@@ -153,7 +152,6 @@ void Core::start() {
     esp_restart();
   }
 
-  device::PulseWidth::setBaseName(Net::hostname());
   StatusLED::brighter();
 
   core.sntp(); // only returns if SNTP succeeds
@@ -193,6 +191,7 @@ void Core::start() {
   core.trackHeap();
   StatusLED::percent(75);
   core.bootComplete();
+
   // OTA::partitionHandlePendingIfNeeded();
 
   // if (Binder::cliEnabled()) {
@@ -203,6 +202,7 @@ void Core::start() {
   //   _watcher = new Watcher();
   //   _watcher->start();
   // }
+  StatusLED::off();
 }
 
 void Core::startEngines() {
@@ -218,6 +218,11 @@ void Core::startEngines() {
   if (_engines_started || Net::hostIdAndNameAreEqual()) {
     return;
   }
+
+  const JsonObject profile = _profile.as<JsonObject>();
+  profile["hostname"] = Net::hostname();
+  profile["unique_id"] = Net::macAddress();
+  core::Engines::startConfigured(profile);
 
   // NOTE:
   //  startIfEnabled() checks if the engine is enabled in the Profile

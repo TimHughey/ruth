@@ -27,17 +27,18 @@
 
 namespace message {
 
-IRAM_ATTR Out::Out(const size_t doc_size) : _doc(doc_size) {}
-
-IRAM_ATTR Packed Out::pack(size_t &length) {
+IRAM_ATTR Out::Out(const size_t doc_size) : _doc(doc_size) {
   JsonObject data = _doc.to<JsonObject>();
 
   struct timeval time_now {};
   gettimeofday(&time_now, nullptr);
-
   uint64_t mtime_ms = ((uint64_t)time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
 
   data["mtime"] = mtime_ms;
+}
+
+IRAM_ATTR Packed Out::pack(size_t &length) {
+  JsonObject data = _doc.as<JsonObject>();
 
   assembleData(data);
 

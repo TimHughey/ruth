@@ -18,25 +18,24 @@
   https://www.wisslanding.com
 */
 
-#ifndef engine_pwm_duty_message_hpp
-#define engine_pwm_duty_message_hpp
+#ifndef engine_pwm_message_hpp
+#define engine_pwm_message_hpp
 
 #include <memory>
 
 #include "message/out.hpp"
 
-namespace message {
+namespace pwm {
 
-class Duty : public Out {
+class Status : public message::Out {
 public:
-  Duty(const char *id, uint32_t duty);
-  ~Duty() = default;
+  Status(const char *device_name);
+  ~Status() = default;
+
+  void addDevice(const char *pio_id, const char *status);
 
 private:
   void assembleData(JsonObject &data);
-
-private:
-  uint32_t _duty = false;
 };
-} // namespace message
+} // namespace pwm
 #endif

@@ -39,7 +39,7 @@ static gpio_num_t numToGpioMap[num_channels] = {GPIO_NUM_13, GPIO_NUM_32, GPIO_N
 static constexpr uint64_t pwm_gpio_pin_sel =
     (GPIO_SEL_13 | GPIO_SEL_32 | GPIO_SEL_15 | GPIO_SEL_33 | GPIO_SEL_27);
 
-static const char *pin_name[num_channels] = {"led:0", "pin:1", "pin:2", "pin:3", "pin:4"};
+static const char *pin_name[num_channels] = {"led.0", "pin.1", "pin.2", "pin.3", "pin.4"};
 
 // construct a new Hardware with a known address and compute the id
 Hardware::Hardware(uint8_t pin_num) : _pin_num(pin_num) {
@@ -77,7 +77,7 @@ IRAM_ATTR uint32_t Hardware::duty(bool *changed) {
   uint32_t duty_now = ledc_get_duty(mode, chan);
 
   if (changed) {
-    *changed = duty_now != _duty;
+    *changed = (duty_now == 0) || (duty_now != _duty);
   }
 
   _duty = duty_now;

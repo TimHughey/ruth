@@ -1,6 +1,6 @@
 /*
     Ruth
-    Copyright (C) 2020  Tim Hughey
+    Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,39 +18,21 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_dev_hpp
-#define _ruth_pwm_dev_hpp
+#ifndef _ruth_core_engines_hpp
+#define _ruth_core_engines_hpp
 
-#include <memory>
+#include "ArduinoJson.h"
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+namespace core {
 
-#include "dev_pwm/cmd.hpp"
-#include "dev_pwm/hardware.hpp"
-
-namespace device {
-class PulseWidth : public pwm::Hardware {
-
+class Engines {
 public:
-  PulseWidth(uint8_t pin_num);
+  Engines() = default;
+  ~Engines() = default;
 
-  inline uint8_t devAddr() const { return pinNum(); }
-  const char *id() const { return shortName(); }
-
-  void makeStatus();
-
-  const char *status() const { return _status; }
-
-private:
-  char _id[32] = {};
-  char _status[32] = {};
-
-  std::unique_ptr<pwm::Command> _cmd;
-
-private:
-  // Command_t *cmdCreate(JsonObject &obj);
+  static void startConfigured(const JsonObject &profile);
 };
-} // namespace device
 
-#endif // pwm_dev_hpp
+} // namespace core
+
+#endif

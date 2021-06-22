@@ -18,15 +18,23 @@
   https://www.wisslanding.com
 */
 
-#include "duty_msg.hpp"
+#include "pwm_msg.hpp"
 
-namespace message {
+namespace pwm {
 
-Duty::Duty(const char *id, uint32_t duty) {
-  _filter.addLevel(id);
-  _duty = duty;
+Status::Status(const char *ident) {
+  _filter.addLevel("pwm");
+  _filter.addLevel("status");
+  _filter.addLevel(ident);
 }
 
-void Duty::assembleData(JsonObject &data) { data["status"] = "foorbar"; }
+void Status::addDevice(const char *pio_id, const char *status) {
 
-} // namespace message
+  JsonObject root = doc().as<JsonObject>();
+
+  root[pio_id] = status;
+}
+
+void Status::assembleData(JsonObject &data) {}
+
+} // namespace pwm

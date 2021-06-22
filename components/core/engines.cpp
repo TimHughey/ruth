@@ -1,6 +1,6 @@
 /*
     Ruth
-    Copyright (C) 2020  Tim Hughey
+    Copyright (C) 2017  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,39 +18,30 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_dev_hpp
-#define _ruth_pwm_dev_hpp
+#include <esp_log.h>
 
-#include <memory>
+#include "engine_pwm/pwm.hpp"
+#include "engines.hpp"
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+namespace core {
 
-#include "dev_pwm/cmd.hpp"
-#include "dev_pwm/hardware.hpp"
+void Engines::startConfigured(const JsonObject &profile) {
+  const char *unique_id = profile["unique_id"];
+  const JsonObject &pwm = profile["pwm"];
 
-namespace device {
-class PulseWidth : public pwm::Hardware {
+  if (pwm) {
+    using namespace pwm;
+    Engine::Opts opts;
 
-public:
-  PulseWidth(uint8_t pin_num);
+    opts.unique_id = unique_id;
+    opts.command.stack = pwm["command"]["stack"];
+    opts.command.priority = pwm["command"]["pri"];
+    opts.report.stack = pwm["report"]["stack"];
+    opts.report.priority = pwm["report"]["pri"];
+    opts.report.send_ms = pwm["report"]["send_ms"];
 
-  inline uint8_t devAddr() const { return pinNum(); }
-  const char *id() const { return shortName(); }
+    Engine::start(opts);
+  }
+}
 
-  void makeStatus();
-
-  const char *status() const { return _status; }
-
-private:
-  char _id[32] = {};
-  char _status[32] = {};
-
-  std::unique_ptr<pwm::Command> _cmd;
-
-private:
-  // Command_t *cmdCreate(JsonObject &obj);
-};
-} // namespace device
-
-#endif // pwm_dev_hpp
+} // namespace core

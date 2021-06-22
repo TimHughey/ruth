@@ -32,35 +32,48 @@
 
 namespace device {
 
-static char base_name[32] = {};
-
 // construct a new PulseWidth with a known address and compute the id
-PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) { makeID(); }
-
-void PulseWidth::makeID() {
-  constexpr size_t capacity = sizeof(_id) / sizeof(char);
-  auto remaining = capacity;
-  auto *p = _id;
-
-  // very efficiently populate the prefix
-  *p++ = 'p';
-  *p++ = 'w';
-  *p++ = 'm';
-  *p++ = '/';
-
-  remaining -= 4;
-  memccpy(p, base_name, 0x00, remaining);
-
-  p--;        // back up one, memccpy returns pointer to byte immediately after the copied null
-  *p++ = ':'; // add the divider between base name and pin identifier
-  remaining -= p - _id;
-
-  memccpy(p, shortName(), 0x00, remaining);
+PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) {
+  _status[0] = 'o';
+  _status[1] = 'f';
+  _status[2] = 'f';
 }
 
-void PulseWidth::setBaseName(const char *base) {
-  constexpr size_t capacity = sizeof(base_name) / sizeof(char);
-  memccpy(base_name, base, 0x00, capacity);
-}
+void PulseWidth::makeStatus() {
+  constexpr size_t capacity = sizeof(_status) - 1;
 
+  // if a cmd is running, use it's name as the status
+  if (_cmd) {
+    memccpy(_status, _cmd->name(), 0x00, capacity);
+    return;
+  }
+
+  uint32_t duty_now = duty();
+
+  if (duty_now == dutyMin()) { // handle off
+    _status[0] = 'o';
+    _status[1] = 'f';
+    _status[2] = 'f';
+    _status[3] = 0x00;
+    return;
+  }
+
+  if (duty_now == dutyMax()) { // handle on
+    _status[0] = 'o';
+    _status[1] = 'n';
+    _status[3] = 0x00;
+    return;
+  }
+
+  // not on or off, create a custom status using the duty
+  auto *p = _status;
+  *p++ = 'f';
+  *p++ = 'i';
+  *p++ = 'x';
+  *p++ = 'e';
+  *p++ = 'd';
+  *p++ = ' ';
+
+  itoa(duty_now, p, 10);
+}
 } // namespace device

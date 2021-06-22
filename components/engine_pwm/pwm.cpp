@@ -27,13 +27,16 @@
 #include "dev_pwm/pwm.hpp"
 #include "engine_pwm/pwm.hpp"
 #include "mqtt.hpp"
+#include "pwm_msg.hpp"
 
 namespace pwm {
 
 using namespace std::string_view_literals;
 using namespace ruth;
 
+static const char *TAG_RPT = "pwm:report";
 static Engine *_instance_ = nullptr;
+char Engine::_ident[32] = {};
 
 // document example:
 // {"ack":true,
@@ -49,11 +52,19 @@ static Engine *_instance_ = nullptr;
 const size_t _capacity =
     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
 
-Engine::Engine() : Handler(5), _known({Device(1), Device(2), Device(3), Device(4)}) {
+Engine::Engine(const char *unique_id, uint32_t report_send_ms)
+    : Handler(5), _known({Device(1), Device(2), Device(3), Device(4)}), _report_send_ms(report_send_ms) {
   device::PulseWidth::allOff(); // ensure all pins are off at initialization
 
-  // addTask(TASK_CORE);
-  // addTask(TASK_REPORT);
+  constexpr size_t capacity = sizeof(_ident) - 1;
+  auto *p = _ident;
+
+  // very efficiently populate the prefix
+  *p++ = 'p';
+  *p++ = 'w';
+  *p++ = 'm';
+
+  memccpy(p, unique_id, 0x00, capacity - (p - _ident));
 }
 
 //
@@ -106,6 +117,7 @@ Engine::Engine() : Handler(5), _known({Device(1), Device(2), Device(3), Device(4
 //
 
 void Engine::command(void *task_data) {
+  MQTT::registerHandler(this, "pwm"sv);
 
   // core task run loop
   //  1.  acts on task notifications
@@ -120,20 +132,38 @@ void Engine::command(void *task_data) {
 void Engine::report(void *data) {
   static TickType_t last_wake;
 
+  Engine *pwm = (Engine *)data;
+  const auto send_ms = pwm->_report_send_ms;
+
+  ESP_LOGI(TAG_RPT, "task started: send_ms[%u]", send_ms);
+
   for (;;) {
     last_wake = xTaskGetTickCount();
+    {
+      pwm::Status status(pwm->_ident);
 
-    for (size_t i = 0; i < _num_devices; i++) {
-      // auto &device = _known[i];
-      //
-      // auto duty = device.duty();
+      for (size_t i = 0; i < _num_devices; i++) {
+        auto &device = pwm->_known[i];
+        device.makeStatus();
+
+        status.addDevice(device.shortName(), device.status());
+      }
+
+      MQTT::send(status);
     }
 
     vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(7000));
   }
 }
 
-void Engine::start(Opts &opts) { MQTT::registerHandler(this, "pwm"sv); }
+void Engine::start(Opts &opts) {
+  if (_instance_) return;
+
+  _instance_ = new Engine(opts.unique_id, opts.report.send_ms);
+  TaskHandle_t &report_task = _instance_->_report_task;
+
+  xTaskCreate(&report, "pwm:report", opts.report.stack, _instance_, opts.report.priority, &report_task);
+}
 
 void Engine::wantMessage(message::InWrapped &msg) {}
 

@@ -23,49 +23,56 @@
 
 #include <cstdlib>
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include "dev_pwm/pwm.hpp"
 #include "message/handler.hpp"
 #include "message/in.hpp"
-#include "misc/ruth_task.hpp"
 
 namespace pwm {
 
 class Engine : public message::Handler {
 public:
   struct Opts {
-    struct command {
+    const char *unique_id;
+
+    struct {
       UBaseType_t stack = 4096;
       UBaseType_t priority = 13;
-    };
+    } command;
 
-    struct report {
+    struct {
       UBaseType_t stack = 3048;
       UBaseType_t priority = 1;
       uint32_t send_ms = 7000;
-    };
+    } report;
   };
 
 public:
   typedef device::PulseWidth Device;
 
 private:
-  Engine();
+  Engine(const char *unique_id, uint32_t report_send_ms);
   ~Engine() = default;
 
 public:
   void command(void *data);
-  void report(void *data);
+  static void report(void *data);
 
-  void start(Opts &opts);
+  static void start(Opts &opts);
   void stop();
 
   void wantMessage(message::InWrapped &msg) override;
 
 private:
-  ruth::Task_t _task;
-
   Device _known[4];
   static constexpr size_t _num_devices = sizeof(_known) / sizeof(Device);
+  static char _ident[32];
+
+  TaskHandle_t _report_task = nullptr;
+  uint32_t _report_send_ms = 13000;
+  TaskHandle_t _command_task = nullptr;
 };
 } // namespace pwm
 
