@@ -129,7 +129,8 @@ IRAM_ATTR void MQTT::incomingMsg(esp_mqtt_event_t *event) {
         registered.handler->accept(std::move(msg));
 
         if (registered.notify_task) {
-          xTaskNotify(registered.notify_task, 0xff000000, eSetBits);
+          // notify the registered handler but DO NOT overwrite a pending notification
+          xTaskNotify(registered.notify_task, MQTT::QUEUED_MSG, eSetValueWithoutOverwrite);
         }
       }
     }

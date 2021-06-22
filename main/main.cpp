@@ -57,7 +57,7 @@ void app_main() {
 
   // this is where our implementation begins by starting the Core
 
-  Core::start();
+  Core::boot();
 
   esp_task_wdt_reset();
 

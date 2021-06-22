@@ -51,80 +51,7 @@ Core::Core() : message::Handler(_max_queue_depth) {
   _heap_avail = heap_caps_get_free_size(MALLOC_CAP_8BIT);
 }
 
-void Core::bootComplete() {
-  // send our boot stats
-  const char *profile_name = _profile["meta"]["name"] | "unknown";
-  message::Boot msg(_stack_size, _core_elapsed, profile_name);
-  MQTT::send(msg);
-
-  // lower our priority to not compete with actual work
-  if (uxTaskPriorityGet(nullptr) > _priority) {
-    vTaskPrioritySet(nullptr, _priority);
-  }
-
-  // start our scheduled reports
-  uint32_t report_ms = _profile["host"]["report_ms"] | 7000;
-  _report_timer = xTimerCreate("core_report", pdMS_TO_TICKS(report_ms), pdTRUE, nullptr, &reportTimer);
-  vTimerSetTimerID(_report_timer, this);
-  xTimerStart(_report_timer, pdMS_TO_TICKS(0));
-}
-
-bool Core::enginesStarted() { return __singleton__._engines_started; }
-
-void Core::loop() {
-  Core &core = __singleton__;
-  // using TR = reading::Text;
-
-  auto msg = core.waitForMessage();
-
-  ESP_LOGI(TAG, "got message %p", msg.get());
-
-  // if (payload->matchSubtopic("restart")) {
-  // TODO
-  // esp_restart();
-  // Restart("restart requested", __PRETTY_FUNCTION__);
-  // }
-  // else if (payload->matchSubtopic("ota")) {
-  //
-  //   if (_ota == nullptr) {
-  //     _ota = new OTA();
-  //     _ota->start();
-  //     _ota->handleCommand(*payload); // handleCommand() logs as required
-  //   }
-  // } else if (payload->matchSubtopic("ota_cancel")) {
-  //   if (_ota) {
-  //     delete _ota;
-  //     _ota = nullptr;
-  //   }
-  // }
-  // else {
-  // TR::rlog("[CORE] unknown message subtopic=\"%s\"", payload->subtopic());
-  // }
-}
-
-void Core::sntp() {
-  Sntp::Opts opts;
-
-  auto ntp_servers = Binder::ntp();
-
-  opts.servers[0] = ntp_servers[0];
-  opts.servers[1] = ntp_servers[1];
-  opts.notify_task = xTaskGetCurrentTaskHandle();
-
-  Sntp sntp(opts);
-
-  uint32_t notify_val = 0;
-  elapsedMillis sntp_elapsed;
-  xTaskNotifyWait(0, ULONG_MAX, &notify_val, pdMS_TO_TICKS(10000));
-  sntp_elapsed.freeze();
-
-  if (notify_val != Sntp::READY) {
-    ESP_LOGW(TAG, "SNTP exceeded 10s");
-    esp_restart();
-  }
-}
-
-void Core::start() {
+void Core::boot() {
   Core &core = __singleton__;
 
   // core._app_task = app_task;
@@ -203,6 +130,84 @@ void Core::start() {
   //   _watcher->start();
   // }
   StatusLED::off();
+}
+void Core::bootComplete() {
+  // send our boot stats
+  const char *profile_name = _profile["meta"]["name"] | "unknown";
+  message::Boot msg(_stack_size, _core_elapsed, profile_name);
+  MQTT::send(msg);
+
+  // lower our priority to not compete with actual work
+  if (uxTaskPriorityGet(nullptr) > _priority) {
+    vTaskPrioritySet(nullptr, _priority);
+  }
+
+  // start our scheduled reports
+  uint32_t report_ms = _profile["host"]["report_ms"] | 7000;
+  _report_timer = xTimerCreate("core_report", pdMS_TO_TICKS(report_ms), pdTRUE, nullptr, &reportTimer);
+  vTimerSetTimerID(_report_timer, this);
+  xTimerStart(_report_timer, pdMS_TO_TICKS(0));
+}
+
+bool Core::enginesStarted() { return __singleton__._engines_started; }
+
+void Core::loop() {
+  Core &core = __singleton__;
+  // using TR = reading::Text;
+
+  auto msg = core.waitForMessage();
+
+  ESP_LOGI(TAG, "got message %p", msg.get());
+
+  // if (payload->matchSubtopic("restart")) {
+  // TODO
+  // esp_restart();
+  // Restart("restart requested", __PRETTY_FUNCTION__);
+  // }
+  // else if (payload->matchSubtopic("ota")) {
+  //
+  //   if (_ota == nullptr) {
+  //     _ota = new OTA();
+  //     _ota->start();
+  //     _ota->handleCommand(*payload); // handleCommand() logs as required
+  //   }
+  // } else if (payload->matchSubtopic("ota_cancel")) {
+  //   if (_ota) {
+  //     delete _ota;
+  //     _ota = nullptr;
+  //   }
+  // }
+  // else {
+  // TR::rlog("[CORE] unknown message subtopic=\"%s\"", payload->subtopic());
+  // }
+}
+
+void Core::reportTimer(TimerHandle_t handle) {
+  Core_t *core = (Core_t *)pvTimerGetTimerID(handle);
+
+  core->trackHeap();
+}
+
+void Core::sntp() {
+  Sntp::Opts opts;
+
+  auto ntp_servers = Binder::ntp();
+
+  opts.servers[0] = ntp_servers[0];
+  opts.servers[1] = ntp_servers[1];
+  opts.notify_task = xTaskGetCurrentTaskHandle();
+
+  Sntp sntp(opts);
+
+  uint32_t notify_val = 0;
+  elapsedMillis sntp_elapsed;
+  xTaskNotifyWait(0, ULONG_MAX, &notify_val, pdMS_TO_TICKS(10000));
+  sntp_elapsed.freeze();
+
+  if (notify_val != Sntp::READY) {
+    ESP_LOGW(TAG, "SNTP exceeded 10s");
+    esp_restart();
+  }
 }
 
 void Core::startEngines() {

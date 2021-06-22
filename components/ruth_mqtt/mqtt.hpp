@@ -51,7 +51,12 @@ public:
   };
 
 public:
-  enum Notifies : uint32_t { CONNECTED = (0x01 << 30), DISCONNECTED = (0x01 << 29), READY = (0x01 << 28) };
+  enum Notifies : uint32_t {
+    CONNECTED = 0x01 << 30,
+    DISCONNECTED = 0x01 << 29,
+    READY = 0x01 << 28,
+    QUEUED_MSG = 0x01 << 27
+  };
 
 public:
   MQTT() = default;
