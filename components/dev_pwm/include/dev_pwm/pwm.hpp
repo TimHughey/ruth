@@ -36,6 +36,8 @@ public:
   PulseWidth(uint8_t pin_num);
 
   inline uint8_t devAddr() const { return pinNum(); }
+  bool execute(const char *cmd);
+  bool execute(std::unique_ptr<pwm::Command> cmd);
   const char *id() const { return shortName(); }
 
   void makeStatus();
@@ -43,13 +45,8 @@ public:
   const char *status() const { return _status; }
 
 private:
-  char _id[32] = {};
-  char _status[32] = {};
-
+  char _status[32];
   std::unique_ptr<pwm::Command> _cmd;
-
-private:
-  // Command_t *cmdCreate(JsonObject &obj);
 };
 } // namespace device
 

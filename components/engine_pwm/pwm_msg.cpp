@@ -17,24 +17,28 @@
 
   https://www.wisslanding.com
 */
-
 #include "pwm_msg.hpp"
 
 namespace pwm {
 
-Status::Status(const char *ident) {
+Status::Status(const char *ident) : message::Out(512) {
   _filter.addLevel("pwm");
   _filter.addLevel("status");
   _filter.addLevel(ident);
 }
 
-void Status::addDevice(const char *pio_id, const char *status) {
+void Status::addPin(uint8_t pin_num, const char *status) {
+  JsonObject obj = rootObject();
+  JsonArray pins = obj["pins"];
+  if (!pins) {
+    pins = obj.createNestedArray("pins");
+  }
 
-  JsonObject root = doc().as<JsonObject>();
-
-  root[pio_id] = status;
+  auto pin_status = pins.createNestedArray();
+  pin_status.add(pin_num);
+  pin_status.add(status);
 }
 
-void Status::assembleData(JsonObject &data) {}
+void Status::assembleData(JsonObject &root) { root["mut"] = true; }
 
 } // namespace pwm

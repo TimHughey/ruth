@@ -26,6 +26,7 @@
 
 #include "dev_pwm/pwm.hpp"
 #include "engine_pwm/pwm.hpp"
+#include "misc/status_led.hpp"
 #include "mqtt.hpp"
 #include "pwm_msg.hpp"
 
@@ -35,6 +36,7 @@ using namespace std::string_view_literals;
 using namespace ruth;
 
 static const char *TAG_RPT = "pwm:report";
+static const char *TAG_CMD = "pwm:cmd";
 static Engine *_instance_ = nullptr;
 char Engine::_ident[32] = {};
 
@@ -49,12 +51,11 @@ char Engine::_ident[32] = {};
 //        {"duty":2048,"ms":750},{"duty":0,"ms":1500},
 //        {"duty":1024,"ms":750},{"duty":0,"ms":1500}]}}
 
-const size_t _capacity =
-    JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
+// const size_t _capacity =
+//     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
 
 Engine::Engine(const char *unique_id, uint32_t report_send_ms)
     : Handler(5), _known({Device(1), Device(2), Device(3), Device(4)}), _report_send_ms(report_send_ms) {
-  device::PulseWidth::allOff(); // ensure all pins are off at initialization
 
   constexpr size_t capacity = sizeof(_ident) - 1;
   auto *p = _ident;
@@ -66,28 +67,6 @@ Engine::Engine(const char *unique_id, uint32_t report_send_ms)
 
   memccpy(p, unique_id, 0x00, capacity - (p - _ident));
 }
-
-//
-// Commands (processed via Core Task)
-//
-
-// void Engine::commandLocal(MsgPayload_t_ptr payload) {
-//   // deserialize the msgpack data
-//   StaticJsonDocument<_capacity> doc;
-//   DeserializationError err = deserializeMsgPack(doc, payload.get()->payload());
-//
-//   // NOTE
-//   //      The original payload MUST be kept until we are completely finished
-//   //      with the JsonDocument
-//
-//   // did the deserailization succeed?
-//   if (err) {
-//     Text::rlog("pwm command MSGPACK err=\"%s\"", err.c_str());
-//     return;
-//   }
-//
-//   commandExecute(doc);
-// }
 
 // bool Engine::commandExecute(JsonDocument &doc) {
 //   PwmDevice_t *dev = findDevice(doc["device"]);
@@ -116,16 +95,37 @@ Engine::Engine(const char *unique_id, uint32_t report_send_ms)
 // Tasks
 //
 
-void Engine::command(void *task_data) {
-  MQTT::registerHandler(this, "pwm"sv);
+static StaticJsonDocument<1024> cmd_doc;
 
-  // core task run loop
-  //  1.  acts on task notifications
-  //  2.  acts on queued command messages
+void Engine::command(void *task_data) {
+  Engine *pwm = (Engine *)task_data;
+  MQTT::registerHandler(pwm, "pwm"sv);
+
+  ESP_LOGI(TAG_CMD, "task started");
 
   for (;;) {
+    auto msg = pwm->waitForMessage();
 
-    auto msg = waitForMessage();
+    if (msg) {
+      if (msg->unpack(cmd_doc)) {
+        const char *refid = msg->filter(4);
+        const char *cmd = cmd_doc["cmd"];
+        const char *type = cmd_doc["type"];
+
+        const uint8_t pin = cmd_doc["pin"].as<uint8_t>();
+        // Device &dev = pwm->_known[pin];
+        Device &dev = (pin == 0) ? StatusLED::device() : pwm->_known[pin];
+
+        if (type) {
+          ESP_LOGI(TAG_CMD, "custom command[%s] type[%s]", cmd, type);
+        } else {
+          auto success = dev.execute(cmd);
+
+          ESP_LOGI(TAG_CMD, "updated %s: cmd[%s] refid[%s] success[%s]", dev.id(), cmd, refid,
+                   (success) ? "true" : "false");
+        }
+      }
+    }
   }
 }
 
@@ -142,11 +142,14 @@ void Engine::report(void *data) {
     {
       pwm::Status status(pwm->_ident);
 
+      auto &status_led = StatusLED::device();
+      status.addPin(status_led.pinNum(), status_led.status());
+
       for (size_t i = 0; i < _num_devices; i++) {
         auto &device = pwm->_known[i];
         device.makeStatus();
 
-        status.addDevice(device.shortName(), device.status());
+        status.addPin(device.pinNum(), device.status());
       }
 
       MQTT::send(status);
@@ -162,9 +165,18 @@ void Engine::start(Opts &opts) {
   _instance_ = new Engine(opts.unique_id, opts.report.send_ms);
   TaskHandle_t &report_task = _instance_->_report_task;
 
-  xTaskCreate(&report, "pwm:report", opts.report.stack, _instance_, opts.report.priority, &report_task);
+  xTaskCreate(&report, TAG_RPT, opts.report.stack, _instance_, opts.report.priority, &report_task);
+
+  TaskHandle_t &cmd_task = _instance_->_command_task;
+  xTaskCreate(&command, TAG_CMD, opts.command.stack, _instance_, opts.command.priority, &cmd_task);
 }
 
-void Engine::wantMessage(message::InWrapped &msg) {}
+void Engine::wantMessage(message::InWrapped &msg) {
+  const char *ident = msg->filter(3);
+
+  if (strncmp(_ident, ident, sizeof(_ident)) == 0) {
+    msg->want(DocKinds::CMD);
+  }
+}
 
 } // namespace pwm

@@ -57,13 +57,16 @@ private:
   ~Engine() = default;
 
 public:
-  void command(void *data);
+  static void command(void *data);
   static void report(void *data);
 
   static void start(Opts &opts);
   void stop();
 
   void wantMessage(message::InWrapped &msg) override;
+
+private:
+  enum DocKinds : uint32_t { CMD = 1 };
 
 private:
   Device _known[4];

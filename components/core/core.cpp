@@ -289,7 +289,7 @@ void Core::startMqtt() {
 }
 
 void Core::trackHeap() {
-  StatusLED::bright();
+  //  StatusLED::bright();
   message::Run msg;
 
   if (msg.isHeapLow()) {
@@ -298,7 +298,7 @@ void Core::trackHeap() {
 
   MQTT::send(msg);
 
-  StatusLED::off();
+  // StatusLED::off();
 }
 
 void Core::wantMessage(message::InWrapped &msg) {

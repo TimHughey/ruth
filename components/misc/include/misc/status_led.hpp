@@ -21,15 +21,6 @@
 #ifndef _ruth_status_led_hpp
 #define _ruth_status_led_hpp
 
-// #include <sys/time.h>
-// #include <time.h>
-//
-// #include <esp_log.h>
-//
-// #include <driver/gpio.h>
-// #include <driver/ledc.h>
-// #include <esp_system.h>
-
 #include "dev_pwm/pwm.hpp"
 
 namespace ruth {
@@ -42,6 +33,7 @@ public:
   // control the brightness of the status led
   static void bright();
   static void brighter();
+  static device::PulseWidth &device();
   static void dim();
   static void dimmer();
   static void percent(float p);
@@ -49,21 +41,7 @@ public:
 
 private:
   uint32_t _duty = 0; // initial duty is very dim
-
-  // ledc_timer_config_t ledc_timer_ = {.speed_mode = LEDC_HIGH_SPEED_MODE,
-  //                                    .duty_resolution = LEDC_TIMER_13_BIT,
-  //                                    .timer_num = LEDC_TIMER_0,
-  //                                    .freq_hz = 5000,
-  //                                    .clk_cfg = LEDC_AUTO_CLK};
-  //
-  // ledc_channel_config_t ledc_channel_ = {.gpio_num = GPIO_NUM_13,
-  //                                        .speed_mode = LEDC_HIGH_SPEED_MODE,
-  //                                        .channel = LEDC_CHANNEL_0,
-  //                                        .intr_type = LEDC_INTR_DISABLE,
-  //                                        .timer_sel = LEDC_TIMER_0,
-  //                                        .duty = duty_,
-  //                                        .hpoint = 0};
-}; // namespace ruth
+};
 } // namespace ruth
 
 #endif

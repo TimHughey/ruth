@@ -32,15 +32,32 @@
 
 namespace device {
 
-// construct a new PulseWidth with a known address and compute the id
-PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) {
-  _status[0] = 'o';
-  _status[1] = 'f';
-  _status[2] = 'f';
+// construct a new PulseWidth with a known address
+PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) { makeStatus(); }
+
+IRAM_ATTR bool PulseWidth::execute(const char *cmd) {
+  if ((cmd[0] == 'o') && ((cmd[2] == 0x00) || (cmd[3] == 0x00))) {
+    // high probability this is on or off, check the second byte for 'f' or 'n'
+
+    uint32_t duty = 0;
+    if (cmd[1] == 'f') {
+      duty = dutyMin();
+    } else if (cmd[1] == 'n') {
+      duty = dutyMax();
+    } else {
+      return false;
+    }
+
+    updateDuty(duty);
+    return true;
+  }
+
+  return false;
 }
 
-void PulseWidth::makeStatus() {
+IRAM_ATTR void PulseWidth::makeStatus() {
   constexpr size_t capacity = sizeof(_status) - 1;
+  auto *p = _status;
 
   // if a cmd is running, use it's name as the status
   if (_cmd) {
@@ -48,25 +65,26 @@ void PulseWidth::makeStatus() {
     return;
   }
 
+  // otherwise, create a text representation of the duty value
   uint32_t duty_now = duty();
 
+  // going for ultimate efficiency here
   if (duty_now == dutyMin()) { // handle off
-    _status[0] = 'o';
-    _status[1] = 'f';
-    _status[2] = 'f';
-    _status[3] = 0x00;
+    *p++ = 'o';
+    *p++ = 'f';
+    *p++ = 'f';
+    *p++ = 0x00;
     return;
   }
 
   if (duty_now == dutyMax()) { // handle on
-    _status[0] = 'o';
-    _status[1] = 'n';
-    _status[3] = 0x00;
+    *p++ = 'o';
+    *p++ = 'n';
+    *p++ = 0x00;
     return;
   }
 
-  // not on or off, create a custom status using the duty
-  auto *p = _status;
+  // not on or off, create a custom status using the duty val
   *p++ = 'f';
   *p++ = 'i';
   *p++ = 'x';

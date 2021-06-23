@@ -37,12 +37,13 @@ public:
 
   inline JsonDocument &doc() { return _doc; }
   inline const char *filter() const { return _filter.c_str(); }
-
+  inline size_t memoryUsage() const { return _doc.memoryUsage(); }
   Packed pack(size_t &length);
   inline uint32_t qos() const { return _qos; }
+  inline JsonObject rootObject() { return _doc.as<JsonObject>(); }
 
 private:
-  virtual void assembleData(JsonObject &data) = 0;
+  virtual void assembleData(JsonObject &rootObject) = 0;
 
 protected:
   filter::Out _filter;

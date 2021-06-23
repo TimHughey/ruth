@@ -55,6 +55,8 @@ IRAM_ATTR void StatusLED::brighter() {
   status_led->updateDuty(duty);
 }
 
+IRAM_ATTR device::PulseWidth &StatusLED::device() { return *status_led; }
+
 IRAM_ATTR void StatusLED::dim() {
   auto &duty = status_led->_duty;
 

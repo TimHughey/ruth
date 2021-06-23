@@ -32,7 +32,7 @@ public:
   Status(const char *device_name);
   ~Status() = default;
 
-  void addDevice(const char *pio_id, const char *status);
+  void addPin(uint8_t pin_num, const char *status);
 
 private:
   void assembleData(JsonObject &data);

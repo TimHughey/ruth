@@ -25,7 +25,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "misc/status_led.hpp"
+// #include "misc/status_led.hpp"
 #include "mqtt.hpp"
 
 namespace ruth {
@@ -39,7 +39,7 @@ static const char *ESP_TAG = "ESP-MQTT";
 static MQTT __singleton__;
 
 void MQTT::connectionClosed() {
-  StatusLED::dim();
+  // StatusLED::dim();
 
   _mqtt_ready = false;
 }
@@ -52,7 +52,7 @@ IRAM_ATTR esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
 
   switch (event->event_id) {
   case MQTT_EVENT_BEFORE_CONNECT:
-    StatusLED::brighter();
+    // StatusLED::brighter();
     break;
 
   case MQTT_EVENT_CONNECTED:
@@ -62,7 +62,7 @@ IRAM_ATTR esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
     if (status == MQTT_CONNECTION_ACCEPTED) {
       const ConnOpts &opts = mqtt->_opts;
 
-      StatusLED::off();
+      // StatusLED::off();
       xTaskNotify(opts.notify_task, MQTT::CONNECTED, eSetBits);
     } else {
 
@@ -73,7 +73,7 @@ IRAM_ATTR esp_err_t MQTT::eventCallback(esp_mqtt_event_handle_t event) {
     break;
 
   case MQTT_EVENT_DISCONNECTED:
-    StatusLED::dim();
+    // StatusLED::dim();
 
     mqtt->connectionClosed();
     break;
@@ -120,7 +120,9 @@ IRAM_ATTR void MQTT::incomingMsg(esp_mqtt_event_t *event) {
   for (auto i = 0; (i < _max_handlers) && !wanted; i++) {
     const RegisteredHandler &registered = _handlers[i];
 
-    if (registered.handler && registered.matchCategory(msg->category())) {
+    if (registered.handler == nullptr) break; // stop checking once we hit an empty registration
+
+    if (registered.matchCategory(msg->category())) {
       registered.handler->wantMessage(msg);
 
       if (msg->wanted()) {
@@ -186,44 +188,6 @@ void MQTT::registerHandler(message::Handler *handler, std::string_view category)
     }
   }
 }
-
-// void MQTT::shutdown() {
-//   // make a copy of the instance pointer to delete
-//   auto &mqtt = __singleton__;
-//
-//   // grab the task handle for the vTaskDelete after initial shutdown steps
-//   TaskHandle_t handle = mqtt._task.handle;
-//
-//   // flag that a shutdown is underway so the actual MQTT task will exit it's
-//   // core "forever" loop
-//   mqtt._run_core = false;
-//
-//   // poll the MQTT task until it indicates that it is no longer ready
-//   // and can be safely removed from the scheduler and deleted
-//   while (mqtt._mqtt_ready) {
-//     // delay the CALLING task
-//     // the MQTT shutdown activities should be "quick"
-//     vTaskDelay(pdMS_TO_TICKS(10));
-//   }
-//
-//   // ok, MQTT task has cleanly closed it's connections
-//
-//   // vTaskDelete removes the task from the scheduler.
-//   // so we must call mg_mgr_free() before
-//
-//   // a. signal FreeRTOS to remove the task from the scheduler
-//   // b. the IDLE task will ultimately free the FreeRTOS memory for the task.
-//   // the memory allocated by the MQTT instance must be freed in it's
-//   // destructor.
-//   vTaskDelete(handle);
-// }
-
-// void MQTT::start(const Opts &opts) {
-//   _instance_ = new MQTT(opts);
-//   MQTT *mqtt = _instance_;
-//
-//   mqtt->_host_filter.appendMultiLevelWildcard();
-// }
 
 void MQTT::subscribeAck(esp_mqtt_event_handle_t event) {
 

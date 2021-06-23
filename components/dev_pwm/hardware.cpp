@@ -28,7 +28,8 @@
 
 namespace pwm {
 
-static ledc_timer_config_t ledc_timer;
+static ledc_timer_config_t ledc_timer[2];
+static ledc_timer_t pinToTimerMap[5] = {LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_1, LEDC_TIMER_1};
 static constexpr size_t num_channels = 5;
 static ledc_channel_config_t channel_config[num_channels] = {};
 static ledc_channel_t numToChannelMap[num_channels] = {LEDC_CHANNEL_0, LEDC_CHANNEL_1, LEDC_CHANNEL_2,
@@ -50,6 +51,9 @@ Hardware::Hardware(uint8_t pin_num) : _pin_num(pin_num) {
 
 esp_err_t Hardware::allOff() {
   gpio_num_t pins[] = {GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
+  static bool onetime = false;
+
+  if (onetime) return ESP_OK;
 
   // ensure all pins to be used as PWM are off
   gpio_config_t pins_cfg;
@@ -66,6 +70,8 @@ esp_err_t Hardware::allOff() {
   for (size_t i = 0; i < num_pins; i++) {
     esp_rc = gpio_set_level(pins[i], 0);
   }
+
+  onetime = true;
 
   return esp_rc;
 }
@@ -98,7 +104,7 @@ void Hardware::ensureChannel(uint8_t num) {
   config->speed_mode = LEDC_HIGH_SPEED_MODE;
   config->channel = numToChannelMap[num];
   config->intr_type = LEDC_INTR_DISABLE;
-  config->timer_sel = LEDC_TIMER_0;
+  config->timer_sel = pinToTimerMap[num];
   config->duty = 0;
   config->hpoint = 0;
 
@@ -113,16 +119,22 @@ void Hardware::ensureTimer() {
   if (_timer_configured) return;
   if (_last_rc != ESP_OK) return;
 
-  ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
-  ledc_timer.duty_resolution = LEDC_TIMER_13_BIT;
-  ledc_timer.timer_num = LEDC_TIMER_0;
-  ledc_timer.freq_hz = 5000;
-  ledc_timer.clk_cfg = LEDC_AUTO_CLK;
+  ledc_timer_t timers[2] = {LEDC_TIMER_0, LEDC_TIMER_1};
 
-  _last_rc = ledc_timer_config(&ledc_timer);
+  for (size_t i = 0; i < 2; i++) {
+    ledc_timer_t timer = timers[i];
 
-  if (_last_rc == ESP_OK) {
-    _timer_configured = true;
+    ledc_timer[i].speed_mode = LEDC_HIGH_SPEED_MODE;
+    ledc_timer[i].duty_resolution = LEDC_TIMER_13_BIT;
+    ledc_timer[i].timer_num = timer;
+    ledc_timer[i].freq_hz = 5000;
+    ledc_timer[i].clk_cfg = LEDC_AUTO_CLK;
+
+    _last_rc = ledc_timer_config(&(ledc_timer[i]));
+
+    if (_last_rc == ESP_OK) {
+      _timer_configured = true;
+    }
   }
 
   _last_rc = ledc_fade_func_install(ESP_INTR_FLAG_LEVEL1);
@@ -137,23 +149,18 @@ bool Hardware::stop(uint32_t final_duty) {
 
   if (_last_rc == ESP_OK) return true;
 
-  // using TR = reading::Text;
-  // TR::rlog("[%s] %s stop failed", esp_err_to_name(esp_rc), debug().get());
-
   return false;
 }
 
 IRAM_ATTR bool Hardware::updateDuty(uint32_t new_duty) {
-  auto esp_rc = ESP_OK;
-
   const ledc_mode_t mode = channel_config[_pin_num].speed_mode;
   const ledc_channel_t channel = numToChannelMap[_pin_num];
 
   if (new_duty > _duty_max) return false;
 
-  esp_rc = ledc_set_duty_and_update(mode, channel, new_duty, 0);
+  _last_rc = ledc_set_duty_and_update(mode, channel, new_duty, 0);
 
-  if (esp_rc == ESP_OK) return true;
+  if (_last_rc == ESP_OK) return true;
 
   return false;
 }

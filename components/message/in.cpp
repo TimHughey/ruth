@@ -65,6 +65,7 @@ IRAM_ATTR InWrapped In::make(const char *filter, const size_t filter_len, const 
 }
 
 IRAM_ATTR bool In::unpack(JsonDocument &doc) {
+  doc.clear();
 
   _err = deserializeMsgPack(doc, _packed.get(), _packed_len);
 

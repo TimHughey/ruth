@@ -5,7 +5,7 @@
 #include <esp_attr.h>
 #include <esp_log.h>
 
-#include "misc/status_led.hpp"
+//  #include "misc/status_led.hpp"
 #include "network.hpp"
 
 using namespace std::literals;
@@ -208,7 +208,7 @@ bool Net::start(const Opts &opts) {
   memccpy(__singleton__._hostname, hostID(), 0x00, max_name_and_id_len);
 
   esp_wifi_start();
-  StatusLED::brighter();
+  // StatusLED::brighter();
 
   ESP_LOGI(TAG, "standing by for IP address...");
 
