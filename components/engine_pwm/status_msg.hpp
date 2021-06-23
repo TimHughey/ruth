@@ -18,8 +18,8 @@
   https://www.wisslanding.com
 */
 
-#ifndef engine_pwm_message_hpp
-#define engine_pwm_message_hpp
+#ifndef pwm_status_message_hpp
+#define pwm_status_message_hpp
 
 #include <memory>
 
