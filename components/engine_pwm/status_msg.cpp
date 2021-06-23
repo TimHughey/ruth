@@ -17,7 +17,7 @@
 
   https://www.wisslanding.com
 */
-#include "pwm_msg.hpp"
+#include "status_msg.hpp"
 
 namespace pwm {
 

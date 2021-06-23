@@ -28,7 +28,7 @@
 #include "engine_pwm/pwm.hpp"
 #include "misc/status_led.hpp"
 #include "mqtt.hpp"
-#include "pwm_msg.hpp"
+#include "status_msg.hpp"
 
 namespace pwm {
 
