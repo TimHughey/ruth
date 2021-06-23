@@ -24,6 +24,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+#include "ack_msg.hpp"
 #include "dev_pwm/pwm.hpp"
 #include "engine_pwm/pwm.hpp"
 #include "misc/status_led.hpp"
@@ -111,18 +112,21 @@ void Engine::command(void *task_data) {
         const char *refid = msg->filter(4);
         const char *cmd = cmd_doc["cmd"];
         const char *type = cmd_doc["type"];
+        bool ack = false;
 
         const uint8_t pin = cmd_doc["pin"].as<uint8_t>();
-        // Device &dev = pwm->_known[pin];
-        Device &dev = (pin == 0) ? StatusLED::device() : pwm->_known[pin];
+        Device &dev = (pin == 0) ? StatusLED::device() : pwm->_known[pin - 1];
 
         if (type) {
           ESP_LOGI(TAG_CMD, "custom command[%s] type[%s]", cmd, type);
         } else {
-          auto success = dev.execute(cmd);
+          ack = dev.execute(cmd);
+        }
 
-          ESP_LOGI(TAG_CMD, "updated %s: cmd[%s] refid[%s] success[%s]", dev.id(), cmd, refid,
-                   (success) ? "true" : "false");
+        if (ack) {
+          pwm::Ack ack_msg(refid);
+
+          MQTT::send(ack_msg);
         }
       }
     }
