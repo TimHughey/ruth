@@ -67,7 +67,7 @@ public:
 
   static void initAndStart(const ConnOpts &opts);
 
-  static void registerHandler(message::Handler *handler, std::string_view category);
+  static void registerHandler(message::Handler *handler);
   static bool send(message::Out &msg);
 
   // static void shutdown();
@@ -87,20 +87,6 @@ private:
   void subscribeAck(esp_mqtt_event_handle_t event);
 
 private:
-  typedef struct {
-    message::Handler *handler = nullptr;
-    char category[24] = {};
-    TaskHandle_t notify_task = nullptr;
-
-    bool matchCategory(const char *to_match) const {
-      if (strncmp(category, to_match, sizeof(category)) == 0)
-        return true;
-      else
-        return false;
-    }
-  } RegisteredHandler;
-
-private:
   ConnOpts _opts;
   // bool _run_core = true;
   // the Ruth MQTT task has the singular responsibility of announcing the startup of this host
@@ -114,7 +100,7 @@ private:
   uint16_t _subscribe_msg_id;
 
   static constexpr uint32_t _max_handlers = 10;
-  RegisteredHandler _handlers[_max_handlers];
+  message::Handler *_handlers[_max_handlers];
 
 private:
 };

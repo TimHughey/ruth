@@ -49,7 +49,8 @@ public:
     } report;
   };
 
-public:
+  enum Notifies : UBaseType_t { QUEUED_MSG = 1 << 30 };
+
   typedef device::PulseWidth Device;
 
 private:
@@ -70,12 +71,14 @@ private:
 
 private:
   Device _known[4];
-  static constexpr size_t _num_devices = sizeof(_known) / sizeof(Device);
   static char _ident[32];
 
   TaskHandle_t _report_task = nullptr;
   uint32_t _report_send_ms = 13000;
   TaskHandle_t _command_task = nullptr;
+
+  static constexpr size_t _num_devices = sizeof(_known) / sizeof(Device);
+  static constexpr size_t _max_queue_depth = 5;
 };
 } // namespace pwm
 

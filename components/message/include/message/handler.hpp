@@ -31,18 +31,33 @@
 namespace message {
 
 class Handler {
+
 public:
-  Handler(size_t max_queue_depth = 5);
+  Handler(const char *category, size_t const max_queue_depth);
   virtual ~Handler() = default;
 
   bool accept(InWrapped msg);
 
-  InWrapped waitForMessage() { return waitForMessage(UINT32_MAX, nullptr); }
+  bool matchCategory(const char *category) const;
+  UBaseType_t notifyMessageValDefault() const { return notify_msg_val_default; }
+
+  void notifyThisTask(UBaseType_t notify_val);
+  TaskHandle_t notifyTask() const { return _notify_task; }
+
+  virtual InWrapped waitForMessage() { return waitForMessage(UINT32_MAX, nullptr); }
   virtual InWrapped waitForMessage(uint32_t wait_ms, bool *timeout = nullptr);
+  virtual InWrapped waitForNotifyOrMessage(UBaseType_t *notified);
   virtual void wantMessage(InWrapped &msg) = 0;
 
+public:
+  static constexpr UBaseType_t notify_msg_val_default = 0x01 << 27;
+
 protected:
+  char _category[24] = {};
   QueueHandle_t _msg_q = nullptr;
+
+  UBaseType_t _notify_msg_val = notify_msg_val_default;
+  TaskHandle_t _notify_task = nullptr;
 };
 
 } // namespace message

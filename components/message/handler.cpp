@@ -18,10 +18,16 @@
   https://www.wisslanding.com
 */
 
+#include <esp_log.h>
+
 #include "message/handler.hpp"
 
 namespace message {
-Handler::Handler(size_t max_queue_depth) { _msg_q = xQueueCreate(max_queue_depth, sizeof(In *)); }
+
+Handler::Handler(const char *category, const size_t max_queue_depth) {
+  memccpy(_category, category, 0x00, sizeof(_category) - 1);
+  _msg_q = xQueueCreate(max_queue_depth, sizeof(In *));
+}
 
 bool Handler::accept(std::unique_ptr<In> msg) {
   auto q_rc = pdFALSE;
@@ -46,6 +52,11 @@ bool Handler::accept(std::unique_ptr<In> msg) {
   // message from the unique_ptr
   if (q_rc == pdTRUE) {
     msg.release();
+
+    if (_notify_task) {
+      xTaskNotify(_notify_task, _notify_msg_val, eSetBits);
+    }
+
     return true;
   }
 
@@ -53,9 +64,12 @@ bool Handler::accept(std::unique_ptr<In> msg) {
   return false;
 }
 
-std::unique_ptr<In> Handler::waitForMessage(uint32_t wait_ms, bool *timeout) {
+IRAM_ATTR bool Handler::matchCategory(const char *to_match) const {
+  return strncmp(_category, to_match, sizeof(_category)) == 0 ? true : false;
+}
 
-  std::unique_ptr<In> return_msg(nullptr);
+IRAM_ATTR InWrapped Handler::waitForMessage(uint32_t wait_ms, bool *timeout) {
+  InWrapped return_msg(nullptr);
   In *received_msg;
 
   auto q_rc = xQueueReceive(_msg_q, &received_msg, pdMS_TO_TICKS(wait_ms));
@@ -64,13 +78,45 @@ std::unique_ptr<In> Handler::waitForMessage(uint32_t wait_ms, bool *timeout) {
     // got a message from the queue, wrap it in a unique_ptr and return
     if (timeout) *timeout = false;
 
-    return_msg = std::unique_ptr<In>(received_msg);
+    return_msg = InWrapped(received_msg);
 
     return std::move(return_msg);
   }
 
   // note a timeout occurred and return the empty unique_ptr
   if (timeout) *timeout = true;
+  return std::move(return_msg);
+}
+
+void Handler::notifyThisTask(UBaseType_t notify_val) {
+  _notify_task = xTaskGetCurrentTaskHandle();
+  _notify_msg_val = notify_val;
+}
+
+IRAM_ATTR InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
+  InWrapped return_msg(nullptr);
+  In *received_msg = nullptr;
+  // always do a no wait check for messages in the queue
+
+  auto q_rc = xQueueReceive(_msg_q, &received_msg, 0);
+
+  // if we got a message from the queue, then return it without waiting for a task notify
+  if (q_rc == pdTRUE) {
+    ESP_LOGI("message:handler", "msg was waiting in the queue");
+    return_msg = InWrapped(received_msg);
+    return std::move(return_msg);
+  }
+
+  // wait for a task notification.  on any notification do a no wait queue pop and return
+  // whatever was popped (or not popped)
+  xTaskNotifyWait(0x00, UINT32_MAX, notified, portMAX_DELAY);
+  ESP_LOGI("message:handler", "notified 0x%0x", *notified);
+
+  // pop it from the queue and return it
+  // always do a no wait check for messages in the queue
+  xQueueReceive(_msg_q, &received_msg, 0);
+  return_msg = InWrapped(received_msg);
+
   return std::move(return_msg);
 }
 

@@ -41,22 +41,9 @@ static const char *TAG_CMD = "pwm:cmd";
 static Engine *_instance_ = nullptr;
 char Engine::_ident[32] = {};
 
-// document example:
-// {"ack":true,
-//   "device":"pwm/lab-ledge.pin:1","host":"ruth.3c71bf14fdf0",
-//   "refid":"3b952cbb-324c-4e98-8fd5-3f484f41c975",
-//   "seq":{"name":"flash","repeat":true,"run":true,
-//     "steps":
-//       [{"duty":8191,"ms":750},{"duty":0,"ms":1500},
-//        {"duty":4096,"ms":750},{"duty":0,"ms":1500},
-//        {"duty":2048,"ms":750},{"duty":0,"ms":1500},
-//        {"duty":1024,"ms":750},{"duty":0,"ms":1500}]}}
-
-// const size_t _capacity =
-//     JSON_ARRAY_SIZE(8) + 8 * JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + 220;
-
 Engine::Engine(const char *unique_id, uint32_t report_send_ms)
-    : Handler(5), _known({Device(1), Device(2), Device(3), Device(4)}), _report_send_ms(report_send_ms) {
+    : Handler("pwm", _max_queue_depth), _known({Device(1), Device(2), Device(3), Device(4)}),
+      _report_send_ms(report_send_ms) {
 
   constexpr size_t capacity = sizeof(_ident) - 1;
   auto *p = _ident;
@@ -69,43 +56,19 @@ Engine::Engine(const char *unique_id, uint32_t report_send_ms)
   memccpy(p, unique_id, 0x00, capacity - (p - _ident));
 }
 
-// bool Engine::commandExecute(JsonDocument &doc) {
-//   PwmDevice_t *dev = findDevice(doc["device"]);
-//   auto set_rc = false;
-//
-//   if (dev && dev->valid()) {
-//     const uint32_t pwm_cmd = doc["pwm_cmd"] | 0x00;
-//
-//     if (pwm_cmd < 0x1000) {
-//       // this command is device specific, send it there for processing
-//       set_rc = dev->cmd(pwm_cmd, doc);
-//     } else {
-//       // this command is for the engine
-//       set_rc = true;
-//     }
-//
-//     bool ack = doc["ack"] | true;
-//     const RefID_t refid = doc["refid"].as<const char *>();
-//     commandAck(dev, ack, refid, set_rc);
-//   }
-//
-//   return set_rc;
-// }
-
-//
-// Tasks
-//
-
 static StaticJsonDocument<1024> cmd_doc;
 
 void Engine::command(void *task_data) {
   Engine *pwm = (Engine *)task_data;
-  MQTT::registerHandler(pwm, "pwm"sv);
+
+  pwm->notifyThisTask(Notifies::QUEUED_MSG);
+  MQTT::registerHandler(pwm);
 
   ESP_LOGI(TAG_CMD, "task started");
 
   for (;;) {
-    auto msg = pwm->waitForMessage();
+    UBaseType_t notify_val;
+    auto msg = pwm->waitForNotifyOrMessage(&notify_val);
 
     if (msg) {
       if (msg->unpack(cmd_doc)) {
@@ -129,6 +92,8 @@ void Engine::command(void *task_data) {
           MQTT::send(ack_msg);
         }
       }
+    } else {
+      ESP_LOGI(TAG_CMD, "notified: 0x%x", notify_val);
     }
   }
 }

@@ -46,7 +46,7 @@ static const char *TAG = "Core";
 static Core_t __singleton__;
 static StaticJsonDocument<2048> _profile;
 
-Core::Core() : message::Handler(_max_queue_depth) {
+Core::Core() : message::Handler("host", _max_queue_depth) {
   _heap_first = heap_caps_get_free_size(MALLOC_CAP_8BIT);
   _heap_avail = heap_caps_get_free_size(MALLOC_CAP_8BIT);
 }
@@ -280,7 +280,7 @@ void Core::startMqtt() {
     esp_restart();
   }
 
-  MQTT::registerHandler(this, "host"sv);
+  MQTT::registerHandler(this);
 
   message::Startup msg;
   MQTT::send(msg);

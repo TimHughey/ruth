@@ -118,22 +118,17 @@ IRAM_ATTR void MQTT::incomingMsg(esp_mqtt_event_t *event) {
 
   bool wanted = false;
   for (auto i = 0; (i < _max_handlers) && !wanted; i++) {
-    const RegisteredHandler &registered = _handlers[i];
+    message::Handler *registered = _handlers[i];
 
-    if (registered.handler == nullptr) break; // stop checking once we hit an empty registration
+    if (registered == nullptr) break; // stop checking once we hit an empty registration
 
-    if (registered.matchCategory(msg->category())) {
-      registered.handler->wantMessage(msg);
+    if (registered->matchCategory(msg->category())) {
+      registered->wantMessage(msg);
 
       if (msg->wanted()) {
         wanted = true;
 
-        registered.handler->accept(std::move(msg));
-
-        if (registered.notify_task) {
-          // notify the registered handler but DO NOT overwrite a pending notification
-          xTaskNotify(registered.notify_task, MQTT::QUEUED_MSG, eSetValueWithoutOverwrite);
-        }
+        registered->accept(std::move(msg));
       }
     }
   }
@@ -174,16 +169,15 @@ void MQTT::initAndStart(const ConnOpts &opts) {
   // ::xTaskCreate(&coreTask, TAG, task.stackSize, &mqtt, task.priority, &(task.handle));
 }
 
-void MQTT::registerHandler(message::Handler *handler, std::string_view category) {
+void MQTT::registerHandler(message::Handler *handler) {
   auto &mqtt = __singleton__;
 
   auto &handler_list = mqtt._handlers;
   auto &max_handlers = mqtt._max_handlers;
 
   for (auto k = 0; k < max_handlers; k++) {
-    if (handler_list[k].handler == nullptr) {
-      handler_list[k].handler = handler;
-      category.copy(handler_list[k].category, sizeof(handler_list[k].category));
+    if (handler_list[k] == nullptr) {
+      handler_list[k] = handler;
       break;
     }
   }
