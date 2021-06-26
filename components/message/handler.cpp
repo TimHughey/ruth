@@ -110,7 +110,7 @@ IRAM_ATTR InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
   // wait for a task notification.  on any notification do a no wait queue pop and return
   // whatever was popped (or not popped)
   xTaskNotifyWait(0x00, UINT32_MAX, notified, portMAX_DELAY);
-  ESP_LOGI("message:handler", "notified 0x%0x", *notified);
+  ESP_LOGD("message:handler", "notified 0x%0x", *notified);
 
   // pop it from the queue and return it
   // always do a no wait check for messages in the queue

@@ -26,6 +26,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+#include "ArduinoJson.h"
 #include "dev_pwm/cmd.hpp"
 #include "dev_pwm/hardware.hpp"
 
@@ -36,8 +37,9 @@ public:
   PulseWidth(uint8_t pin_num);
 
   inline uint8_t devAddr() const { return pinNum(); }
+  bool execute(const JsonObject &root);
   bool execute(const char *cmd);
-  bool execute(std::unique_ptr<pwm::Command> cmd);
+  bool execute(pwm::CmdWrapped cmd);
   const char *id() const { return shortName(); }
 
   void makeStatus();
@@ -46,7 +48,7 @@ public:
 
 private:
   char _status[32];
-  std::unique_ptr<pwm::Command> _cmd;
+  pwm::CmdWrapped _cmd;
 };
 } // namespace device
 

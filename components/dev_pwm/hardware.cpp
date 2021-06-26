@@ -156,7 +156,7 @@ IRAM_ATTR bool Hardware::updateDuty(uint32_t new_duty) {
   const ledc_mode_t mode = channel_config[_pin_num].speed_mode;
   const ledc_channel_t channel = numToChannelMap[_pin_num];
 
-  if (new_duty > _duty_max) return false;
+  if (new_duty > _duty_max) new_duty = _duty_max;
 
   _last_rc = ledc_set_duty_and_update(mode, channel, new_duty, 0);
 

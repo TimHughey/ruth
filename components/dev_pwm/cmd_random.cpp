@@ -33,22 +33,22 @@ static uint32_t _primes[] = {2,   3,   5,   7,   11,  13,  17,  19,  23,  29,  3
                              127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197,
                              199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277};
 
-Random::Random(Hardware *hardware, JsonObject &cmd) : Command(hardware, cmd) {
+Random::Random(Hardware *hardware, const JsonObject &cmd) : Command(hardware, cmd) {
 
-  JsonObject obj = cmd["random"];
+  JsonObject params = cmd["params"];
 
-  if (obj) {
+  if (params) {
     // max duty value permitted
-    opts.max = obj["max"] | opts.max;
-    opts.min = obj["min"] | opts.min;
+    opts.max = params["max"] | opts.max;
+    opts.min = params["min"] | opts.min;
 
-    uint32_t num_primes = obj["primes"] | opts.num_primes;
+    uint32_t num_primes = params["primes"] | opts.num_primes;
 
     // prevent the requested primes from exceeding the available primes
     opts.num_primes = (num_primes > (availablePrimes() - 1)) ? opts.num_primes : num_primes;
 
-    opts.step = obj["step"] | opts.step;
-    opts.step_ms = obj["step_ms"] | opts.step_ms;
+    opts.step = params["step"] | opts.step;
+    opts.step_ms = params["step_ms"] | opts.step_ms;
   }
 
   loopData(this);

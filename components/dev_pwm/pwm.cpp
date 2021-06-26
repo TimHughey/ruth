@@ -24,10 +24,8 @@
 #include <driver/ledc.h>
 #include <esp_attr.h>
 #include <esp_log.h>
-// #include <freertos/FreeRTOS.h>
-// #include <freertos/task.h>
 
-// #include "dev_pwm/cmd_random.hpp"
+#include "dev_pwm/cmd_random.hpp"
 #include "dev_pwm/pwm.hpp"
 
 namespace device {
@@ -48,11 +46,30 @@ IRAM_ATTR bool PulseWidth::execute(const char *cmd) {
       return false;
     }
 
+    if (_cmd) _cmd.reset(nullptr);
+
     updateDuty(duty);
     return true;
   }
 
   return false;
+}
+
+IRAM_ATTR bool PulseWidth::execute(const JsonObject &root) {
+  auto rc = false;
+  const char *cmd = root["cmd"];
+  const char *type = root["params"]["type"];
+
+  if (type && (strcmp(type, "random") == 0)) {
+    _cmd.reset(new pwm::Random(self(), root));
+    _cmd->run();
+
+    rc = true;
+  } else {
+    rc = execute(cmd);
+  }
+
+  return rc;
 }
 
 IRAM_ATTR void PulseWidth::makeStatus() {
@@ -61,7 +78,7 @@ IRAM_ATTR void PulseWidth::makeStatus() {
 
   // if a cmd is running, use it's name as the status
   if (_cmd) {
-    memccpy(_status, _cmd->name(), 0x00, capacity);
+    memccpy(p, _cmd->name(), 0x00, capacity);
     return;
   }
 

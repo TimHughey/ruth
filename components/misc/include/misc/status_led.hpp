@@ -38,9 +38,6 @@ public:
   static void dimmer();
   static void percent(float p);
   static void off();
-
-private:
-  uint32_t _duty = 0; // initial duty is very dim
 };
 } // namespace ruth
 

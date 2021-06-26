@@ -28,7 +28,7 @@ namespace pwm {
 
 class Random : public Command {
 public:
-  Random(Hardware *hardware, JsonObject &cmd);
+  Random(Hardware *hardware, const JsonObject &cmd);
   ~Random();
 
 protected:

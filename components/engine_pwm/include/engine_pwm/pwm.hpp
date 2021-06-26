@@ -49,7 +49,7 @@ public:
     } report;
   };
 
-  enum Notifies : UBaseType_t { QUEUED_MSG = 1 << 30 };
+  enum Notifies : UBaseType_t { QUEUED_MSG = 0xa000, CMD_ENDING = 0x9000 };
 
   typedef device::PulseWidth Device;
 

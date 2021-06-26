@@ -32,10 +32,10 @@ namespace pwm {
 // NOTE:  all members assigned in constructor definition are constants or
 //        statics and do not need to be copied
 
-Command::Command(Hardware *hardware, JsonObject &obj) : _hw(hardware) {
+Command::Command(Hardware *hardware, const JsonObject &obj) : _hw(hardware) {
 
   // REMINDER: we must always make a local copy of relevant info from the JsonObject
-  auto name = obj["name"].as<const char *>();
+  auto name = obj["cmd"].as<const char *>();
   constexpr size_t name_len = sizeof(_name) / sizeof(char) - 1;
   memccpy(_name, name, 0x00, name_len);
 

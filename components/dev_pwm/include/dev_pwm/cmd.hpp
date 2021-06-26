@@ -30,7 +30,7 @@ namespace pwm {
 
 class Command {
 public:
-  Command(Hardware *hardware, JsonObject &obj);
+  Command(Hardware *hardware, const JsonObject &obj);
   virtual ~Command();
 
   Command() = delete;                 // no default cmds
@@ -47,7 +47,7 @@ public:
 
 protected:
   void fadeTo(uint32_t duty);
-  uint32_t getDuty();
+  uint32_t getDuty() { return _hw->duty(); };
   inline Hardware *hardware() { return _hw; }
   inline bool keepRunning() const { return _run; }
   inline void loopData(Command *obj) { _task.data = obj; }
@@ -77,6 +77,8 @@ private:
 private:
   static void runTask(void *task_instance);
 };
+
+typedef std::unique_ptr<Command> CmdWrapped;
 } // namespace pwm
 
 #endif

@@ -18,8 +18,6 @@
       https://www.wisslanding.com
   */
 
-#include <string_view>
-
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -32,8 +30,6 @@
 #include "status_msg.hpp"
 
 namespace pwm {
-
-using namespace std::string_view_literals;
 using namespace ruth;
 
 static const char *TAG_RPT = "pwm:report";
@@ -64,7 +60,7 @@ void Engine::command(void *task_data) {
   pwm->notifyThisTask(Notifies::QUEUED_MSG);
   MQTT::registerHandler(pwm);
 
-  ESP_LOGI(TAG_CMD, "task started");
+  // ESP_LOGI(TAG_CMD, "task started");
 
   for (;;) {
     UBaseType_t notify_val;
@@ -73,27 +69,31 @@ void Engine::command(void *task_data) {
     if (msg) {
       if (msg->unpack(cmd_doc)) {
         const char *refid = msg->filter(4);
-        const char *cmd = cmd_doc["cmd"];
-        const char *type = cmd_doc["type"];
-        bool ack = false;
+        // const char *cmd = cmd_doc["cmd"];
+        // const char *type = cmd_doc["type"];
+        const JsonObject root = cmd_doc.as<JsonObject>();
 
-        const uint8_t pin = cmd_doc["pin"].as<uint8_t>();
+        const bool ack = root["ack"] | false;
+        const uint8_t pin = root["pin"].as<uint8_t>();
+
         Device &dev = (pin == 0) ? StatusLED::device() : pwm->_known[pin - 1];
 
-        if (type) {
-          ESP_LOGI(TAG_CMD, "custom command[%s] type[%s]", cmd, type);
-        } else {
-          ack = dev.execute(cmd);
-        }
+        auto execute_rc = dev.execute(root);
 
-        if (ack) {
+        // if (type) {
+        //   ESP_LOGI(TAG_CMD, "custom command[%s] type[%s]", cmd, type);
+        // } else {
+        //   ack = dev.execute(cmd);
+        // }
+
+        if (ack && execute_rc) {
           pwm::Ack ack_msg(refid);
 
           MQTT::send(ack_msg);
         }
       }
     } else {
-      ESP_LOGI(TAG_CMD, "notified: 0x%x", notify_val);
+      ESP_LOGW(TAG_CMD, "unhandled notify: 0x%x", notify_val);
     }
   }
 }
@@ -104,7 +104,7 @@ void Engine::report(void *data) {
   Engine *pwm = (Engine *)data;
   const auto send_ms = pwm->_report_send_ms;
 
-  ESP_LOGI(TAG_RPT, "task started: send_ms[%u]", send_ms);
+  // ESP_LOGI(TAG_RPT, "task started: send_ms[%u]", send_ms);
 
   for (;;) {
     last_wake = xTaskGetTickCount();
@@ -112,6 +112,7 @@ void Engine::report(void *data) {
       pwm::Status status(pwm->_ident);
 
       auto &status_led = StatusLED::device();
+      status_led.makeStatus();
       status.addPin(status_led.pinNum(), status_led.status());
 
       for (size_t i = 0; i < _num_devices; i++) {
@@ -124,7 +125,7 @@ void Engine::report(void *data) {
       MQTT::send(status);
     }
 
-    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(7000));
+    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(send_ms));
   }
 }
 
