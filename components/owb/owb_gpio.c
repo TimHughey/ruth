@@ -35,8 +35,8 @@
 #include "esp_log.h"
 #include "driver/gpio.h"
 
-#include "drivers/owb.h"
-#include "drivers/owb_gpio.h"
+#include "owb/owb.h"
+#include "owb/owb_gpio.h"
 
 static const char * TAG = "owb_gpio";
 
