@@ -142,16 +142,23 @@ void Net::ip_events(void *ctx, esp_event_base_t base, int32_t id, void *data) {
 const char *Net::macAddress() {
   auto *mac_addr = __singleton__._mac_addr;
 
-  if (mac_addr[0] == 0x00) {
-    constexpr size_t num_bytes = 6;
-    uint8_t mac[num_bytes];
+  if (mac_addr[0] != 0x00) return mac_addr;
 
-    esp_wifi_get_mac(WIFI_IF_STA, mac);
+  // assemble it
 
-    char *p = mac_addr;
-    for (auto i = 0; i < num_bytes; i++, p += 2) {
-      itoa(mac[i], p, 16);
-    }
+  constexpr size_t num_bytes = 6;
+  uint8_t bytes[num_bytes];
+
+  esp_wifi_get_mac(WIFI_IF_STA, bytes);
+
+  char *p = mac_addr;
+  for (auto i = 0; i < num_bytes; i++) {
+    const uint8_t byte = bytes[i];
+
+    // this is knownly duplicated code to avoid creating dependencies
+    if (byte < 0x10) *p++ = '0';       // zero pad when less than 0x10
+    itoa(byte, p, 16);                 // convert to hex
+    p = (byte < 0x10) ? p + 1 : p + 2; // move pointer forward based on zero padding
   }
 
   return mac_addr;
