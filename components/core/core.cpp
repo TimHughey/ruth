@@ -31,9 +31,9 @@
 #include "filter/out.hpp"
 #include "misc/datetime.hpp"
 #include "misc/status_led.hpp"
-#include "mqtt.hpp"
 #include "network.hpp"
 #include "run_msg.hpp"
+#include "ruth_mqtt/mqtt.hpp"
 #include "sntp.hpp"
 #include "startup_msg.hpp"
 
