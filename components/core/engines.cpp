@@ -20,6 +20,7 @@
 
 #include <esp_log.h>
 
+#include "engine_ds/ds.hpp"
 #include "engine_pwm/pwm.hpp"
 #include "engines.hpp"
 
@@ -28,6 +29,7 @@ namespace core {
 void Engines::startConfigured(const JsonObject &profile) {
   const char *unique_id = profile["unique_id"];
   const JsonObject &pwm = profile["pwm"];
+  const JsonObject &ds = profile["dalsemi"];
 
   if (pwm) {
     using namespace pwm;
@@ -39,6 +41,21 @@ void Engines::startConfigured(const JsonObject &profile) {
     opts.report.stack = pwm["report"]["stack"];
     opts.report.priority = pwm["report"]["pri"];
     opts.report.send_ms = pwm["report"]["send_ms"];
+
+    Engine::start(opts);
+  }
+
+  if (ds) {
+    using namespace ds;
+    Engine::Opts opts;
+
+    opts.unique_id = unique_id;
+    opts.command.stack = ds["command"]["stack"];
+    opts.command.priority = ds["command"]["pri"];
+    opts.report.stack = ds["report"]["stack"];
+    opts.report.priority = ds["report"]["pri"];
+    opts.report.send_ms = ds["report"]["send_ms"];
+    opts.report.loops_per_discover = ds["report"]["loops_per_discover"];
 
     Engine::start(opts);
   }
