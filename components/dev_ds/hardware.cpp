@@ -52,6 +52,8 @@ Hardware::Hardware(const uint8_t *rom_code) {
   }
 }
 
+uint8_t Hardware::busErrorCode() { return Bus::lastStatus(); }
+
 static uint64_t convert_micros = 0;
 static uint64_t convert_last = 0;
 
@@ -98,22 +100,22 @@ void Hardware::makeID() {
   auto *p = _ident;
   *p++ = 'd';
   *p++ = 's';
+  *p++ = '/';
 
   constexpr size_t addr_bytes_for_ident = sizeof(_addr) - 1; // crc is not part of the ident
   for (size_t i = 0; i < addr_bytes_for_ident; i++) {
     const uint8_t byte = _addr[i];
 
     // this is knownly duplicated code to avoid creating dependencies
-    if (byte < 0x10) *p++ = '0';       // zero pad when less than 0x10
+    if (byte < 0x10) *p++ = '0';       // zero pad values less than 0x10
     itoa(byte, p, 16);                 // convert to hex
     p = (byte < 0x10) ? p + 1 : p + 2; // move pointer forward based on zero padding
   }
 
-  *p = 0x00; // zero terminate
+  *p = 0x00; // null terminate
 }
 
 IRAM_ATTR bool Hardware::matchRomThenRead(Bytes write, Len wlen, Bytes read, Len rlen) {
-
   // setup the match rom command but don't touch byte 9 which is the device specific command
   auto *p = write;
   *p++ = 0x55;                  // byte 0: match rom
@@ -122,8 +124,8 @@ IRAM_ATTR bool Hardware::matchRomThenRead(Bytes write, Len wlen, Bytes read, Len
   return Bus::writeThenRead(write, wlen, read, rlen);
 }
 
-static struct timeval time_now;
 IRAM_ATTR uint64_t Hardware::now() {
+  struct timeval time_now;
 
   uint64_t us_since_epoch;
 

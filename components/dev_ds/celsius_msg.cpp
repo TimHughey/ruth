@@ -22,20 +22,22 @@
 namespace ds {
 
 Celsius::Celsius(const Opts &opts) : message::Out(512) {
-  _filter.addLevel("ds");
+  _filter.addLevel("immut");
   _filter.addLevel("celsius");
   _filter.addLevel(opts.ident);
 
   JsonObject root = rootObject();
-  root["mut"] = false;
 
   switch (opts.status) {
 
-  case OK:
+  case OK: {
     _filter.addLevel("ok");
     root["val"] = opts.val;
-    root["read_us"] = opts.read_us;
-    break;
+
+    JsonObject metrics = root.createNestedObject("metrics");
+    metrics["read"] = opts.read_us;
+    metrics["cnvt"] = opts.convert_us;
+  } break;
 
   case ERROR:
     _filter.addLevel("error");

@@ -32,46 +32,60 @@ namespace ds {
 DS1820::DS1820(const uint8_t *addr) : Device(addr) { _mutable = false; }
 
 IRAM_ATTR bool DS1820::report() {
+  auto rc = false;
 
-  if (convert() == false) return false;
+  auto start_at = now();
+  rc = convert();
+  const auto convert_us = now() - start_at;
 
-  static uint8_t cmd[10];
-  static constexpr size_t cmd_len = sizeof(cmd);
-  static uint8_t data[9];
-  static constexpr size_t data_len = sizeof(data);
+  start_at = now();
 
-  cmd[9] = 0xbe; // DS1820 read scratchpad
+  uint16_t raw = 0;
+  if (rc) {
 
-  if (matchRomThenRead(cmd, cmd_len, data, data_len) == false) return false;
-  auto crc = crc8(data, data_len);
-  if (crc != 0x00) {
-    ESP_LOGI(ident(), "crc failure: 0x%02x", crc);
+    static uint8_t cmd[10];
+    static constexpr size_t cmd_len = sizeof(cmd);
+    static uint8_t data[9];
+    static constexpr size_t data_len = sizeof(data);
 
-    return false; // transmission error
+    cmd[9] = 0xbe; // DS1820 read scratchpad
+
+    if (matchRomThenRead(cmd, cmd_len, data, data_len) == false) return false;
+    auto crc = crc8(data, data_len);
+    if (crc != 0x00) {
+      ESP_LOGI(ident(), "crc failure: 0x%02x", crc);
+
+      rc = false; // transmission error
+    }
+
+    // convert the data from the scratchpad to a raw temperature
+    raw = (data[1] << 8) | data[0];
+
+    // 12 bit res is the configuration default (750ms conversion time)
+    // at lower res, the low bits are undefined, so zero them depending on sensor configuration
+    switch (data[4] & 0x60) {
+    case 0x00:
+      raw &= ~7; // 9 bit resolution, 93.75 ms
+      break;
+    case 0x20:
+      raw &= ~3; // 10 bit res, 187.5 ms
+      break;
+    case 0x40:
+      raw &= ~1; // 11 bit res, 375 ms
+      break;
+    }
   }
 
-  // convert the data from the scratchpad to a raw temperature
-  int16_t raw = (data[1] << 8) | data[0];
-
-  // 12 bit res is the configuration default (750ms conversion time)
-  // at lower res, the low bits are undefined, so zero them depending on sensor configuration
-  switch (data[4] & 0x60) {
-  case 0x00:
-    raw &= ~7; // 9 bit resolution, 93.75 ms
-    break;
-  case 0x20:
-    raw &= ~3; // 10 bit res, 187.5 ms
-    break;
-  case 0x40:
-    raw &= ~1; // 11 bit res, 375 ms
-    break;
+  if (rc) {
+    const auto read_us = now() - start_at;
+    auto status = Celsius({ident(), Celsius::Status::OK, (float)raw / 16.0f, read_us, convert_us, 0});
+    ruth::MQTT::send(status);
+  } else {
+    auto status = Celsius({ident(), Celsius::Status::ERROR, 0, 0, 0, busErrorCode()});
+    ruth::MQTT::send(status);
   }
 
-  Celsius::Opts opts = {ident(), Celsius::Status::OK, (float)raw / 16.0f, 0, 0};
-  auto status = Celsius(opts);
-  ruth::MQTT::send(status);
-
-  return true;
+  return rc;
 }
 
 } // namespace ds

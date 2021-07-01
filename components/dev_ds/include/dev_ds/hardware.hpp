@@ -53,6 +53,7 @@ protected:
   typedef const size_t Len;
 
 protected:
+  static uint8_t busErrorCode();
   static bool convert();
   bool matchRomThenRead(Bytes write, Len write_len, Bytes read, Len read_len);
 

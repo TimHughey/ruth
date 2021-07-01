@@ -39,6 +39,7 @@ public:
 
   static bool writeThenRead(Bytes write, Len wlen, Bytes read, Len rlen);
   static bool writeThenRead(Bytes write, Len wlen, Byte read);
+  static uint8_t lastStatus();
 
 private:
   static void checkPowered();

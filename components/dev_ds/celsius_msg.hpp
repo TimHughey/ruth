@@ -36,8 +36,9 @@ public:
     const char *ident;
     Status status = OK;
     float val;
-    uint32_t read_us;
-    uint32_t error;
+    uint64_t read_us;
+    uint64_t convert_us;
+    uint8_t error;
   };
 
 public:

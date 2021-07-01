@@ -136,6 +136,8 @@ IRAM_ATTR bool Bus::convert(bool &complete, bool cancel) {
   return false;
 }
 
+uint8_t Bus::lastStatus() { return status; }
+
 IRAM_ATTR bool Bus::reset() {
   status = owb_reset(owb, &present);
   if (status == OWB_STATUS_OK) return true;
