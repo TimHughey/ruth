@@ -44,7 +44,7 @@ public:
   void notifyThisTask(UBaseType_t notify_val);
   TaskHandle_t notifyTask() const { return _notify_task; }
 
-  virtual InWrapped waitForMessage() { return waitForMessage(UINT32_MAX, nullptr); }
+  virtual InWrapped waitForMessage() { return waitForMessage(portMAX_DELAY, nullptr); }
   virtual InWrapped waitForMessage(uint32_t wait_ms, bool *timeout = nullptr);
   virtual InWrapped waitForNotifyOrMessage(UBaseType_t *notified);
   virtual void wantMessage(InWrapped &msg) = 0;
