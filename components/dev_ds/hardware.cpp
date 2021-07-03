@@ -101,7 +101,6 @@ void Hardware::makeID() {
   auto *p = _ident;
   *p++ = 'd';
   *p++ = 's';
-  *p++ = '/';
 
   constexpr size_t addr_bytes_for_ident = sizeof(_addr) - 1; // crc is not part of the ident
   for (size_t i = 0; i < addr_bytes_for_ident; i++) {

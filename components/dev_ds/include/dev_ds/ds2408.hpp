@@ -35,6 +35,8 @@ public:
   bool execute() override;
   bool report() override;
 
+  static constexpr size_t num_pins = 8;
+
 private:
   bool status(uint8_t &states, uint64_t *elapsed_us = nullptr);
 };

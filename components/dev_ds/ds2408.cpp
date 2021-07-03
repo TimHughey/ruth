@@ -22,6 +22,8 @@
 
 #include "crc.hpp"
 #include "dev_ds/ds2408.hpp"
+#include "ruth_mqtt/mqtt.hpp"
+#include "states_msg.hpp"
 
 namespace ds {
 
@@ -30,9 +32,20 @@ DS2408::DS2408(const uint8_t *addr) : Device(addr) { _mutable = true; }
 IRAM_ATTR bool DS2408::execute() { return true; }
 
 IRAM_ATTR bool DS2408::report() {
-  uint8_t states;
 
-  auto rc = status(states);
+  States states(ident());
+  uint8_t states_raw;
+  auto rc = status(states_raw);
+
+  for (auto i = 0; i < num_pins; i++) {
+    const char *state = (states_raw & (0x01 << i)) ? "on" : "off";
+
+    states.addPin(i, state);
+  }
+
+  states.finalize();
+
+  ruth::MQTT::send(states);
 
   return rc;
 }
