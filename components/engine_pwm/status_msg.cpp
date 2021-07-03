@@ -22,7 +22,7 @@
 namespace pwm {
 
 Status::Status(const char *ident) : message::Out(512) {
-  _filter.addLevel("pwm");
+  _filter.addLevel("mut");
   _filter.addLevel("status");
   _filter.addLevel(ident);
 }
@@ -39,6 +39,6 @@ void Status::addPin(uint8_t pin_num, const char *status) {
   pin_status.add(status);
 }
 
-void Status::assembleData(JsonObject &root) { root["mut"] = true; }
+void Status::assembleData(JsonObject &root) {}
 
 } // namespace pwm
