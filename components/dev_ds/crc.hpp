@@ -25,16 +25,17 @@
 
 namespace ds {
 
-struct Crc16Opts {
-  const uint8_t *input;
-  const size_t len;
-  const uint8_t *inverted;
-  const uint16_t crc;
-};
-
-bool checkCrc16(const Crc16Opts &opts);
+// struct Crc16Opts {
+//   const uint8_t *input;
+//   const size_t len;
+//   const uint8_t *inverted;
+//   const uint16_t crc;
+// };
+//
+// bool checkCrc16(const Crc16Opts &opts);
+bool checkCrc16(const uint8_t *start, const uint8_t *end);
 uint16_t crc8(const uint8_t *bytes, const size_t len);
-uint16_t crc16(const Crc16Opts &opts);
+// uint16_t crc16(const Crc16Opts &opts);
 
 } // namespace ds
 #endif

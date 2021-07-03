@@ -25,6 +25,7 @@
 // #include "ack_msg.hpp"
 #include "dev_ds/ds.hpp"
 #include "dev_ds/ds1820.hpp"
+#include "dev_ds/ds2408.hpp"
 #include "engine_ds/ds.hpp"
 #include "ruth_mqtt/mqtt.hpp"
 
@@ -45,7 +46,7 @@ void Engine::command(void *task_data) {
   ds->notifyThisTask(Notifies::QUEUED_MSG);
   MQTT::registerHandler(ds);
 
-  // ESP_LOGI(TAG_CMD, "task started");
+  ESP_LOGD(TAG_CMD, "task started");
 
   for (;;) {
     // UBaseType_t notify_val;
@@ -77,7 +78,18 @@ void Engine::command(void *task_data) {
   }
 }
 
-void Engine::discover() {
+void Engine::discover(const uint32_t loops_per_discover) {
+  static uint32_t loop_count = 0;
+
+  // don't discover until enough loops have passed.  by using a countdown we are assured the
+  // first call will always perform a discover.
+  if (loop_count > 0) {
+    loop_count--;
+    return;
+  } else {
+    // it is time for a discover, reset the loop count and proceed with the discover
+    loop_count = loops_per_discover;
+  }
 
   uint8_t rom_code[8];
   bool found;
@@ -92,12 +104,20 @@ void Engine::discover() {
         // we've reached the end of the known devices and the rom code isn't known.
         // add the rom code as a known device and get out of this loop
         if (entry == nullptr) {
-          Device *new_device = nullptr;
+          Device *new_device = nullptr; // we never delete a device so no reason to use smart pointer
 
           const uint8_t family = rom_code[0];
           switch (family) {
           case 0x28:
             new_device = new DS1820(rom_code);
+            break;
+
+          case 0x29:
+            new_device = new DS2408(rom_code);
+            break;
+
+          default:
+            ESP_LOGW(TAG_RPT, "unhandled family: 0x%02x", family);
             break;
           }
 
@@ -125,48 +145,26 @@ void Engine::discover() {
 
 void Engine::report(void *data) {
   static TickType_t last_wake;
-  static uint32_t discover_loop_count = 0;
 
   Engine *ds = (Engine *)data;
   const auto send_ms = ds->_opts.report.send_ms;
+  const auto loops_per_discover = ds->_opts.report.loops_per_discover;
+
   Device::initHardware(send_ms);
 
-  // ESP_LOGI(TAG_RPT, "task started: send_ms[%u]", send_ms);
+  ESP_LOGD(TAG_RPT, "task started");
 
   for (;;) {
     last_wake = xTaskGetTickCount();
-    // {
-    //   ds::Status status(ds->_ident);
-    //
-    //   auto &status_led = StatusLED::device();
-    //   status_led.makeStatus();
-    //   status.addPin(status_led.pinNum(), status_led.status());
-    //
-    //   for (size_t i = 0; i < _num_devices; i++) {
-    //     auto &device = ds->_known[i];
-    //     device.makeStatus();
-    //
-    //     status.addPin(device.pinNum(), device.status());
-    //   }
-    //
-    //   MQTT::send(status);
-    // }
-
-    if (discover_loop_count == 0) {
-      discover_loop_count = ds->_opts.report.loops_per_discover;
-      ds->discover();
-    } else {
-      discover_loop_count--;
-    }
+    // important to discover first especially at startup
+    ds->discover(loops_per_discover);
 
     for (size_t i = 0; i < max_devices; i++) {
       Device *device = ds->_known[i];
 
-      if (device == nullptr) break;
+      if (device == nullptr) break; // reached the end of known devices
 
-      if (device->report()) {
-        // ESP_LOGI(device->ident(), "celsius: %2.2f", temp_c);
-      }
+      device->report();
     }
 
     vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(send_ms));

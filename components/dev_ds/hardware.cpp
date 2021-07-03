@@ -79,6 +79,7 @@ IRAM_ATTR bool Hardware::convert() {
     if ((now() - start_at) > Convert::TIMEOUT) {
       ESP_LOGW(TAG, "convert timeout");
       Bus::convert(complete, true);
+      break;
     }
   }
 
@@ -112,7 +113,7 @@ void Hardware::makeID() {
     p = (byte < 0x10) ? p + 1 : p + 2; // move pointer forward based on zero padding
   }
 
-  *p = 0x00; // null terminate
+  *p = 0x00; // null terminate the ident
 }
 
 IRAM_ATTR bool Hardware::matchRomThenRead(Bytes write, Len wlen, Bytes read, Len rlen) {
@@ -137,6 +138,8 @@ IRAM_ATTR uint64_t Hardware::now() {
 
   return us_since_epoch;
 }
+
+IRAM_ATTR bool resetBus() { return Bus::reset(); }
 
 IRAM_ATTR bool Hardware::search(uint8_t *rom_code) { return Bus::search(rom_code); }
 } // namespace ds

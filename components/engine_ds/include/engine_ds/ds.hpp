@@ -71,7 +71,7 @@ private:
   enum DocKinds : uint32_t { CMD = 1 };
 
 private:
-  void discover();
+  void discover(const uint32_t loops_per_discover);
 
 private:
   Opts _opts;

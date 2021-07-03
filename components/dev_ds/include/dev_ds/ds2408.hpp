@@ -18,32 +18,25 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_dev_ds_hpp
-#define ruth_dev_ds_hpp
+#ifndef ruth_dev_ds2408_hpp
+#define ruth_dev_ds2408_hpp
 
 #include <memory>
 
-#include "dev_ds/hardware.hpp"
+#include "ArduinoJson.h"
+#include "dev_ds/ds.hpp"
 
 namespace ds {
-class Device : public Hardware {
+class DS2408 : public Device {
 
 public:
-  Device(const uint8_t *addr);
+  DS2408(const uint8_t *addr);
 
-  virtual bool execute() { return false; }
-  virtual bool report() = 0;
-
-  bool isMutable() const { return _mutable; }
-
-  uint64_t lastSeen() const { return _timestamp; }
-  uint32_t updateSeenTimestamp();
-
-protected:
-  bool _mutable = false;
+  bool execute() override;
+  bool report() override;
 
 private:
-  uint64_t _timestamp = 0; // last seen timestamp (microseconds since epoch)
+  bool status(uint8_t &states, uint64_t *elapsed_us = nullptr);
 };
 } // namespace ds
 

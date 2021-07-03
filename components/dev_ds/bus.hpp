@@ -31,19 +31,20 @@ typedef uint8_t *RomCode;
 
 class Bus {
 public:
+  static bool acquire(uint32_t timeout_ms = UINT32_MAX);
   static bool ensure();
   static bool error();
 
   static bool convert(bool &complete, bool cancel = false);
+  static uint8_t lastStatus();
+  static bool reset();
   static bool search(RomCode rom_code);
 
   static bool writeThenRead(Bytes write, Len wlen, Bytes read, Len rlen);
   static bool writeThenRead(Bytes write, Len wlen, Byte read);
-  static uint8_t lastStatus();
 
 private:
   static void checkPowered();
-  static bool reset();
 };
 } // namespace ds
 

@@ -3,7 +3,7 @@
 ##
 
 idf_component_register(
-  SRCS bus.cpp crc.cpp hardware.cpp ds.cpp ds1820.cpp celsius_msg.cpp
+  SRCS bus.cpp crc.cpp hardware.cpp ds.cpp ds1820.cpp ds2408.cpp celsius_msg.cpp
   INCLUDE_DIRS include
   PRIV_INCLUDE_DIRS .
   REQUIRES misc

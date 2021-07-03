@@ -43,6 +43,25 @@ static bool present = false;
 
 static inline bool ok() { return status == OWB_STATUS_OK; }
 
+bool Bus::acquire(uint32_t timeout_ms) {
+
+  auto task = xTaskGetCurrentTaskHandle();
+
+  if (task == bus_holder) {
+    return true;
+  }
+
+  auto rc = false;
+  const UBaseType_t wait_ticks = (timeout_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
+
+  if (xSemaphoreTake(mutex, wait_ticks) == pdTRUE) {
+    bus_holder = task;
+    rc = true;
+  }
+
+  return rc;
+}
+
 bool Bus::ensure() {
   static owb_rmt_driver_info rmt_driver;
   constexpr uint8_t pin = 14;
@@ -176,10 +195,13 @@ IRAM_ATTR bool Bus::search(uint8_t *rom_code) {
 RESET_SEARCH:
   // rom code not found or end of available devices
   in_progress = false;
+
   return false;
 }
 
 IRAM_ATTR bool Bus::writeThenRead(Bytes write, Len wlen, Bytes read, Len rlen) {
+  auto rc = false;
+
   if (reset()) {
     status = owb_write_bytes(owb, write, wlen);
 
@@ -187,10 +209,14 @@ IRAM_ATTR bool Bus::writeThenRead(Bytes write, Len wlen, Bytes read, Len rlen) {
       status = owb_read_bytes(owb, read, rlen);
     }
 
-    return true;
+    rc = true;
   }
 
-  return false;
+  // always reset the bus after a read / write as some cmd sequences
+  // place devices in continous stream mode (e.g. channel access read)
+  reset();
+
+  return rc;
 }
 
 } // namespace ds

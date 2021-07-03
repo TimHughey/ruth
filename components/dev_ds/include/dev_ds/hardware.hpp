@@ -56,6 +56,7 @@ protected:
   static uint8_t busErrorCode();
   static bool convert();
   bool matchRomThenRead(Bytes write, Len write_len, Bytes read, Len read_len);
+  static inline bool resetBus();
 
 private:
   static bool ensureBus();
