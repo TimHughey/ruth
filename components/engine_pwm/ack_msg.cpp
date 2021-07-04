@@ -22,7 +22,7 @@
 namespace pwm {
 
 Ack::Ack(const char *refid) : message::Out(128) {
-  _filter.addLevel("pwm");
+  _filter.addLevel("mut");
   _filter.addLevel("cmdack");
   _filter.addLevel(refid);
 }
