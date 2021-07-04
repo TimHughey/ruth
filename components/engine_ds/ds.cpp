@@ -111,7 +111,7 @@ IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
           }
 
           if (new_device) {
-            ESP_LOGI(new_device->ident(), "new device");
+            ESP_LOGD(new_device->ident(), "new device");
             _known[i] = new_device;
           }
 

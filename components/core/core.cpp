@@ -71,11 +71,11 @@ void Core::boot() {
   StatusLED::brighter();
   Net::start(net_opts);
   uint32_t notify;
-  xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(60000));
+  xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(15000));
 
   if ((notify & Net::READY) == false) {
     ESP_LOGW(TAG, "while waiting for net ready received %u instead of %u", notify, Net::READY);
-    vTaskDelay(pdMS_TO_TICKS(10000));
+    vTaskDelay(pdMS_TO_TICKS(3333));
     esp_restart();
   }
 
@@ -94,11 +94,11 @@ void Core::boot() {
   StatusLED::brighter();
 
   bool timeout;
-  auto wrapped_msg = core.waitForMessage(30000, &timeout);
+  auto wrapped_msg = core.waitForMessage(3333, &timeout);
 
   if (timeout) {
     ESP_LOGW(TAG, "timeout waiting for profile");
-    vTaskDelay(pdMS_TO_TICKS(10000));
+    vTaskDelay(pdMS_TO_TICKS(3333));
     esp_restart();
   }
 
