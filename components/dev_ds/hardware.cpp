@@ -52,6 +52,8 @@ Hardware::Hardware(const uint8_t *rom_code) {
   }
 }
 
+IRAM_ATTR bool Hardware::acquireBus(uint32_t timeout_ms) { return Bus::acquire(timeout_ms); }
+
 uint8_t Hardware::busErrorCode() { return Bus::lastStatus(); }
 
 static uint64_t convert_micros = 0;
@@ -137,6 +139,8 @@ IRAM_ATTR uint64_t Hardware::now() {
 
   return us_since_epoch;
 }
+
+IRAM_ATTR bool Hardware::releaseBus() { return Bus::release(); }
 
 IRAM_ATTR bool resetBus() { return Bus::reset(); }
 

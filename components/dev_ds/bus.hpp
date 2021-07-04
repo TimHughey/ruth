@@ -37,6 +37,7 @@ public:
 
   static bool convert(bool &complete, bool cancel = false);
   static uint8_t lastStatus();
+  static bool release();
   static bool reset();
   static bool search(RomCode rom_code);
 

@@ -24,6 +24,7 @@
 #include <memory>
 
 #include "dev_ds/hardware.hpp"
+#include "message/in.hpp"
 
 namespace ds {
 class Device : public Hardware {
@@ -31,7 +32,7 @@ class Device : public Hardware {
 public:
   Device(const uint8_t *addr);
 
-  virtual bool execute() { return false; }
+  virtual bool execute(message::InWrapped msg) { return false; }
   virtual bool report() = 0;
 
   bool isMutable() const { return _mutable; }

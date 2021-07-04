@@ -30,11 +30,12 @@ class Hardware {
 public:
   enum AddressIndex : size_t { FAMILY = 0, SERIAL_START = 1, SERIAL_END = 6, CRC = 7 };
   enum Convert : uint32_t { CHECK_TICKS = pdMS_TO_TICKS(30), TIMEOUT = 800000 };
-  enum Notifies : uint32_t { BUS_NEEDED = 0 };
+  enum Notifies : uint32_t { BUS_NEEDED = 0xb000, BUS_RELEASED = 0xb001 };
 
 public:
   Hardware(const uint8_t *rom_code);
 
+  static bool acquireBus(uint32_t timeout_ms = UINT32_MAX);
   const uint8_t *addr() const { return _addr; }
   size_t addrLen() const { return sizeof(_addr); }
 
@@ -42,11 +43,17 @@ public:
   inline uint8_t family() const { return _addr[AddressIndex::FAMILY]; }
 
   const char *ident() const { return _ident; }
+  static size_t identMaxLen() { return _ident_max_len; }
   static bool initHardware(uint32_t convert_frequency_ms);
   static uint64_t now();
 
+  static bool releaseBus();
+
   static bool search(uint8_t *rom_code);
   static void setReportFrequency(uint32_t micros);
+
+  // static bool wantBusNow();
+  // static bool willGiveBusDelay(const uint32_t delay_ms, bool &busTaken);
 
 protected:
   typedef uint8_t *Bytes;
@@ -56,6 +63,7 @@ protected:
   static uint8_t busErrorCode();
   static bool convert();
   bool matchRomThenRead(Bytes write, Len write_len, Bytes read, Len read_len);
+
   static inline bool resetBus();
 
 private:
@@ -63,12 +71,13 @@ private:
   void makeID();
 
 private:
+  static constexpr size_t _ident_max_len = 18;
   // byte 0: family code, bytes 1-6: serial number, byte & crc
   uint8_t _addr[8];
-  char _ident[18];
+  char _ident[_ident_max_len];
   bool _needs_convert;
 
-  char _status[32];
+  // char _status[32];
 };
 } // namespace ds
 

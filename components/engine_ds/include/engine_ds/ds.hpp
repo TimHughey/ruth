@@ -59,9 +59,7 @@ private:
 
 public:
   static void command(void *data); // task loop
-
-  static void report(void *data); // task loop (reports and discover)
-
+  static void report(void *data);  // task loop (reports and discover)
   static void start(const Opts &opts);
   void stop();
 
@@ -72,6 +70,7 @@ private:
 
 private:
   void discover(const uint32_t loops_per_discover);
+  Device *findDevice(const char *ident);
 
 private:
   Opts _opts;

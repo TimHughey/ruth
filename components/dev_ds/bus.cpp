@@ -45,18 +45,17 @@ static inline bool ok() { return status == OWB_STATUS_OK; }
 
 bool Bus::acquire(uint32_t timeout_ms) {
 
-  auto task = xTaskGetCurrentTaskHandle();
-
-  if (task == bus_holder) {
-    return true;
-  }
-
   auto rc = false;
   const UBaseType_t wait_ticks = (timeout_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
 
-  if (xSemaphoreTake(mutex, wait_ticks) == pdTRUE) {
-    bus_holder = task;
+  auto take_rc = xSemaphoreTake(mutex, wait_ticks);
+
+  if (take_rc == pdTRUE) {
+    bus_holder = xTaskGetCurrentTaskHandle();
+    ESP_LOGD(TAG, "ACQUIRE bus holder: %p", bus_holder);
     rc = true;
+  } else {
+    ESP_LOGW(TAG, "semaphore take failed: %d", take_rc);
   }
 
   return rc;
@@ -71,6 +70,7 @@ bool Bus::ensure() {
     owb_use_crc(owb, true);
 
     mutex = xSemaphoreCreateMutex();
+    xSemaphoreGive(mutex);
     // checkPowered();
     return true;
   }
@@ -156,6 +156,27 @@ IRAM_ATTR bool Bus::convert(bool &complete, bool cancel) {
 }
 
 uint8_t Bus::lastStatus() { return status; }
+
+bool Bus::release() {
+
+  // auto task = xTaskGetCurrentTaskHandle();
+  //
+  // if (task != bus_holder) {
+  //   return false;
+  // }
+
+  auto rc = false;
+  ESP_LOGD(TAG, "RELEASE bus holder %p", bus_holder);
+  bus_holder = nullptr;
+  auto give_rc = xSemaphoreGive(mutex);
+  if (give_rc == pdTRUE) {
+    rc = true;
+  } else {
+    ESP_LOGW(TAG, "semaphore give failed: %d", give_rc);
+  }
+
+  return rc;
+}
 
 IRAM_ATTR bool Bus::reset() {
   status = owb_reset(owb, &present);

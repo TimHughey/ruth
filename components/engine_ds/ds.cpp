@@ -22,7 +22,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-// #include "ack_msg.hpp"
 #include "dev_ds/ds.hpp"
 #include "dev_ds/ds1820.hpp"
 #include "dev_ds/ds2408.hpp"
@@ -38,9 +37,7 @@ static Engine *_instance_ = nullptr;
 
 Engine::Engine(const Opts &opts) : Handler("ds", max_queue_depth), _opts(opts) {}
 
-static StaticJsonDocument<1024> cmd_doc;
-
-void Engine::command(void *task_data) {
+IRAM_ATTR void Engine::command(void *task_data) {
   Engine *ds = (Engine *)task_data;
 
   ds->notifyThisTask(Notifies::QUEUED_MSG);
@@ -49,36 +46,27 @@ void Engine::command(void *task_data) {
   ESP_LOGD(TAG_CMD, "task started");
 
   for (;;) {
-    // UBaseType_t notify_val;
-    // auto msg = ds->waitForNotifyOrMessage(&notify_val);
-    //
-    // if (msg) {
-    //   if (msg->unpack(cmd_doc)) {
-    //     const char *refid = msg->filter(4);
-    //     // const char *cmd = cmd_doc["cmd"];
-    //     // const char *type = cmd_doc["type"];
-    //     const JsonObject root = cmd_doc.as<JsonObject>();
-    //
-    //     const bool ack = root["ack"] | false;
-    //
-    //     // auto execute_rc = dev.execute(root);
-    //     auto execute_rc = true;
-    //
-    //     if (ack && execute_rc) {
-    //       ds::Ack ack_msg(refid);
-    //
-    //       MQTT::send(ack_msg);
-    //     }
-    //   }
-    // } else {
-    //   ESP_LOGW(TAG_CMD, "unhandled notify: 0x%x", notify_val);
-    // }
+    UBaseType_t notify_val;
+    auto msg = ds->waitForNotifyOrMessage(&notify_val);
 
-    vTaskDelay(portMAX_DELAY);
+    if (msg) {
+      const char *ident = msg->filter(3);
+
+      Device *cmd_device = ds->findDevice(ident);
+
+      if (cmd_device) {
+        Device::acquireBus();
+        cmd_device->execute(std::move(msg));
+        Device::releaseBus();
+      }
+
+    } else {
+      ESP_LOGW(TAG_CMD, "unhandled notify: 0x%x", notify_val);
+    }
   }
 }
 
-void Engine::discover(const uint32_t loops_per_discover) {
+IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
   static uint32_t loop_count = 0;
 
   // don't discover until enough loops have passed.  by using a countdown we are assured the
@@ -93,6 +81,7 @@ void Engine::discover(const uint32_t loops_per_discover) {
 
   uint8_t rom_code[8];
   bool found;
+
   do {
     found = Device::search(rom_code);
 
@@ -143,7 +132,26 @@ void Engine::discover(const uint32_t loops_per_discover) {
   } while (found);
 }
 
-void Engine::report(void *data) {
+IRAM_ATTR Device *Engine::findDevice(const char *ident) {
+  Device *found = nullptr;
+
+  for (auto i = 0; i < max_devices; i++) {
+    Device *device = _known[i];
+
+    if (device == nullptr) {
+      break;
+    }
+
+    if (strncmp(device->ident(), ident, Device::identMaxLen()) == 0) {
+      found = device;
+      break;
+    }
+  }
+
+  return found;
+}
+
+IRAM_ATTR void Engine::report(void *data) {
   static TickType_t last_wake;
 
   Engine *ds = (Engine *)data;
@@ -156,15 +164,22 @@ void Engine::report(void *data) {
 
   for (;;) {
     last_wake = xTaskGetTickCount();
-    // important to discover first especially at startup
-    ds->discover(loops_per_discover);
+    if (Device::acquireBus(1000)) {
+      // important to discover first especially at startup
+      ds->discover(loops_per_discover);
 
-    for (size_t i = 0; i < max_devices; i++) {
-      Device *device = ds->_known[i];
+      for (size_t i = 0; i < max_devices; i++) {
+        Device *device = ds->_known[i];
 
-      if (device == nullptr) break; // reached the end of known devices
+        if (device == nullptr) break; // reached the end of known devices
 
-      device->report();
+        device->report();
+      }
+
+      Device::releaseBus();
+
+    } else {
+      ESP_LOGW(TAG_RPT, "timeout acquiring bus");
     }
 
     vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(send_ms));

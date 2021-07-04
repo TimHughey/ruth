@@ -20,6 +20,8 @@
 
 #include <esp_log.h>
 
+#include "ArduinoJson.h"
+#include "ack_msg.hpp"
 #include "crc.hpp"
 #include "dev_ds/ds2408.hpp"
 #include "ruth_mqtt/mqtt.hpp"
@@ -29,7 +31,32 @@ namespace ds {
 
 DS2408::DS2408(const uint8_t *addr) : Device(addr) { _mutable = true; }
 
-IRAM_ATTR bool DS2408::execute() { return true; }
+static StaticJsonDocument<1024> cmd_doc;
+
+IRAM_ATTR bool DS2408::execute(message::InWrapped msg) {
+  auto execute_rc = true;
+
+  if (msg->unpack(cmd_doc)) {
+
+    const char *refid = msg->filter(4);
+    const JsonObject root = cmd_doc.as<JsonObject>();
+
+    const char *cmd = root["cmd"];
+    const uint8_t pin = root["pin"];
+
+    execute_rc = setPin(pin, cmd);
+
+    const bool ack = root["ack"] | false;
+
+    if (ack && execute_rc) {
+      ds::Ack ack_msg(refid);
+
+      ruth::MQTT::send(ack_msg);
+    }
+  }
+
+  return execute_rc;
+}
 
 IRAM_ATTR bool DS2408::report() {
 
@@ -46,6 +73,73 @@ IRAM_ATTR bool DS2408::report() {
   states.finalize();
 
   ruth::MQTT::send(states);
+
+  return rc;
+}
+
+IRAM_ATTR bool DS2408::setPin(uint8_t pin, const char *cmd) {
+  auto rc = false;
+
+  uint8_t asis_states;
+  if (status(asis_states)) {
+    uint8_t cmd_state;
+    uint8_t cmd_mask;
+
+    if (cmdToMaskAndState(pin, cmd, cmd_mask, cmd_state)) {
+      const uint8_t new_states = ~(asis_states ^ ((asis_states ^ cmd_state) & cmd_mask));
+
+      ESP_LOGD(ident(), "asis_states[%02x] new_states[%02x]", asis_states, new_states);
+
+      static uint8_t set_pin_cmd[12];
+      static constexpr size_t pin_cmd_len = sizeof(set_pin_cmd);
+      set_pin_cmd[9] = 0x5a; // set command
+      set_pin_cmd[10] = new_states;
+      set_pin_cmd[11] = ~new_states;
+
+      static uint8_t check[2];
+      static constexpr size_t check_len = sizeof(check);
+
+      if (matchRomThenRead(set_pin_cmd, pin_cmd_len, check, check_len)) {
+        // check what the device returned to determine success or failure
+        // byte 0: 0xAA is the confirmation response
+        // byte 1: new_state
+        uint8_t conf_byte = check[0];
+        uint8_t dev_state = check[1];
+        if ((conf_byte == 0xaa) || (dev_state == new_states)) {
+          rc = true;
+        } else if (((conf_byte & 0xa0) == 0xa0) || ((conf_byte & 0x0a) == 0x0a)) {
+          ESP_LOGW(ident(), "SET OK-PARTIAL conf[%02x] req[%02x] dev[%02x]", conf_byte, new_states,
+                   dev_state);
+          rc = true;
+        } else {
+          ESP_LOGW(ident(), "SET FAILED conf[%02x] req[%02x] dev[%02x]", conf_byte, new_states, dev_state);
+        }
+      }
+    }
+  }
+
+  return rc;
+}
+
+IRAM_ATTR bool DS2408::cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask, uint8_t &state) {
+
+  auto rc = false;
+
+  mask = 0x01 << pin;
+
+  if (cmd[0] == 'o') {
+    if ((cmd[1] == 'f') && (cmd[2] == 'f')) {
+      rc = true;
+      state = 0x00;
+    }
+
+    if (cmd[1] == 'n') {
+      rc = true;
+      state = 0x01 << pin;
+    }
+  }
+
+  ESP_LOGD(ident(), "pin[%u] cmd[%s] mask[%02x] state[%02x]", pin, cmd, mask, state);
 
   return rc;
 }
@@ -100,91 +194,5 @@ IRAM_ATTR bool DS2408::status(uint8_t &states, uint64_t *elapsed_us) {
 
   return rc;
 }
-
-// bool DallasSemi::setDS2408(DsDevice_t *dev, uint32_t cmd_mask,
-//                            uint32_t cmd_state) {
-//   owb_status owb_s;
-//   bool rc = false;
-//
-//   // read the device to ensure we have the current state
-//   // important because setting the new state relies, in part, on the existing
-//   // state for the pios not changing
-//   if (readDevice(dev) == false) {
-//     Text::rlog("device \"%s\" read before set failed", dev->id());
-//
-//     return rc;
-//   }
-//
-//   Positions_t *reading = (Positions_t *)dev->reading();
-//
-//   uint32_t asis_state = reading->state();
-//   uint32_t new_state = 0x00;
-//
-//   // use XOR tricks to apply the state changes to the as_is state using the
-//   // mask computed
-//   new_state = asis_state ^ ((asis_state ^ cmd_state) & cmd_mask);
-//
-//   // report_state = new_state;
-//   new_state = (~new_state) & 0xFF; // constrain to 8-bits
-//
-//   resetBus();
-//
-//   uint8_t dev_cmd[] = {0x55, // byte 0: match rom_code
-//                        0x00, // byte 1-8: rom
-//                        0x00,
-//                        0x00,
-//                        0x00,
-//                        0x00,
-//                        0x00,
-//                        0x00,
-//                        0x00,
-//                        0x5a,                 // byte 9: actual device cmd
-//                        (uint8_t)new_state,   // byte10 : new state
-//                        (uint8_t)~new_state}; // byte11: inverted state
-//
-//   dev->copyAddrToCmd(dev_cmd);
-//   owb_s = owb_write_bytes(_ds, dev_cmd, sizeof(dev_cmd));
-//
-//   if (owb_s != OWB_STATUS_OK) {
-//     Text::rlog("device \"%s\" set cmd failed owb_s=\"%d\"", dev->debug().get(),
-//                owb_s);
-//
-//     return rc;
-//   }
-//
-//   uint8_t check[2];
-//   // read the confirmation byte (0xAA) and new state
-//   owb_s = owb_read_bytes(_ds, check, sizeof(check));
-//
-//   if (owb_s != OWB_STATUS_OK) {
-//
-//     Text::rlog("device \"%s\" check byte read failed owb_s=\"%d\"",
-//                dev->debug().get(), owb_s);
-//
-//     return rc;
-//   }
-//
-//   resetBus();
-//
-//   // check what the device returned to determine success or failure
-//   // byte 0: 0xAA is the confirmation response
-//   // byte 1: new_state
-//   uint8_t conf_byte = check[0];
-//   uint8_t dev_state = check[1];
-//   if ((conf_byte == 0xaa) || (dev_state == new_state)) {
-//     rc = true;
-//   } else if (((conf_byte & 0xa0) == 0xa0) || ((conf_byte & 0x0a) == 0x0a)) {
-//     Text::rlog("device \"%s\" SET OK-PARTIAL conf=\"%02x\" state "
-//                "req=\"%02x\" dev=\"%02x\"",
-//                dev->id(), conf_byte, new_state, dev_state);
-//     rc = true;
-//   } else {
-//     Text::rlog("device \"%s\" SET FAILED conf=\"%02x\" state req=\"%02x\" "
-//                "dev=\"%02x\"",
-//                dev->id(), conf_byte, new_state, dev_state);
-//   }
-//
-//   return rc;
-// }
 
 } // namespace ds

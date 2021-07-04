@@ -25,6 +25,7 @@
 
 #include "ArduinoJson.h"
 #include "dev_ds/ds.hpp"
+#include "message/in.hpp"
 
 namespace ds {
 class DS2408 : public Device {
@@ -32,12 +33,14 @@ class DS2408 : public Device {
 public:
   DS2408(const uint8_t *addr);
 
-  bool execute() override;
+  bool execute(message::InWrapped msg) override;
   bool report() override;
 
   static constexpr size_t num_pins = 8;
 
 private:
+  bool cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask, uint8_t &state);
+  bool setPin(uint8_t pin, const char *cmd);
   bool status(uint8_t &states, uint64_t *elapsed_us = nullptr);
 };
 } // namespace ds

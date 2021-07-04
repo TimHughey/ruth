@@ -50,11 +50,11 @@ IRAM_ATTR void In::checkTime(JsonDocument &root) {
     return;
   }
 
-  _valid = (mtime > (now_ms - 250)) ? true : false;
+  _valid = (mtime > (now_ms - 1000)) ? true : false;
 
   if (_valid) return;
 
-  ESP_LOGI(TAG, "mtime variance[%llu]", (mtime - now_ms));
+  ESP_LOGI(TAG, "mtime variance[%llu]", (mtime > now_ms) ? (mtime - now_ms) : (now_ms - mtime));
 }
 
 IRAM_ATTR InWrapped In::make(const char *filter, const size_t filter_len, const char *packed,
