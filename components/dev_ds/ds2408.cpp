@@ -64,10 +64,14 @@ IRAM_ATTR bool DS2408::report() {
   uint8_t states_raw;
   auto rc = status(states_raw);
 
-  for (auto i = 0; i < num_pins; i++) {
-    const char *state = (states_raw & (0x01 << i)) ? "on" : "off";
+  if (rc) {
+    for (auto i = 0; i < num_pins; i++) {
+      const char *state = (states_raw & (0x01 << i)) ? "on" : "off";
 
-    states.addPin(i, state);
+      states.addPin(i, state);
+    }
+  } else {
+    states.setError();
   }
 
   states.finalize();

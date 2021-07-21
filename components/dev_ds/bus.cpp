@@ -48,10 +48,16 @@ bool Bus::acquire(uint32_t timeout_ms) {
   auto rc = false;
   const UBaseType_t wait_ticks = (timeout_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
 
+  auto bus_requestor = xTaskGetCurrentTaskHandle();
+
+  if (bus_requestor == bus_holder) {
+    return true;
+  }
+
   auto take_rc = xSemaphoreTake(mutex, wait_ticks);
 
   if (take_rc == pdTRUE) {
-    bus_holder = xTaskGetCurrentTaskHandle();
+    bus_holder = bus_requestor;
     ESP_LOGD(TAG, "ACQUIRE bus holder: %p", bus_holder);
     rc = true;
   } else {
@@ -155,20 +161,23 @@ IRAM_ATTR bool Bus::convert(bool &complete, bool cancel) {
   return false;
 }
 
-uint8_t Bus::lastStatus() { return status; }
+IRAM_ATTR uint8_t Bus::lastStatus() { return status; }
+
+IRAM_ATTR bool Bus::ok() { return status == OWB_STATUS_OK; }
 
 bool Bus::release() {
+  auto task = xTaskGetCurrentTaskHandle();
 
-  // auto task = xTaskGetCurrentTaskHandle();
-  //
-  // if (task != bus_holder) {
-  //   return false;
-  // }
+  if (task != bus_holder) {
+    return false;
+  }
 
   auto rc = false;
+
   ESP_LOGD(TAG, "RELEASE bus holder %p", bus_holder);
   bus_holder = nullptr;
   auto give_rc = xSemaphoreGive(mutex);
+
   if (give_rc == pdTRUE) {
     rc = true;
   } else {
@@ -195,15 +204,11 @@ IRAM_ATTR bool Bus::search(uint8_t *rom_code) {
   if (reset()) {
     if (in_progress) {
       status = owb_search_next(owb, &state, &found);
-
-      if (error()) goto RESET_SEARCH;
     } else {
       status = owb_search_first(owb, &state, &found);
-
-      if (error()) goto RESET_SEARCH;
     }
 
-    if (found) {
+    if (ok() && found) {
       // a rom code was found, copy it to the caller and flag that a search
       // is in progress.
       constexpr size_t len = sizeof(state.rom_code.bytes);
@@ -213,8 +218,7 @@ IRAM_ATTR bool Bus::search(uint8_t *rom_code) {
     }
   }
 
-RESET_SEARCH:
-  // rom code not found or end of available devices
+  // rom code not found, end of available devices or reset failed
   in_progress = false;
 
   return false;

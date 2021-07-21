@@ -31,18 +31,13 @@ class States : public message::Out {
 public:
   enum Status : uint8_t { OK = 0, ERROR = 1 };
 
-  struct Opts {
-    const char *ident;
-    Status status = OK;
-    uint8_t states = 0x00;
-  };
-
 public:
   States(const char *device_name);
   ~States() = default;
 
   void addPin(uint8_t pin_num, const char *status);
   inline void finalize() { _read_us = now() - _start_at; }
+  void setError() { _status = ERROR; }
 
 private:
   void assembleData(JsonObject &data);
@@ -51,6 +46,7 @@ private:
 private:
   uint64_t _start_at;
   uint64_t _read_us;
+  Status _status = OK;
 };
 } // namespace ds
 #endif

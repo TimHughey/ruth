@@ -45,6 +45,12 @@ IRAM_ATTR void States::addPin(uint8_t pin_num, const char *status) {
 IRAM_ATTR void States::assembleData(JsonObject &root) {
   auto metrics = root.createNestedObject("metrics");
   metrics["read"] = _read_us;
+
+  if (_status == OK) {
+    _filter.addLevel("ok");
+  } else {
+    _filter.addLevel("error");
+  }
 }
 
 IRAM_ATTR uint64_t States::now() {

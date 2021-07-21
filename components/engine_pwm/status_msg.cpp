@@ -25,6 +25,7 @@ Status::Status(const char *ident) : message::Out(512) {
   _filter.addLevel("mut");
   _filter.addLevel("status");
   _filter.addLevel(ident);
+  _filter.addLevel("ok");
 }
 
 void Status::addPin(uint8_t pin_num, const char *status) {
