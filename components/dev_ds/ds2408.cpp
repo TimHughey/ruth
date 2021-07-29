@@ -49,6 +49,7 @@ IRAM_ATTR bool DS2408::execute(message::InWrapped msg) {
     const bool ack = root["ack"] | false;
 
     if (ack && execute_rc) {
+      updateSeenTimestamp();
       message::Ack ack_msg(refid);
 
       ruth::MQTT::send(ack_msg);
@@ -65,6 +66,8 @@ IRAM_ATTR bool DS2408::report() {
   auto rc = status(states_raw);
 
   if (rc) {
+    updateSeenTimestamp();
+
     for (auto i = 0; i < num_pins; i++) {
       const char *state = (states_raw & (0x01 << i)) ? "on" : "off";
 

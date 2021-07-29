@@ -32,11 +32,12 @@
 
 namespace i2c {
 // static const char *TAG = "i2c::mcp23008";
+static const char *dev_description = "mcp23008";
 static StaticJsonDocument<1024> cmd_doc;
 static uint8_t _rx[11];
 static uint8_t _tx[13];
 
-IRAM_ATTR MCP23008::MCP23008(uint8_t addr) : Device(addr, MUTABLE) {}
+IRAM_ATTR MCP23008::MCP23008(uint8_t addr) : Device(addr, dev_description, MUTABLE) {}
 
 IRAM_ATTR bool MCP23008::cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask, uint8_t &state) {
   auto rc = false;
@@ -73,6 +74,8 @@ IRAM_ATTR bool MCP23008::detect() {
 
   auto rc = Bus::executeCmd(cmd);
 
+  if (rc) updateSeenTimestamp();
+
   return rc;
 }
 
@@ -91,6 +94,7 @@ IRAM_ATTR bool MCP23008::execute(message::InWrapped msg) {
     const bool ack = root["ack"] | false;
 
     if (ack && execute_rc) {
+      updateSeenTimestamp();
       message::Ack ack_msg(refid);
 
       ruth::MQTT::send(ack_msg);
@@ -106,6 +110,8 @@ IRAM_ATTR bool MCP23008::report(const bool send) {
   auto rc = status(states_raw);
 
   if (rc) {
+    updateSeenTimestamp();
+
     for (size_t i = 0; i < num_pins; i++) {
       const char *state = (states_raw & (0x01 << i)) ? "on" : "off";
 

@@ -69,25 +69,28 @@ IRAM_ATTR void Engine::command(void *task_data) {
 IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
   static uint32_t loop_count = 0;
 
-  // don't discover until enough loops have passed.  by using a countdown we are assured the
-  // first call will always perform a discover.
-  if (loop_count > 0) {
-    loop_count--;
-    return;
-  } else {
+  // don't discover until enough loops have passed.
+  // using a countdown we are assured the first call will always perform a discover.
+  if (loop_count == 0) {
     // it is time for a discover, reset the loop count and proceed with the discover
     loop_count = loops_per_discover;
+  } else {
+    loop_count--;
+    return;
   }
 
   uint8_t rom_code[8];
   bool found;
+  uint32_t found_count = 0;
 
   do {
     found = Device::search(rom_code);
 
     if (found) {
+      found_count++;
+
       for (size_t i = 0; i < max_devices; i++) {
-        constexpr size_t rom_len = sizeof(rom_code);
+        // constexpr size_t rom_len = sizeof(rom_code);
         Device *entry = _known[i];
 
         // we've reached the end of the known devices and the rom code isn't known.
@@ -118,18 +121,20 @@ IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
           break;
         }
 
-        if (memcmp(entry->addr(), rom_code, rom_len) == 0) {
-          // we already know this device
-          auto diff_us = entry->updateSeenTimestamp();
-
-          ESP_LOGD(entry->ident(), "previously seen %u µs ago", diff_us);
-
-          break;
-        }
+        // if (memcmp(entry->addr(), rom_code, rom_len) == 0) {
+        //   // we already know this device
+        //   auto diff_us = entry->updateSeenTimestamp();
+        //
+        //   ESP_LOGD(entry->ident(), "previously seen %u µs ago", diff_us);
+        //
+        //   break;
+        // }
       }
     }
 
   } while (found);
+
+  ESP_LOGD(TAG_RPT, "discovered %d devices", found_count);
 }
 
 IRAM_ATTR Device *Engine::findDevice(const char *ident) {

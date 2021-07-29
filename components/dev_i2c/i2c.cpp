@@ -28,8 +28,8 @@ namespace i2c {
 
 static const char *unique_id = nullptr;
 
-IRAM_ATTR Device::Device(const uint8_t addr, const bool is_mutable)
-    : _addr(addr), _mutable(is_mutable), _timestamp(now()) {
+IRAM_ATTR Device::Device(const uint8_t addr, const char *description, const bool is_mutable)
+    : _addr(addr), _mutable(is_mutable), _timestamp(now()), _description(description) {
   makeID();
 }
 
@@ -47,6 +47,13 @@ IRAM_ATTR void Device::makeID() {
   p = (char *)memccpy(p, unique_id, 0x00, _ident_max_len - 8);
 
   p--; // memccpy returns a pointer to the copied null, back up one
+  *p++ = '.';
+
+  const size_t remaining = _ident_max_len - (p - _ident);
+  p = (char *)memccpy(p, description(), 0x00, remaining);
+
+  p--;
+  *p++ = ':';
 
   if (_addr < 0x10) *p++ = '0';       // zero pad values less than 0x10
   itoa(_addr, p, 16);                 // convert to hex

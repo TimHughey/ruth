@@ -27,7 +27,9 @@
 #include "ruth_mqtt/mqtt.hpp"
 
 namespace i2c {
-SHT31::SHT31(uint8_t addr) : Device(addr) {}
+static const char *dev_description = "sht31";
+
+SHT31::SHT31(uint8_t addr) : Device(addr, dev_description) {}
 
 bool SHT31::crc(const uint8_t *data, size_t index) {
   uint8_t crc = 0xFF;
@@ -101,6 +103,7 @@ bool SHT31::report(const bool send) {
 
       const auto read_us = now() - start_at;
 
+      updateSeenTimestamp();
       auto status = RelHum({_ident, RelHum::Status::OK, tc, rh, read_us, 0});
       ruth::MQTT::send(status);
     } else { // crc did not match

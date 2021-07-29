@@ -53,7 +53,7 @@ IRAM_ATTR bool DS1820::report() {
     if (matchRomThenRead(cmd, cmd_len, data, data_len) == false) return false;
     auto crc = crc8(data, data_len);
     if (crc != 0x00) {
-      ESP_LOGI(ident(), "crc failure: 0x%02x", crc);
+      ESP_LOGD(ident(), "crc failure: 0x%02x", crc);
 
       rc = false; // transmission error
     }
@@ -77,6 +77,7 @@ IRAM_ATTR bool DS1820::report() {
   }
 
   if (rc) {
+    updateSeenTimestamp();
     const auto read_us = now() - start_at;
     auto status = Celsius({ident(), Celsius::Status::OK, (float)raw / 16.0f, read_us, convert_us, 0});
     ruth::MQTT::send(status);

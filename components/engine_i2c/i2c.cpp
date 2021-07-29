@@ -104,9 +104,10 @@ IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
       } else {
         delete to_detect;
       }
-    } else if (_known[i]->report(false)) {
-      _known[i]->updateSeenTimestamp();
     }
+    // else if (_known[i]->report(false)) {
+    //   _known[i]->updateSeenTimestamp();
+    // }
   }
 }
 

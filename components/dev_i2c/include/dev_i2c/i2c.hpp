@@ -32,11 +32,11 @@ public:
   static constexpr bool IMMUTABLE = false;
 
 public:
-  Device(const uint8_t addr, const bool is_mutable = IMMUTABLE);
+  Device(const uint8_t addr, const char *description, const bool is_mutable = IMMUTABLE);
   virtual ~Device() = default;
 
   uint8_t addr() const { return _addr; }
-  virtual const char *description() const = 0;
+  const char *description() const { return _description; };
   static void delay(uint32_t ms);
   virtual bool detect() = 0;
   virtual bool execute(message::InWrapped msg) { return false; }
@@ -66,6 +66,7 @@ protected:
 
 private:
   uint64_t _timestamp = 0; // last seen timestamp (microseconds since epoch)
+  const char *_description = nullptr;
 };
 } // namespace i2c
 
