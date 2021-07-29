@@ -30,6 +30,7 @@ public:
   MCP23008(uint8_t addr = 0x20);
 
   bool execute(message::InWrapped msg) override;
+  const char *description() const override { return "mcp23008"; }
   bool detect() override;
   bool report(const bool send) override;
 

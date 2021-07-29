@@ -33,17 +33,23 @@ public:
 
 public:
   Device(const uint8_t addr, const bool is_mutable = IMMUTABLE);
+  virtual ~Device() = default;
 
+  uint8_t addr() const { return _addr; }
+  virtual const char *description() const = 0;
   static void delay(uint32_t ms);
   virtual bool detect() = 0;
   virtual bool execute(message::InWrapped msg) { return false; }
   virtual bool report(const bool send = true) = 0;
 
+  const char *ident() const { return _ident; }
+  static size_t identMaxLen() { return _ident_max_len; }
+  static bool initHardware();
   bool isMutable() const { return _mutable; }
 
   uint64_t lastSeen() const { return _timestamp; }
   void makeID();
-  void setUniqueId(const char *);
+  static void setUniqueId(const char *);
   uint32_t updateSeenTimestamp();
 
 protected:

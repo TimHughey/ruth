@@ -25,12 +25,11 @@
 
 namespace i2c {
 
-typedef class SHT31 SHT31_t;
-
 class SHT31 : public Device {
 public:
   SHT31(uint8_t addr = 0x44);
 
+  const char *description() const override { return "sht31"; }
   bool detect() override;
   bool report(const bool send) override;
 

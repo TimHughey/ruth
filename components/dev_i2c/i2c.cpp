@@ -29,28 +29,44 @@ namespace i2c {
 static const char *unique_id = nullptr;
 
 IRAM_ATTR Device::Device(const uint8_t addr, const bool is_mutable)
-    : _addr(addr), _mutable(is_mutable), _timestamp(now()) {}
+    : _addr(addr), _mutable(is_mutable), _timestamp(now()) {
+  makeID();
+}
 
 IRAM_ATTR void Device::delay(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
+
+bool Device::initHardware() { return Bus::init(); }
 
 IRAM_ATTR void Device::makeID() {
   auto *p = _ident;
   *p++ = 'i';
   *p++ = '2';
   *p++ = 'c';
-  *p++ = '.';
 
   // ensure there is remaining space for the dot and addr of device
-  memccpy(p, unique_id, 0x00, _ident_max_len - 8);
+  p = (char *)memccpy(p, unique_id, 0x00, _ident_max_len - 8);
 
   p--; // memccpy returns a pointer to the copied null, back up one
-  *p++ = '.';
 
   if (_addr < 0x10) *p++ = '0';       // zero pad values less than 0x10
   itoa(_addr, p, 16);                 // convert to hex
   p = (_addr < 0x10) ? p + 1 : p + 2; // move pointer forward based on zero padding
 
   *p = 0x00; // null terminate the ident
+}
+
+IRAM_ATTR uint64_t Device::now() {
+  struct timeval time_now;
+
+  uint64_t us_since_epoch;
+
+  gettimeofday(&time_now, nullptr);
+
+  us_since_epoch = 0;
+  us_since_epoch += time_now.tv_sec * 1000000L; // convert seconds to microseconds
+  us_since_epoch += time_now.tv_usec;           // add microseconds since last second
+
+  return us_since_epoch;
 }
 
 IRAM_ATTR int Device::readAddr() const { return (_addr << 1) | I2C_MASTER_READ; }

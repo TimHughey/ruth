@@ -21,6 +21,7 @@
 #include <esp_log.h>
 
 #include "engine_ds/ds.hpp"
+#include "engine_i2c/i2c.hpp"
 #include "engine_pwm/pwm.hpp"
 #include "engines.hpp"
 
@@ -30,6 +31,7 @@ void Engines::startConfigured(const JsonObject &profile) {
   const char *unique_id = profile["unique_id"];
   const JsonObject &pwm = profile["pwm"];
   const JsonObject &ds = profile["dalsemi"];
+  const JsonObject &i2c = profile["i2c"];
 
   if (pwm) {
     using namespace pwm;
@@ -56,6 +58,21 @@ void Engines::startConfigured(const JsonObject &profile) {
     opts.report.priority = ds["report"]["pri"];
     opts.report.send_ms = ds["report"]["send_ms"];
     opts.report.loops_per_discover = ds["report"]["loops_per_discover"];
+
+    Engine::start(opts);
+  }
+
+  if (i2c) {
+    using namespace i2c;
+    Engine::Opts opts;
+
+    opts.unique_id = unique_id;
+    opts.command.stack = i2c["command"]["stack"];
+    opts.command.priority = i2c["command"]["pri"];
+    opts.report.stack = i2c["report"]["stack"];
+    opts.report.priority = i2c["report"]["pri"];
+    opts.report.send_ms = i2c["report"]["send_ms"];
+    opts.report.loops_per_discover = i2c["report"]["loops_per_discover"];
 
     Engine::start(opts);
   }

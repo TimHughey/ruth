@@ -31,6 +31,7 @@
 #include "states_msg.hpp"
 
 namespace i2c {
+// static const char *TAG = "i2c::mcp23008";
 static StaticJsonDocument<1024> cmd_doc;
 static uint8_t _rx[11];
 static uint8_t _tx[13];
@@ -116,7 +117,7 @@ IRAM_ATTR bool MCP23008::report(const bool send) {
 
   states.finalize();
 
-  ruth::MQTT::send(states);
+  if (send) ruth::MQTT::send(states);
 
   return rc;
 }
@@ -134,13 +135,13 @@ IRAM_ATTR bool MCP23008::setPin(uint8_t pin, const char *cmd) {
       // by the command
       const uint8_t new_states = asis_states ^ ((asis_states ^ cmd_state) & cmd_mask);
 
-      ESP_LOGI(_ident, "asis_states[%02x] new_states[%02x]", asis_states, new_states);
+      ESP_LOGD(_ident, "asis_states[%02x] new_states[%02x]", asis_states, new_states);
 
       setupTxBuffer();
-      _tx[0x0a] = new_states;
+      _tx[0x0a + 2] = new_states;
 
       auto cmd = Bus::createCmd();
-      i2c_master_write(cmd, _tx, sizeof(_tx), true); // send buffer with ACKs
+      i2c_master_write(cmd, _tx, sizeof(_tx), true);
       i2c_master_stop(cmd);
 
       rc = Bus::executeCmd(cmd);
@@ -151,7 +152,7 @@ IRAM_ATTR bool MCP23008::setPin(uint8_t pin, const char *cmd) {
 }
 
 IRAM_ATTR void MCP23008::setupTxBuffer() {
-  bzero(_rx + 2, sizeof(_rx) - 2);
+  bzero(_tx, sizeof(_tx));
   _tx[0] = writeAddr(); // start comms by addressing the device in write mode
   _tx[1] = 0x00;        // start writing at the first byte of the control register
 }
@@ -180,13 +181,13 @@ IRAM_ATTR bool MCP23008::status(uint8_t &states, uint64_t *elapsed_us) {
   // control register data. the MCP23008 spec does not describe
   i2c_master_start(cmd);
   i2c_master_write_byte(cmd, readAddr(), true);
-  i2c_master_read(cmd, _rx, sizeof(_rx), I2C_MASTER_ACK);
+  i2c_master_read(cmd, _rx, sizeof(_rx), I2C_MASTER_LAST_NACK);
   i2c_master_stop(cmd);
 
   rc = Bus::executeCmd(cmd);
 
   if (rc) {
-    states = _rx[0x0a];
+    states = _rx[0x09];
 
     if (elapsed_us) *elapsed_us = now() - start_at;
   }

@@ -34,8 +34,8 @@ static const char *TAG = "i2c:bus";
 
 static constexpr gpio_num_t rst_pin = GPIO_NUM_21;
 static constexpr uint64_t rst_sel = GPIO_SEL_21;
-static constexpr gpio_num_t sda_pin = GPIO_NUM_18;
-static constexpr gpio_num_t scl_pin = GPIO_NUM_19;
+static constexpr gpio_num_t sda_pin = GPIO_NUM_23;
+static constexpr gpio_num_t scl_pin = GPIO_NUM_22;
 static constexpr TickType_t cmd_timeout = pdMS_TO_TICKS(1000);
 
 DRAM_ATTR static TaskHandle_t bus_holder = nullptr;
@@ -107,6 +107,8 @@ IRAM_ATTR bool Bus::executeCmd(i2c_cmd_handle_t cmd, const float timeout_scale) 
 
   Bus::release();
 
+  ESP_LOGD(TAG, "%s status = %s", __PRETTY_FUNCTION__, esp_err_to_name(status));
+
   return status == ESP_OK;
 }
 
@@ -131,10 +133,14 @@ bool Bus::init() {
 
   i2c_get_timeout(I2C_NUM_0, &timeout_default);
 
+  if (reset() == false) return false;
+
   mutex = xSemaphoreCreateMutex();
   xSemaphoreGive(mutex);
 
-  ESP_LOGI(TAG, "i2c driver installed and mutex created");
+  if (mutex == nullptr) return false;
+
+  ESP_LOGD(TAG, "i2c driver installed and mutex created");
   return true;
 }
 
