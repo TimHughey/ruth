@@ -18,35 +18,22 @@
   https://www.wisslanding.com
 */
 
-#ifndef ds_states_message_hpp
-#define ds_states_message_hpp
+#ifndef i2c_ack_message_hpp
+#define i2c_ack_message_hpp
 
 #include <memory>
 
 #include "message/out.hpp"
 
-namespace i2c {
+namespace message {
 
-class States : public message::Out {
+class Ack : public message::Out {
 public:
-  enum Status : uint8_t { OK = 0, ERROR = 1 };
-
-public:
-  States(const char *device_name);
-  ~States() = default;
-
-  void addPin(uint8_t pin_num, const char *status);
-  inline void finalize() { _read_us = now() - _start_at; }
-  void setError() { _status = ERROR; }
+  Ack(const char *refid);
+  ~Ack() = default;
 
 private:
   void assembleData(JsonObject &data);
-  static uint64_t now();
-
-private:
-  uint64_t _start_at;
-  uint64_t _read_us;
-  Status _status = OK;
 };
-} // namespace i2c
+} // namespace message
 #endif

@@ -3,7 +3,7 @@
 ##
 
 idf_component_register(
-  SRCS bus.cpp i2c.cpp sht31.cpp mcp23008.cpp ack_msg.cpp relhum_msg.cpp states_msg.cpp
+  SRCS bus.cpp i2c.cpp sht31.cpp mcp23008.cpp relhum_msg.cpp
   INCLUDE_DIRS include
   PRIV_INCLUDE_DIRS .
   REQUIRES misc dev_i2c

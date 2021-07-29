@@ -18,22 +18,18 @@
   https://www.wisslanding.com
 */
 
-#ifndef ds_ack_message_hpp
-#define ds_ack_message_hpp
+#include <esp_attr.h>
 
-#include <memory>
+#include "message/ack_msg.hpp"
 
-#include "message/out.hpp"
+namespace message {
 
-namespace ds {
+IRAM_ATTR Ack::Ack(const char *refid) : message::Out(128) {
+  _filter.addLevel("mut");
+  _filter.addLevel("cmdack");
+  _filter.addLevel(refid);
+}
 
-class Ack : public message::Out {
-public:
-  Ack(const char *refid);
-  ~Ack() = default;
+IRAM_ATTR void Ack::assembleData(JsonObject &root) {}
 
-private:
-  void assembleData(JsonObject &data);
-};
-} // namespace ds
-#endif
+} // namespace message

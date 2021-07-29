@@ -23,12 +23,12 @@
 #include <esp_log.h>
 
 #include "ArduinoJson.h"
-#include "ack_msg.hpp"
 #include "bus.hpp"
 #include "dev_i2c/i2c.hpp"
 #include "dev_i2c/mcp23008.hpp"
+#include "message/ack_msg.hpp"
+#include "message/states_msg.hpp"
 #include "ruth_mqtt/mqtt.hpp"
-#include "states_msg.hpp"
 
 namespace i2c {
 // static const char *TAG = "i2c::mcp23008";
@@ -91,7 +91,7 @@ IRAM_ATTR bool MCP23008::execute(message::InWrapped msg) {
     const bool ack = root["ack"] | false;
 
     if (ack && execute_rc) {
-      Ack ack_msg(refid);
+      message::Ack ack_msg(refid);
 
       ruth::MQTT::send(ack_msg);
     }
@@ -101,7 +101,7 @@ IRAM_ATTR bool MCP23008::execute(message::InWrapped msg) {
 }
 
 IRAM_ATTR bool MCP23008::report(const bool send) {
-  States states(_ident);
+  message::States states(_ident);
   uint8_t states_raw;
   auto rc = status(states_raw);
 

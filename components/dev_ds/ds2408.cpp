@@ -21,11 +21,11 @@
 #include <esp_log.h>
 
 #include "ArduinoJson.h"
-#include "ack_msg.hpp"
 #include "crc.hpp"
 #include "dev_ds/ds2408.hpp"
+#include "message/ack_msg.hpp"
+#include "message/states_msg.hpp"
 #include "ruth_mqtt/mqtt.hpp"
-#include "states_msg.hpp"
 
 namespace ds {
 
@@ -49,7 +49,7 @@ IRAM_ATTR bool DS2408::execute(message::InWrapped msg) {
     const bool ack = root["ack"] | false;
 
     if (ack && execute_rc) {
-      ds::Ack ack_msg(refid);
+      message::Ack ack_msg(refid);
 
       ruth::MQTT::send(ack_msg);
     }
@@ -60,7 +60,7 @@ IRAM_ATTR bool DS2408::execute(message::InWrapped msg) {
 
 IRAM_ATTR bool DS2408::report() {
 
-  States states(ident());
+  message::States states(ident());
   uint8_t states_raw;
   auto rc = status(states_raw);
 

@@ -20,9 +20,9 @@
 
 #include <esp_attr.h>
 
-#include "states_msg.hpp"
+#include "message/states_msg.hpp"
 
-namespace i2c {
+namespace message {
 
 IRAM_ATTR States::States(const char *ident) : message::Out(1024), _start_at(now()) {
   _filter.addLevel("mut");
@@ -67,4 +67,4 @@ IRAM_ATTR uint64_t States::now() {
   return us_since_epoch;
 }
 
-} // namespace i2c
+} // namespace message

@@ -21,14 +21,14 @@
 #ifndef _ruth_dmx_net_packet_hpp
 #define _ruth_dmx_net_packet_hpp
 
-#include <asio.hpp>
-#include <vector>
+// #include <asio.hpp>
+// #include <vector>
 
 #include "ArduinoJson.h"
 
 namespace dmx {
 
-typedef std::vector<uint8_t> Frame;
+// typedef std::vector<uint8_t> Frame;
 
 class Packet {
 public:
@@ -56,8 +56,8 @@ public:
   inline uint8_t *rxData() { return (uint8_t *)&p; }
   size_t rxDataLength() const { return sizeof(p); }
 
-public:
-  Frame frame;
+// public:
+//   Frame frame;
 
 private:
   typedef StaticJsonDocument<384> MsgPackDoc;

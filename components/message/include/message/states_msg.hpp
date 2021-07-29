@@ -18,14 +18,14 @@
   https://www.wisslanding.com
 */
 
-#ifndef ds_states_message_hpp
-#define ds_states_message_hpp
+#ifndef states_message_hpp
+#define states_message_hpp
 
 #include <memory>
 
 #include "message/out.hpp"
 
-namespace ds {
+namespace message {
 
 class States : public message::Out {
 public:
@@ -48,5 +48,5 @@ private:
   uint64_t _read_us;
   Status _status = OK;
 };
-} // namespace ds
+} // namespace message
 #endif
