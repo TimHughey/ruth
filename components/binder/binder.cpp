@@ -115,37 +115,6 @@ const JsonObject Binder::wifi() {
   return std::move(wifi);
 }
 
-// int Binder::ls(const char *path) {
-//   struct dirent *entry;
-//   struct stat entry_stat;
-//
-//   const char *base_path = (path == nullptr) ? _base_path : path;
-//
-//   DIR *dir = opendir(base_path);
-//
-//   if (dir == nullptr) {
-//     printf("\nbinder: failed to open directory \"%s\" for read", _base_path);
-//     return 1;
-//   }
-//
-//   while ((entry = readdir(dir)) != nullptr) {
-//     TextBuffer<32> entry_path;
-//
-//     entry_path.printf("%s/%s", base_path, entry->d_name);
-//     if (stat(entry_path.c_str(), &entry_stat) == 0) {
-//       DateTime dt(entry_stat.st_mtime, "%b %e %H:%M");
-//
-//       const char type = (S_ISDIR(entry_stat.st_mode) ? 'd' : '-');
-//       printf("%crw-r--r-- ruth ruth %6ld %s %s\n", type, entry_stat.st_size,
-//              dt.c_str(), entry->d_name);
-//     }
-//   }
-//
-//   closedir(dir);
-//
-//   return 0;
-// }
-
 void Binder::parse() {
   DeserializationError embed_err = deserialize(_embed_doc, _embed_raw);
   DeserializationError file_err = deserialize(_file_doc, _file_raw);
@@ -155,15 +124,6 @@ void Binder::parse() {
 
   _root = (_versions[0] >= _versions[1]) ? _embed_doc.as<JsonObject>() : _file_doc.as<JsonObject>();
   _meta = _root["meta"];
-
-  // _cli = _root["cli"];
-  // _lightdesk = _root["lightdesk"];
-  // _dmx = _lightdesk["dmx"];
-
-  // _mqtt = _root["mqtt"];
-  // _ntp_servers = _root["ntp"];
-  // _ota = _root["ota"];
-  // _wifi = _root["wifi"];
 
   float used_percent = ((float)_root.memoryUsage() / (float)_doc_capacity) * 100.0;
   ESP_LOGI(TAG, "%s doc_used[%2.1f%%] (%d/%d)", DateTime(_meta["mtime"].as<uint32_t>()).c_str(), used_percent,
