@@ -18,18 +18,29 @@
      https://www.wisslanding.com
  */
 
+#include <driver/gpio.h>
+#include <driver/uart.h>
+#include <esp_log.h>
+#include <esp_netif.h>
+#include <freertos/task.h>
+#include <soc/uart_reg.h>
+
+#include <lwip/err.h>
+#include <lwip/netdb.h>
+#include <lwip/sockets.h>
+#include <lwip/sys.h>
+
 #include "dmx/dmx.hpp"
 
 using namespace std;
-using namespace asio;
-
-using asio::buffer;
 
 namespace dmx {
 
 Dmx *Dmx::_instance = nullptr;
+TaskHandle_t _task_handle = nullptr;
+static constexpr gpio_num_t _tx_pin = GPIO_NUM_17;
 
-Dmx::Dmx() {
+Dmx::Dmx(const uint32_t dmx_port) : _udp_port(dmx_port), _uart_num(UART_NUM_1) {
   _init_rc = uart_driver_install(_uart_num, 129, _tx_buff_len, 0, NULL, 0);
   _init_rc = uartInit();
 
@@ -41,13 +52,13 @@ Dmx::Dmx() {
 Dmx::~Dmx() {
   stop();
   // note:  the destructor must be called by a separate task
-  while (_task.handle != nullptr) {
+  while (_task_handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
 IRAM_ATTR void Dmx::fpsCalculate(void *data) {
-  Dmx_t *dmx = (Dmx_t *)data;
+  Dmx *dmx = (Dmx *)data;
   const auto mark = dmx->_frame_count_mark;
   const auto count = dmx->_stats.frame.count;
 
@@ -61,23 +72,58 @@ IRAM_ATTR void Dmx::fpsCalculate(void *data) {
   dmx->_frame_count_mark = count;
 }
 
+uint64_t Dmx::now() {
+  struct timeval time_now;
+
+  uint64_t us_since_epoch;
+
+  gettimeofday(&time_now, nullptr);
+
+  us_since_epoch = 0;
+  us_since_epoch += time_now.tv_sec * 1000000L; // convert seconds to microseconds
+  us_since_epoch += time_now.tv_usec;           // add microseconds since last second
+
+  return us_since_epoch;
+}
+
+void Dmx::stop() {
+  if (_socket != -1) {
+    shutdown(_socket, 0);
+    close(_socket);
+  }
+
+  _mode = SHUTDOWN;
+  vTaskDelay(pdMS_TO_TICKS(250));
+}
+
 void Dmx::taskCore(void *task_instance) {
-  Dmx_t *dmx = (Dmx_t *)task_instance;
+  Dmx *dmx = (Dmx *)task_instance;
 
   dmx->taskInit();
   dmx->taskLoop(); // returns when _mode == SHUTDOWN
 
   // the task is complete, clean up
-  TaskHandle_t task = dmx->_task.handle;
-  dmx->_task.handle = nullptr;
-
-  // using TR = reading::Text;
-  // TR::rlog("%s finished, calling vTaskDelete()", __PRETTY_FUNCTION__);
+  TaskHandle_t task = _task_handle;
+  _task_handle = nullptr;
 
   vTaskDelete(task); // task is removed the scheduler
 }
 
 void Dmx::taskInit() {
+  int addr_family = AF_INET;
+  int ip_protocol = 0;
+  struct sockaddr_in6 dest_addr;
+
+  struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
+  dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
+  dest_addr_ip4->sin_family = addr_family;
+  dest_addr_ip4->sin_port = htons(_udp_port);
+  ip_protocol = IPPROTO_IP;
+
+  _socket = socket(addr_family, SOCK_DGRAM, ip_protocol);
+
+  if (_socket < 0) return;
+
   esp_timer_create_args_t timer_args = {};
   timer_args.callback = fpsCalculate;
   timer_args.arg = this;
@@ -99,11 +145,14 @@ IRAM_ATTR void Dmx::taskLoop() {
   // when _mode is SHUTDOWN this function returns
   while (_mode != SHUTDOWN) {
     Packet packet;
+    constexpr size_t packet_max_len = sizeof(Packet);
 
-    if (_server->receive(packet) && packet.validMagic()) {
-      auto rx_frame = buffer(packet.frameData(), packet.frameDataLength());
-      auto tx_frame = buffer(_frame);
-      buffer_copy(tx_frame, rx_frame);
+    struct sockaddr_storage source_addr;
+    socklen_t socklen = sizeof(source_addr);
+    int len = recvfrom(_socket, &packet, packet_max_len - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+
+    if ((len > 0) && packet.validMagic()) {
+      memcpy(_frame.data(), packet.frameData(), packet.frameDataLength());
 
       txFrame(packet);
 
@@ -114,8 +163,6 @@ IRAM_ATTR void Dmx::taskLoop() {
       }
     }
   }
-
-  _server.reset();
 
   // run loop is has fallen through, shutdown the task
   esp_timer_stop(_fps_timer);
@@ -133,10 +180,10 @@ IRAM_ATTR void Dmx::taskLoop() {
 }
 
 void Dmx::taskStart() {
-  if (_task.handle == nullptr) {
+  if (_task_handle == nullptr) {
     // this (object) is passed as the data to the task creation and is
     // used by the static coreTask method to call cpre()
-    ::xTaskCreate(&taskCore, "Rdmx", _task.stackSize, this, _task.priority, &(_task.handle));
+    ::xTaskCreate(&taskCore, "Rdmx", 4096, this, 19, &(_task_handle));
   }
 }
 
@@ -197,21 +244,6 @@ esp_err_t Dmx::uartInit() {
   }
 
   return esp_rc;
-}
-
-Dmx::Server::Server(asio::io_context &io_ctx, short port) : _socket(io_ctx, udp::endpoint(udp::v4(), port)) {}
-
-bool Dmx::Server::receive(dmx::Packet &packet) {
-  auto rc = true;
-  error_code ec;
-  auto buff = asio::buffer(packet.rxData(), packet.rxDataLength());
-  _socket.receive_from(buff, _remote_endpoint, 0, ec);
-
-  if (ec) {
-    rc = false;
-  }
-
-  return rc;
 }
 
 } // namespace dmx

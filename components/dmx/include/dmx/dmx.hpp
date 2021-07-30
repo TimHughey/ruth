@@ -18,39 +18,22 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_dmx512_hpp
-#define _ruth_dmx512_hpp
+#ifndef dmx512_hpp
+#define dmx512_hpp
 
-#include <driver/gpio.h>
-#include <driver/uart.h>
-#include <esp_event.h>
-#include <esp_log.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
-#include <freertos/task.h>
-#include <soc/uart_reg.h>
 
 #include <array>
-#include <asio.hpp>
-#include <iostream>
 #include <string>
 #include <unordered_set>
 
 #include "dmx/packet.hpp"
 #include "headunit/headunit.hpp"
-#include "misc/elapsed.hpp"
-#include "misc/ruth_task.hpp"
 
 namespace dmx {
 
-typedef class Dmx Dmx_t;
-typedef std::array<uint8_t, 512> NetFrame;
-
 class Dmx {
-  using udp = asio::ip::udp;
-  typedef std::error_code error_code;
-
   static constexpr size_t _dmx_frame_len = 384;
 
   typedef std::array<uint8_t, _dmx_frame_len> DmxFrame;
@@ -66,28 +49,8 @@ public:
     } frame;
   };
 
-  typedef struct Stats Stats_t;
-
-  // ASIO
 public:
-  class Server {
-  public:
-    Server(asio::io_context &io_ctx, short port);
-
-    ~Server() { _socket.close(); }
-
-    Server(const Server &) = delete;
-    Server &operator=(const Server &) = delete;
-
-    bool receive(dmx::Packet &packet);
-
-  private:
-    udp::socket _socket;
-    udp::endpoint _remote_endpoint;
-  };
-
-public:
-  Dmx();
+  Dmx(const uint32_t dmx_port);
   ~Dmx();
 
   Dmx(const Dmx &) = delete;
@@ -116,12 +79,11 @@ public:
 
   inline static Dmx *instance() { return _instance; }
 
+  static uint64_t now();
+
   // task control
   void start() { taskStart(); }
-  void stop() {
-    _mode = SHUTDOWN;
-    vTaskDelay(pdMS_TO_TICKS(250));
-  }
+  void stop();
 
 private:
   static void fpsCalculate(void *data);
@@ -130,18 +92,16 @@ private:
   esp_err_t uartInit();
 
   // task implementation
-  inline TaskHandle_t task() const { return _task.handle; }
+  // inline TaskHandle_t task() const { return _task.handle; }
   static void taskCore(void *task_instance);
   void taskInit();
   void taskLoop();
   void taskStart();
 
 private:
-  uint32_t _udp_port = 48005;
-  uint64_t _pin_sel = GPIO_SEL_17;
-  gpio_config_t _pin_cfg = {};
-  gpio_num_t _tx_pin = GPIO_NUM_17;
-  int _uart_num = UART_NUM_1;
+  uint32_t _udp_port;
+  int _socket = -1;
+  const int _uart_num;
   esp_err_t _init_rc = ESP_FAIL;
 
   DmxMode_t _mode = INIT;
@@ -166,12 +126,7 @@ private:
 
   HeadUnitTracker _headunits;
 
-  Stats_t _stats;
-
-  asio::io_context _io_ctx;
-  std::shared_ptr<Server> _server = std::make_shared<Server>(_io_ctx, _udp_port);
-
-  ruth::Task_t _task = {.handle = nullptr, .data = nullptr, .priority = 19, .stackSize = 4096};
+  Stats _stats;
 
   static Dmx *_instance;
 };

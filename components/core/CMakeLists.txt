@@ -7,6 +7,6 @@ idf_component_register(
   INCLUDE_DIRS .
   REQUIRES
     arduino_json binder filter message ruth_mqtt esp_adc_cal misc network app_update dev_pwm engine_pwm
-    engine_ds engine_i2c)
+  engine_ds engine_i2c lightdesk)
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

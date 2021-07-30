@@ -24,16 +24,20 @@
 #include "engine_i2c/i2c.hpp"
 #include "engine_pwm/pwm.hpp"
 #include "engines.hpp"
+#include "lightdesk/lightdesk.hpp"
 
 namespace core {
+
+static lightdesk::LightDesk *desk = nullptr;
 
 void Engines::startConfigured(const JsonObject &profile) {
   const char *unique_id = profile["unique_id"];
   const JsonObject &pwm = profile["pwm"];
   const JsonObject &ds = profile["dalsemi"];
   const JsonObject &i2c = profile["i2c"];
+  const JsonObject &lightdesk = profile["lightdesk"];
 
-  if (pwm) {
+  if (pwm && !lightdesk) {
     using namespace pwm;
     Engine::Opts opts;
 
@@ -75,6 +79,18 @@ void Engines::startConfigured(const JsonObject &profile) {
     opts.report.loops_per_discover = i2c["report"]["loops_per_discover"];
 
     Engine::start(opts);
+  }
+
+  if (lightdesk) {
+    using namespace lightdesk;
+
+    LightDesk::Opts opts;
+
+    opts.dmx_port = lightdesk["dmx_port"];
+    opts.idle_shutdown_ms = lightdesk["idle_shutdown_ms"];
+    opts.idle_check_ms = lightdesk["idle_check_ms"];
+
+    desk = new LightDesk(opts);
   }
 }
 

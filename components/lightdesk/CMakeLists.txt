@@ -1,10 +1,10 @@
 ##
-## Device Base
+## Lightdesk
 ##
 
 idf_component_register(
-  SRCS addr.cpp base.cpp
+  SRCS lightdesk.cpp
   INCLUDE_DIRS include
-REQUIRES misc)
+REQUIRES dmx message misc)
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

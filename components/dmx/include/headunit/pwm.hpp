@@ -1,5 +1,5 @@
 /*
-    lightdesk/headunits/pwm_base.hpp - Ruth LightDesk Head Unit Pwm Base
+    Ruth
     Copyright (C) 2021  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_lightdesk_headunits_pwm_base_hpp
-#define _ruth_lightdesk_headunits_pwm_base_hpp
+#ifndef dmx_headunits_pwm_hpp
+#define dmx_headunits_pwm_hpp
 
 #include <driver/gpio.h>
 #include <driver/ledc.h>
@@ -29,44 +29,19 @@
 
 namespace dmx {
 
-class PulseWidthHeadUnit : public HeadUnit, public pwm::Device {
+class PulseWidthHeadUnit : public HeadUnit, public pwm::Hardware {
 public:
-  PulseWidthHeadUnit(uint8_t num) : Device(num) {
-    PulseWidthHeadUnit::configureTimer();
-    updateDuty(0);
-    configureChannel();
-  }
-
-  virtual ~PulseWidthHeadUnit() { stop(); }
+  PulseWidthHeadUnit(uint8_t num) : Hardware(num) {}
+  virtual ~PulseWidthHeadUnit() = default;
 
 public:
-  static void configureTimer() {
-    if (_timer_configured == false) {
-      auto timer_rc = ledc_timer_config(&_ledc_timer);
-
-      if (timer_rc == ESP_OK) {
-        _timer_configured = true;
-      } else {
-        // using TR = reading::Text;
-        // TR::rlog("[%s] %s", esp_err_to_name(timer_rc), __PRETTY_FUNCTION__);
-      }
-
-      Device::allOff();
-    }
-  }
-
   virtual void dark() override { updateDuty(0); }
-
   virtual void handleMsg(const JsonObject &obj) override = 0;
-  static void preStart() {
-    configureTimer();
-    allOff();
-  }
 
 private:
   // class members, defined and initialized in misc/statics.cpp
-  static bool _timer_configured;
-  static const ledc_timer_config_t _ledc_timer;
+
+  uint8_t _num;
 };
 
 } // namespace dmx
