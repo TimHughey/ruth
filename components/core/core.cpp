@@ -103,7 +103,7 @@ void Core::boot() {
   }
 
   StatusLED::brighter();
-  const char *hostname = wrapped_msg->filter(4);
+  const char *hostname = wrapped_msg->filterExtra(1);
 
   wrapped_msg->unpack(_profile);
 
@@ -111,19 +111,11 @@ void Core::boot() {
 
   core.startEngines();
 
-  // if (Binder::lightDeskEnabled() || Profile::lightDeskEnabled()) {
-  //   _lightdesk = lightdesk::LightDesk::make_shared();
-  // }
-
   core.trackHeap();
   StatusLED::percent(75);
   core.bootComplete();
 
   // OTA::partitionHandlePendingIfNeeded();
-
-  // if (Binder::cliEnabled()) {
-  //   _cli->start();
-  // }
 
   // if (Profile::watchStacks()) {
   //   _watcher = new Watcher();
@@ -229,19 +221,6 @@ void Core::startEngines() {
   profile["unique_id"] = Net::macAddress();
   core::Engines::startConfigured(profile);
 
-  // NOTE:
-  //  startIfEnabled() checks if the engine is enabled in the Profile
-  //   1. if so, creates the singleton and starts the engine
-  //   2. if not, allocates nothing and does not start the engine
-  // DallasSemi::startIfEnabled();
-  // I2c::startIfEnabled();
-  // PulseWidth::startIfEnabled();
-
-  // if (_profile["dmx"]) {
-  //   dmx::Dmx *dmx = new dmx::Dmx();
-  //   dmx->start();
-  // }
-
   _engines_started = true;
 }
 
@@ -289,7 +268,6 @@ void Core::startMqtt() {
 }
 
 void Core::trackHeap() {
-  //  StatusLED::bright();
   message::Run msg;
 
   if (msg.isHeapLow()) {
@@ -297,8 +275,6 @@ void Core::trackHeap() {
   }
 
   MQTT::send(msg);
-
-  // StatusLED::off();
 }
 
 void Core::wantMessage(message::InWrapped &msg) {

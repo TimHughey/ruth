@@ -53,7 +53,7 @@ IRAM_ATTR void Engine::command(void *task_data) {
     auto msg = ds->waitForNotifyOrMessage(&notify_val);
 
     if (msg) {
-      const char *ident = msg->filter(3);
+      const char *ident = msg->filterExtra(0);
 
       Device *cmd_device = ds->findDevice(ident);
 
@@ -105,9 +105,6 @@ IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
         delete to_detect;
       }
     }
-    // else if (_known[i]->report(false)) {
-    //   _known[i]->updateSeenTimestamp();
-    // }
   }
 }
 
@@ -162,8 +159,6 @@ void Engine::start(const Opts &opts) {
 
   _instance_ = new Engine(opts);
 
-  // pass the send frequency to Hardware for convert frequency calculations
-
   TaskHandle_t &report_task = _instance_->_tasks[REPORT];
 
   xTaskCreate(&report, TAG_RPT, opts.report.stack, _instance_, opts.report.priority, &report_task);
@@ -172,12 +167,6 @@ void Engine::start(const Opts &opts) {
   xTaskCreate(&command, TAG_CMD, opts.command.stack, _instance_, opts.command.priority, &cmd_task);
 }
 
-void Engine::wantMessage(message::InWrapped &msg) {
-  // const char *ident = msg->filter(3);
-
-  // if (strncmp(_ident, ident, sizeof(_ident)) == 0) {
-  msg->want(DocKinds::CMD);
-  // }
-}
+void Engine::wantMessage(message::InWrapped &msg) { msg->want(DocKinds::CMD); }
 
 } // namespace i2c

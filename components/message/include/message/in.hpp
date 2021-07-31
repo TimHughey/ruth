@@ -33,10 +33,11 @@ public:
   In(const char *filter, const size_t filter_len, const char *packed, const size_t packed_len);
   ~In() {}
 
-  inline const char *category() const { return _filter[2]; }
+  inline const char *category() const { return _filter[3]; }
+  const char *filterExtra(const uint32_t idx) const { return _filter[idx + 4]; }
   const char *filter(const uint32_t idx) const { return _filter[idx]; }
 
-  inline const char *kindFromFilter() const { return _filter[3]; }
+  inline const char *kindFromFilter() const { return _filter[4]; }
   inline uint32_t kind() const { return _kind; }
 
   static std::unique_ptr<In> make(const char *filter, const size_t filter_len, const char *packed,

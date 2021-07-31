@@ -69,7 +69,7 @@ void Engine::command(void *task_data) {
 
     if (msg) {
       if (msg->unpack(cmd_doc)) {
-        const char *refid = msg->filter(4);
+        const char *refid = msg->filterExtra(1);
         // const char *cmd = cmd_doc["cmd"];
         // const char *type = cmd_doc["type"];
         const JsonObject root = cmd_doc.as<JsonObject>();
@@ -143,7 +143,7 @@ void Engine::start(Opts &opts) {
 }
 
 void Engine::wantMessage(message::InWrapped &msg) {
-  const char *ident = msg->filter(3);
+  const char *ident = msg->filterExtra(0);
 
   if (strncmp(_ident, ident, sizeof(_ident)) == 0) {
     msg->want(DocKinds::CMD);

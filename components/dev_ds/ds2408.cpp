@@ -38,7 +38,7 @@ IRAM_ATTR bool DS2408::execute(message::InWrapped msg) {
 
   if (msg->unpack(cmd_doc)) {
 
-    const char *refid = msg->filter(4);
+    const char *refid = msg->filterExtra(1);
     const JsonObject root = cmd_doc.as<JsonObject>();
 
     const char *cmd = root["cmd"];

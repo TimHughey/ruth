@@ -40,11 +40,7 @@ static MQTT __singleton__;
 static uint64_t broker_acks = 0;
 static esp_mqtt_client_handle_t conn = nullptr;
 
-void MQTT::connectionClosed() {
-  // StatusLED::dim();
-
-  _mqtt_ready = false;
-}
+void MQTT::connectionClosed() { _mqtt_ready = false; }
 
 IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
   esp_err_t rc = ESP_OK;
@@ -54,7 +50,6 @@ IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
 
   switch (event->event_id) {
   case MQTT_EVENT_BEFORE_CONNECT:
-    // StatusLED::brighter();
     break;
 
   case MQTT_EVENT_CONNECTED:
@@ -64,7 +59,6 @@ IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
     if (status == MQTT_CONNECTION_ACCEPTED) {
       const MQTT::ConnOpts &opts = mqtt->opts();
 
-      // StatusLED::off();
       xTaskNotify(opts.notify_task, MQTT::CONNECTED, eSetBits);
     } else {
 
@@ -75,7 +69,6 @@ IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
     break;
 
   case MQTT_EVENT_DISCONNECTED:
-    // StatusLED::dim();
 
     mqtt->connectionClosed();
     break;
@@ -97,7 +90,6 @@ IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
     break;
 
   case MQTT_EVENT_ERROR:
-    // mqtt->_last_return_code = event->error_handle->connect_return_code;
     break;
 
   default:
@@ -162,9 +154,6 @@ void MQTT::initAndStart(const ConnOpts &opts) {
   esp_mqtt_client_register_event(conn, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, eventHandler, conn);
 
   esp_mqtt_client_start(conn);
-  // auto &task = mqtt._task;
-  //
-  // ::xTaskCreate(&coreTask, TAG, task.stackSize, &mqtt, task.priority, &(task.handle));
 }
 
 void MQTT::registerHandler(message::Handler *handler) {
@@ -186,9 +175,6 @@ void MQTT::subscribeAck(int msg_id) {
   if (msg_id == _subscribe_msg_id) {
     _mqtt_ready = true;
 
-    // notify the awaiting task
-    // auto *mqtt = (MQTT *)event->user_context;
-    // auto const &opts = mqtt->_opts;
     xTaskNotify(_opts.notify_task, MQTT::READY, eSetBits);
 
 #ifdef LOG_LOCAL_LEVEL
