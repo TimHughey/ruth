@@ -36,6 +36,7 @@ public:
   static bool error();
   static esp_err_t errorCode();
   static void delay(uint32_t ms);
+  static void hold();
   static bool init();
   static uint64_t now();
   static bool ok();

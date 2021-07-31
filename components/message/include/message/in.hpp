@@ -33,20 +33,21 @@ public:
   In(const char *filter, const size_t filter_len, const char *packed, const size_t packed_len);
   ~In() {}
 
-  inline const char *category() const { return _filter[3]; }
-  const char *filterExtra(const uint32_t idx) const { return _filter[idx + 4]; }
-  const char *filter(const uint32_t idx) const { return _filter[idx]; }
-
-  inline const char *kindFromFilter() const { return _filter[4]; }
+  inline const char *category() const { return filter(3); }
+  inline const char *filter(const uint32_t idx) const { return _filter[idx]; }
+  inline const char *hostnameFromFilter() const { return filter(5); }
+  inline const char *identFromFilter() const { return filter(4); }
+  inline const char *kindFromFilter() const { return filter(4); }
   inline uint32_t kind() const { return _kind; }
 
   static std::unique_ptr<In> make(const char *filter, const size_t filter_len, const char *packed,
                                   const size_t packed_len);
 
-  inline void want(uint32_t kind) { _kind = kind; }
+  inline const char *refidFromFilter() const { return filter(5); }
 
   bool unpack(JsonDocument &doc);
   bool valid() const { return _valid; }
+  inline void want(uint32_t kind) { _kind = kind; }
   bool wanted() const { return _kind > 0; }
 
 private:

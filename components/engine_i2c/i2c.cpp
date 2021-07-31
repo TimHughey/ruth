@@ -53,8 +53,7 @@ IRAM_ATTR void Engine::command(void *task_data) {
     auto msg = ds->waitForNotifyOrMessage(&notify_val);
 
     if (msg) {
-      const char *ident = msg->filterExtra(0);
-
+      const char *ident = msg->refidFromFilter();
       Device *cmd_device = ds->findDevice(ident);
 
       if (cmd_device) {
@@ -158,6 +157,8 @@ void Engine::start(const Opts &opts) {
   if (_instance_) return;
 
   _instance_ = new Engine(opts);
+
+  esp_register_shutdown_handler(Device::holdBus);
 
   TaskHandle_t &report_task = _instance_->_tasks[REPORT];
 

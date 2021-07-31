@@ -50,7 +50,7 @@ IRAM_ATTR void Engine::command(void *task_data) {
     auto msg = ds->waitForNotifyOrMessage(&notify_val);
 
     if (msg) {
-      const char *ident = msg->filterExtra(0);
+      const char *ident = msg->identFromFilter();
 
       Device *cmd_device = ds->findDevice(ident);
 

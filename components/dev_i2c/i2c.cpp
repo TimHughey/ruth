@@ -35,6 +35,8 @@ IRAM_ATTR Device::Device(const uint8_t addr, const char *description, const bool
 
 IRAM_ATTR void Device::delay(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
 
+void Device::holdBus() { Bus::hold(); }
+
 bool Device::initHardware() { return Bus::init(); }
 
 IRAM_ATTR void Device::makeID() {

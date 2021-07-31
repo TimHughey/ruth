@@ -112,6 +112,8 @@ IRAM_ATTR bool Bus::executeCmd(i2c_cmd_handle_t cmd, const float timeout_scale) 
   return status == ESP_OK;
 }
 
+void Bus::hold() { acquire(10000); }
+
 bool Bus::init() {
   rst_pin_config.pin_bit_mask = rst_sel;
   rst_pin_config.mode = GPIO_MODE_OUTPUT;

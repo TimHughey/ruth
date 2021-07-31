@@ -103,7 +103,7 @@ void Core::boot() {
   }
 
   StatusLED::brighter();
-  const char *hostname = wrapped_msg->filterExtra(1);
+  const char *hostname = wrapped_msg->hostnameFromFilter();
 
   wrapped_msg->unpack(_profile);
 
@@ -145,17 +145,26 @@ bool Core::enginesStarted() { return __singleton__._engines_started; }
 
 void Core::loop() {
   Core &core = __singleton__;
-  // using TR = reading::Text;
 
   auto msg = core.waitForMessage();
 
-  ESP_LOGI(TAG, "got message %p", msg.get());
+  switch (msg->kind()) {
+  case DocKinds::RESTART:
+    esp_restart();
+    break;
 
-  // if (payload->matchSubtopic("restart")) {
-  // TODO
-  // esp_restart();
-  // Restart("restart requested", __PRETTY_FUNCTION__);
-  // }
+  case DocKinds::OTA:
+    ESP_LOGI(TAG, "ota message");
+    break;
+
+  case DocKinds::BINDER:
+    ESP_LOGI(TAG, "binder messages");
+    break;
+
+  case DocKinds::PROFILE:
+    break;
+  }
+
   // else if (payload->matchSubtopic("ota")) {
   //
   //   if (_ota == nullptr) {
@@ -212,9 +221,7 @@ void Core::startEngines() {
 
   // in other words, we only want to create devices centrally once this host
   // has been assigned a name.
-  if (_engines_started || Net::hostIdAndNameAreEqual()) {
-    return;
-  }
+  if (_engines_started || Net::hostIdAndNameAreEqual()) return;
 
   const JsonObject profile = _profile.as<JsonObject>();
   profile["hostname"] = Net::hostname();

@@ -40,15 +40,15 @@ public:
   static void delay(uint32_t ms);
   virtual bool detect() = 0;
   virtual bool execute(message::InWrapped msg) { return false; }
-  virtual bool report(const bool send = true) = 0;
 
   const char *ident() const { return _ident; }
   static size_t identMaxLen() { return _ident_max_len; }
   static bool initHardware();
   bool isMutable() const { return _mutable; }
-
+  static void holdBus();
   uint64_t lastSeen() const { return _timestamp; }
   void makeID();
+  virtual bool report(const bool send = true) = 0;
   static void setUniqueId(const char *);
   uint32_t updateSeenTimestamp();
 
