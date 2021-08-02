@@ -32,11 +32,8 @@
 #include <time.h>
 
 #include "message/handler.hpp"
-#include "misc/elapsed.hpp"
 
 namespace ruth {
-
-typedef class Core Core_t;
 
 class Core : public message::Handler {
 public:
@@ -66,7 +63,7 @@ private:
 
 private:
   UBaseType_t _priority = 1;
-  elapsedMillis _core_elapsed;
+  uint64_t _core_start_at;
 
   size_t _stack_size = CONFIG_ESP_MAIN_TASK_STACK_SIZE;
 
@@ -86,15 +83,6 @@ private:
 
   // Task Stack Watcher
   // Watcher_t *_watcher = nullptr;
-
-  // LightDesk
-  // std::shared_ptr<lightdesk::LightDesk_t> _lightdesk = nullptr;
-
-  // Command Line Interface
-  // CLI_t *_cli = nullptr;
-
-  // OTA task, when needed
-  // OTA_t *_ota = nullptr;
 };
 
 } // namespace ruth

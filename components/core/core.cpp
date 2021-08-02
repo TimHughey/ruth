@@ -32,19 +32,20 @@
 #include "misc/datetime.hpp"
 #include "misc/status_led.hpp"
 #include "network.hpp"
+#include "ota/ota.hpp"
 #include "run_msg.hpp"
 #include "ruth_mqtt/mqtt.hpp"
 #include "sntp.hpp"
 #include "startup_msg.hpp"
 
-using namespace std::string_view_literals;
-
 namespace ruth {
 
 static const char *TAG = "Core";
 
-static Core_t __singleton__;
+static Core __singleton__;
 static StaticJsonDocument<2048> _profile;
+static StaticJsonDocument<1024> _ota_cmd;
+static firmware::OTA *_ota = nullptr;
 
 Core::Core() : message::Handler("host", _max_queue_depth) {
   _heap_first = heap_caps_get_free_size(MALLOC_CAP_8BIT);
@@ -54,7 +55,7 @@ Core::Core() : message::Handler("host", _max_queue_depth) {
 void Core::boot() {
   Core &core = __singleton__;
 
-  // core._app_task = app_task;
+  core._core_start_at = DateTime::now();
 
   StatusLED::init();
   Binder::init();
@@ -115,8 +116,6 @@ void Core::boot() {
   StatusLED::percent(75);
   core.bootComplete();
 
-  // OTA::partitionHandlePendingIfNeeded();
-
   // if (Profile::watchStacks()) {
   //   _watcher = new Watcher();
   //   _watcher->start();
@@ -126,7 +125,8 @@ void Core::boot() {
 void Core::bootComplete() {
   // send our boot stats
   const char *profile_name = _profile["meta"]["name"] | "unknown";
-  message::Boot msg(_stack_size, _core_elapsed, profile_name);
+  uint32_t core_elapsed = (DateTime::now() - _core_start_at) / 1000;
+  message::Boot msg(_stack_size, core_elapsed, profile_name);
   MQTT::send(msg);
 
   // lower our priority to not compete with actual work
@@ -139,6 +139,10 @@ void Core::bootComplete() {
   _report_timer = xTimerCreate("core_report", pdMS_TO_TICKS(report_ms), pdTRUE, nullptr, &reportTimer);
   vTimerSetTimerID(_report_timer, this);
   xTimerStart(_report_timer, pdMS_TO_TICKS(0));
+
+  uint32_t valid_ms = _profile["ota"]["valid_ms"] | 60000;
+  firmware::OTA::handlePendingIfNeeded(valid_ms);
+  firmware::OTA::captureBaseUrl(_profile["ota"]["base_url"]);
 }
 
 bool Core::enginesStarted() { return __singleton__._engines_started; }
@@ -154,7 +158,44 @@ void Core::loop() {
     break;
 
   case DocKinds::OTA:
-    ESP_LOGI(TAG, "ota message");
+    if (_ota == nullptr) {
+      using namespace firmware;
+
+      if (msg->unpack(_ota_cmd)) {
+        const JsonObject cmd_root = _ota_cmd.as<JsonObject>();
+        TaskHandle_t notify_task = xTaskGetCurrentTaskHandle();
+        const char *file = cmd_root["file"] | "latest.bin";
+
+        _ota = new firmware::OTA(notify_task, file, Net::ca_start());
+        _ota->start();
+      }
+
+      // wait for the results of the OTA
+      bool wait_for_ota = true;
+      while (wait_for_ota) {
+        OTA::Notifies notify_val;
+
+        xTaskNotifyWait(0x00, ULONG_MAX, (uint32_t *)&notify_val, pdMS_TO_TICKS(1000));
+
+        switch (notify_val) {
+        case OTA::Notifies::CANCEL:
+          delete _ota;
+          _ota = nullptr;
+          wait_for_ota = false;
+          break;
+
+        case OTA::Notifies::FINISH:
+          esp_restart();
+          vTaskDelay(portMAX_DELAY);
+          break;
+
+        default:
+          core.trackHeap();
+          break;
+        }
+      }
+    }
+
     break;
 
   case DocKinds::BINDER:
@@ -164,27 +205,10 @@ void Core::loop() {
   case DocKinds::PROFILE:
     break;
   }
-
-  // else if (payload->matchSubtopic("ota")) {
-  //
-  //   if (_ota == nullptr) {
-  //     _ota = new OTA();
-  //     _ota->start();
-  //     _ota->handleCommand(*payload); // handleCommand() logs as required
-  //   }
-  // } else if (payload->matchSubtopic("ota_cancel")) {
-  //   if (_ota) {
-  //     delete _ota;
-  //     _ota = nullptr;
-  //   }
-  // }
-  // else {
-  // TR::rlog("[CORE] unknown message subtopic=\"%s\"", payload->subtopic());
-  // }
 }
 
 void Core::reportTimer(TimerHandle_t handle) {
-  Core_t *core = (Core_t *)pvTimerGetTimerID(handle);
+  Core *core = (Core *)pvTimerGetTimerID(handle);
 
   core->trackHeap();
 }
@@ -201,9 +225,8 @@ void Core::sntp() {
   Sntp sntp(opts);
 
   uint32_t notify_val = 0;
-  elapsedMillis sntp_elapsed;
+
   xTaskNotifyWait(0, ULONG_MAX, &notify_val, pdMS_TO_TICKS(10000));
-  sntp_elapsed.freeze();
 
   if (notify_val != Sntp::READY) {
     ESP_LOGW(TAG, "SNTP exceeded 10s");

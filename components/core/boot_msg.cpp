@@ -41,10 +41,12 @@ void Boot::assembleData(JsonObject &data) {
   auto task_count = uxTaskGetNumberOfTasks();
   UBaseType_t high_water = uxTaskGetStackHighWaterMark(nullptr);
 
-  ESP_LOGI(TAG, "BOOT COMPLETE %ums tasks[%d] stack[%u] hw[%u]", _elapsed_ms, task_count, _stack_size,
+  uint32_t elapsed_ms = esp_timer_get_time() / 1000;
+
+  ESP_LOGI(TAG, "BOOT COMPLETE %ums tasks[%d] stack[%u] hw[%u]", elapsed_ms, task_count, _stack_size,
            high_water);
 
-  data["elapsed_ms"] = _elapsed_ms;
+  data["elapsed_ms"] = elapsed_ms;
   data["tasks"] = task_count;
 
   JsonObject stack = data.createNestedObject("stack");

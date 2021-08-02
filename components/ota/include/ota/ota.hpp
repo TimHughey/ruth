@@ -1,5 +1,5 @@
 /*
-    lightdesk/lightdesk.hpp - Ruth Light Desk
+    ota.hpp - Ruth Core OTA Class
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -18,50 +18,51 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_lightdesk_hpp
-#define _ruth_lightdesk_hpp
+#ifndef _ruth_core_ota_hpp
+#define _ruth_core_ota_hpp
 
-#include <memory>
+#include <cstdint>
+#include <memory.h>
 
-#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <freertos/timers.h>
 
-#include "dmx/dmx.hpp"
-#include "misc/elapsed.hpp"
+namespace firmware {
 
-namespace lightdesk {
-
-class LightDesk {
+class OTA {
 public:
-  struct Opts {
-    uint32_t dmx_port = 48005;
-    uint32_t idle_shutdown_ms = 600000;
-    uint32_t idle_check_ms = 1000;
-  };
+  typedef enum : uint32_t { START = 0xb001, CANCEL, FINISH } Notifies;
 
 public:
-  LightDesk(const Opts &opts);
-  ~LightDesk() = default;
+  OTA(TaskHandle_t notify_task, const char *file, const char *ca_start);
+  ~OTA();
 
-  void stop();
+  static void captureBaseUrl(const char *url);
+
   void start();
 
-  void idleWatch();
-  static void idleWatchCallback(TimerHandle_t handle);
-  void idleWatchDelete();
+  static void handlePendingIfNeeded(const uint32_t valid_ms);
 
 private:
-  void init();
+  void core(); // main task loop
+  static void coreTask(void *task_data);
+
+  bool perform();
+
+  void taskNotify(Notifies val);
 
 private:
-  esp_err_t _init_rc = ESP_FAIL;
-  TimerHandle_t _idle_timer = nullptr;
-  uint32_t _idle_shutdown_ms = 600000;
-  uint32_t _idle_check_ms = 1000; // one second
+  static constexpr size_t _url_max_len = 256;
+  char _url[_url_max_len];
+
+  TaskHandle_t _notify_task;
+  const char *_ca_start;
+  uint64_t _start_at;
+  uint32_t _elapsed_ms;
+
+  bool _run_task = true;
 };
 
-} // namespace lightdesk
+} // namespace firmware
 
 #endif

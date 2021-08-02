@@ -18,25 +18,29 @@
     https://www.wisslanding.com
 */
 
-#ifndef misc_datetime_hpp
-#define misc_datetime_hpp
+#include <esp_attr.h>
 
-#include <sys/time.h>
-#include <time.h>
+#include "misc/datetime.hpp"
 
-#include "textbuffer.hpp"
+DateTime::DateTime(time_t t, const char *format) {
+  time_t mtime = (t == 0) ? time(nullptr) : t;
 
-typedef class DateTime DateTime_t;
+  struct tm timeinfo = {};
+  localtime_r(&mtime, &timeinfo);
 
-class DateTime {
-public:
-  DateTime(time_t t = 0, const char *format = "%c");
-  const char *c_str() const { return _buffer; }
-  static uint64_t now();
+  strftime(_buffer, _buff_len, format, &timeinfo);
+}
 
-private:
-  static constexpr size_t _buff_len = 25;
-  char _buffer[_buff_len];
-};
+IRAM_ATTR uint64_t DateTime::now() {
+  struct timeval time_now;
 
-#endif
+  uint64_t us_since_epoch;
+
+  gettimeofday(&time_now, nullptr);
+
+  us_since_epoch = 0;
+  us_since_epoch += time_now.tv_sec * 1000000L; // convert seconds to microseconds
+  us_since_epoch += time_now.tv_usec;           // add microseconds since last second
+
+  return us_since_epoch;
+}
