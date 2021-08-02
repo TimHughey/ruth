@@ -57,7 +57,7 @@ private:
 
   TaskHandle_t _notify_task;
   const char *_ca_start;
-  uint64_t _start_at;
+  int64_t _start_at;
   uint32_t _elapsed_ms;
 
   bool _run_task = true;

@@ -72,20 +72,6 @@ IRAM_ATTR void Dmx::fpsCalculate(void *data) {
   dmx->_frame_count_mark = count;
 }
 
-uint64_t Dmx::now() {
-  struct timeval time_now;
-
-  uint64_t us_since_epoch;
-
-  gettimeofday(&time_now, nullptr);
-
-  us_since_epoch = 0;
-  us_since_epoch += time_now.tv_sec * 1000000L; // convert seconds to microseconds
-  us_since_epoch += time_now.tv_usec;           // add microseconds since last second
-
-  return us_since_epoch;
-}
-
 void Dmx::stop() {
   if (_socket != -1) {
     shutdown(_socket, 0);

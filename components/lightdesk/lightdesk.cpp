@@ -48,10 +48,10 @@ LightDesk::LightDesk(const Opts &opts) {
 }
 
 IRAM_ATTR void LightDesk::idleWatch() {
-  static auto track = Dmx::now();
+  static auto track = esp_timer_get_time();
 
   if (_dmx->idle()) {
-    auto now = Dmx::now();
+    auto now = esp_timer_get_time();
 
     auto idle_duration = now - track;
 
@@ -65,7 +65,7 @@ IRAM_ATTR void LightDesk::idleWatch() {
     }
 
   } else {
-    track = Dmx::now();
+    track = esp_timer_get_time();
   }
 
   xTimerStart(_idle_timer, pdMS_TO_TICKS(_idle_check_ms));

@@ -79,8 +79,6 @@ public:
 
   inline static Dmx *instance() { return _instance; }
 
-  static uint64_t now();
-
   // task control
   void start() { taskStart(); }
   void stop();

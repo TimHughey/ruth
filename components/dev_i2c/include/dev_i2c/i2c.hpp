@@ -53,7 +53,6 @@ public:
   uint32_t updateSeenTimestamp();
 
 protected:
-  // static uint64_t now();
   int readAddr() const;
   int writeAddr() const;
 

@@ -28,7 +28,6 @@
 #include <freertos/task.h>
 #include <freertos/timers.h>
 
-#include "misc/datetime.hpp"
 #include "ota/ota.hpp"
 
 namespace firmware {
@@ -93,7 +92,7 @@ void OTA::core() {
       break;
 
     case FINISH:
-      _elapsed_ms = (DateTime::now() - _start_at) / 1000;
+      _elapsed_ms = (esp_timer_get_time() - _start_at) / 1000;
       ESP_LOGI(TAG, "finished in %ums, restarting", _elapsed_ms);
       xTaskNotify(_notify_task, Notifies::FINISH, eSetValueWithOverwrite);
       break;
@@ -133,7 +132,7 @@ bool OTA::perform() {
   ota_config.http_client_init_cb = clientInitCallback;
 
   // track the time it takes to perform ota
-  _start_at = DateTime::now();
+  _start_at = esp_timer_get_time();
 
   auto esp_rc = esp_https_ota_begin(&ota_config, &_ota_handle);
 
