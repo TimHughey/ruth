@@ -175,7 +175,7 @@ IRAM_ATTR bool DS2408::status(uint8_t &states, uint64_t *elapsed_us) {
                                0x00, 0x00};            // bytes 42-43: CRC16
 
   auto rc = false;
-  auto start_at = now();
+  auto start_at = esp_timer_get_time();
 
   static uint8_t *cmd = read_cmd;
   static constexpr size_t cmd_len = 10;
@@ -193,7 +193,7 @@ IRAM_ATTR bool DS2408::status(uint8_t &states, uint64_t *elapsed_us) {
     // invert states; device considers on as false, off as true
     states = ~(data[31]) & 0xff; // constrain to 8bits
 
-    if (elapsed_us) *elapsed_us = now() - start_at;
+    if (elapsed_us) *elapsed_us = esp_timer_get_time() - start_at;
 
     ESP_LOGD(ident(), "states: 0x%02x", states);
   }

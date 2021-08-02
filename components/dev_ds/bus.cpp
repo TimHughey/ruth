@@ -35,10 +35,12 @@ static const char *TAG = "ds:bus";
 
 static TaskHandle_t bus_holder = nullptr;
 static SemaphoreHandle_t mutex = nullptr;
+static owb_rmt_driver_info rmt_driver = {};
 static OneWireBus *owb = nullptr;
 static uint8_t powered = false;
 
 static owb_status status = OWB_STATUS_OK;
+static OneWireBus_SearchState state = {};
 static bool present = false;
 
 static inline bool ok() { return status == OWB_STATUS_OK; }
@@ -68,7 +70,6 @@ bool Bus::acquire(uint32_t timeout_ms) {
 }
 
 bool Bus::ensure() {
-  static owb_rmt_driver_info rmt_driver;
   constexpr uint8_t pin = 14;
   owb = owb_rmt_initialize(&rmt_driver, pin, RMT_CHANNEL_0, RMT_CHANNEL_1);
 
@@ -195,8 +196,8 @@ IRAM_ATTR bool Bus::reset() {
   return false;
 }
 
-static OneWireBus_SearchState state = {};
 IRAM_ATTR bool Bus::search(uint8_t *rom_code) {
+
   static bool in_progress = false;
 
   bool found = false;

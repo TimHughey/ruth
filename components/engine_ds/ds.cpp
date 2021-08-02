@@ -160,10 +160,9 @@ IRAM_ATTR void Engine::report(void *data) {
   static TickType_t last_wake;
 
   Engine *ds = (Engine *)data;
+
   const auto send_ms = ds->_opts.report.send_ms;
   const auto loops_per_discover = ds->_opts.report.loops_per_discover;
-
-  Device::initHardware(send_ms);
 
   ESP_LOGD(TAG_RPT, "task started");
 
@@ -194,16 +193,17 @@ IRAM_ATTR void Engine::report(void *data) {
 void Engine::start(const Opts &opts) {
   if (_instance_) return;
 
+  // pass the send frequency to the Bus to control the frequency of temperature converts
+  const auto send_ms = opts.report.send_ms;
+  Device::initBus(send_ms);
+
   _instance_ = new Engine(opts);
 
-  // pass the send frequency to Hardware for convert frequency calculations
+  xTaskCreate(&report, TAG_RPT, opts.report.stack, _instance_, opts.report.priority,
+              &(_instance_->_tasks[REPORT]));
 
-  TaskHandle_t &report_task = _instance_->_tasks[REPORT];
-
-  xTaskCreate(&report, TAG_RPT, opts.report.stack, _instance_, opts.report.priority, &report_task);
-
-  TaskHandle_t &cmd_task = _instance_->_tasks[COMMAND];
-  xTaskCreate(&command, TAG_CMD, opts.command.stack, _instance_, opts.command.priority, &cmd_task);
+  xTaskCreate(&command, TAG_CMD, opts.command.stack, _instance_, opts.command.priority,
+              &(_instance_->_tasks[COMMAND]));
 }
 
 void Engine::wantMessage(message::InWrapped &msg) { msg->want(DocKinds::CMD); }

@@ -34,11 +34,11 @@ DS1820::DS1820(const uint8_t *addr) : Device(addr) { _mutable = false; }
 IRAM_ATTR bool DS1820::report() {
   auto rc = false;
 
-  auto start_at = now();
+  auto start_at = esp_timer_get_time();
   rc = convert();
-  const auto convert_us = now() - start_at;
+  const auto convert_us = esp_timer_get_time() - start_at;
 
-  start_at = now();
+  start_at = esp_timer_get_time();
 
   uint16_t raw = 0;
   if (rc) {
@@ -78,7 +78,7 @@ IRAM_ATTR bool DS1820::report() {
 
   if (rc) {
     updateSeenTimestamp();
-    const auto read_us = now() - start_at;
+    const auto read_us = esp_timer_get_time() - start_at;
     auto status = Celsius({ident(), Celsius::Status::OK, (float)raw / 16.0f, read_us, convert_us, 0});
     ruth::MQTT::send(status);
   } else {
