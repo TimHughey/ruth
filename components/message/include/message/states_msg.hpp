@@ -36,16 +36,15 @@ public:
   ~States() = default;
 
   void addPin(uint8_t pin_num, const char *status);
-  inline void finalize() { _read_us = now() - _start_at; }
+  void finalize();
   void setError() { _status = ERROR; }
 
 private:
   void assembleData(JsonObject &data);
-  static uint64_t now();
 
 private:
-  uint64_t _start_at;
-  uint64_t _read_us;
+  int64_t _start_at;
+  int64_t _read_us;
   Status _status = OK;
 };
 } // namespace message

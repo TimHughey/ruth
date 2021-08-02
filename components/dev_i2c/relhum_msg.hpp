@@ -37,7 +37,7 @@ public:
     Status status = OK;
     float temp_c;
     float relhum;
-    uint64_t read_us;
+    int64_t read_us;
     int error;
   };
 

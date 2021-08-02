@@ -19,12 +19,13 @@
 */
 
 #include <esp_attr.h>
+#include <esp_timer.h>
 
 #include "message/states_msg.hpp"
 
 namespace message {
 
-IRAM_ATTR States::States(const char *ident) : message::Out(1024), _start_at(now()) {
+IRAM_ATTR States::States(const char *ident) : message::Out(1024), _start_at(esp_timer_get_time()) {
   _filter.addLevel("mut");
   _filter.addLevel("status");
   _filter.addLevel(ident);
@@ -53,18 +54,6 @@ IRAM_ATTR void States::assembleData(JsonObject &root) {
   }
 }
 
-IRAM_ATTR uint64_t States::now() {
-  struct timeval time_now;
-
-  uint64_t us_since_epoch;
-
-  gettimeofday(&time_now, nullptr);
-
-  us_since_epoch = 0;
-  us_since_epoch += time_now.tv_sec * 1000000L; // convert seconds to microseconds
-  us_since_epoch += time_now.tv_usec;           // add microseconds since last second
-
-  return us_since_epoch;
-}
+IRAM_ATTR void States::finalize() { _read_us = esp_timer_get_time() - _start_at; }
 
 } // namespace message

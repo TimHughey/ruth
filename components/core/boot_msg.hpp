@@ -29,7 +29,7 @@ namespace message {
 
 class Boot : public Out {
 public:
-  Boot(const size_t stack_size, const uint32_t elapsed_ms, const char *profile_name);
+  Boot(const size_t stack_size, const char *profile_name);
   ~Boot() = default;
 
 private:
@@ -38,7 +38,6 @@ private:
 
 private:
   const size_t _stack_size;
-  const uint32_t _elapsed_ms;
 };
 } // namespace message
 #endif

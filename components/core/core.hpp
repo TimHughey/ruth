@@ -63,7 +63,6 @@ private:
 
 private:
   UBaseType_t _priority = 1;
-  uint64_t _core_start_at;
 
   size_t _stack_size = CONFIG_ESP_MAIN_TASK_STACK_SIZE;
 

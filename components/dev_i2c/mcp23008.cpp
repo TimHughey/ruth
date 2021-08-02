@@ -163,7 +163,7 @@ IRAM_ATTR void MCP23008::setupTxBuffer() {
   _tx[1] = 0x00;        // start writing at the first byte of the control register
 }
 
-IRAM_ATTR bool MCP23008::status(uint8_t &states, uint64_t *elapsed_us) {
+IRAM_ATTR bool MCP23008::status(uint8_t &states, int64_t *elapsed_us) {
   auto rc = false;
 
   // register       register      register          register
@@ -175,7 +175,7 @@ IRAM_ATTR bool MCP23008::status(uint8_t &states, uint64_t *elapsed_us) {
   // automatically increment the address (register).  we read all registers
   // (11 bytes) in one shot.
 
-  auto start_at = now();
+  auto start_at = esp_timer_get_time();
   auto cmd = Bus::createCmd();
 
   // establish comms with the device by sending it's address, with write flag, followed by a single
@@ -195,7 +195,7 @@ IRAM_ATTR bool MCP23008::status(uint8_t &states, uint64_t *elapsed_us) {
   if (rc) {
     states = _rx[0x09];
 
-    if (elapsed_us) *elapsed_us = now() - start_at;
+    if (elapsed_us) *elapsed_us = esp_timer_get_time() - start_at;
   }
 
   return rc;

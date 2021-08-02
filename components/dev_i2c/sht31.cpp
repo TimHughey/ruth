@@ -50,7 +50,7 @@ bool SHT31::detect() { return report(false); }
 
 bool SHT31::report(const bool send) {
   auto rc = false;
-  auto start_at = now();
+  auto start_at = esp_timer_get_time();
 
   uint8_t tx[] = {
       0x2c, // single-shot measurement, with clock stretching
@@ -101,7 +101,7 @@ bool SHT31::report(const bool send) {
       float tc = (float)((stc * 175) / 0xffff) - 45;
       float rh = (float)((srh * 100) / 0xffff);
 
-      const auto read_us = now() - start_at;
+      const auto read_us = esp_timer_get_time() - start_at;
 
       updateSeenTimestamp();
       auto status = RelHum({_ident, RelHum::Status::OK, tc, rh, read_us, 0});

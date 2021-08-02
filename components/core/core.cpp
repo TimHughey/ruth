@@ -55,8 +55,6 @@ Core::Core() : message::Handler("host", _max_queue_depth) {
 void Core::boot() {
   Core &core = __singleton__;
 
-  core._core_start_at = DateTime::now();
-
   StatusLED::init();
   Binder::init();
 
@@ -125,8 +123,7 @@ void Core::boot() {
 void Core::bootComplete() {
   // send our boot stats
   const char *profile_name = _profile["meta"]["name"] | "unknown";
-  uint32_t core_elapsed = (DateTime::now() - _core_start_at) / 1000;
-  message::Boot msg(_stack_size, core_elapsed, profile_name);
+  message::Boot msg(_stack_size, profile_name);
   MQTT::send(msg);
 
   // lower our priority to not compete with actual work

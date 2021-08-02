@@ -39,7 +39,7 @@ private:
   bool cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask, uint8_t &state);
   bool setPin(uint8_t pin, const char *cmd);
   void setupTxBuffer();
-  bool status(uint8_t &states, uint64_t *elapsed_us = nullptr);
+  bool status(uint8_t &states, int64_t *elapsed_us = nullptr);
 };
 
 } // namespace i2c

@@ -29,7 +29,7 @@ namespace i2c {
 static const char *unique_id = nullptr;
 
 IRAM_ATTR Device::Device(const uint8_t addr, const char *description, const bool is_mutable)
-    : _addr(addr), _mutable(is_mutable), _timestamp(now()), _description(description) {
+    : _addr(addr), _mutable(is_mutable), _timestamp(esp_timer_get_time()), _description(description) {
   makeID();
 }
 
@@ -64,26 +64,12 @@ IRAM_ATTR void Device::makeID() {
   *p = 0x00; // null terminate the ident
 }
 
-IRAM_ATTR uint64_t Device::now() {
-  struct timeval time_now;
-
-  uint64_t us_since_epoch;
-
-  gettimeofday(&time_now, nullptr);
-
-  us_since_epoch = 0;
-  us_since_epoch += time_now.tv_sec * 1000000L; // convert seconds to microseconds
-  us_since_epoch += time_now.tv_usec;           // add microseconds since last second
-
-  return us_since_epoch;
-}
-
 IRAM_ATTR int Device::readAddr() const { return (_addr << 1) | I2C_MASTER_READ; }
 
 void Device::setUniqueId(const char *id) { unique_id = id; }
 
 IRAM_ATTR uint32_t Device::updateSeenTimestamp() {
-  auto now_ms = now();
+  auto now_ms = esp_timer_get_time();
   auto diff = now_ms - _timestamp;
   _timestamp = now_ms;
 

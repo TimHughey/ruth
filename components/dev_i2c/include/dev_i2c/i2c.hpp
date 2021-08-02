@@ -53,19 +53,19 @@ public:
   uint32_t updateSeenTimestamp();
 
 protected:
-  static uint64_t now();
+  // static uint64_t now();
   int readAddr() const;
   int writeAddr() const;
 
 protected:
   static constexpr size_t _ident_max_len = 45;
 
-  uint8_t _addr = 0x00;
-  bool _mutable = false;
+  const uint8_t _addr;
+  const bool _mutable;
   char _ident[_ident_max_len];
 
 private:
-  uint64_t _timestamp = 0; // last seen timestamp (microseconds since epoch)
+  int64_t _timestamp; // last seen timestamp (microseconds since boot)
   const char *_description = nullptr;
 };
 } // namespace i2c
