@@ -149,58 +149,63 @@ void Core::loop() {
 
   auto msg = core.waitForMessage();
 
-  switch (msg->kind()) {
-  case DocKinds::RESTART:
-    esp_restart();
-    break;
+  if (msg) {
+    switch (msg->kind()) {
+    case DocKinds::RESTART:
+      esp_restart();
+      break;
 
-  case DocKinds::OTA:
-    if (_ota == nullptr) {
-      using namespace firmware;
+    case DocKinds::OTA:
+      core.ota(std::move(msg));
+      break;
 
-      if (msg->unpack(_ota_cmd)) {
-        const JsonObject cmd_root = _ota_cmd.as<JsonObject>();
-        TaskHandle_t notify_task = xTaskGetCurrentTaskHandle();
-        const char *file = cmd_root["file"] | "latest.bin";
+    case DocKinds::BINDER:
+      ESP_LOGI(TAG, "binder messages");
+      break;
 
-        _ota = new firmware::OTA(notify_task, file, Net::ca_start());
-        _ota->start();
-      }
+    case DocKinds::PROFILE:
+      break;
+    }
+  }
+}
 
-      // wait for the results of the OTA
-      bool wait_for_ota = true;
-      while (wait_for_ota) {
-        OTA::Notifies notify_val;
+void Core::ota(message::InWrapped msg) {
+  if (_ota == nullptr) {
+    using namespace firmware;
 
-        xTaskNotifyWait(0x00, ULONG_MAX, (uint32_t *)&notify_val, pdMS_TO_TICKS(1000));
+    if (msg->unpack(_ota_cmd)) {
+      const JsonObject cmd_root = _ota_cmd.as<JsonObject>();
+      TaskHandle_t notify_task = xTaskGetCurrentTaskHandle();
+      const char *file = cmd_root["file"] | "latest.bin";
 
-        switch (notify_val) {
-        case OTA::Notifies::CANCEL:
-          delete _ota;
-          _ota = nullptr;
-          wait_for_ota = false;
-          break;
-
-        case OTA::Notifies::FINISH:
-          esp_restart();
-          vTaskDelay(portMAX_DELAY);
-          break;
-
-        default:
-          core.trackHeap();
-          break;
-        }
-      }
+      _ota = new firmware::OTA(notify_task, file, Net::ca_start());
+      _ota->start();
     }
 
-    break;
+    // wait for the results of the OTA
+    bool wait_for_ota = true;
+    while (wait_for_ota) {
+      OTA::Notifies notify_val;
 
-  case DocKinds::BINDER:
-    ESP_LOGI(TAG, "binder messages");
-    break;
+      xTaskNotifyWait(0x00, ULONG_MAX, (uint32_t *)&notify_val, pdMS_TO_TICKS(1000));
 
-  case DocKinds::PROFILE:
-    break;
+      switch (notify_val) {
+      case OTA::Notifies::CANCEL:
+        delete _ota;
+        _ota = nullptr;
+        wait_for_ota = false;
+        break;
+
+      case OTA::Notifies::FINISH:
+        esp_restart();
+        vTaskDelay(portMAX_DELAY);
+        break;
+
+      default:
+        trackHeap();
+        break;
+      }
+    }
   }
 }
 

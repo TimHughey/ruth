@@ -52,7 +52,7 @@ public:
 private:
   // private functions for class
   void bootComplete();
-
+  void ota(message::InWrapped msg);
   void sntp();
   void startEngines();
   void startMqtt();
