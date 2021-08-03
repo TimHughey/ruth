@@ -90,12 +90,12 @@ IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
       found_count++;
 
       for (size_t i = 0; i < max_devices; i++) {
-        // constexpr size_t rom_len = sizeof(rom_code);
+        constexpr size_t rom_len = sizeof(rom_code);
         Device *entry = _known[i];
 
-        // we've reached the end of the known devices and the rom code isn't known.
-        // add the rom code as a known device and get out of this loop
         if (entry == nullptr) {
+          // we've reached the end of the known devices and the rom code isn't known.
+          // add the rom code as a known device and get out of this loop
           Device *new_device = nullptr; // we never delete a device so no reason to use smart pointer
 
           const uint8_t family = rom_code[0];
@@ -121,14 +121,11 @@ IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
           break;
         }
 
-        // if (memcmp(entry->addr(), rom_code, rom_len) == 0) {
-        //   // we already know this device
-        //   auto diff_us = entry->updateSeenTimestamp();
-        //
-        //   ESP_LOGD(entry->ident(), "previously seen %u µs ago", diff_us);
-        //
-        //   break;
-        // }
+        if (memcmp(entry->addr(), rom_code, rom_len) == 0) {
+          // we already know this device
+          entry->updateSeenTimestamp();
+          break;
+        }
       }
     }
 
@@ -172,10 +169,10 @@ IRAM_ATTR void Engine::report(void *data) {
       // important to discover first especially at startup
       ds->discover(loops_per_discover);
 
-      for (size_t i = 0; i < max_devices; i++) {
+      for (size_t i = 0; (i < max_devices) && (ds->_known[i]); i++) {
         Device *device = ds->_known[i];
 
-        if (device == nullptr) break; // reached the end of known devices
+        // if (device == nullptr) break; // reached the end of known devices
 
         device->report();
       }
