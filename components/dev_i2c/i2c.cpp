@@ -44,6 +44,7 @@ IRAM_ATTR void Device::makeID() {
   *p++ = 'i';
   *p++ = '2';
   *p++ = 'c';
+  *p++ = '.';
 
   // ensure there is remaining space for the dot and addr of device
   p = (char *)memccpy(p, unique_id, 0x00, _ident_max_len - 8);
@@ -55,7 +56,7 @@ IRAM_ATTR void Device::makeID() {
   p = (char *)memccpy(p, description(), 0x00, remaining);
 
   p--;
-  *p++ = ':';
+  *p++ = '.';
 
   if (_addr < 0x10) *p++ = '0';       // zero pad values less than 0x10
   itoa(_addr, p, 16);                 // convert to hex

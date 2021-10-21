@@ -49,6 +49,7 @@ Engine::Engine(const char *unique_id, uint32_t report_send_ms)
   *p++ = 'p';
   *p++ = 'w';
   *p++ = 'm';
+  *p++ = '.';
 
   memccpy(p, unique_id, 0x00, capacity - (p - _ident));
 }
