@@ -33,8 +33,9 @@ static Sntp *_instance_ = nullptr;
 
 Sntp::Sntp(const Opts &opts) : _opts(opts) {
 
-  // sntp_setoperatingmode(SNTP_OPMODE_POLL);
-  sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
+  sntp_setoperatingmode(SNTP_OPMODE_POLL);
+  // sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
+  sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);
   sntp_setservername(0, opts.servers[0]);
   sntp_setservername(1, opts.servers[1]);
   sntp_set_time_sync_notification_cb(Sntp::sync_callback);
