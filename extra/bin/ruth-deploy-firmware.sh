@@ -55,7 +55,7 @@ fi
 
 fw_suffixes=(bin elf)
 vsn=$(git describe)
-htdocs=/dar/www/wisslanding/htdocs/helen/firmware
+htdocs=/dar/www/wisslanding/htdocs/sally/firmware
 
 pushd build
 
