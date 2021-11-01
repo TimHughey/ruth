@@ -47,17 +47,15 @@ public:
 
   inline uint8_t *frameData() const { return (uint8_t *)&(p.payload); }
   inline size_t frameDataLength() const { return p.len.frame; }
-  inline bool validMagic() { return p.magic == 0x6249; }
+  inline bool validMagic() const { return p.magic == 0xc9d2; }
+  inline size_t maxRxLength() const { return sizeof(p) - 1; }
   inline char *msg() { return p.payload + p.len.frame; };
   inline size_t msgLength() const { return p.len.msg; }
-
   inline JsonObject rootObj() { return doc.as<JsonObject>(); }
-
   inline uint8_t *rxData() { return (uint8_t *)&p; }
-  size_t rxDataLength() const { return sizeof(p); }
 
-// public:
-//   Frame frame;
+  // public:
+  //   Frame frame;
 
 private:
   typedef StaticJsonDocument<384> MsgPackDoc;

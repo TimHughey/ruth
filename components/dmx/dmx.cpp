@@ -67,6 +67,7 @@ IRAM_ATTR void Dmx::fpsCalculate(void *data) {
     auto fps = (float)dmx->_fpcp / (float)dmx->_fpc_period;
 
     dmx->_stats.fps = fps;
+    ESP_LOGD("dmx", "fps=%2.2f", fps);
   }
 
   dmx->_frame_count_mark = count;
@@ -107,11 +108,9 @@ void Dmx::taskInit() {
 
   _socket = socket(AF_INET, SOCK_DGRAM, ip_protocol);
 
-  if (_socket < 0) return;
-
-  int err = bind(_socket, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-
-  if (err < 0) return;
+  if (_socket >= 0) {
+    bind(_socket, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+  }
 
   esp_timer_create_args_t timer_args = {};
   timer_args.callback = fpsCalculate;
@@ -132,17 +131,14 @@ IRAM_ATTR void Dmx::taskLoop() {
   _mode = STREAM_FRAMES;
 
   // when _mode is SHUTDOWN this function returns
+  auto rx_bytes = 0;
   while (_mode != SHUTDOWN) {
     Packet packet;
-    constexpr size_t packet_max_len = sizeof(Packet);
 
-    struct sockaddr_storage source_addr;
-    socklen_t socklen = sizeof(source_addr);
-    int len = recvfrom(_socket, &packet, packet_max_len - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+    rx_bytes = recvfrom(_socket, packet.rxData(), packet.maxRxLength(), 0, nullptr, nullptr);
 
-    if ((len > 0) && packet.validMagic()) {
+    if ((rx_bytes > 0) && packet.validMagic()) {
       memcpy(_frame.data(), packet.frameData(), packet.frameDataLength());
-
       txFrame(packet);
 
       if (packet.deserializeMsg()) {
