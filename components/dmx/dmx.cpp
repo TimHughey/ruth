@@ -96,19 +96,22 @@ void Dmx::taskCore(void *task_instance) {
 }
 
 void Dmx::taskInit() {
-  int addr_family = AF_INET;
   int ip_protocol = 0;
   struct sockaddr_in6 dest_addr;
 
   struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
   dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
-  dest_addr_ip4->sin_family = addr_family;
+  dest_addr_ip4->sin_family = AF_INET;
   dest_addr_ip4->sin_port = htons(_udp_port);
   ip_protocol = IPPROTO_IP;
 
-  _socket = socket(addr_family, SOCK_DGRAM, ip_protocol);
+  _socket = socket(AF_INET, SOCK_DGRAM, ip_protocol);
 
   if (_socket < 0) return;
+
+  int err = bind(_socket, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+
+  if (err < 0) return;
 
   esp_timer_create_args_t timer_args = {};
   timer_args.callback = fpsCalculate;
