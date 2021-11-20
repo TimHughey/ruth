@@ -42,7 +42,7 @@ public:
   // public API for task info and control
   void kill();
   void notify() const { xTaskNotify(_task.handle, 0, eIncrement); }
-  void run();
+  bool run();
   bool running() const { return (_task.handle == nullptr) ? false : true; }
 
 protected:
@@ -54,6 +54,7 @@ protected:
   void loopFunction(ruth::TaskFunc_t *func) { _loop_func = func; }
   uint32_t notifyValue() const { return _notify_val; }
   void pause(uint32_t);
+  inline bool setDuty(uint32_t duty) { return _hw->updateDuty(duty); }
   xTaskHandle taskHandle() { return _task.handle; }
   const char *taskName(xTaskHandle handle = nullptr) { return pcTaskGetTaskName(handle); }
 

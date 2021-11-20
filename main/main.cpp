@@ -31,8 +31,8 @@ using namespace ruth;
 
 extern "C" {
 void app_main(void);
-int setenv(const char *envname, const char *envval, int overwrite);
-void tzset(void);
+// int setenv(const char *envname, const char *envval, int overwrite);
+// void tzset(void);
 }
 
 // app_main() contains minimal implementation to keep code base maintainable
@@ -52,8 +52,8 @@ void app_main() {
 
   // set timezone to Eastern Standard Time
   // for now we set the timezone here in app_main() since it's foundational
-  setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
-  tzset();
+  // setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
+  // tzset();
 
   // this is where our implementation begins by starting the Core
 

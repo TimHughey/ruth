@@ -2,4 +2,4 @@
 
 ## MQTT
 
-- [ ] validate if auto reconnect also resubscribes
+- [x] validate if auto reconnect also resubscribes

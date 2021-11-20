@@ -79,8 +79,11 @@ void Command::pause(uint32_t ms) {
   }
 }
 
-void Command::run() {
+bool Command::run() {
+  auto rc = false;
+
   if (_loop_func) {
+    rc = true;
 
     char task_name[ruth::task_max_name_len];
 
@@ -94,6 +97,8 @@ void Command::run() {
     memccpy(p, hardware()->shortName(), 0x00, capacity);
     xTaskCreate(&runTask, task_name, _task.stack, _task.data, _task.priority, &_task.handle);
   }
+
+  return rc;
 }
 
 void Command::runTask(void *task_instance) {

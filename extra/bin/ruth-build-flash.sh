@@ -74,7 +74,7 @@ case $argv[1] in
     ;;
 
   flash)
-    idf.py build flash
+    idf.py build flash monitor
     ;;
 
   erase)

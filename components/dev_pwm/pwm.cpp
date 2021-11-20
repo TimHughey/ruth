@@ -25,6 +25,7 @@
 #include <esp_attr.h>
 #include <esp_log.h>
 
+#include "dev_pwm/cmd_fixed.hpp"
 #include "dev_pwm/cmd_random.hpp"
 #include "dev_pwm/pwm.hpp"
 
@@ -34,25 +35,28 @@ namespace device {
 PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) { makeStatus(); }
 
 IRAM_ATTR bool PulseWidth::execute(const char *cmd) {
-  if ((cmd[0] == 'o') && ((cmd[2] == 0x00) || (cmd[3] == 0x00))) {
-    // high probability this is on or off, check the second byte for 'f' or 'n'
+  auto rc = true;
 
+  // simple on/off commands
+  if (cmd[0] == 'o') {
     uint32_t duty = 0;
-    if (cmd[1] == 'f') {
-      duty = dutyMin();
-    } else if (cmd[1] == 'n') {
+
+    if ((cmd[1] == 'n') && (cmd[2] == 0x00)) {
       duty = dutyMax();
+    } else if ((cmd[1] == 'f') && (cmd[2] == 'f') && (cmd[3] == 0x00)) {
+      duty = dutyMin();
     } else {
-      return false;
+      rc = false;
     }
 
-    if (_cmd) _cmd.reset(nullptr);
+    if (rc) {
+      if (_cmd) _cmd.reset(nullptr);
 
-    updateDuty(duty);
-    return true;
+      updateDuty(duty);
+    }
   }
 
-  return false;
+  return rc;
 }
 
 IRAM_ATTR bool PulseWidth::execute(const JsonObject &root) {
@@ -60,11 +64,16 @@ IRAM_ATTR bool PulseWidth::execute(const JsonObject &root) {
   const char *cmd = root["cmd"];
   const char *type = root["params"]["type"];
 
-  if (type && (strcmp(type, "random") == 0)) {
-    _cmd.reset(new pwm::Random(self(), root));
-    _cmd->run();
+  if (type) {
+    rc = false;
 
-    rc = true;
+    if (strcmp(type, "fixed") == 0) {
+      _cmd.reset(new pwm::Fixed(self(), root));
+      rc = _cmd->run();
+    } else if (strcmp(type, "random") == 0) {
+      _cmd.reset(new pwm::Random(self(), root));
+      rc = _cmd->run();
+    }
   } else {
     rc = execute(cmd);
   }

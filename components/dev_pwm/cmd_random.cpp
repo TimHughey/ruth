@@ -56,14 +56,11 @@ Random::Random(Hardware *hardware, const JsonObject &cmd) : Command(hardware, cm
 }
 
 Random::~Random() {
-  kill(); // kill our process, if running, before freeing the steps
+  kill(); // kill our process, if running, before memory is released
 }
 
 IRAM_ATTR void Random::loop(void *task_data) {
   Random *obj = (Random *)task_data;
-  // auto task_name = pcTaskGetTaskName(nullptr);
-
-  // Text::rlog("cmd \"%s\" started, task[%s]", name().c_str(), task_name);
 
   // pick a random starting point
   const auto duty_max = obj->opts.max;
