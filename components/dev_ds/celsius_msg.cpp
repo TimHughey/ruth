@@ -33,6 +33,7 @@ Celsius::Celsius(const Opts &opts) : message::Out(512) {
   case OK: {
     _filter.addLevel("ok");
     root["val"] = opts.val;
+    root["temp_c"] = opts.val;
 
     JsonObject metrics = root.createNestedObject("metrics");
     metrics["read"] = opts.read_us;

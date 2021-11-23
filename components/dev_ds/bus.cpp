@@ -164,6 +164,17 @@ IRAM_ATTR bool Bus::convert(bool &complete, bool cancel) {
 
 IRAM_ATTR uint8_t Bus::lastStatus() { return status; }
 
+// typedef enum
+// {
+//     OWB_STATUS_OK,
+//     OWB_STATUS_NOT_INITIALIZED,
+//     OWB_STATUS_PARAMETER_NULL,
+//     OWB_STATUS_DEVICE_NOT_RESPONDING,
+//     OWB_STATUS_CRC_FAILED,
+//     OWB_STATUS_TOO_MANY_BITS,
+//     OWB_STATUS_HW_ERROR
+// } owb_status;
+
 IRAM_ATTR bool Bus::ok() { return status == OWB_STATUS_OK; }
 
 bool Bus::release() {
