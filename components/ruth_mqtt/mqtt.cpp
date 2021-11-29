@@ -193,7 +193,7 @@ void MQTT::subscribeAck(int msg_id) {
 }
 
 void MQTT::subscribe(const filter::Subscribe &filter) {
-  int qos = 1; // hardcoded QoS
+  int qos = 0; // hardcoded QoS
 
   auto &sub_msg_id = __singleton__._subscribe_msg_id;
   sub_msg_id = esp_mqtt_client_subscribe(conn, filter.c_str(), qos);
