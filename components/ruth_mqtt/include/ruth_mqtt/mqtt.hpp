@@ -55,7 +55,7 @@ public:
   MQTT(const MQTT &) = delete;
   void operator=(const MQTT &) = delete;
 
-  // void connectionClosed();
+  void connectionClosed();
 
   void incomingMsg(message::InWrapped msg);
   static void initAndStart(const ConnOpts &opts);
@@ -78,7 +78,7 @@ private:
 
 private:
   ConnOpts _opts;
-  // bool _mqtt_ready = false;
+  bool _mqtt_ready = false;
   int _subscribe_msg_id;
 
   // esp_mqtt_client_handle_t _connection = nullptr;
