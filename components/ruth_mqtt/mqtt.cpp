@@ -141,7 +141,7 @@ void MQTT::initAndStart(const ConnOpts &opts) {
   esp_mqtt_client_config_t client_opts = {};
 
   client_opts.uri = opts.uri;
-  client_opts.disable_clean_session = true;
+  client_opts.disable_clean_session = false;
   client_opts.username = opts.user;
   client_opts.password = opts.passwd;
   client_opts.client_id = opts.client_id;
