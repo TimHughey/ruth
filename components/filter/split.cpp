@@ -37,12 +37,12 @@ IRAM_ATTR void Split::split(const char *filter) {
   //    copy of the event topic
 
   memccpy(_filter, filter, 0x00, _max_capacity);
-  _filter[_length + 1] = 0x00;
+  _filter[_length] = 0x00;
 
   // set search used to find levels 0..4 (max of 5)
   auto search = _filter;
   // end points to the added null terminator
-  auto const end = search + _length + 1;
+  auto const end = search + _length;
   constexpr size_t max_levels = sizeof(_levels) / sizeof(char *);
 
   // find each separator, record the found level and null the separator to
