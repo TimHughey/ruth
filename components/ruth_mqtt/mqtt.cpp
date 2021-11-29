@@ -40,7 +40,9 @@ static MQTT __singleton__;
 static uint64_t broker_acks = 0;
 static esp_mqtt_client_handle_t conn = nullptr;
 
-void MQTT::connectionClosed() { _mqtt_ready = false; }
+void MQTT::connectionClosed() {
+  // _mqtt_ready = false;
+}
 
 IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
   esp_err_t rc = ESP_OK;
@@ -202,9 +204,9 @@ void MQTT::subscribe(const filter::Subscribe &filter) {
 }
 
 IRAM_ATTR bool MQTT::send(message::Out &msg) {
-  auto &mqtt = __singleton__;
-
-  if (mqtt._mqtt_ready == false) return false;
+  // auto &mqtt = __singleton__;
+  //
+  // if (mqtt._mqtt_ready == false) return false;
 
   size_t bytes;
   auto packed = msg.pack(bytes);
