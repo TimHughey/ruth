@@ -72,7 +72,7 @@ IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
 
   case MQTT_EVENT_DISCONNECTED:
 
-    mqtt->connectionClosed();
+    // mqtt->connectionClosed();
     break;
 
   case MQTT_EVENT_SUBSCRIBED:
@@ -141,7 +141,7 @@ void MQTT::initAndStart(const ConnOpts &opts) {
   esp_mqtt_client_config_t client_opts = {};
 
   client_opts.uri = opts.uri;
-  client_opts.disable_clean_session = false;
+  client_opts.disable_clean_session = true;
   client_opts.username = opts.user;
   client_opts.password = opts.passwd;
   client_opts.client_id = opts.client_id;
@@ -175,7 +175,7 @@ void MQTT::registerHandler(message::Handler *handler) {
 void MQTT::subscribeAck(int msg_id) {
 
   if (msg_id == _subscribe_msg_id) {
-    _mqtt_ready = true;
+    // _mqtt_ready = true;
 
     xTaskNotify(_opts.notify_task, MQTT::READY, eSetBits);
 
@@ -195,7 +195,7 @@ void MQTT::subscribeAck(int msg_id) {
 }
 
 void MQTT::subscribe(const filter::Subscribe &filter) {
-  int qos = 1; // hardcoded QoS
+  int qos = 0; // hardcoded QoS
 
   auto &sub_msg_id = __singleton__._subscribe_msg_id;
   sub_msg_id = esp_mqtt_client_subscribe(conn, filter.c_str(), qos);
@@ -205,7 +205,7 @@ void MQTT::subscribe(const filter::Subscribe &filter) {
 
 IRAM_ATTR bool MQTT::send(message::Out &msg) {
   // auto &mqtt = __singleton__;
-  //
+
   // if (mqtt._mqtt_ready == false) return false;
 
   size_t bytes;
