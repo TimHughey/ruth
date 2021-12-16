@@ -45,6 +45,9 @@ public:
 
   static const char *setUniqueId(const char *id);
   static const char *uniqueId();
+
+private:
+  int64_t _last_txn_us = 0;
 };
 } // namespace i2c
 
