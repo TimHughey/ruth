@@ -19,15 +19,16 @@ fi
 # necessary to run idf.py
 source ./esp-idf/export.sh &>! /tmp/idf-export.log
 
-export IDF_CCACHE_ENABLE=1
-
-# if it failed output the captured log and exit
+# ensure idf.py is available after export.sh
+idf.py --version &> /dev/null
 if [[ ! $? ]]; then
   cat /tmp/idf-export.log
   rm -f /tmp/idf-export.log &> /dev/null
   popd
   exit $?
 fi
+
+export IDF_CCACHE_ENABLE=1
 
 # clean up after ourselves
 rm -f /tmp/idf-export.log &> /dev/null
@@ -37,17 +38,14 @@ if [[ sdkconfig.defaults -nt sdkconfig ]]; then
   rm -f sdkconfig
 
   idf.py clean &> /dev/null
-
   if [[ ! $? ]]; then
     popd -q
     echo "idf.py clean failed, aborting"
     exit $?
   fi
-
 fi
 
 idf.py build
-
 if [[ ! $? ]]; then
   popd
   exit $?
@@ -60,7 +58,6 @@ htdocs=/dar/www/wisslanding/htdocs/sally/firmware
 pushd build
 
 for suffix in "${fw_suffixes[@]}"; do
-
   if [[ ! -f ruth.${suffix} ]]; then
     echo "can't find ruth.${suffix}, aborting"
 
@@ -68,49 +65,19 @@ for suffix in "${fw_suffixes[@]}"; do
     exit $?
   fi
 
+  src_file=ruth.${suffix}
+  dest_file=${htdocs}/${vsn}-ruth.${suffix}
 
-  if [[ "${host}" != "jophiel" ]]; then
-    scp ruth.${suffix} jophiel:${htdocs}
-
-    if [[ ! $? ]]; then
-      popd -q +2
-      exit $?
-    fi
-
-    ssh jophiel "pushd -q $htdocs ; \
-                 rm -f latest.${suffix} ; \
-                 ln -s ./ruth.${suffix} latest.${suffix}; \
-                 ls -l latest.${suffix}"
-
-    if [[ ! $? ]]; then
-      popd -q +2
-      exit $?
-    fi
-
+  if [[ "${host}" == "jophiel" ]]; then
+    cp ${src_file} ${dest_file}
   else
-    cp ruth.${suffix} ${htdocs}/${vsn}-ruth.${suffix}
+    rsync -a ${src_file} jophiel:${dest_file}
+  fi
 
-    if [[ ! $? ]]; then
-      popd -q +2
-      exit $?
-    fi
-
-    # cd into htdocs for the remainder
-    pushd -q ${htdocs}
-
-    # point the well known name latest-ruth.* to the new file
-    rm -f latest.${suffix}
-
-    if [[ ! $? ]]; then
-      popd -q +2
-      exit $?
-    fi
-
-    ln -s ./${vsn}-ruth.${suffix} latest.${suffix}
-
-		ls -l latest.${suffix}
-		popd -q
+  if [[ ! $? ]]; then
+    popd -q +2
+    exit $?
   fi
 done
 
-popd -q
+popd -q +2
