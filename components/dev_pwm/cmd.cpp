@@ -75,7 +75,6 @@ void Command::pause(uint32_t ms) {
 
   if (_notify_val > 0) {
     _run = false;
-    // Text::rlog("\"%s\" task[%s] notify=%u", name().c_str(), taskName(), _notify_val);
   }
 }
 
@@ -116,8 +115,6 @@ void Command::kill() {
 
   TaskHandle_t to_delete = _task.handle;
   _task.handle = nullptr;
-
-  // Text::rlog("\"%s\" killed, task[%s]", name().c_str(), taskName(to_delete));
 
   // inform FreeRTOS to remove this task from the scheduler
   vTaskDelete(to_delete); // end of task
