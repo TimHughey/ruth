@@ -34,48 +34,49 @@ namespace device {
 // construct a new PulseWidth with a known address
 PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) { makeStatus(); }
 
-IRAM_ATTR bool PulseWidth::execute(const char *cmd) {
-  auto rc = true;
+IRAM_ATTR PulseWidth::CmdType PulseWidth::cmdType(const JsonObject &root) const {
+  const char *cmd = root["cmd"];
 
-  // simple on/off commands
-  if (cmd[0] == 'o') {
-    uint32_t duty = 0;
+  if (cmd == nullptr) return CmdType::NO_MATCH;
 
-    if ((cmd[1] == 'n') && (cmd[2] == 0x00)) {
-      duty = dutyMax();
-    } else if ((cmd[1] == 'f') && (cmd[2] == 'f') && (cmd[3] == 0x00)) {
-      duty = dutyMin();
-    } else {
-      rc = false;
-    }
+  // is this a simple on/off command?
+  if ((cmd[0] == 'o') && (cmd[1] == 'n') && (cmd[2] == 0x00)) return CmdType::ON;
+  if ((cmd[0] == 'o') && (cmd[1] == 'f') && (cmd[2] == 'f') && (cmd[3] == 0x00)) return CmdType::OFF;
 
-    if (rc) {
-      if (_cmd) _cmd.reset(nullptr);
+  // is this an extended commmand?
+  const char *type = root["params"]["type"];
 
-      updateDuty(duty);
-    }
-  }
+  if (strcmp(type, "fixed") == 0) return CmdType::FIXED;
+  if (strcmp(type, "random") == 0) return CmdType::RANDOM;
 
-  return rc;
+  return CmdType::NO_MATCH;
 }
 
 IRAM_ATTR bool PulseWidth::execute(const JsonObject &root) {
-  auto rc = false;
-  const char *cmd = root["cmd"];
-  const char *type = root["params"]["type"];
+  auto rc = true;
 
-  if (type) {
+  auto cmd_type = cmdType(root);
+
+  switch (cmd_type) {
+  case CmdType::ON:
+  case CmdType::OFF:
+    if (_cmd) _cmd.reset(nullptr);
+
+    cmdBasic(cmd_type);
+    break;
+
+  case CmdType::FIXED:
+    _cmd.reset(new pwm::Fixed(self(), root));
+    rc = _cmd->run();
+    break;
+
+  case CmdType::RANDOM:
+    _cmd.reset(new pwm::Random(self(), root));
+    rc = _cmd->run();
+    break;
+
+  default:
     rc = false;
-
-    if (strcmp(type, "fixed") == 0) {
-      _cmd.reset(new pwm::Fixed(self(), root));
-      rc = _cmd->run();
-    } else if (strcmp(type, "random") == 0) {
-      _cmd.reset(new pwm::Random(self(), root));
-      rc = _cmd->run();
-    }
-  } else {
-    rc = execute(cmd);
   }
 
   return rc;
