@@ -31,8 +31,6 @@ using namespace ruth;
 
 extern "C" {
 void app_main(void);
-// int setenv(const char *envname, const char *envval, int overwrite);
-// void tzset(void);
 }
 
 // app_main() contains minimal implementation to keep code base maintainable
@@ -50,13 +48,7 @@ void app_main() {
 
   ESP_LOGI("Core", "portTICK_PERIOD_MS[%u] tick[%0.2fµs]", portTICK_PERIOD_MS, tick_us);
 
-  // set timezone to Eastern Standard Time
-  // for now we set the timezone here in app_main() since it's foundational
-  // setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
-  // tzset();
-
   // this is where our implementation begins by starting the Core
-
   Core::boot();
 
   esp_task_wdt_reset();

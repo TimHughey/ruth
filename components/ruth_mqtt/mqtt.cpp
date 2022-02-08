@@ -175,8 +175,6 @@ void MQTT::registerHandler(message::Handler *handler) {
 void MQTT::subscribeAck(int msg_id) {
 
   if (msg_id == _subscribe_msg_id) {
-    // _mqtt_ready = true;
-
     xTaskNotify(_opts.notify_task, MQTT::READY, eSetBits);
 
 #ifdef LOG_LOCAL_LEVEL
@@ -204,10 +202,6 @@ void MQTT::subscribe(const filter::Subscribe &filter) {
 }
 
 IRAM_ATTR bool MQTT::send(message::Out &msg) {
-  // auto &mqtt = __singleton__;
-
-  // if (mqtt._mqtt_ready == false) return false;
-
   size_t bytes;
   auto packed = msg.pack(bytes);
 

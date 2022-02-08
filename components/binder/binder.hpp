@@ -56,19 +56,6 @@ public:
   static const JsonArray ntp();
   static const JsonObject wifi();
 
-  // LIghtDesk and DMX
-  // static uint16_t dmxMagic() { return i()->_dmx["magic"] | 0xc9d2; }
-  // static uint dmxPort() { return i()->_dmx["port"] | 48005; }
-  // static const char *dmxPsk() { return i()->_dmx["psk"] | "psk"; }
-  // static uint dmxVersion() { return i()->_dmx["version"] | 1; }
-  // static bool lightDeskEnabled() { return i()->_lightdesk["enable"] | false; }
-
-  // // OTA
-  // static const char *otaHost() { return i()->_ota["host"] | "www.example.com"; }
-  // static const char *otaPath() { return i()->_ota["path"] | "nested/path"; }
-  // static const char *otaFile() { return i()->_ota["file"] | "latest.bin"; }
-  // static uint32_t otaValidMs() { return i()->_ota["valid_ms"] | 60000; }
-
 private:
   void _init_();
   static Binder *i();

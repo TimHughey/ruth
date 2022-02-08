@@ -47,6 +47,8 @@ Hardware::Hardware(uint8_t pin_num) : _pin_num(pin_num) {
   _last_rc = allOff();
   ensureTimer();
   ensureChannel(pin_num);
+
+  updateDuty(0);
 }
 
 esp_err_t Hardware::allOff() {

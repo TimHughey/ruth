@@ -32,7 +32,17 @@
 namespace device {
 
 // construct a new PulseWidth with a known address
-PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) { makeStatus(); }
+PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) {
+  updateDuty(0);
+
+  // default status to off
+  auto *p = _status;
+
+  *p++ = 'o';
+  *p++ = 'f';
+  *p++ = 'f';
+  *p++ = 0x00;
+}
 
 IRAM_ATTR PulseWidth::CmdType PulseWidth::cmdType(const JsonObject &root) const {
   const char *cmd = root["cmd"];
@@ -46,8 +56,10 @@ IRAM_ATTR PulseWidth::CmdType PulseWidth::cmdType(const JsonObject &root) const 
   // is this an extended commmand?
   const char *type = root["params"]["type"];
 
-  if (strcmp(type, "fixed") == 0) return CmdType::FIXED;
-  if (strcmp(type, "random") == 0) return CmdType::RANDOM;
+  if (type) {
+    if (strcmp(type, "fixed") == 0) return CmdType::FIXED;
+    if (strcmp(type, "random") == 0) return CmdType::RANDOM;
+  }
 
   return CmdType::NO_MATCH;
 }

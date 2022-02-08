@@ -62,8 +62,6 @@ void Engine::command(void *task_data) {
   pwm->notifyThisTask(Notifies::QUEUED_MSG);
   MQTT::registerHandler(pwm);
 
-  // ESP_LOGI(TAG_CMD, "task started");
-
   for (;;) {
     UBaseType_t notify_val;
     auto msg = pwm->waitForNotifyOrMessage(&notify_val);
@@ -71,8 +69,6 @@ void Engine::command(void *task_data) {
     if (msg) {
       if (msg->unpack(cmd_doc)) {
         const char *refid = msg->refidFromFilter();
-        // const char *cmd = cmd_doc["cmd"];
-        // const char *type = cmd_doc["type"];
         const JsonObject root = cmd_doc.as<JsonObject>();
 
         const bool ack = root["ack"] | false;
@@ -81,12 +77,6 @@ void Engine::command(void *task_data) {
         Device &dev = (pin == 0) ? StatusLED::device() : pwm->_known[pin - 1];
 
         auto execute_rc = dev.execute(root);
-
-        // if (type) {
-        //   ESP_LOGI(TAG_CMD, "custom command[%s] type[%s]", cmd, type);
-        // } else {
-        //   ack = dev.execute(cmd);
-        // }
 
         if (ack && execute_rc) {
           pwm::Ack ack_msg(refid);

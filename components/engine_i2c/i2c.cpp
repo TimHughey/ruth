@@ -61,7 +61,7 @@ IRAM_ATTR void Engine::command(void *task_data) {
       }
 
     } else {
-      ESP_LOGW(TAG_CMD, "unhandled notify: 0x%x", notify_val);
+      ESP_LOGD(TAG_CMD, "unhandled notify: 0x%x", notify_val);
     }
   }
 }

@@ -103,8 +103,10 @@ void Core::boot() {
 
   StatusLED::brighter();
   const char *hostname = wrapped_msg->hostnameFromFilter();
+  StatusLED::brighter();
 
   wrapped_msg->unpack(_profile);
+  StatusLED::brighter();
 
   Net::setName(hostname);
 
@@ -114,11 +116,12 @@ void Core::boot() {
   StatusLED::percent(75);
   core.bootComplete();
 
+  StatusLED::off();
+
   // if (Profile::watchStacks()) {
   //   _watcher = new Watcher();
   //   _watcher->start();
   // }
-  StatusLED::off();
 }
 void Core::bootComplete() {
   // send our boot stats
