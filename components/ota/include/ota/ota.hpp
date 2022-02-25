@@ -31,36 +31,34 @@ namespace firmware {
 
 class OTA {
 public:
-  typedef enum : uint32_t { START = 0xb001, CANCEL, FINISH } Notifies;
+  typedef enum : uint32_t { START = 0xb001, CANCEL, FINISH, ERROR } Notifies;
 
 public:
   OTA(TaskHandle_t notify_task, const char *file, const char *ca_start);
   ~OTA();
 
-  static void captureBaseUrl(const char *url);
-
   void start();
 
+  static void captureBaseUrl(const char *url);
   static void handlePendingIfNeeded(const uint32_t valid_ms);
 
 private:
-  void core(); // main task loop
+  Notifies core(); // main task loop
   static void coreTask(void *task_data);
 
-  bool perform();
-
-  void taskNotify(Notifies val);
+  void notifyParent(Notifies notify_val);
+  Notifies perform();
 
 private:
-  static constexpr size_t _url_max_len = 256;
-  char _url[_url_max_len];
-
+  static constexpr size_t _url_max_len = 512;
+  // NOTE: order dependent for object initialization
   TaskHandle_t _notify_task;
   const char *_ca_start;
-  int64_t _start_at;
-  uint32_t _elapsed_ms;
 
-  bool _run_task = true;
+  uint32_t _elapsed_ms;
+  int64_t _start_at;
+
+  char _url[_url_max_len];
 };
 
 } // namespace firmware

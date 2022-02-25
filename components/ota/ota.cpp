@@ -36,25 +36,27 @@ namespace firmware {
 // file to prevent pulling ESP32 OTA related headers in the hpp file
 
 static esp_err_t clientInitCallback(esp_http_client_handle_t client);
-static bool isNewImage(const esp_app_desc_t *asis, const esp_app_desc_t *tobe);
+static bool errorCheck(esp_err_t esp_rc, const char *details);
+static bool isSameImage(const esp_app_desc_t *asiis, const esp_app_desc_t *tobe);
 static void partitionMarkValid(TimerHandle_t handle);
 
 static const char *TAG = "ota";
 static TaskHandle_t _task_handle = nullptr;
 static esp_https_ota_handle_t _ota_handle = nullptr;
-static constexpr size_t _base_url_len = 256;
-static char _base_url[_base_url_len];
+
+static constexpr size_t base_url_len = 256;
+static char base_url[base_url_len];
 
 OTA::OTA(TaskHandle_t notify_task, const char *file, const char *ca_start)
     : _notify_task(notify_task), _ca_start(ca_start) {
-  auto *p = (char *)memccpy(_url, _base_url, 0x00, _url_max_len);
+
+  auto *p = (char *)memccpy(_url, base_url, 0x00, base_url_len);
   p--; // back up one, memccpy returns pointer to address after copied null
 
   // ensure there is a slash separator
-  if (*(p - 1) != '/') {
-    *p++ = '/';
-  }
+  if (*(p - 1) != '/') *p++ = '/';
 
+  // copy the firmware file to fetch into the url
   memccpy(p, file, 0x00, (p - _url) - _url_max_len);
 
   ESP_LOGI(TAG, "url='%s'", _url);
@@ -63,65 +65,17 @@ OTA::OTA(TaskHandle_t notify_task, const char *file, const char *ca_start)
 }
 
 OTA::~OTA() {
-  while (_task_handle != nullptr) {
+  while (_task_handle) {
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 
-void OTA::captureBaseUrl(const char *url) { memccpy(_base_url, url, 0x00, _base_url_len); }
+void OTA::captureBaseUrl(const char *url) { memccpy(base_url, url, 0x00, base_url_len); }
 
-void OTA::core() {
-  while (_run_task) {
-    _run_task = false;
-
-    Notifies notify_val;
-    xTaskNotifyWait(0x00, ULONG_MAX, (uint32_t *)&notify_val, portMAX_DELAY);
-
-    switch (notify_val) {
-    case START:
-      perform();
-      break;
-
-    case CANCEL:
-      if (_ota_handle) { // clean up
-        ESP_LOGD("OTA", "canceled");
-        esp_https_ota_finish(_ota_handle);
-        _ota_handle = nullptr;
-      }
-      xTaskNotify(_notify_task, Notifies::CANCEL, eSetValueWithOverwrite);
-      break;
-
-    case FINISH:
-      _elapsed_ms = (esp_timer_get_time() - _start_at) / 1000;
-      ESP_LOGI(TAG, "finished in %ums, restarting", _elapsed_ms);
-      xTaskNotify(_notify_task, Notifies::FINISH, eSetValueWithOverwrite);
-      break;
-
-    default:
-      break;
-    }
-  }
-}
-
-void OTA::coreTask(void *task_data) {
-  OTA *ota = (OTA *)task_data;
-  ota->taskNotify(START);
-  ota->core();
-
-  TaskHandle_t task = _task_handle;
-  _task_handle = nullptr;
-
-  ESP_LOGD("OTA", "task ending...");
-  vTaskDelete(task); // remove task from scheduler
-}
-
-bool OTA::perform() {
-  auto rc = true;
-
-  _run_task = true;
+OTA::Notifies OTA::core() {
 
   const esp_partition_t *ota_part = esp_ota_get_next_update_partition(nullptr);
-  esp_https_ota_config_t ota_config;
+  esp_https_ota_config_t ota_config = {};
   esp_http_client_config_t http_conf = {};
   http_conf.url = _url;
   http_conf.cert_pem = _ca_start;
@@ -130,53 +84,60 @@ bool OTA::perform() {
 
   ota_config.http_config = &http_conf;
   ota_config.http_client_init_cb = clientInitCallback;
+  ota_config.partial_http_download = true;
 
   // track the time it takes to perform ota
   _start_at = esp_timer_get_time();
 
   auto esp_rc = esp_https_ota_begin(&ota_config, &_ota_handle);
-
-  if (esp_rc != ESP_OK) {
-    ESP_LOGE(TAG, "%s %s", __PRETTY_FUNCTION__, esp_err_to_name(esp_rc));
-    return false;
-  }
+  if (errorCheck(esp_rc, "(ota begin)")) return Notifies::ERROR;
 
   const esp_app_desc_t *app_curr = esp_ota_get_app_description();
   esp_app_desc_t app_new;
   auto img_rc = esp_https_ota_get_img_desc(_ota_handle, &app_new);
 
-  if (isNewImage(app_curr, &app_new) && (img_rc == ESP_OK)) {
-    // this is a new image
-    ESP_LOGI(TAG, "begin partition=\"%s\" addr=0x%x", ota_part->label, ota_part->address);
+  if (errorCheck(img_rc, "(get img desc)")) return Notifies::ERROR;
+  if (isSameImage(app_curr, &app_new)) return Notifies::CANCEL;
 
-    auto ota_finish_rc = ESP_FAIL;
+  ESP_LOGI(TAG, "begin partition=\"%s\" addr=0x%x", ota_part->label, ota_part->address);
 
-    if ((esp_rc == ESP_OK) && _ota_handle) {
-      do {
-        esp_rc = esp_https_ota_perform(_ota_handle);
-      } while (esp_rc == ESP_ERR_HTTPS_OTA_IN_PROGRESS);
+  do {
+    esp_rc = esp_https_ota_perform(_ota_handle);
+  } while (esp_rc == ESP_ERR_HTTPS_OTA_IN_PROGRESS);
 
-      ota_finish_rc = esp_https_ota_finish(_ota_handle);
-    }
+  auto ota_finish_rc = esp_https_ota_finish(_ota_handle);
+  _ota_handle = nullptr;
 
-    // give priority to errors from ota_begin() vs. ota_finish()
-    const auto ota_rc = (esp_rc != ESP_OK) ? esp_rc : ota_finish_rc;
-    if (ota_rc == ESP_OK) {
-      taskNotify(FINISH);
-    } else {
-      ESP_LOGE(TAG, "[%s] failure", esp_err_to_name(ota_rc));
-      rc = false;
-    }
-  } else if (img_rc == ESP_OK) {
-    // is is not a new image, clean up the ota_begin and return success
-    taskNotify(CANCEL);
-    rc = true;
-  } else {
-    // failure with initial esp_begin
-    rc = false;
+  // give priority to errors from ota_begin() vs. ota_finish()
+  const auto ota_rc = (esp_rc != ESP_OK) ? esp_rc : ota_finish_rc;
+  if (errorCheck(ota_rc, "(perform or finish)")) return Notifies::ERROR;
+
+  _elapsed_ms = (esp_timer_get_time() - _start_at) / 1000;
+  ESP_LOGI(TAG, "finished in %ums", _elapsed_ms);
+
+  return Notifies::FINISH;
+}
+
+void OTA::coreTask(void *task_data) {
+  OTA *ota = (OTA *)task_data;
+
+  ota->notifyParent(START);
+
+  auto notify_val = ota->core();
+
+  ota->notifyParent(notify_val);
+
+  // ensure the esp_https_ota context is freed
+  if (_ota_handle) {
+    esp_https_ota_finish(_ota_handle);
+    _ota_handle = nullptr;
   }
 
-  return rc;
+  TaskHandle_t task = _task_handle;
+  _task_handle = nullptr;
+
+  ESP_LOGD("OTA", "task ending...");
+  vTaskDelete(task); // remove task from scheduler
 }
 
 void OTA::start() {
@@ -205,20 +166,38 @@ void OTA::handlePendingIfNeeded(const uint32_t valid_ms) {
   }
 }
 
-void OTA::taskNotify(Notifies val) { xTaskNotify(_task_handle, val, eSetValueWithOverwrite); }
+void OTA::notifyParent(OTA::Notifies notify_val) {
+  xTaskNotify(_notify_task, notify_val, eSetValueWithOverwrite);
+}
+
+//
+// STATIC
+//
 
 esp_err_t clientInitCallback(esp_http_client_handle_t client) { return ESP_OK; }
 
-bool isNewImage(const esp_app_desc_t *asis, const esp_app_desc_t *tobe) {
+bool errorCheck(esp_err_t esp_rc, const char *details) {
+  if (esp_rc != ESP_OK) {
+    ESP_LOGE(TAG, "%s %s %s", __PRETTY_FUNCTION__, esp_err_to_name(esp_rc), details);
+
+    return true;
+  }
+
+  return false;
+}
+
+bool isSameImage(const esp_app_desc_t *asis, const esp_app_desc_t *tobe) {
+  auto constexpr SAME = "is already installed";
+  auto constexpr DIFF = "will be installed";
+
   const size_t bytes = sizeof(asis->app_elf_sha256);
   const uint8_t *sha1 = asis->app_elf_sha256;
   const uint8_t *sha2 = tobe->app_elf_sha256;
 
-  bool rc = false;
+  auto rc = false;
+  if (memcmp(sha1, sha2, bytes) == 0) rc = true;
 
-  if (memcmp(sha1, sha2, bytes)) rc = true;
-
-  ESP_LOGI(TAG, "image version='%s' %s", tobe->version, (rc) ? "will be installed" : "is already installed");
+  ESP_LOGI(TAG, "image version='%s' %s", tobe->version, (rc) ? SAME : DIFF);
 
   return rc;
 }

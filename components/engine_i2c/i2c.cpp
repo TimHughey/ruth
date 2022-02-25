@@ -158,7 +158,7 @@ void Engine::start(const Opts &opts) {
 
   _instance_ = new Engine(opts);
 
-  esp_register_shutdown_handler(Device::holdBus);
+  // esp_register_shutdown_handler(Device::holdBus);
 
   TaskHandle_t &report_task = _instance_->_tasks[REPORT];
 

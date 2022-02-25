@@ -173,42 +173,44 @@ void Core::loop() {
 }
 
 void Core::ota(message::InWrapped msg) {
-  if (_ota == nullptr) {
-    using namespace firmware;
 
-    if (msg->unpack(_ota_cmd)) {
-      const JsonObject cmd_root = _ota_cmd.as<JsonObject>();
-      TaskHandle_t notify_task = xTaskGetCurrentTaskHandle();
-      const char *file = cmd_root["file"] | "latest.bin";
+  using namespace firmware;
 
-      _ota = new firmware::OTA(notify_task, file, Net::ca_start());
-      _ota->start();
+  // OTA already in progress, do nothing
+  if (_ota) return;
+
+  if (msg->unpack(_ota_cmd)) {
+    const JsonObject cmd_root = _ota_cmd.as<JsonObject>();
+    TaskHandle_t notify_task = xTaskGetCurrentTaskHandle();
+    const char *file = cmd_root["file"] | "latest.bin";
+
+    _ota = new firmware::OTA(notify_task, file, Net::ca_start());
+    _ota->start();
+  }
+
+  while (_ota) {
+    OTA::Notifies val;
+
+    auto constexpr timeout = pdMS_TO_TICKS(1000);
+    auto rc = xTaskNotifyWait(0x00, ULONG_MAX, (uint32_t *)&val, timeout);
+
+    // notify timeout == OTA in progress, just track heap
+    if (rc == pdFAIL) {
+      trackHeap();
+      continue;
     }
 
-    // wait for the results of the OTA
-    bool wait_for_ota = true;
-    while (wait_for_ota) {
-      OTA::Notifies notify_val;
-
-      xTaskNotifyWait(0x00, ULONG_MAX, (uint32_t *)&notify_val, pdMS_TO_TICKS(1000));
-
-      switch (notify_val) {
-      case OTA::Notifies::CANCEL:
-        delete _ota;
-        _ota = nullptr;
-        wait_for_ota = false;
-        break;
-
-      case OTA::Notifies::FINISH:
-        esp_restart();
-        vTaskDelay(portMAX_DELAY);
-        break;
-
-      default:
-        trackHeap();
-        break;
-      }
+    if (val == OTA::Notifies::FINISH) {
+      esp_restart();
+      vTaskDelay(portMAX_DELAY);
+    } else if (val == OTA::Notifies::START) {
+      trackHeap();
+      continue;
     }
+
+    // if we've fallen through to here then cancel or error, clean up
+    delete _ota;
+    _ota = nullptr;
   }
 }
 

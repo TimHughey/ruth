@@ -79,7 +79,7 @@ private:
 private:
   ConnOpts _opts;
   bool _mqtt_ready = false;
-  int _subscribe_msg_id;
+  int _subscribe_msg_id = 0;
 
   // esp_mqtt_client_handle_t _connection = nullptr;
   // esp_mqtt_connect_return_code_t _last_return_code;
