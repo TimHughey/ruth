@@ -30,7 +30,9 @@
 namespace ds {
 static const char *TAG = "ds::device";
 
-Device::Device(const uint8_t *rom_code) : _timestamp(esp_timer_get_time()) {
+inline auto now() { return esp_timer_get_time(); }
+
+Device::Device(const uint8_t *rom_code) : _timestamp(now()) {
   // copy the rom code to the address
   memcpy(_addr, rom_code, sizeof(_addr));
 
@@ -51,18 +53,18 @@ IRAM_ATTR bool Device::acquireBus(uint32_t timeout_ms) { return Bus::acquire(tim
 
 uint8_t Device::busErrorCode() { return Bus::lastStatus(); }
 
-static int64_t convert_micros = 0;
+static uint32_t convert_micros = 0;
 static int64_t convert_last = 0;
 
 IRAM_ATTR bool Device::convert() {
   bool complete = false;
-  const uint64_t start_at = esp_timer_get_time();
+  const auto start_at = now();
 
   // each device calls convert as part of it's status report.
   // but converts are a global operation on all temperature devices on the bus.
   // prevent repeated converts with a minimum time of 50% the reporting cycle.
-  const uint64_t min_interval = convert_micros >> 1;
-  const uint64_t since_last_convert = start_at - convert_last;
+  const auto min_interval = convert_micros >> 1;
+  const auto since_last_convert = start_at - convert_last;
   if (since_last_convert < min_interval) {
 
     return true;
@@ -73,7 +75,7 @@ IRAM_ATTR bool Device::convert() {
 
     vTaskDelay(Convert::CHECK_TICKS); // delay between checks
 
-    if ((esp_timer_get_time() - start_at) > Convert::TIMEOUT) {
+    if ((now() - start_at) > Convert::TIMEOUT) {
       ESP_LOGW(TAG, "convert timeout");
       Bus::convert(complete, true);
       break;
@@ -82,14 +84,16 @@ IRAM_ATTR bool Device::convert() {
 
   // once a convert (success or failure) is complete note the time to prevent subsequent converts
   // before the next reporting cycle
-  convert_last = esp_timer_get_time();
+  convert_last = now();
 
   return complete;
 }
 
 bool Device::initBus(uint32_t convert_frequency_ms) {
-  convert_micros = 1000 * convert_frequency_ms;         // the value passed is in ms and we need micros
-  convert_last = esp_timer_get_time() - convert_micros; // ensure the first call to convert performs a convert
+  // the value passed is in ms and we need micros
+  convert_micros = 1000 * convert_frequency_ms;
+  // ensure the first call to convert performs a convert
+  convert_last = now() - convert_micros;
 
   return Bus::ensure();
 }
@@ -129,9 +133,10 @@ IRAM_ATTR bool Device::resetBus() { return Bus::reset(); }
 IRAM_ATTR bool Device::search(uint8_t *rom_code) { return Bus::search(rom_code); }
 
 IRAM_ATTR uint32_t Device::updateSeenTimestamp() {
-  auto now_ms = esp_timer_get_time();
-  auto diff = now_ms - _timestamp;
-  _timestamp = now_ms;
+  const auto now_us = now();
+  const auto diff = now_us - _timestamp;
+
+  _timestamp = now_us;
 
   return diff;
 }

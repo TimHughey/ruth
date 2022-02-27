@@ -29,6 +29,10 @@
 #include <esp_timer.h>
 
 namespace ruth {
+
+inline int64_t micros() { return (esp_timer_get_time()); };
+inline int64_t millis() { return (micros() / 1000); };
+
 class elapsedMillis {
 
 public:
@@ -77,10 +81,9 @@ public:
   static float toSeconds(uint64_t val) { return (double)val / 1000.0; }
 
 private:
-  uint64_t _ms;
+  int64_t _ms;
   bool _frozen = false;
 
-  inline uint64_t millis() const { return (esp_timer_get_time() / 1000); };
   inline uint64_t val() const { return (_frozen) ? (_ms) : (millis() - _ms); }
 };
 
@@ -140,12 +143,11 @@ public:
   static float toSeconds(uint64_t val) { return (double)val / seconds_us; }
 
 private:
-  uint64_t _us;
+  int64_t _us;
   bool _frozen = false;
 
   static constexpr double seconds_us = 1000.0 * 1000.0;
 
-  inline uint64_t micros() const { return (esp_timer_get_time()); };
   inline uint64_t val() const { return (_frozen) ? (_us) : (micros() - _us); }
 };
 

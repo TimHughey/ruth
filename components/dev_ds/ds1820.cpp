@@ -36,7 +36,7 @@ IRAM_ATTR bool DS1820::report() {
 
   auto start_at = esp_timer_get_time();
   rc = convert();
-  const auto convert_us = esp_timer_get_time() - start_at;
+  const uint32_t convert_us = esp_timer_get_time() - start_at;
 
   start_at = esp_timer_get_time();
 
@@ -78,7 +78,7 @@ IRAM_ATTR bool DS1820::report() {
 
   if (rc) {
     updateSeenTimestamp();
-    const auto read_us = esp_timer_get_time() - start_at;
+    const uint32_t read_us = esp_timer_get_time() - start_at;
     auto status = Celsius({ident(), Celsius::Status::OK, (float)raw / 16.0f, read_us, convert_us, 0});
     ruth::MQTT::send(status);
   } else {

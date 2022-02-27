@@ -40,7 +40,7 @@ void Boot::assembleData(JsonObject &data) {
   auto task_count = uxTaskGetNumberOfTasks();
   UBaseType_t high_water = uxTaskGetStackHighWaterMark(nullptr);
 
-  uint32_t elapsed_ms = esp_timer_get_time() / 1000;
+  const uint32_t elapsed_ms = esp_timer_get_time() / 1000;
 
   ESP_LOGI(TAG, "BOOT COMPLETE %ums tasks[%d] stack[%u] hw[%u]", elapsed_ms, task_count, _stack_size,
            high_water);
