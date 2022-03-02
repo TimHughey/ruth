@@ -35,14 +35,17 @@ namespace i2c {
 static const char *dev_description = "mcp23008";
 static StaticJsonDocument<1024> cmd_doc;
 static uint8_t _rx[11];
-static uint8_t _tx[13];
+static uint8_t _tx[11];
 
 IRAM_ATTR MCP23008::MCP23008(uint8_t addr) : Device(addr, dev_description, MUTABLE) {}
 
 IRAM_ATTR bool MCP23008::cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask, uint8_t &state) {
-  auto rc = false;
+  // guard against empty cmd or pin
+  if (cmd == nullptr) return false;
 
   mask = 0x01 << pin;
+
+  auto rc = false;
 
   if (cmd[0] == 'o') {
     if ((cmd[1] == 'f') && (cmd[2] == 'f')) {
@@ -67,14 +70,16 @@ IRAM_ATTR bool MCP23008::detect() {
 
   // set the control register values zeroes.  this will ensure the IODIR is output and the
   // GPIO pins are logic low.
-  setupTxBuffer();
+  bzero(_tx, sizeof(_tx));
   auto cmd = Bus::createCmd();
+
+  i2c_master_write_byte(cmd, writeAddr(), true);
+  i2c_master_write_byte(cmd, 0x00, true);
+
   i2c_master_write(cmd, _tx, sizeof(_tx), true); // send buffer with ACKs
   i2c_master_stop(cmd);
 
   auto rc = Bus::executeCmd(cmd);
-
-  if (rc) updateSeenTimestamp();
 
   return rc;
 }
@@ -84,87 +89,23 @@ IRAM_ATTR bool MCP23008::execute(message::InWrapped msg) {
 
   if (msg->unpack(cmd_doc)) {
     const char *refid = msg->refidFromFilter();
-    const JsonObject root = cmd_doc.as<JsonObject>();
+    message::Ack ack_msg(refid); // create ack msg early to capture execute us
 
+    const JsonObject root = cmd_doc.as<JsonObject>();
     const char *cmd = root["cmd"];
     const uint8_t pin = root["pin"];
 
     execute_rc = setPin(pin, cmd);
 
-    const bool ack = root["ack"] | false;
+    const bool ack = root["ack"] | true;
 
-    if (ack && execute_rc) {
-      updateSeenTimestamp();
-      message::Ack ack_msg(refid);
-
-      ruth::MQTT::send(ack_msg);
-    }
+    if (ack && execute_rc) ruth::MQTT::send(ack_msg);
   }
 
   return execute_rc;
 }
 
-IRAM_ATTR bool MCP23008::report(const bool send) {
-  message::States states(_ident);
-  uint8_t states_raw;
-  auto rc = status(states_raw);
-
-  if (rc) {
-    updateSeenTimestamp();
-
-    for (size_t i = 0; i < num_pins; i++) {
-      const char *state = (states_raw & (0x01 << i)) ? "on" : "off";
-
-      states.addPin(i, state);
-    }
-  } else {
-    states.setError();
-  }
-
-  states.finalize();
-
-  if (send) ruth::MQTT::send(states);
-
-  return rc;
-}
-
-IRAM_ATTR bool MCP23008::setPin(uint8_t pin, const char *cmd) {
-  auto rc = false;
-
-  uint8_t asis_states;
-  if (status(asis_states)) {
-    uint8_t cmd_state;
-    uint8_t cmd_mask;
-
-    if (cmdToMaskAndState(pin, cmd, cmd_mask, cmd_state)) {
-      // XOR the new state against the as_is state using the mask to only change the pin specified
-      // by the command
-      const uint8_t new_states = asis_states ^ ((asis_states ^ cmd_state) & cmd_mask);
-
-      ESP_LOGD(_ident, "asis_states[%02x] new_states[%02x]", asis_states, new_states);
-
-      setupTxBuffer();
-      _tx[0x0a + 2] = new_states;
-
-      auto cmd = Bus::createCmd();
-      i2c_master_write(cmd, _tx, sizeof(_tx), true);
-      i2c_master_stop(cmd);
-
-      rc = Bus::executeCmd(cmd);
-    }
-  }
-
-  return rc;
-}
-
-IRAM_ATTR void MCP23008::setupTxBuffer() {
-  bzero(_tx, sizeof(_tx));
-  _tx[0] = writeAddr(); // start comms by addressing the device in write mode
-  _tx[1] = 0x00;        // start writing at the first byte of the control register
-}
-
-IRAM_ATTR bool MCP23008::status(uint8_t &states, int64_t *elapsed_us) {
-  auto rc = false;
+IRAM_ATTR bool MCP23008::refreshStates(int64_t *elapsed_us) {
 
   // register       register      register          register
   // 0x00 - IODIR   0x01 - IPOL   0x02 - GPINTEN    0x03 - DEFVAL
@@ -183,19 +124,97 @@ IRAM_ATTR bool MCP23008::status(uint8_t &states, int64_t *elapsed_us) {
   i2c_master_write_byte(cmd, writeAddr(), true);
   i2c_master_write_byte(cmd, 0x00, true);
 
-  // now send a START followed the device address with the read flag then read the 11 bytes of
-  // control register data. the MCP23008 spec does not describe
+  // now send a START and device address with the read flag
+  // read 11 bytes of control register data.
   i2c_master_start(cmd);
   i2c_master_write_byte(cmd, readAddr(), true);
   i2c_master_read(cmd, _rx, sizeof(_rx), I2C_MASTER_LAST_NACK);
   i2c_master_stop(cmd);
 
-  rc = Bus::executeCmd(cmd);
+  auto rc = Bus::executeCmd(cmd);
+  statesStore(rc, _rx[0x09]);
+
+  if (elapsed_us) *elapsed_us = _states_at - start_at;
+
+  return rc;
+}
+
+IRAM_ATTR bool MCP23008::report(const bool send) {
+  message::States states_rpt(_ident);
+
+  refreshStates();
+
+  auto rc = true;
+  uint8_t states_raw;
+  if (states(states_raw)) {
+
+    for (size_t i = 0; i < num_pins; i++) {
+      const char *state = (states_raw & (0x01 << i)) ? "on" : "off";
+
+      states_rpt.addPin(i, state);
+    }
+  } else {
+    rc = false;
+    states_rpt.setError();
+  }
+
+  states_rpt.finalize();
+
+  if (send) ruth::MQTT::send(states_rpt);
+
+  return rc;
+}
+
+IRAM_ATTR bool MCP23008::setPin(uint8_t pin, const char *cmd) {
+  uint8_t have_states;
+
+  // NOTE: check has side-effect of rejecting cmds until first report
+  if (states(have_states) == false) {
+    return false;
+  }
+
+  auto rc = false;
+  uint8_t cmd_state;
+  uint8_t cmd_mask;
+
+  if (cmdToMaskAndState(pin, cmd, cmd_mask, cmd_state)) {
+    // XOR the new state against the as_is state using the mask to only change the pin specified
+    // by the command
+    const uint8_t next_states = have_states ^ ((have_states ^ cmd_state) & cmd_mask);
+
+    ESP_LOGD(_ident, "have_states[%02x] next_states[%02x]", have_states, next_states);
+
+    bzero(_tx, sizeof(_tx));
+    _tx[0x0a] = next_states;
+
+    auto cmd = Bus::createCmd();
+    i2c_master_write_byte(cmd, writeAddr(), true);
+    i2c_master_write_byte(cmd, 0x00, true);
+
+    i2c_master_write(cmd, _tx, sizeof(_tx), true);
+    i2c_master_stop(cmd);
+
+    rc = Bus::executeCmd(cmd);
+    statesStore(rc, next_states);
+  }
+
+  return rc;
+}
+
+IRAM_ATTR void MCP23008::setupTxBuffer() {
+  bzero(_tx, sizeof(_tx));
+  _tx[0] = writeAddr(); // start comms by addressing the device in write mode
+  _tx[1] = 0x00;        // start writing at the first byte of the control register
+}
+
+bool MCP23008::statesStore(const bool rc, const uint8_t states) {
+
+  if (!rc) ESP_LOGW(_ident, "%s %s", __PRETTY_FUNCTION__, (rc) ? "true" : "false");
 
   if (rc) {
-    states = _rx[0x09];
-
-    if (elapsed_us) *elapsed_us = esp_timer_get_time() - start_at;
+    _states_at = esp_timer_get_time();
+    _states = states;
+    _states_rc = rc;
   }
 
   return rc;

@@ -37,36 +37,24 @@ static constexpr uint64_t rst_sel = GPIO_SEL_21;
 static constexpr gpio_num_t sda_pin = GPIO_NUM_23;
 static constexpr gpio_num_t scl_pin = GPIO_NUM_22;
 static constexpr TickType_t cmd_timeout = pdMS_TO_TICKS(1000);
-static constexpr int32_t txn_settle_us = 23000;
 
 DRAM_ATTR static SemaphoreHandle_t mutex = nullptr;
 static i2c_config_t i2c_config = {};
 static gpio_config_t rst_pin_config = {};
 
-DRAM_ATTR static esp_err_t bus_status = ESP_FAIL;
-DRAM_ATTR static int64_t last_txn_us = 0;
+DRAM_ATTR esp_err_t Bus::status = ESP_FAIL;
 DRAM_ATTR static int timeout_default = 0;
 
 IRAM_ATTR bool Bus::acquire(uint32_t timeout_ms) {
-  auto rc = false;
-  const UBaseType_t wait_ticks = (timeout_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
-
+  const UBaseType_t wait_ticks = pdMS_TO_TICKS(timeout_ms);
   const auto take_rc = xSemaphoreTake(mutex, wait_ticks);
 
-  if (take_rc == pdTRUE) rc = true;
-  if (rc == false) ESP_LOGW(TAG, "semaphore take failed: %d", take_rc);
-
-  // some i2c devices become confused when txns occur back-to-back
-  // to mitigate this issue we ensure the next txn will not start
-  // for at least txn_settle_us.  last_txn_us is captured in release
-  // prior to giving the semaphore
-  const auto since_us = esp_timer_get_time() - last_txn_us; // handle wrap around
-  if (since_us < txn_settle_us) {
-    const auto settle_ticks = pdMS_TO_TICKS(since_us / 1000);
-    vTaskDelay(settle_ticks);
+  if (take_rc != pdTRUE) {
+    ESP_LOGW(TAG, "semaphore take failed: %d", take_rc);
+    return false;
   }
 
-  return rc;
+  return true;
 }
 
 IRAM_ATTR i2c_cmd_handle_t Bus::createCmd() {
@@ -77,42 +65,39 @@ IRAM_ATTR i2c_cmd_handle_t Bus::createCmd() {
   return cmd;
 }
 
-IRAM_ATTR bool Bus::error() {
-  const auto rc = bus_status != ESP_OK;
+bool Bus::error() {
+  const auto rc = Bus::status != ESP_OK;
 
   if (rc == true) {
-    ESP_LOGW(TAG, "error: %d", bus_status);
+    ESP_LOGW(TAG, "error: %d", Bus::status);
   }
 
   return rc;
 }
 
-IRAM_ATTR esp_err_t Bus::errorCode() { return bus_status; }
-
 IRAM_ATTR bool Bus::executeCmd(i2c_cmd_handle_t cmd, const float timeout_scale) {
-  esp_err_t status = ESP_FAIL;
+  Bus::status = ESP_FAIL;
 
-  if (Bus::acquire() == true) {
+  if (Bus::acquire(10000) == true) {
     int timeout = timeout_default * timeout_scale;
 
     if (timeout != timeout_default) i2c_set_timeout(I2C_NUM_0, timeout);
 
     // execute queued i2c cmd
-    status = i2c_master_cmd_begin(I2C_NUM_0, cmd, cmd_timeout);
+    Bus::status = i2c_master_cmd_begin(I2C_NUM_0, cmd, cmd_timeout);
     i2c_cmd_link_delete(cmd);
 
     if (timeout != timeout_default) i2c_set_timeout(I2C_NUM_0, timeout_default);
 
-    bus_status = status;
     Bus::release();
   }
 
-  ESP_LOGD(TAG, "%s status = %s", __PRETTY_FUNCTION__, esp_err_to_name(status));
+  if (Bus::status != ESP_OK) {
+    ESP_LOGW(__PRETTY_FUNCTION__, "%s", esp_err_to_name(Bus::status));
+  }
 
-  return status == ESP_OK;
-} // namespace i2c
-
-IRAM_ATTR void Bus::hold() { acquire(2000); }
+  return Bus::status == ESP_OK;
+}
 
 bool Bus::init() {
   rst_pin_config.pin_bit_mask = rst_sel;
@@ -135,49 +120,32 @@ bool Bus::init() {
 
   i2c_get_timeout(I2C_NUM_0, &timeout_default);
 
-  // NOTE: set the initial last_txn_us tp ensure no txns immeidatelly followup setup
-  last_txn_us = esp_timer_get_time();
+  // simply pull up the reset pin
+  // previous reset logic no longer required; esp-idf has bus clear logic
 
-  if (reset() == false) return false;
+  constexpr auto reset_ticks = pdMS_TO_TICKS(500);
+  Bus::status = gpio_set_level(rst_pin, 1); // bring all devices online
+  vTaskDelay(pdMS_TO_TICKS(reset_ticks));   // give time for devices to initialize
+
+  if (Bus::status != ESP_OK) return false;
 
   mutex = xSemaphoreCreateMutex();
-
   if (mutex == nullptr) return false;
 
   xSemaphoreGive(mutex);
 
-  ESP_LOGD(TAG, "i2c driver installed and mutex created");
   return true;
 }
 
-IRAM_ATTR bool Bus::ok() { return bus_status == ESP_OK; }
-
 IRAM_ATTR bool Bus::release() {
-  auto rc = false;
-
   const auto give_rc = xSemaphoreGive(mutex);
 
-  if (give_rc == pdTRUE) rc = true;
-  if (rc == false) ESP_LOGW(TAG, "semaphore give failed: %d", give_rc);
+  if (give_rc != pdTRUE) {
+    ESP_LOGW(TAG, "semaphore give failed: %d", give_rc);
+    return false;
+  }
 
-  last_txn_us = esp_timer_get_time();
-
-  return rc;
-}
-
-IRAM_ATTR bool Bus::reset() {
-  constexpr auto reset_ticks = pdMS_TO_TICKS(1000);
-
-  const auto rnd_delay = (esp_random() % 2000) + 1000;
-  gpio_set_level(rst_pin, 0);              // pull the pin low to reset i2c devices
-  vTaskDelay(reset_ticks);                 // give plenty of time for all devices to reset
-  bus_status = gpio_set_level(rst_pin, 1); // bring all devices online
-  vTaskDelay(pdMS_TO_TICKS(rnd_delay));    // give time for devices to initialize
-
-  if (bus_status == ESP_OK) return true;
-
-  ESP_LOGW(TAG, "reset failed: [%d]", bus_status);
-  return false;
+  return true;
 }
 
 } // namespace i2c

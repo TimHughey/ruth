@@ -41,20 +41,20 @@ Engine::Engine(const Opts &opts) : Handler("i2c", max_queue_depth), _opts(opts) 
 }
 
 IRAM_ATTR void Engine::command(void *task_data) {
-  Engine *ds = (Engine *)task_data;
+  Engine *i2c = (Engine *)task_data;
 
-  ds->notifyThisTask(Notifies::QUEUED_MSG);
-  MQTT::registerHandler(ds);
+  i2c->notifyThisTask(Notifies::QUEUED_MSG);
+  MQTT::registerHandler(i2c);
 
   ESP_LOGD(TAG_CMD, "task started");
 
   for (;;) {
     UBaseType_t notify_val;
-    auto msg = ds->waitForNotifyOrMessage(&notify_val);
+    auto msg = i2c->waitForNotifyOrMessage(&notify_val);
 
     if (msg) {
       const char *ident = msg->identFromFilter();
-      Device *cmd_device = ds->findDevice(ident);
+      Device *cmd_device = i2c->findDevice(ident);
 
       if (cmd_device) {
         cmd_device->execute(std::move(msg));
@@ -69,15 +69,15 @@ IRAM_ATTR void Engine::command(void *task_data) {
 IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
   static uint32_t loop_count = 0;
 
-  // don't discover until enough loops have passed.  by using a countdown we are assured the
-  // first call will always perform a discover.
+  // don't discover until enough loops have passed. initializing loop_count to zero
+  // ensures the first call will always discover.
   if (loop_count > 0) {
     loop_count--;
     return;
-  } else {
-    // it is time for a discover, reset the loop count and proceed with the discover
-    loop_count = loops_per_discover;
   }
+
+  // it is time for a discover, reset the loop count and proceed with the discover
+  loop_count = loops_per_discover;
 
   for (size_t i = 0; i < sizeof(discover_addresses); i++) {
     if (_known[i] == nullptr) {
@@ -101,10 +101,14 @@ IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
       if (detected) {
         _known[i] = detected;
       } else {
+        ESP_LOGI(to_detect->ident(), "discover failed");
         delete to_detect;
       }
     }
   }
+
+  // allow the bus to settle
+  vTaskDelay(pdMS_TO_TICKS(100));
 }
 
 IRAM_ATTR Device *Engine::findDevice(const char *ident) {
@@ -127,9 +131,9 @@ IRAM_ATTR Device *Engine::findDevice(const char *ident) {
 IRAM_ATTR void Engine::report(void *data) {
   static TickType_t last_wake;
 
-  Engine *ds = (Engine *)data;
-  const auto send_ms = ds->_opts.report.send_ms;
-  const auto loops_per_discover = ds->_opts.report.loops_per_discover;
+  Engine *i2c = (Engine *)data;
+  const auto send_ms = i2c->_opts.report.send_ms;
+  const auto loops_per_discover = i2c->_opts.report.loops_per_discover;
 
   Device::initHardware();
 
@@ -139,10 +143,10 @@ IRAM_ATTR void Engine::report(void *data) {
     last_wake = xTaskGetTickCount();
 
     // important to discover first especially at startup
-    ds->discover(loops_per_discover);
+    i2c->discover(loops_per_discover);
 
     for (size_t i = 0; i < max_devices; i++) {
-      Device *device = ds->_known[i];
+      Device *device = i2c->_known[i];
 
       if (device == nullptr) continue; // reached the end of known devices
 
@@ -157,8 +161,6 @@ void Engine::start(const Opts &opts) {
   if (_instance_) return;
 
   _instance_ = new Engine(opts);
-
-  // esp_register_shutdown_handler(Device::holdBus);
 
   TaskHandle_t &report_task = _instance_->_tasks[REPORT];
 

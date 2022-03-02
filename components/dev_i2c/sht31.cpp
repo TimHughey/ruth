@@ -88,7 +88,11 @@ bool SHT31::report(const bool send) {
   // always queue the stop command
   i2c_master_stop(cmd);
 
-  rc = Bus::executeCmd(cmd, 4.0);
+  rc = Bus::executeCmd(cmd, 10.0);
+
+  if (rc == false) {
+    ESP_LOGI(_ident, "%s failed", __PRETTY_FUNCTION__);
+  }
 
   if (send == false) return rc;
 
@@ -103,7 +107,6 @@ bool SHT31::report(const bool send) {
 
       const auto read_us = esp_timer_get_time() - start_at;
 
-      updateSeenTimestamp();
       auto status = RelHum({_ident, RelHum::Status::OK, tc, rh, read_us, 0});
       ruth::MQTT::send(status);
     } else { // crc did not match

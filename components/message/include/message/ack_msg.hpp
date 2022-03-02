@@ -34,6 +34,9 @@ public:
 
 private:
   void assembleData(JsonObject &data);
+
+private:
+  int64_t _start_us;
 };
 } // namespace message
 #endif

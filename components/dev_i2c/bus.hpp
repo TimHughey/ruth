@@ -29,25 +29,19 @@ namespace i2c {
 
 class Bus {
 public:
-  static bool acquire(uint32_t timeout_ms = UINT32_MAX);
+  static bool acquire(const uint32_t timeout_ms);
   static i2c_cmd_handle_t createCmd();
   static bool executeCmd(i2c_cmd_handle_t cmd, const float timeout_scale = 1.0);
 
   static bool error();
-  static esp_err_t errorCode();
+  static esp_err_t errorCode() { return status; }
   static void delay(uint32_t ms);
-  static void hold();
   static bool init();
-  static bool ok();
 
   static bool release();
-  static bool reset();
-
-  static const char *setUniqueId(const char *id);
-  static const char *uniqueId();
 
 private:
-  int64_t _last_txn_us = 0;
+  static esp_err_t status;
 };
 } // namespace i2c
 

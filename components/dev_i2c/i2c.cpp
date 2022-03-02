@@ -29,13 +29,12 @@ namespace i2c {
 static const char *unique_id = nullptr;
 
 IRAM_ATTR Device::Device(const uint8_t addr, const char *description, const bool is_mutable)
-    : _addr(addr), _mutable(is_mutable), _timestamp(esp_timer_get_time()), _description(description) {
+    : _addr(addr), _mutable(is_mutable), _description(description) {
+  _seen_at = esp_timer_get_time();
   makeID();
 }
 
 IRAM_ATTR void Device::delay(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
-
-void Device::holdBus() { Bus::hold(); }
 
 bool Device::initHardware() { return Bus::init(); }
 
@@ -68,14 +67,6 @@ IRAM_ATTR void Device::makeID() {
 IRAM_ATTR int Device::readAddr() const { return (_addr << 1) | I2C_MASTER_READ; }
 
 void Device::setUniqueId(const char *id) { unique_id = id; }
-
-IRAM_ATTR uint32_t Device::updateSeenTimestamp() {
-  auto now_ms = esp_timer_get_time();
-  auto diff = now_ms - _timestamp;
-  _timestamp = now_ms;
-
-  return diff;
-}
 
 IRAM_ATTR int Device::writeAddr() const { return (_addr << 1) | I2C_MASTER_WRITE; }
 

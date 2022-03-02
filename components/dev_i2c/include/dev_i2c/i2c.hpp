@@ -45,12 +45,12 @@ public:
   static size_t identMaxLen() { return _ident_max_len; }
   static bool initHardware();
   bool isMutable() const { return _mutable; }
-  static void holdBus();
-  uint64_t lastSeen() const { return _timestamp; }
+
   void makeID();
   virtual bool report(const bool send = true) = 0;
   static void setUniqueId(const char *);
-  uint32_t updateSeenTimestamp();
+  uint32_t seen();
+  int64_t seenLast() const { return _seen_at; }
 
 protected:
   int readAddr() const;
@@ -64,7 +64,7 @@ protected:
   char _ident[_ident_max_len];
 
 private:
-  int64_t _timestamp; // last seen timestamp (microseconds since boot)
+  int64_t _seen_at; // µs since boot
   const char *_description = nullptr;
 };
 } // namespace i2c
