@@ -176,7 +176,7 @@ void Core::ota(message::InWrapped msg) {
 
   using namespace firmware;
 
-  // OTA already in progress, do nothing
+  // OTA already in progress, do nothing (should never happen)
   if (_ota) return;
 
   if (msg->unpack(_ota_cmd)) {
@@ -194,23 +194,22 @@ void Core::ota(message::InWrapped msg) {
     auto constexpr timeout = pdMS_TO_TICKS(1000);
     auto rc = xTaskNotifyWait(0x00, ULONG_MAX, (uint32_t *)&val, timeout);
 
-    // notify timeout == OTA in progress, just track heap
-    if (rc == pdFAIL) {
-      trackHeap();
-      continue;
-    }
+    trackHeap();
 
-    if (val == OTA::Notifies::FINISH) {
+    if (rc == pdFAIL) continue; // timeout == OTA in progress, just track heap
+
+    switch (val) {
+    case OTA::Notifies::START: // ota started, wait for next notify
+      continue;
+
+    case OTA::Notifies::FINISH: // finished, restart
       esp_restart();
-      vTaskDelay(portMAX_DELAY);
-    } else if (val == OTA::Notifies::START) {
-      trackHeap();
-      continue;
-    }
+      break;
 
-    // if we've fallen through to here then cancel or error, clean up
-    delete _ota;
-    _ota = nullptr;
+    default: // error or cancel
+      delete _ota;
+      _ota = nullptr;
+    }
   }
 }
 

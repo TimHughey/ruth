@@ -29,19 +29,33 @@ namespace i2c {
 
 class Bus {
 public:
-  static bool acquire(const uint32_t timeout_ms);
-  static i2c_cmd_handle_t createCmd();
+  inline static bool acquire(const uint32_t timeout_ms) {
+    const UBaseType_t wait_ticks = pdMS_TO_TICKS(timeout_ms);
+    return xSemaphoreTake(mutex, wait_ticks) == pdTRUE;
+  }
+
+  inline static i2c_cmd_handle_t createCmd() {
+    auto cmd = i2c_cmd_link_create_static(Bus::txn_buff, Bus::_size);
+
+    i2c_master_start(cmd);
+
+    return cmd;
+  }
+
   static bool executeCmd(i2c_cmd_handle_t cmd, const float timeout_scale = 1.0);
 
-  static bool error();
-  static esp_err_t errorCode() { return status; }
-  static void delay(uint32_t ms);
+  inline static bool error() { return status != ESP_OK; }
+  inline static esp_err_t errorCode() { return status; }
   static bool init();
-
-  static bool release();
+  inline static bool release() { return xSemaphoreGive(mutex) == pdTRUE; }
 
 private:
+  static SemaphoreHandle_t mutex;
   static esp_err_t status;
+
+  static constexpr auto txn_max = 7;
+  static constexpr uint32_t _size = I2C_LINK_RECOMMENDED_SIZE(txn_max);
+  static uint8_t txn_buff[_size];
 };
 } // namespace i2c
 

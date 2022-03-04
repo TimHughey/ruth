@@ -108,9 +108,7 @@ OTA::Notifies OTA::core() {
   auto ota_finish_rc = esp_https_ota_finish(_ota_handle);
   _ota_handle = nullptr;
 
-  // give priority to errors from ota_begin() vs. ota_finish()
-  const auto ota_rc = (esp_rc != ESP_OK) ? esp_rc : ota_finish_rc;
-  if (errorCheck(ota_rc, "(perform or finish)")) return Notifies::ERROR;
+  if (errorCheck(ota_finish_rc, "(perform or finish)")) return Notifies::ERROR;
 
   _elapsed_ms = (esp_timer_get_time() - _start_at) / 1000;
   ESP_LOGI(TAG, "finished in %ums", _elapsed_ms);

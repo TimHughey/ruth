@@ -30,29 +30,32 @@ public:
   MCP23008(uint8_t addr = 0x20);
 
   bool execute(message::InWrapped msg) override;
-  bool detect() override;
-  bool report(const bool send) override;
+  bool report() override;
 
+public:
   static constexpr size_t num_pins = 8;
 
 private:
   bool cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask, uint8_t &state);
-
   bool refreshStates(int64_t *elapsed_us = nullptr);
-
   bool setPin(uint8_t pin, const char *cmd);
-  void setupTxBuffer();
 
   inline bool states(uint8_t &states) const {
     states = _states;
     return _states_rc;
   };
 
-  inline bool statesStore(const bool rc, const uint8_t states);
+  inline bool statesStore(const bool rc, const uint8_t states) {
+    if (rc) {
+      _states = states;
+      _states_rc = rc;
+    }
+
+    return rc;
+  }
 
 private:
   uint8_t _states = 0x00;
-  int64_t _states_at = 0;
   bool _states_rc = false;
 };
 

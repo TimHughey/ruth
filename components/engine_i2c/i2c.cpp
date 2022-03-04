@@ -35,9 +35,14 @@ static const char *TAG_RPT = "i2c:report";
 static const char *TAG_CMD = "i2c:cmd";
 static const uint8_t discover_addresses[] = {0x44, 0x20};
 static Engine *_instance_ = nullptr;
+static TickType_t last_wake;
 
 Engine::Engine(const Opts &opts) : Handler("i2c", max_queue_depth), _opts(opts) {
   Device::setUniqueId(opts.unique_id);
+
+  // create the devices we support
+  _devices[0] = new MCP23008();
+  _devices[1] = new SHT31();
 }
 
 IRAM_ATTR void Engine::command(void *task_data) {
@@ -46,110 +51,36 @@ IRAM_ATTR void Engine::command(void *task_data) {
   i2c->notifyThisTask(Notifies::QUEUED_MSG);
   MQTT::registerHandler(i2c);
 
-  ESP_LOGD(TAG_CMD, "task started");
-
   for (;;) {
     UBaseType_t notify_val;
     auto msg = i2c->waitForNotifyOrMessage(&notify_val);
 
     if (msg) {
-      const char *ident = msg->identFromFilter();
-      Device *cmd_device = i2c->findDevice(ident);
+      // only look at mutable devices. since we only support mcp23008
+      // the first mutable found is the one we want.
+      for (auto i = 0; i < device_count; i++) {
+        auto device = i2c->devices(i);
 
-      if (cmd_device) {
-        cmd_device->execute(std::move(msg));
-      }
-
-    } else {
-      ESP_LOGD(TAG_CMD, "unhandled notify: 0x%x", notify_val);
-    }
-  }
-}
-
-IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
-  static uint32_t loop_count = 0;
-
-  // don't discover until enough loops have passed. initializing loop_count to zero
-  // ensures the first call will always discover.
-  if (loop_count > 0) {
-    loop_count--;
-    return;
-  }
-
-  // it is time for a discover, reset the loop count and proceed with the discover
-  loop_count = loops_per_discover;
-
-  for (size_t i = 0; i < sizeof(discover_addresses); i++) {
-    if (_known[i] == nullptr) {
-      Device *to_detect = nullptr;
-      Device *detected = nullptr;
-
-      auto find_addr = discover_addresses[i];
-
-      switch (find_addr) {
-      case 0x20:
-        to_detect = new MCP23008();
-        if (to_detect->detect()) detected = to_detect;
-        break;
-
-      case 0x44:
-        to_detect = new SHT31();
-        if (to_detect->detect()) detected = to_detect;
-        break;
-      }
-
-      if (detected) {
-        _known[i] = detected;
-      } else {
-        ESP_LOGI(to_detect->ident(), "discover failed");
-        delete to_detect;
+        if (device->isMutable()) {
+          device->execute(std::move(msg));
+          break;
+        }
       }
     }
   }
-
-  // allow the bus to settle
-  vTaskDelay(pdMS_TO_TICKS(100));
-}
-
-IRAM_ATTR Device *Engine::findDevice(const char *ident) {
-  Device *found = nullptr;
-
-  for (size_t i = 0; i < max_devices; i++) {
-    Device *device = _known[i];
-
-    if (device == nullptr) continue;
-
-    if (strncmp(device->ident(), ident, Device::identMaxLen()) == 0) {
-      found = device;
-      break;
-    }
-  }
-
-  return found;
 }
 
 IRAM_ATTR void Engine::report(void *data) {
-  static TickType_t last_wake;
-
   Engine *i2c = (Engine *)data;
   const auto send_ms = i2c->_opts.report.send_ms;
-  const auto loops_per_discover = i2c->_opts.report.loops_per_discover;
 
   Device::initHardware();
-
-  ESP_LOGD(TAG_RPT, "task started");
 
   for (;;) {
     last_wake = xTaskGetTickCount();
 
-    // important to discover first especially at startup
-    i2c->discover(loops_per_discover);
-
-    for (size_t i = 0; i < max_devices; i++) {
-      Device *device = i2c->_known[i];
-
-      if (device == nullptr) continue; // reached the end of known devices
-
+    for (auto i = 0; i < device_count; i++) {
+      auto device = i2c->devices(i);
       device->report();
     }
 

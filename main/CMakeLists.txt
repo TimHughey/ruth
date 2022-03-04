@@ -1,3 +1,3 @@
-idf_component_register(SRCS main.cpp INCLUDE_DIRS . REQUIRES core)
+idf_component_register(SRCS main.cpp INCLUDE_DIRS . REQUIRES core nvs_flash)
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

@@ -24,6 +24,7 @@
 #include <esp_task_wdt.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <nvs_flash.h>
 
 #include "core.hpp"
 
@@ -44,9 +45,27 @@ void app_main() {
   // since app_main() is the application entry point, we log something
   // so it's obvious where base ESP32 initialization code is complete and
   // our implementation begins
-  float tick_us = 1000.0 / (float)portTICK_PERIOD_MS;
+  constexpr float tick_us = 1000.0 / (float)portTICK_PERIOD_MS;
 
   ESP_LOGI("Core", "portTICK_PERIOD_MS[%u] tick[%0.2fµs]", portTICK_PERIOD_MS, tick_us);
+
+  // Initialize NVS
+  esp_err_t esp_rc = nvs_flash_init();
+
+  switch (esp_rc) {
+  case ESP_OK:
+    break;
+  case ESP_ERR_NVS_NO_FREE_PAGES:
+  case ESP_ERR_NVS_NEW_VERSION_FOUND:
+    esp_rc = nvs_flash_erase();
+    if (esp_rc == ESP_OK) esp_rc = nvs_flash_init();
+    break;
+  default:
+    ESP_LOGW("Core", "NVS failure [%s]", esp_err_to_name(esp_rc));
+    break;
+  }
+
+  ESP_LOGI("Core", "NVS status [%s]", esp_err_to_name(esp_rc));
 
   // this is where our implementation begins by starting the Core
   Core::boot();

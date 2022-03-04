@@ -59,7 +59,8 @@ private:
 
 public:
   static void command(void *data); // task loop
-  static void report(void *data);  // task loop (reports and discover)
+  Device *devices(const size_t idx) const { return _devices[idx]; }
+  static void report(void *data); // task loop (reports and discover)
   static void start(const Opts &opts);
   void stop();
 
@@ -69,16 +70,12 @@ private:
   enum DocKinds : uint32_t { CMD = 1 };
 
 private:
-  void discover(const uint32_t loops_per_discover);
-  Device *findDevice(const char *ident);
-
-private:
+  Device *_devices[2] = {};
   Opts _opts;
-  Device *_known[4] = {};
 
   TaskHandle_t _tasks[Tasks::COMMAND + 1] = {};
 
-  static constexpr size_t max_devices = sizeof(_known) / sizeof(Device *);
+  static constexpr size_t device_count = sizeof(_devices) / sizeof(Device *);
   static constexpr size_t max_queue_depth = 5;
 };
 } // namespace i2c

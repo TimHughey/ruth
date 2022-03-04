@@ -36,18 +36,17 @@ public:
   virtual ~Device() = default;
 
   uint8_t addr() const { return _addr; }
-  const char *description() const { return _description; };
   static void delay(uint32_t ms);
-  virtual bool detect() = 0;
+  const char *description() const { return _description; };
   virtual bool execute(message::InWrapped msg) { return false; }
 
   const char *ident() const { return _ident; }
-  static size_t identMaxLen() { return _ident_max_len; }
+  static constexpr size_t identMaxLen() { return _ident_max_len; }
   static bool initHardware();
   bool isMutable() const { return _mutable; }
 
   void makeID();
-  virtual bool report(const bool send = true) = 0;
+  virtual bool report() = 0;
   static void setUniqueId(const char *);
   uint32_t seen();
   int64_t seenLast() const { return _seen_at; }

@@ -19,6 +19,7 @@
 */
 
 #include <driver/i2c.h>
+#include <esp_attr.h>
 #include <esp_log.h>
 
 #include "bus.hpp"
@@ -31,7 +32,7 @@ static const char *dev_description = "sht31";
 
 SHT31::SHT31(uint8_t addr) : Device(addr, dev_description) {}
 
-bool SHT31::crc(const uint8_t *data, size_t index) {
+IRAM_ATTR bool SHT31::crc(const uint8_t *data, size_t index) {
   uint8_t crc = 0xFF;
 
   for (uint32_t j = 0; j < 2; j++) {
@@ -46,9 +47,7 @@ bool SHT31::crc(const uint8_t *data, size_t index) {
   return (crc == data[index + 2]);
 }
 
-bool SHT31::detect() { return report(false); }
-
-bool SHT31::report(const bool send) {
+IRAM_ATTR bool SHT31::report() {
   auto rc = false;
   auto start_at = esp_timer_get_time();
 
@@ -72,10 +71,6 @@ bool SHT31::report(const bool send) {
   // queue the device command bytes
   i2c_master_write(cmd, tx, sizeof(tx), I2C_MASTER_ACK);
 
-  // clock stretching is leveraged in the event the device requires time
-  // to execute the command (e.g. temperature conversion)
-  // use timeout scale to adjust time to wait for clock, if needed
-
   // start a new command sequence without sending a stop
   i2c_master_start(cmd);
 
@@ -88,13 +83,10 @@ bool SHT31::report(const bool send) {
   // always queue the stop command
   i2c_master_stop(cmd);
 
-  rc = Bus::executeCmd(cmd, 10.0);
-
-  if (rc == false) {
-    ESP_LOGI(_ident, "%s failed", __PRETTY_FUNCTION__);
-  }
-
-  if (send == false) return rc;
+  // clock stretching is leveraged in the event the device requires time
+  // to execute the command (e.g. temperature conversion)
+  // use timeout scale to adjust time to wait for clock, if needed
+  rc = Bus::executeCmd(cmd, 5.0);
 
   if (rc) {
     if (crc(rx) && crc(rx, 3)) {

@@ -22,7 +22,6 @@
 
 #include <driver/i2c.h>
 #include <esp_attr.h>
-#include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
@@ -30,70 +29,37 @@
 #include "bus.hpp"
 
 namespace i2c {
-static const char *TAG = "i2c:bus";
 
 static constexpr gpio_num_t rst_pin = GPIO_NUM_21;
 static constexpr uint64_t rst_sel = GPIO_SEL_21;
 static constexpr gpio_num_t sda_pin = GPIO_NUM_23;
 static constexpr gpio_num_t scl_pin = GPIO_NUM_22;
-static constexpr TickType_t cmd_timeout = pdMS_TO_TICKS(1000);
+static constexpr TickType_t cmd_timeout = pdMS_TO_TICKS(100);
 
-DRAM_ATTR static SemaphoreHandle_t mutex = nullptr;
-static i2c_config_t i2c_config = {};
-static gpio_config_t rst_pin_config = {};
+DRAM_ATTR SemaphoreHandle_t Bus::mutex = nullptr;
+DRAM_ATTR static i2c_config_t i2c_config = {};
+DRAM_ATTR static gpio_config_t rst_pin_config = {};
 
 DRAM_ATTR esp_err_t Bus::status = ESP_FAIL;
 DRAM_ATTR static int timeout_default = 0;
 
-IRAM_ATTR bool Bus::acquire(uint32_t timeout_ms) {
-  const UBaseType_t wait_ticks = pdMS_TO_TICKS(timeout_ms);
-  const auto take_rc = xSemaphoreTake(mutex, wait_ticks);
-
-  if (take_rc != pdTRUE) {
-    ESP_LOGW(TAG, "semaphore take failed: %d", take_rc);
-    return false;
-  }
-
-  return true;
-}
-
-IRAM_ATTR i2c_cmd_handle_t Bus::createCmd() {
-  auto cmd = i2c_cmd_link_create();
-
-  i2c_master_start(cmd);
-
-  return cmd;
-}
-
-bool Bus::error() {
-  const auto rc = Bus::status != ESP_OK;
-
-  if (rc == true) {
-    ESP_LOGW(TAG, "error: %d", Bus::status);
-  }
-
-  return rc;
-}
+DRAM_ATTR uint8_t Bus::txn_buff[Bus::_size];
 
 IRAM_ATTR bool Bus::executeCmd(i2c_cmd_handle_t cmd, const float timeout_scale) {
   Bus::status = ESP_FAIL;
 
   if (Bus::acquire(10000) == true) {
-    int timeout = timeout_default * timeout_scale;
+    const int timeout = timeout_default * timeout_scale;
 
     if (timeout != timeout_default) i2c_set_timeout(I2C_NUM_0, timeout);
 
     // execute queued i2c cmd
     Bus::status = i2c_master_cmd_begin(I2C_NUM_0, cmd, cmd_timeout);
-    i2c_cmd_link_delete(cmd);
+    i2c_cmd_link_delete_static(cmd);
 
     if (timeout != timeout_default) i2c_set_timeout(I2C_NUM_0, timeout_default);
 
     Bus::release();
-  }
-
-  if (Bus::status != ESP_OK) {
-    ESP_LOGW(__PRETTY_FUNCTION__, "%s", esp_err_to_name(Bus::status));
   }
 
   return Bus::status == ESP_OK;
@@ -132,20 +98,7 @@ bool Bus::init() {
   mutex = xSemaphoreCreateMutex();
   if (mutex == nullptr) return false;
 
-  xSemaphoreGive(mutex);
-
-  return true;
-}
-
-IRAM_ATTR bool Bus::release() {
-  const auto give_rc = xSemaphoreGive(mutex);
-
-  if (give_rc != pdTRUE) {
-    ESP_LOGW(TAG, "semaphore give failed: %d", give_rc);
-    return false;
-  }
-
-  return true;
+  return release();
 }
 
 } // namespace i2c

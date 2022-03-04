@@ -29,8 +29,7 @@ class SHT31 : public Device {
 public:
   SHT31(uint8_t addr = 0x44);
 
-  bool detect() override;
-  bool report(const bool send) override;
+  bool report() override;
 
 private:
   bool crc(const uint8_t *data, const size_t index = 0);
