@@ -51,9 +51,11 @@ IRAM_ATTR bool SHT31::report() {
   auto rc = false;
   auto start_at = esp_timer_get_time();
 
+  constexpr uint8_t single_shot = 0x2c; // with clock stretching
+  constexpr uint8_t medium_repeatability = 0x0d;
   uint8_t tx[] = {
-      0x2c, // single-shot measurement, with clock stretching
-      0x0d  // medium-repeatability measurement
+      single_shot,         // single-shot measurement, with clock stretching
+      medium_repeatability // medium-repeatability measurement
   };
 
   uint8_t rx[] = {
@@ -105,9 +107,6 @@ IRAM_ATTR bool SHT31::report() {
       auto status = RelHum({_ident, RelHum::Status::CRC_MISMATCH, 0, 0, 0, 0});
       ruth::MQTT::send(status);
     }
-  } else {
-    auto status = RelHum({_ident, RelHum::Status::ERROR, 0, 0, 0, Bus::errorCode()});
-    ruth::MQTT::send(status);
   }
 
   return rc;

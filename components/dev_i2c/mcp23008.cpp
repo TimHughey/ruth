@@ -34,10 +34,10 @@ namespace i2c {
 // static const char *TAG = "i2c::mcp23008";
 static const char *dev_description = "mcp23008";
 static StaticJsonDocument<1024> cmd_doc;
-static uint8_t _rx[11] = {};
-static uint8_t _tx[11] = {};
 
 static const char *cmd_text[] = {"on", "off"};
+constexpr size_t ON = 0;
+constexpr size_t OFF = 1;
 
 IRAM_ATTR MCP23008::MCP23008(uint8_t addr) : Device(addr, dev_description, MUTABLE) {}
 
@@ -96,34 +96,43 @@ IRAM_ATTR bool MCP23008::refreshStates(int64_t *elapsed_us) {
   // 0x08 - INTCAP  0x09 - GPIO   0x0a - OLAT
 
   if (once) {
-    // at POR the MCP2x008 operates in sequential mode where continued reads
-    // automatically increment the address (register).  we read all registers
-    // (11 bytes) in one shot.
+    constexpr size_t bytes = 11;
+    constexpr uint8_t iocon = 0x05;
+    constexpr uint8_t seqop_disable = 0x20;
+    uint8_t tx[bytes] = {};
 
     auto cmd = Bus::createCmd();
-    bzero(_tx, sizeof(_tx));
+    tx[iocon] = seqop_disable; // disable sequential byte mode
 
     // address the device for write
-    i2c_master_write_byte(cmd, writeAddr(), true);
-    // set IODIR to output (0x00) NOTE: register addr is in _tx
-    i2c_master_write(cmd, _tx, sizeof(_tx), true);
+    i2c_master_write_byte(cmd, writeAddr(), I2C_MASTER_ACK);
+    // MCP23008 defaults to SEQOP at POR, write the entire byte stream
+    i2c_master_write(cmd, tx, bytes, I2C_MASTER_ACK);
     i2c_master_stop(cmd);
 
     Bus::executeCmd(cmd);
+
     once = false;
   }
 
+  constexpr uint8_t gpio_reg = 0x09;
   auto cmd = Bus::createCmd();
 
   // send a START and device address with the read flag
   // read 11 bytes of control register data.
   i2c_master_start(cmd);
-  i2c_master_write_byte(cmd, readAddr(), true);
-  i2c_master_read(cmd, _rx, sizeof(_rx), I2C_MASTER_LAST_NACK);
+  i2c_master_write_byte(cmd, writeAddr(), I2C_MASTER_ACK); // address the MCP23008
+  i2c_master_write_byte(cmd, gpio_reg, I2C_MASTER_ACK);    // write the register to read
+  i2c_master_start(cmd);                                   // restart
+  i2c_master_write_byte(cmd, readAddr(), I2C_MASTER_ACK);  // signal to read
+  uint8_t gpio_port_val = 0x00;
+  i2c_master_read_byte(cmd, &gpio_port_val, I2C_MASTER_LAST_NACK); // read the register
   i2c_master_stop(cmd);
 
   auto rc = Bus::executeCmd(cmd);
-  statesStore(rc, _rx[0x09]);
+
+  ESP_LOGD(_ident, "gpio_port 0x%02x %s", gpio_port_val, (rc) ? "true" : "false");
+  statesStore(rc, gpio_port_val);
 
   return rc;
 }
@@ -136,7 +145,7 @@ IRAM_ATTR bool MCP23008::report() {
     message::States states_rpt(_ident);
 
     for (size_t i = 0; i < num_pins; i++) {
-      const char *state = (states_raw & (0x01 << i)) ? cmd_text[0] : cmd_text[1];
+      const char *state = (states_raw & (0x01 << i)) ? cmd_text[ON] : cmd_text[OFF];
 
       states_rpt.addPin(i, state);
     }
@@ -163,24 +172,20 @@ IRAM_ATTR bool MCP23008::setPin(uint8_t pin, const char *cmd) {
   uint8_t cmd_mask;
 
   if (cmdToMaskAndState(pin, cmd, cmd_mask, cmd_state)) {
-    // XOR the new state against the as_is state using the mask to only change the pin specified
-    // by the command
-    const uint8_t next_states = have_states ^ ((have_states ^ cmd_state) & cmd_mask);
+    constexpr uint8_t olat_reg = 0x0a;
+    // next olat is the XOR of have_state and mask and cmd pin
+    const uint8_t olat_val = have_states ^ ((have_states ^ cmd_state) & cmd_mask);
 
-    ESP_LOGD(_ident, "have_states[%02x] next_states[%02x]", have_states, next_states);
-
-    bzero(_tx, sizeof(_tx));
-    _tx[0x0a] = next_states;
+    ESP_LOGD(_ident, "have_states[%02x] olat[%02x]", have_states, olat_val);
 
     auto cmd = Bus::createCmd();
-    i2c_master_write_byte(cmd, writeAddr(), true);
-    i2c_master_write_byte(cmd, 0x00, true);
-
-    i2c_master_write(cmd, _tx, sizeof(_tx), true);
+    i2c_master_write_byte(cmd, writeAddr(), I2C_MASTER_ACK);
+    i2c_master_write_byte(cmd, olat_reg, I2C_MASTER_ACK);
+    i2c_master_write_byte(cmd, olat_val, I2C_MASTER_ACK);
     i2c_master_stop(cmd);
 
     rc = Bus::executeCmd(cmd);
-    statesStore(rc, next_states);
+    statesStore(rc, olat_val);
   }
 
   return rc;
