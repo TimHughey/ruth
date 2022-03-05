@@ -10,8 +10,8 @@ endif()
 
 idf_component_register(
   SRCS binder.cpp
-  INCLUDE_DIRS . 
-  REQUIRES arduino_json fatfs misc
+  INCLUDE_DIRS .
+  REQUIRES arduino_json
   EMBED_TXTFILES ${BINDER_MP})
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

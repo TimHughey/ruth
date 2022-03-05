@@ -27,9 +27,6 @@
 #include "core.hpp"
 #include "dev_pwm/pwm.hpp"
 #include "engines.hpp"
-#include "filter/filter.hpp"
-#include "filter/out.hpp"
-#include "misc/datetime.hpp"
 #include "misc/status_led.hpp"
 #include "network.hpp"
 #include "ota/ota.hpp"
@@ -173,7 +170,6 @@ void Core::loop() {
 }
 
 void Core::ota(message::InWrapped msg) {
-
   using namespace firmware;
 
   // OTA already in progress, do nothing (should never happen)

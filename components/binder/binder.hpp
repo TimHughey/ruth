@@ -23,70 +23,43 @@
 
 #include <memory>
 
-#include <esp_vfs.h>
-#include <esp_vfs_fat.h>
-
 #include "ArduinoJson.h"
-#include "misc/textbuffer.hpp"
 
 typedef class Binder Binder_t;
 
 class Binder {
 
 public:
-  typedef TextBuffer<512> Raw;
-  typedef TextBuffer<768> PrettyJson;
-
-public:
   Binder(){}; // SINGLETON
-  static void init();
+  static void init() { i()->parse(); }
   static Binder_t *instance() { return i(); }
 
-  // cli interface
-  const char *basePath() const { return _base_path; }
-  size_t copyToFilesystem();
+  static const char *env() { return i()->meta["env"] | "test"; }
+  static const JsonObject mqtt() {
+    JsonObject mqtt = i()->root["mqtt"];
 
-  size_t pretty(PrettyJson &buff);
-  int print();
-  int rm(const char *path = nullptr);
-  int versions();
+    return std::move(mqtt);
+  }
+  static const JsonArray ntp() {
+    JsonArray ntp = i()->root["ntp"].as<JsonArray>();
 
-  static const char *env();
-  static const JsonObject mqtt();
-  static const JsonArray ntp();
-  static const JsonObject wifi();
+    return std::move(ntp);
+  }
+  static int64_t now();
+  static const JsonObject wifi() {
+    JsonObject wifi = i()->root["wifi"];
+
+    return std::move(wifi);
+  }
 
 private:
-  void _init_();
   static Binder *i();
 
-  DeserializationError deserialize(JsonDocument &doc, Raw &buff) const;
-  void load();
   void parse();
 
 private:
-  const esp_vfs_fat_mount_config_t _mount_config = {
-      .format_if_mount_failed = true, .max_files = 4, .allocation_unit_size = CONFIG_WL_SECTOR_SIZE};
-
-  wl_handle_t _s_wl_handle = WL_INVALID_HANDLE;
-  const char *_base_path = "/r";
-
-  static const size_t _doc_capacity = 512;
-  static const uint8_t _embed_start_[] asm("_binary_binder_0_mp_start");
-  static const uint8_t _embed_end_[] asm("_binary_binder_0_mp_end");
-  static const size_t _embed_length_ asm("binder_0_mp_length");
-
-  const char *_binder_file = "/r/binder_0.mp";
-
-  Raw _embed_raw;
-  Raw _file_raw;
-
-  StaticJsonDocument<_doc_capacity> _embed_doc;
-  StaticJsonDocument<_doc_capacity> _file_doc;
-  JsonObject _root;
-  JsonObject _meta;
-
-  time_t _versions[2] = {0, 0};
+  JsonObject root;
+  JsonObject meta;
 };
 
 #endif

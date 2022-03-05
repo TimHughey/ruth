@@ -1,5 +1,5 @@
 idf_component_register(
-  SRCS datetime.cpp status_led.cpp
+  SRCS status_led.cpp
   INCLUDE_DIRS include
   REQUIRES dev_pwm)
 

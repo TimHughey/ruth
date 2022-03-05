@@ -18,169 +18,60 @@
     https://www.wisslanding.com
 */
 
-#include <cstdlib>
-
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/types.h>
+// #include <cstdlib>
+// #include <memory>
 #include <time.h>
-#include <unistd.h>
 
 #include <esp_log.h>
-
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include "ArduinoJson.h"
 #include "binder.hpp"
-#include "misc/datetime.hpp"
 
-static Binder_t __singleton__;
-DRAM_ATTR static const char TAG[] = "Binder";
+static Binder_t binder;
+static const char TAG[] = "Binder";
 
-size_t Binder::copyToFilesystem() {
-  StaticJsonDocument<_doc_capacity> doc_cp = _embed_doc;
-  Raw mp_buff;
+extern const uint8_t raw_start[] asm("_binary_binder_0_mp_start");
+extern const size_t raw_bytes asm("binder_0_mp_length");
 
-  doc_cp["meta"]["mtime"] = time(nullptr);
-  auto mp_bytes = serializeMsgPack(doc_cp, mp_buff.data(), mp_buff.capacity());
-  mp_buff.forceSize(mp_bytes);
+static constexpr size_t DOC_CAPACITY = 512;
+StaticJsonDocument<DOC_CAPACITY> _embed_doc;
 
-  int fd = creat(_binder_file, S_IRUSR | S_IWUSR);
+int64_t Binder::now() {
+  struct timeval time_now;
+  gettimeofday(&time_now, nullptr);
 
-  ssize_t bytes = 0;
-  if (fd >= 0) {
-    bytes = write(fd, mp_buff.data(), mp_buff.size());
-    close(fd);
-  }
+  auto us_since_epoch = time_now.tv_sec * 1000000L; // convert seconds to microseconds
 
-  return bytes;
-}
+  us_since_epoch += time_now.tv_usec; // add microseconds since last second
 
-DeserializationError Binder::deserialize(JsonDocument &doc, Raw &buff) const {
-  return deserializeMsgPack(doc, buff.data(), buff.size());
-}
-
-const char *Binder::env() { return __singleton__._meta["env"] | "test"; }
-
-void Binder::init() {
-  esp_err_t esp_rc = ESP_OK;
-  Binder *binder = &__singleton__;
-
-  // register ruthfs fatfs
-  esp_rc = esp_vfs_fat_spiflash_mount(binder->_base_path, "ruthfs", &(binder->_mount_config),
-                                      &(binder->_s_wl_handle));
-
-  if (esp_rc == ESP_OK) {
-    binder->load();
-    binder->parse();
-  } else {
-    ESP_LOGE(TAG, "[%s] fatfs mount", esp_err_to_name(esp_rc));
-    vTaskDelay(portMAX_DELAY);
-  }
-}
-
-void Binder::load() {
-  _embed_raw.assign(_embed_start_, _embed_end_);
-
-  int fd = open(_binder_file, O_RDONLY);
-  if (fd == -1) {
-    _file_raw.clear();
-  } else {
-    auto bytes = read(fd, _file_raw.data(), _file_raw.capacity());
-    if (bytes > 0) {
-      _file_raw.forceSize(bytes);
-    }
-
-    close(fd);
-  }
-}
-
-const JsonObject Binder::mqtt() {
-  JsonObject mqtt = __singleton__._root["mqtt"];
-
-  return std::move(mqtt);
-}
-
-const JsonArray Binder::ntp() {
-  JsonArray ntp = __singleton__._root["ntp"].as<JsonArray>();
-
-  return std::move(ntp);
-}
-
-const JsonObject Binder::wifi() {
-  JsonObject wifi = __singleton__._root["wifi"];
-
-  return std::move(wifi);
+  return us_since_epoch;
 }
 
 void Binder::parse() {
-  DeserializationError embed_err = deserialize(_embed_doc, _embed_raw);
-  DeserializationError file_err = deserialize(_file_doc, _file_raw);
+  auto embed_err = deserializeMsgPack(_embed_doc, raw_start, raw_bytes);
 
-  _versions[0] = (!embed_err) ? _embed_doc["meta"]["mtime"] : 0;
-  _versions[1] = (!file_err) ? _file_doc["meta"]["mtime"] : 0;
+  root = _embed_doc.as<JsonObject>();
+  meta = root["meta"];
 
-  _root = (_versions[0] >= _versions[1]) ? _embed_doc.as<JsonObject>() : _file_doc.as<JsonObject>();
-  _meta = _root["meta"];
+  const auto mtime = meta["mtime"].as<time_t>();
 
-  float used_percent = ((float)_root.memoryUsage() / (float)_doc_capacity) * 100.0;
-  ESP_LOGI(TAG, "%s doc_used[%2.1f%%] (%d/%d)", DateTime(_meta["mtime"].as<uint32_t>()).c_str(), used_percent,
-           _root.memoryUsage(), _doc_capacity);
+  constexpr size_t at_buff_len = 30;
+  char binder_at[at_buff_len] = {};
+  struct tm timeinfo = {};
+  localtime_r(&mtime, &timeinfo);
 
-  if (embed_err && file_err) {
-    ESP_LOGW(TAG, "parse failed %s, bytes[%d]", embed_err.c_str(), _embed_raw.length());
+  strftime(binder_at, at_buff_len, "%c", &timeinfo);
+
+  ESP_LOGI(TAG, "%s doc_used[%d/%d]", binder_at, root.memoryUsage(), DOC_CAPACITY);
+
+  if (embed_err) {
+    ESP_LOGW(TAG, "parse failed %s, bytes[%d]", embed_err.c_str(), raw_bytes);
     vTaskDelay(portMAX_DELAY);
   }
 }
 
-size_t Binder::pretty(PrettyJson &buff) {
-  auto bytes = serializeJsonPretty(_root, buff.data(), buff.capacity());
-  buff.forceSize(bytes);
-
-  return bytes;
-}
-
-int Binder::rm(const char *file) {
-  const char *x = (file == nullptr) ? _binder_file : file;
-
-  return unlink(x);
-}
-
-int Binder::versions() {
-  time_t versions[] = {_embed_doc["meta"]["mtime"], 0};
-
-  int fd = open(_binder_file, O_RDONLY);
-  if (fd >= 0) {
-    Raw buff;
-    StaticJsonDocument<_doc_capacity> doc_fs;
-
-    auto bytes = read(fd, buff.data(), buff.capacity());
-
-    close(fd);
-
-    if (bytes > 0) {
-      buff.forceSize(bytes);
-      DeserializationError err = deserialize(doc_fs, buff);
-
-      if (!err) {
-        versions[1] = doc_fs["meta"]["mtime"];
-      }
-    }
-  }
-
-  const char *loc[] = {"<firmware>", _binder_file};
-  bool latest[] = {versions[0] >= versions[1], versions[1] > versions[0]};
-  for (int i = 0; i < (sizeof(versions) / sizeof(time_t)); i++) {
-    DateTime ts(versions[i], "%b %e %H:%M:%S");
-
-    printf("%s %s %s\n", (latest[i]) ? "latest" : "      ",
-           (versions[i] > 0) ? ts.c_str() : " <unavailable> ", loc[i]);
-  }
-
-  return 0;
-}
-
 // STATIC
-Binder_t *Binder::i() { return &__singleton__; }
+Binder_t *Binder::i() { return &binder; }

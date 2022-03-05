@@ -26,12 +26,12 @@
 
 #include "misc/elapsed.hpp"
 #include "misc/ruth_task.hpp"
-#include "misc/textbuffer.hpp"
 
 namespace ruth {
 typedef class Watcher Watcher_t;
 
-typedef TextBuffer<1024> WatcherPayload_t;
+constexpr size_t msg_pack_max_size = 1024;
+static char msg_pack[msg_pack_max_size] = {};
 
 class Watcher {
 public:
@@ -54,7 +54,6 @@ private:
   void core() {
     for (;;) {
       DynamicJsonDocument doc(1740);
-      WatcherPayload_t msg_pack;
       UBaseType_t num_tasks = uxTaskGetNumberOfTasks();
 
       // UBaseType_t uxTaskGetSystemState(TaskStatus_t *constpxTaskStatusArray,
@@ -87,8 +86,8 @@ private:
       doc_stats["capacity"] = doc.capacity();
       doc_stats["used"] = doc.memoryUsage();
 
-      auto len = serializeMsgPack(doc, msg_pack.data(), msg_pack.capacity());
-      msg_pack.forceSize(len);
+      // auto len = serializeMsgPack(doc, msg_pack, msg_pack.msg_pack_max_size());
+
       // MQTT::publish(msg_pack);
 
       vTaskDelay(pdMS_TO_TICKS(_seconds * 1000));
