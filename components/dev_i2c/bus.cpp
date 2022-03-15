@@ -85,7 +85,6 @@ bool Bus::init() {
   if (i2c_driver_install(I2C_NUM_0, i2c_config.mode, 0, 0, 0) != ESP_OK) return false;
 
   i2c_get_timeout(I2C_NUM_0, &timeout_default);
-  i2c_filter_enable(I2C_NUM_0, 2);
 
   // simply pull up the reset pin
   // previous reset logic no longer required; esp-idf has bus clear logic
