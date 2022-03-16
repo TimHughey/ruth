@@ -43,8 +43,6 @@ DRAM_ATTR static gpio_config_t rst_pin_config = {};
 DRAM_ATTR esp_err_t Bus::status = ESP_FAIL;
 DRAM_ATTR static int timeout_default = 0;
 
-DRAM_ATTR uint8_t Bus::txn_buff[Bus::_size];
-
 IRAM_ATTR bool Bus::executeCmd(i2c_cmd_handle_t cmd, const float timeout_scale) {
   Bus::status = ESP_FAIL;
 
@@ -55,7 +53,7 @@ IRAM_ATTR bool Bus::executeCmd(i2c_cmd_handle_t cmd, const float timeout_scale) 
 
     // execute queued i2c cmd
     Bus::status = i2c_master_cmd_begin(I2C_NUM_0, cmd, cmd_timeout);
-    i2c_cmd_link_delete_static(cmd);
+    i2c_cmd_link_delete(cmd);
 
     if (timeout != timeout_default) i2c_set_timeout(I2C_NUM_0, timeout_default);
 

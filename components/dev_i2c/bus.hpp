@@ -35,7 +35,7 @@ public:
   }
 
   inline static i2c_cmd_handle_t createCmd() {
-    auto cmd = i2c_cmd_link_create_static(Bus::txn_buff, Bus::_size);
+    auto cmd = i2c_cmd_link_create();
 
     i2c_master_start(cmd);
 
@@ -52,10 +52,6 @@ public:
 private:
   static SemaphoreHandle_t mutex;
   static esp_err_t status;
-
-  static constexpr auto txn_max = 7;
-  static constexpr uint32_t _size = I2C_LINK_RECOMMENDED_SIZE(txn_max);
-  static uint8_t txn_buff[_size];
 };
 } // namespace i2c
 
