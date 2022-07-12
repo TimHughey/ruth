@@ -17,11 +17,13 @@
 
   https://www.wisslanding.com
 */
+
+#include "core/startup_msg.hpp"
+
 #include <esp_ota_ops.h>
 #include <esp_system.h>
 
-#include "startup_msg.hpp"
-
+namespace ruth {
 namespace message {
 
 Startup::Startup() {
@@ -87,3 +89,4 @@ const char *Startup::resetReason() {
   }
 }
 } // namespace message
+} // namespace ruth

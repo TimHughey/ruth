@@ -18,11 +18,12 @@
   https://www.wisslanding.com
 */
 
+#include "core/run_msg.hpp"
+
 #include <esp_system.h>
 #include <esp_wifi.h>
 
-#include "run_msg.hpp"
-
+namespace ruth {
 namespace message {
 
 Run::Run() {
@@ -55,5 +56,6 @@ void Run::assembleData(JsonObject &data) {
 
   heap["max_alloc"] = max_alloc;
 }
-
 } // namespace message
+
+} // namespace ruth

@@ -18,12 +18,13 @@
     https://www.wisslanding.com
 */
 
+#include "dev_ds/crc.hpp"
+#include "owb/owb.h"
+
 #include <esp_attr.h>
 #include <esp_log.h>
 
-#include "crc.hpp"
-#include "owb/owb.h"
-
+namespace ruth {
 namespace ds {
 
 // IRAM_ATTR bool checkCrc16(const Crc16Opts &opts) {
@@ -45,7 +46,8 @@ IRAM_ATTR bool checkCrc16(const uint8_t *start, const uint8_t *end) {
     uint16_t cdata = (*p ^ crc_calc) & 0xff;
     crc_calc >>= 8;
 
-    if (oddparity[cdata & 0x0f] ^ oddparity[cdata >> 4]) crc_calc ^= 0xc001;
+    if (oddparity[cdata & 0x0f] ^ oddparity[cdata >> 4])
+      crc_calc ^= 0xc001;
 
     cdata <<= 6;
     crc_calc ^= cdata;
@@ -60,7 +62,9 @@ IRAM_ATTR bool checkCrc16(const uint8_t *start, const uint8_t *end) {
   return (crc_calc & 0xff) == *inverted_crc++ && (crc_calc >> 8) == *inverted_crc;
 }
 
-IRAM_ATTR uint16_t crc8(const uint8_t *bytes, const size_t len) { return owb_crc8_bytes(0x00, bytes, len); }
+IRAM_ATTR uint16_t crc8(const uint8_t *bytes, const size_t len) {
+  return owb_crc8_bytes(0x00, bytes, len);
+}
 
 // IRAM_ATTR uint16_t crc16(const Crc16Opts &opts) {
 //   static const uint8_t oddparity[16] = {0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0};
@@ -80,4 +84,6 @@ IRAM_ATTR uint16_t crc8(const uint8_t *bytes, const size_t len) { return owb_crc
 //
 //   return crc_calc;
 // }
+
 } // namespace ds
+} // namespace ruth

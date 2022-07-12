@@ -18,12 +18,13 @@
   https://www.wisslanding.com
 */
 
-#include <string.h>
+#include "filter/subscribe.hpp"
 
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <string.h>
 
-#include "filter/subscribe.hpp"
+namespace ruth {
 
 namespace filter {
 
@@ -38,3 +39,4 @@ IRAM_ATTR Subscribe::Subscribe(const char *first_level) : Builder(first_level) {
 void Subscribe::dump() const { ESP_LOGI(TAG, "%s", c_str()); }
 
 } // namespace filter
+} // namespace ruth

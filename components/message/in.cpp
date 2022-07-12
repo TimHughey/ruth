@@ -18,20 +18,20 @@
   https://www.wisslanding.com
 */
 
+#include "message/in.hpp"
+
 #include <esp_attr.h>
 #include <esp_log.h>
 
-#include "message/in.hpp"
+namespace ruth {
+namespace message {
 
 static const char *TAG = "In";
 
-using namespace std;
-
-namespace message {
-
-IRAM_ATTR In::In(const char *filter, const size_t filter_len, const char *packed, const size_t packed_len)
+IRAM_ATTR In::In(const char *filter, const size_t filter_len, const char *packed,
+                 const size_t packed_len)
     : _filter(filter, filter_len), _packed_len(packed_len) {
-  _packed = make_unique<char[]>(packed_len);
+  _packed = std::make_unique<char[]>(packed_len);
 
   memcpy(_packed.get(), packed, packed_len);
 }
@@ -52,7 +52,8 @@ IRAM_ATTR void In::checkTime(JsonDocument &root) {
 
   _valid = (mtime > (now_ms - 1000)) ? true : false;
 
-  if (_valid) return;
+  if (_valid)
+    return;
 
   ESP_LOGI(TAG, "mtime variance[%llu]", (mtime > now_ms) ? (mtime - now_ms) : (now_ms - mtime));
 }
@@ -79,4 +80,6 @@ IRAM_ATTR bool In::unpack(JsonDocument &doc) {
 
   return _valid;
 }
+
 } // namespace message
+} // namespace ruth

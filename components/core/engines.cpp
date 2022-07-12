@@ -18,17 +18,16 @@
     https://www.wisslanding.com
 */
 
-#include <esp_log.h>
-
+#include "core/engines.hpp"
+#include "base/ru_time.hpp"
 #include "engine_ds/ds.hpp"
 #include "engine_i2c/i2c.hpp"
 #include "engine_pwm/pwm.hpp"
-#include "engines.hpp"
 #include "lightdesk/lightdesk.hpp"
 
-namespace core {
+#include <esp_log.h>
 
-static lightdesk::LightDesk *desk = nullptr;
+namespace ruth {
 
 void Engines::startConfigured(const JsonObject &profile) {
   const char *unique_id = profile["unique_id"];
@@ -82,16 +81,14 @@ void Engines::startConfigured(const JsonObject &profile) {
   }
 
   if (lightdesk) {
-    using namespace lightdesk;
-
     LightDesk::Opts opts;
 
     opts.dmx_port = lightdesk["dmx_port"];
-    opts.idle_shutdown_ms = lightdesk["idle_shutdown_ms"];
-    opts.idle_check_ms = lightdesk["idle_check_ms"];
+    opts.idle_shutdown = Millis(lightdesk["idle_shutdown_ms"]);
+    opts.idle_check = Millis(lightdesk["idle_check_ms"]);
 
-    desk = new LightDesk(opts);
+    LightDesk::create(opts)->init()->run();
   }
 }
 
-} // namespace core
+} // namespace ruth

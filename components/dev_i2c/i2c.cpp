@@ -18,12 +18,13 @@
     https://www.wisslanding.com
 */
 
+#include "dev_i2c/i2c.hpp"
+#include "dev_i2c/bus.hpp"
+
 #include <esp_attr.h>
 #include <esp_log.h>
 
-#include "bus.hpp"
-#include "dev_i2c/i2c.hpp"
-
+namespace ruth {
 namespace i2c {
 
 static const char *unique_id = nullptr;
@@ -57,7 +58,8 @@ IRAM_ATTR void Device::makeID() {
   p--;
   *p++ = '.';
 
-  if (_addr < 0x10) *p++ = '0';       // zero pad values less than 0x10
+  if (_addr < 0x10)
+    *p++ = '0';                       // zero pad values less than 0x10
   itoa(_addr, p, 16);                 // convert to hex
   p = (_addr < 0x10) ? p + 1 : p + 2; // move pointer forward based on zero padding
 
@@ -71,3 +73,4 @@ void Device::setUniqueId(const char *id) { unique_id = id; }
 IRAM_ATTR int Device::writeAddr() const { return (_addr << 1) | I2C_MASTER_WRITE; }
 
 } // namespace i2c
+} // namespace ruth

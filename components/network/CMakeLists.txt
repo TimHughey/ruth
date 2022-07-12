@@ -1,6 +1,6 @@
 idf_component_register(
   SRCS network.cpp
-  INCLUDE_DIRS .
+  INCLUDE_DIRS include
   REQUIRES misc
   EMBED_TXTFILES ca.pem)
 

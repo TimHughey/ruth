@@ -18,18 +18,18 @@
       https://www.wisslanding.com
   */
 
-#include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-
 #include "dev_i2c/i2c.hpp"
 #include "dev_i2c/mcp23008.hpp"
 #include "dev_i2c/sht31.hpp"
 #include "engine_i2c/i2c.hpp"
 #include "ruth_mqtt/mqtt.hpp"
 
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+namespace ruth {
 namespace i2c {
-using namespace ruth;
 
 static const char *TAG_RPT = "i2c:report";
 static const char *TAG_CMD = "i2c:cmd";
@@ -89,7 +89,8 @@ IRAM_ATTR void Engine::report(void *data) {
 }
 
 void Engine::start(const Opts &opts) {
-  if (_instance_) return;
+  if (_instance_)
+    return;
 
   _instance_ = new Engine(opts);
 
@@ -104,3 +105,4 @@ void Engine::start(const Opts &opts) {
 void Engine::wantMessage(message::InWrapped &msg) { msg->want(DocKinds::CMD); }
 
 } // namespace i2c
+} // namespace ruth

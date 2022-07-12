@@ -17,8 +17,9 @@
 
   https://www.wisslanding.com
 */
-#include "status_msg.hpp"
+#include "engine_pwm/status_msg.hpp"
 
+namespace ruth {
 namespace pwm {
 
 Status::Status(const char *ident) : message::Out(512) {
@@ -43,3 +44,4 @@ void Status::addPin(uint8_t pin_num, const char *status) {
 void Status::assembleData(JsonObject &root) {}
 
 } // namespace pwm
+} // namespace ruth

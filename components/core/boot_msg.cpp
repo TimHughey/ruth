@@ -18,13 +18,14 @@
   https://www.wisslanding.com
 */
 
+#include "core/boot_msg.hpp"
+
 #include <esp_log.h>
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "boot_msg.hpp"
-
+namespace ruth {
 namespace message {
 
 static const char *TAG = "Core";
@@ -42,8 +43,8 @@ void Boot::assembleData(JsonObject &data) {
 
   const uint32_t elapsed_ms = esp_timer_get_time() / 1000;
 
-  ESP_LOGI(TAG, "BOOT COMPLETE %ums tasks[%d] stack[%u] hw[%u]", elapsed_ms, task_count, _stack_size,
-           high_water);
+  ESP_LOGI(TAG, "BOOT COMPLETE %ums tasks[%d] stack[%u] hw[%u]", elapsed_ms, task_count,
+           _stack_size, high_water);
 
   data["elapsed_ms"] = elapsed_ms;
   data["tasks"] = task_count;
@@ -54,3 +55,4 @@ void Boot::assembleData(JsonObject &data) {
 }
 
 } // namespace message
+}

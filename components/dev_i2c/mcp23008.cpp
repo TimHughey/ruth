@@ -18,17 +18,19 @@
     https://www.wisslanding.com
 */
 
+#include "dev_i2c/mcp23008.hpp"
+#include "ArduinoJson.h"
+#include "dev_i2c/bus.hpp"
+#include "dev_i2c/i2c.hpp"
+#include "message/ack_msg.hpp"
+#include "message/states_msg.hpp"
+#include "ruth_mqtt/mqtt.hpp"
+
 #include <driver/i2c.h>
 #include <esp_attr.h>
 #include <esp_log.h>
 
-#include "ArduinoJson.h"
-#include "bus.hpp"
-#include "dev_i2c/i2c.hpp"
-#include "dev_i2c/mcp23008.hpp"
-#include "message/ack_msg.hpp"
-#include "message/states_msg.hpp"
-#include "ruth_mqtt/mqtt.hpp"
+namespace ruth {
 
 namespace i2c {
 // static const char *TAG = "i2c::mcp23008";
@@ -41,9 +43,11 @@ constexpr size_t OFF = 1;
 
 IRAM_ATTR MCP23008::MCP23008(uint8_t addr) : Device(addr, dev_description, MUTABLE) {}
 
-IRAM_ATTR bool MCP23008::cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask, uint8_t &state) {
+IRAM_ATTR bool MCP23008::cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask,
+                                           uint8_t &state) {
   // guard against empty cmd or pin
-  if (cmd == nullptr) return false;
+  if (cmd == nullptr)
+    return false;
 
   mask = 0x01 << pin;
 
@@ -81,7 +85,8 @@ IRAM_ATTR bool MCP23008::execute(message::InWrapped msg) {
 
     const bool ack = root["ack"] | true;
 
-    if (ack && execute_rc) ruth::MQTT::send(ack_msg);
+    if (ack && execute_rc)
+      ruth::MQTT::send(ack_msg);
   }
 
   return execute_rc;
@@ -192,3 +197,4 @@ IRAM_ATTR bool MCP23008::setPin(uint8_t pin, const char *cmd) {
 }
 
 } // namespace i2c
+} // namespace ruth

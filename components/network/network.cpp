@@ -1,12 +1,30 @@
+/*
+     Ruth
+     Copyright (C) 2020  Tim Hughey
+
+     This program is free software: you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation, either version 3 of the License, or
+     (at your option) any later version.
+
+     This program is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+
+     You should have received a copy of the GNU General Public License
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+     https://www.wisslanding.com
+ */
+
+#include "network/network.hpp"
+
 #include <cstdlib>
 #include <cstring>
-#include <string_view>
-
 #include <esp_attr.h>
 #include <esp_log.h>
-
-//  #include "misc/status_led.hpp"
-#include "network.hpp"
+#include <string_view>
 
 using namespace std::literals;
 
@@ -142,7 +160,8 @@ void Net::ip_events(void *ctx, esp_event_base_t base, int32_t id, void *data) {
 const char *Net::macAddress() {
   auto *mac_addr = __singleton__._mac_addr;
 
-  if (mac_addr[0] != 0x00) return mac_addr;
+  if (mac_addr[0] != 0x00)
+    return mac_addr;
 
   // assemble it
 
@@ -156,7 +175,8 @@ const char *Net::macAddress() {
     const uint8_t byte = bytes[i];
 
     // this is knownly duplicated code to avoid creating dependencies
-    if (byte < 0x10) *p++ = '0';       // zero pad when less than 0x10
+    if (byte < 0x10)
+      *p++ = '0';                      // zero pad when less than 0x10
     itoa(byte, p, 16);                 // convert to hex
     p = (byte < 0x10) ? p + 1 : p + 2; // move pointer forward based on zero padding
   }
@@ -193,7 +213,8 @@ bool Net::start(const Opts &opts) {
   rc = esp_wifi_set_ps(powersave);
   checkError(__PRETTY_FUNCTION__, rc);
 
-  rc = esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
+  rc = esp_wifi_set_protocol(WIFI_IF_STA,
+                             WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
   checkError(__PRETTY_FUNCTION__, rc);
 
   wifi_config_t cfg;

@@ -18,15 +18,13 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_pwm_hardware_hpp
-#define ruth_pwm_hardware_hpp
-
-#include <memory>
+#pragma once
 
 #include "esp_err.h"
+#include <memory>
 
+namespace ruth {
 namespace pwm {
-
 class Hardware {
 public:
   Hardware(uint8_t pin_num);
@@ -37,7 +35,9 @@ public:
   uint32_t duty(bool *changed = nullptr);
   uint32_t dutyMax() const { return _duty_max; };
   uint32_t dutyMin() const { return _duty_min; };
-  uint32_t dutyPercent(const float percent) const { return uint32_t((float)_duty_max * (percent / 100)); }
+  uint32_t dutyPercent(const float percent) const {
+    return uint32_t((float)_duty_max * (percent / 100));
+  }
   esp_err_t lastRC() const { return _last_rc; }
   bool off() { return updateDuty(dutyMin()); }
   bool on() { return updateDuty(dutyMax()); }
@@ -71,5 +71,4 @@ private:
 };
 
 } // namespace pwm
-
-#endif
+} // namespace ruth

@@ -17,7 +17,9 @@
 
   https://www.wisslanding.com
 */
-#include "relhum_msg.hpp"
+#include "dev_i2c/relhum_msg.hpp"
+
+namespace ruth {
 
 namespace i2c {
 
@@ -51,5 +53,5 @@ RelHum::RelHum(const Opts &opts) : message::Out(512) {
 }
 
 void RelHum::assembleData(JsonObject &root) {}
-
 } // namespace i2c
+} // namespace ruth

@@ -18,14 +18,14 @@
   https://www.wisslanding.com
 */
 
-#ifndef ruth_in_filter_hpp
-#define ruth_in_filter_hpp
+#pragma once
+
+#include "filter/split.hpp"
 
 #include <cstring>
 #include <memory>
 
-#include "filter/split.hpp"
-
+namespace ruth {
 namespace filter {
 
 class In : public Split {
@@ -37,5 +37,4 @@ public:
 };
 
 } // namespace filter
-
-#endif
+} // namespace ruth

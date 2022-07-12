@@ -18,10 +18,11 @@
   https://www.wisslanding.com
 */
 
-#include <esp_log.h>
-
 #include "message/handler.hpp"
 
+#include <esp_log.h>
+
+namespace ruth {
 namespace message {
 
 Handler::Handler(const char *category, const size_t max_queue_depth) {
@@ -76,7 +77,8 @@ IRAM_ATTR InWrapped Handler::waitForMessage(uint32_t wait_ms, bool *timeout) {
 
   if (q_rc == pdTRUE) {
     // got a message from the queue, wrap it in a unique_ptr and return
-    if (timeout) *timeout = false;
+    if (timeout)
+      *timeout = false;
 
     return_msg = InWrapped(received_msg);
 
@@ -84,7 +86,8 @@ IRAM_ATTR InWrapped Handler::waitForMessage(uint32_t wait_ms, bool *timeout) {
   }
 
   // note a timeout occurred and return the empty unique_ptr
-  if (timeout) *timeout = true;
+  if (timeout)
+    *timeout = true;
   return std::move(return_msg);
 }
 
@@ -121,3 +124,4 @@ IRAM_ATTR InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
 }
 
 } // namespace message
+} // namespace ruth

@@ -18,18 +18,17 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_ds_engine_hpp
-#define ruth_ds_engine_hpp
-
-#include <cstdlib>
-
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#pragma once
 
 #include "dev_ds/ds.hpp"
 #include "message/handler.hpp"
 #include "message/in.hpp"
 
+#include <cstdlib>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+namespace ruth {
 namespace ds {
 
 class Engine : public message::Handler {
@@ -81,6 +80,6 @@ private:
   static constexpr size_t max_devices = sizeof(_known) / sizeof(Device *);
   static constexpr size_t max_queue_depth = 5;
 };
-} // namespace ds
 
-#endif
+} // namespace ds
+} // namespace ruth

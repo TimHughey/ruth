@@ -18,14 +18,14 @@
   https://www.wisslanding.com
 */
 
-#ifndef message_out_hpp
-#define message_out_hpp
+#pragma once
+
+#include "filter/out.hpp"
 
 #include <ArduinoJson.h>
 #include <memory>
 
-#include "filter/out.hpp"
-
+namespace ruth {
 namespace message {
 
 typedef std::unique_ptr<char[]> Packed;
@@ -54,5 +54,4 @@ private:
 };
 
 } // namespace message
-
-#endif
+} // namespace ruth

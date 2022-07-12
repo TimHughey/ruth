@@ -17,17 +17,19 @@
 
   https://www.wisslanding.com
 */
-#ifndef message_in_hpp
-#define message_in_hpp
 
-#include <memory.h>
-
-#include "ArduinoJson.h"
+#pragma once
 
 #include "filter/in.hpp"
 
+#include "ArduinoJson.h"
+#include <memory.h>
+
+namespace ruth {
 namespace message {
 
+class In;
+typedef std::unique_ptr<In> InWrapped;
 class In {
 public:
   In(const char *filter, const size_t filter_len, const char *packed, const size_t packed_len);
@@ -62,7 +64,5 @@ private:
   DeserializationError _err;
 };
 
-typedef std::unique_ptr<In> InWrapped;
 } // namespace message
-
-#endif
+} // namespace ruth

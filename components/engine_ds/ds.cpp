@@ -18,18 +18,18 @@
       https://www.wisslanding.com
   */
 
-#include <esp_log.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-
 #include "dev_ds/ds.hpp"
 #include "dev_ds/ds1820.hpp"
 #include "dev_ds/ds2408.hpp"
 #include "engine_ds/ds.hpp"
 #include "ruth_mqtt/mqtt.hpp"
 
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+namespace ruth {
 namespace ds {
-using namespace ruth;
 
 static const char *TAG_RPT = "ds:report";
 static const char *TAG_CMD = "ds:cmd";
@@ -96,7 +96,8 @@ IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
         if (entry == nullptr) {
           // we've reached the end of the known devices and the rom code isn't known.
           // add the rom code as a known device and get out of this loop
-          Device *new_device = nullptr; // we never delete a device so no reason to use smart pointer
+          Device *new_device =
+              nullptr; // we never delete a device so no reason to use smart pointer
 
           const uint8_t family = rom_code[0];
           switch (family) {
@@ -188,7 +189,8 @@ IRAM_ATTR void Engine::report(void *data) {
 }
 
 void Engine::start(const Opts &opts) {
-  if (_instance_) return;
+  if (_instance_)
+    return;
 
   // pass the send frequency to the Bus to control the frequency of temperature converts
   const auto send_ms = opts.report.send_ms;
@@ -206,3 +208,4 @@ void Engine::start(const Opts &opts) {
 void Engine::wantMessage(message::InWrapped &msg) { msg->want(DocKinds::CMD); }
 
 } // namespace ds
+} // namespace ruth

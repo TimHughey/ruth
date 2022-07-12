@@ -18,11 +18,12 @@
   https://www.wisslanding.com
 */
 
+#include "filter/filter.hpp"
+
 #include <esp_attr.h>
 #include <string.h>
 
-#include "filter/filter.hpp"
-
+namespace ruth {
 namespace filter {
 
 const char *Filter::_first_level = nullptr;
@@ -36,3 +37,4 @@ void Filter::init(const Opts &opts) {
 }
 
 } // namespace filter
+} // namespace ruth

@@ -18,50 +18,81 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_lightdesk_hpp
-#define _ruth_lightdesk_hpp
+#pragma once
 
-#include <memory>
+#include "base/ru_time.hpp"
+#include "io/io.hpp"
+#include "misc/elapsed.hpp"
+#include "state/state.hpp"
 
+#include <chrono>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/timers.h>
+#include <memory>
 
-#include "dmx/dmx.hpp"
-#include "misc/elapsed.hpp"
+namespace ruth {
 
-namespace lightdesk {
+class LightDesk;
+typedef std::shared_ptr<LightDesk> shLightDesk;
 
-class LightDesk {
+class LightDesk : public std::enable_shared_from_this<LightDesk> {
 public:
   struct Opts {
     uint32_t dmx_port = 48005;
-    uint32_t idle_shutdown_ms = 600000;
-    uint32_t idle_check_ms = 1000;
+    Millis idle_shutdown = ru_time::as_duration<Seconds, Millis>(600s);
+    Millis idle_check = ru_time::as_duration<Seconds, Millis>(1s);
   };
 
-public:
-  LightDesk(const Opts &opts);
-  ~LightDesk() = default;
+private:
+  LightDesk(const Opts &opts)
+      : endpoint(ip_udp::v4(), 0),            //  udp endpoint (any available port)
+        socket(io_ctx, endpoint),             //  the msg socket
+        idle_timer(io_ctx),                   // idle timer
+                                              // dmx(new DMX(io_ctx)),
+        start_at(ru_time::nowMicrosSystem()), // start_at- (ru_time::nowMicrosSystem()
+        idle_at(ru_time::nowMicrosSystem()),  // system micros desk became idle
+        idle_check(opts.idle_check)           // how often to check desk is idle
+  {}
 
-  void stop();
-  void start();
+public: // static function to create, access and reset shared LightDesk
+  static shLightDesk create(const Opts &opts);
+  static shLightDesk ptr();
+  static void reset(); // reset (deallocate) shared instance
 
-  void idleWatch();
-  static void idleWatchCallback(TimerHandle_t handle);
-  void idleWatchDelete();
+  // general public API
+  shLightDesk init(); // starts LightDesk task
+
+  static void stop() {
+    [[maybe_unused]] error_code ec;
+    auto self = ptr();
+
+    self->socket.close(ec);
+
+    self->idle_timer.cancel();
+    self->io_ctx.stop();
+  }
 
 private:
-  void init();
+  void idleWatchDog();
+  void messageLoop();
+  void run();
 
 private:
-  esp_err_t _init_rc = ESP_FAIL;
-  TimerHandle_t _idle_timer = nullptr;
-  uint32_t _idle_shutdown_ms = 600000;
-  uint32_t _idle_check_ms = 1000; // one second
+  // order dependent
+  io_context io_ctx;
+  udp_endpoint endpoint;
+  udp_socket socket;
+  steady_timer idle_timer;
+  // upDMX dmx;
+  Micros start_at;
+  Micros idle_at;
+  Millis idle_check; // watchdog timeout to declare LightDesk idle
+
+  // order independent
+  udp_endpoint remote_endpoint;
+  desk::State state;
 };
 
-} // namespace lightdesk
-
-#endif
+} // namespace ruth

@@ -18,17 +18,17 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_engine_hpp
-#define _ruth_pwm_engine_hpp
-
-#include <cstdlib>
-
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#pragma once
 
 #include "dev_pwm/pwm.hpp"
 #include "message/handler.hpp"
 #include "message/in.hpp"
+
+#include <cstdlib>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+namespace ruth {
 
 namespace pwm {
 
@@ -51,7 +51,7 @@ public:
 
   enum Notifies : UBaseType_t { QUEUED_MSG = 0xa000, CMD_ENDING = 0x9000 };
 
-  typedef device::PulseWidth Device;
+  typedef PulseWidth Device;
 
 private:
   Engine(const char *unique_id, uint32_t report_send_ms);
@@ -80,6 +80,6 @@ private:
   static constexpr size_t _num_devices = sizeof(_known) / sizeof(Device);
   static constexpr size_t _max_queue_depth = 5;
 };
-} // namespace pwm
 
-#endif // pwm_engine_hpp
+} // namespace pwm
+} // namespace ruth

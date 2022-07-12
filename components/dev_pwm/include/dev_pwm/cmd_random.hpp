@@ -18,12 +18,12 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_cmd_random_hpp
-#define _ruth_pwm_cmd_random_hpp
+#pragma once
 
 #include "ArduinoJson.h"
 #include "dev_pwm/cmd.hpp"
 
+namespace ruth {
 namespace pwm {
 
 class Random : public Command {
@@ -55,5 +55,4 @@ private:
 };
 
 } // namespace pwm
-
-#endif
+} // namespace ruth

@@ -18,16 +18,18 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_cmd_hpp
-#define _ruth_pwm_cmd_hpp
-
-#include "ArduinoJson.h"
-#include "misc/ruth_task.hpp"
+#pragma once
 
 #include "dev_pwm/hardware.hpp"
+#include "misc/ruth_task.hpp"
 
+#include "ArduinoJson.h"
+
+namespace ruth {
 namespace pwm {
 
+class Command;
+typedef std::unique_ptr<Command> CmdWrapped;
 class Command {
 public:
   Command(Hardware *hardware, const JsonObject &obj);
@@ -79,7 +81,5 @@ private:
   static void runTask(void *task_instance);
 };
 
-typedef std::unique_ptr<Command> CmdWrapped;
 } // namespace pwm
-
-#endif
+} // namespace ruth

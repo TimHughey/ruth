@@ -18,12 +18,13 @@
   https://www.wisslanding.com
 */
 
-#include <string.h>
+#include "filter/in.hpp"
 
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <string.h>
 
-#include "filter/in.hpp"
+namespace ruth {
 
 namespace filter {
 
@@ -45,3 +46,4 @@ IRAM_ATTR void In::dump() const {
 }
 
 } // namespace filter
+} // namespace ruth

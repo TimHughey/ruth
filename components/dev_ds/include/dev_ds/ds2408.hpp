@@ -18,15 +18,15 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_dev_ds2408_hpp
-#define ruth_dev_ds2408_hpp
-
-#include <memory>
+#pragma once
 
 #include "ArduinoJson.h"
 #include "dev_ds/ds.hpp"
 #include "message/in.hpp"
 
+#include <memory>
+
+namespace ruth {
 namespace ds {
 class DS2408 : public Device {
 
@@ -43,6 +43,6 @@ private:
   bool setPin(uint8_t pin, const char *cmd);
   bool status(uint8_t &states, uint64_t *elapsed_us = nullptr);
 };
-} // namespace ds
 
-#endif
+} // namespace ds
+} // namespace ruth

@@ -18,9 +18,9 @@
     https://www.wisslanding.com
 */
 
-#include <esp_attr.h>
-
 #include "misc/status_led.hpp"
+
+#include <esp_attr.h>
 
 namespace ruth {
 
@@ -32,7 +32,8 @@ StatusLED::StatusLED() : PulseWidth(0) {
 }
 
 void StatusLED::init() {
-  if (status_led) return;
+  if (status_led)
+    return;
 
   status_led = new StatusLED();
 }
@@ -48,7 +49,7 @@ IRAM_ATTR void StatusLED::brighter() {
   status_led->updateDuty(duty_now + 1024);
 }
 
-IRAM_ATTR device::PulseWidth &StatusLED::device() { return *status_led; }
+IRAM_ATTR PulseWidth &StatusLED::device() { return *status_led; }
 
 IRAM_ATTR void StatusLED::dim() {
   auto duty_max = status_led->dutyMax();

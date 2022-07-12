@@ -18,8 +18,7 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_task_hpp
-#define ruth_task_hpp
+#pragma once
 
 #include <config.h>
 #include <freertos/FreeRTOS.h>
@@ -46,5 +45,3 @@ struct Task {
 typedef void(TaskFunc_t)(void *);
 
 } // namespace ruth
-
-#endif

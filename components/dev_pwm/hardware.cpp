@@ -18,22 +18,23 @@
     https://www.wisslanding.com
 */
 
-#include <cstring>
+#include "dev_pwm/hardware.hpp"
 
+#include <cstring>
 #include <driver/gpio.h>
 #include <driver/ledc.h>
 #include <esp_attr.h>
 
-#include "dev_pwm/hardware.hpp"
-
+namespace ruth {
 namespace pwm {
 
 static ledc_timer_config_t ledc_timer[2];
-static ledc_timer_t pinToTimerMap[5] = {LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_1, LEDC_TIMER_1};
+static ledc_timer_t pinToTimerMap[5] = {LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_1,
+                                        LEDC_TIMER_1};
 static constexpr size_t num_channels = 5;
 static ledc_channel_config_t channel_config[num_channels] = {};
-static ledc_channel_t numToChannelMap[num_channels] = {LEDC_CHANNEL_0, LEDC_CHANNEL_1, LEDC_CHANNEL_2,
-                                                       LEDC_CHANNEL_3, LEDC_CHANNEL_4};
+static ledc_channel_t numToChannelMap[num_channels] = {
+    LEDC_CHANNEL_0, LEDC_CHANNEL_1, LEDC_CHANNEL_2, LEDC_CHANNEL_3, LEDC_CHANNEL_4};
 static gpio_num_t numToGpioMap[num_channels] = {GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33,
                                                 GPIO_NUM_27};
 
@@ -55,7 +56,8 @@ esp_err_t Hardware::allOff() {
   gpio_num_t pins[] = {GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
   static bool onetime = false;
 
-  if (onetime) return ESP_OK;
+  if (onetime)
+    return ESP_OK;
 
   // ensure all pins to be used as PWM are off
   gpio_config_t pins_cfg;
@@ -94,8 +96,10 @@ IRAM_ATTR uint32_t Hardware::duty(bool *changed) {
 }
 
 void Hardware::ensureChannel(uint8_t num) {
-  if (_channel_configured[num]) return;
-  if (_last_rc != ESP_OK) return;
+  if (_channel_configured[num])
+    return;
+  if (_last_rc != ESP_OK)
+    return;
 
   auto gpio = numToGpioMap[num];
 
@@ -118,8 +122,10 @@ void Hardware::ensureChannel(uint8_t num) {
 }
 
 void Hardware::ensureTimer() {
-  if (_timer_configured) return;
-  if (_last_rc != ESP_OK) return;
+  if (_timer_configured)
+    return;
+  if (_last_rc != ESP_OK)
+    return;
 
   ledc_timer_t timers[2] = {LEDC_TIMER_0, LEDC_TIMER_1};
 
@@ -149,7 +155,8 @@ bool Hardware::stop(uint32_t final_duty) {
   auto channel = numToChannelMap[_pin_num];
   _last_rc = ledc_stop(mode, channel, final_duty);
 
-  if (_last_rc == ESP_OK) return true;
+  if (_last_rc == ESP_OK)
+    return true;
 
   return false;
 }
@@ -158,11 +165,13 @@ IRAM_ATTR bool Hardware::updateDuty(uint32_t new_duty) {
   const ledc_mode_t mode = channel_config[_pin_num].speed_mode;
   const ledc_channel_t channel = numToChannelMap[_pin_num];
 
-  if (new_duty > _duty_max) new_duty = _duty_max;
+  if (new_duty > _duty_max)
+    new_duty = _duty_max;
 
   _last_rc = ledc_set_duty_and_update(mode, channel, new_duty, 0);
 
-  if (_last_rc == ESP_OK) return true;
+  if (_last_rc == ESP_OK)
+    return true;
 
   return false;
 }
@@ -171,3 +180,4 @@ bool Hardware::_timer_configured = false;
 bool Hardware::_channel_configured[num_channels] = {false};
 
 } // namespace pwm
+} // namespace ruth

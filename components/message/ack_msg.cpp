@@ -18,10 +18,12 @@
   https://www.wisslanding.com
 */
 
+#include "message/ack_msg.hpp"
+
 #include <esp_attr.h>
 #include <esp_timer.h>
 
-#include "message/ack_msg.hpp"
+namespace ruth {
 
 namespace message {
 
@@ -39,3 +41,4 @@ IRAM_ATTR void Ack::assembleData(JsonObject &root) {
 }
 
 } // namespace message
+} // namespace ruth

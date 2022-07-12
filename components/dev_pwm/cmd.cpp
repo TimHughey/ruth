@@ -20,13 +20,13 @@
     https://www.wisslanding.com
 */
 
-#include <algorithm>
-#include <cstdlib>
-
-#include <esp_log.h>
-
 #include "dev_pwm/cmd.hpp"
 
+#include <algorithm>
+#include <cstdlib>
+#include <esp_log.h>
+
+namespace ruth {
 namespace pwm {
 
 // NOTE:  all members assigned in constructor definition are constants or
@@ -111,7 +111,8 @@ void Command::runTask(void *task_instance) {
 
 void Command::kill() {
   // nothing to stop
-  if (_task.handle == nullptr) return;
+  if (_task.handle == nullptr)
+    return;
 
   TaskHandle_t to_delete = _task.handle;
   _task.handle = nullptr;
@@ -121,3 +122,4 @@ void Command::kill() {
 }
 
 } // namespace pwm
+} // namespace ruth

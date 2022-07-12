@@ -18,12 +18,13 @@
   https://www.wisslanding.com
 */
 
-#include <string.h>
+#include "filter/out.hpp"
 
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <string.h>
 
-#include "filter/out.hpp"
+namespace ruth {
 
 namespace filter {
 
@@ -35,6 +36,9 @@ IRAM_ATTR Out::Out() {
   addLevel(_host_id);
 }
 
-void Out::dump() const { ESP_LOGI(TAG, "%s used[%u] avail[%u])", c_str(), length(), availableCapacity()); }
+void Out::dump() const {
+  ESP_LOGI(TAG, "%s used[%u] avail[%u])", c_str(), length(), availableCapacity());
+}
 
 } // namespace filter
+} // namespace ruth

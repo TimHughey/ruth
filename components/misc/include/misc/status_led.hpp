@@ -18,14 +18,13 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_status_led_hpp
-#define _ruth_status_led_hpp
+#pragma once
 
 #include "dev_pwm/pwm.hpp"
 
 namespace ruth {
 
-class StatusLED : public device::PulseWidth {
+class StatusLED : public PulseWidth {
 public:
   StatusLED(); // SINGLETON
   static void init();
@@ -33,12 +32,10 @@ public:
   // control the brightness of the status led
   static void bright();
   static void brighter();
-  static device::PulseWidth &device();
+  static PulseWidth &device();
   static void dim();
   static void dimmer();
   static void percent(float p);
   static void off();
 };
 } // namespace ruth
-
-#endif

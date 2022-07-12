@@ -17,23 +17,23 @@
 
   https://www.wisslanding.com
 */
-#include <string_view>
+
+#include "core/core.hpp"
+#include "ArduinoJson.h"
+#include "binder/binder.hpp"
+#include "core/boot_msg.hpp"
+#include "core/engines.hpp"
+#include "core/run_msg.hpp"
+#include "core/sntp.hpp"
+#include "core/startup_msg.hpp"
+#include "dev_pwm/pwm.hpp"
+#include "misc/status_led.hpp"
+#include "network/network.hpp"
+#include "ota/ota.hpp"
+#include "ruth_mqtt/mqtt.hpp"
 
 #include <esp_log.h>
-
-#include "ArduinoJson.h"
-#include "binder.hpp"
-#include "boot_msg.hpp"
-#include "core.hpp"
-#include "dev_pwm/pwm.hpp"
-#include "engines.hpp"
-#include "misc/status_led.hpp"
-#include "network.hpp"
-#include "ota/ota.hpp"
-#include "run_msg.hpp"
-#include "ruth_mqtt/mqtt.hpp"
-#include "sntp.hpp"
-#include "startup_msg.hpp"
+#include <string_view>
 
 namespace ruth {
 
@@ -133,7 +133,8 @@ void Core::bootComplete() {
 
   // start our scheduled reports
   uint32_t report_ms = _profile["host"]["report_ms"] | 7000;
-  _report_timer = xTimerCreate("core_report", pdMS_TO_TICKS(report_ms), pdTRUE, nullptr, &reportTimer);
+  _report_timer =
+      xTimerCreate("core_report", pdMS_TO_TICKS(report_ms), pdTRUE, nullptr, &reportTimer);
   vTimerSetTimerID(_report_timer, this);
   xTimerStart(_report_timer, pdMS_TO_TICKS(0));
 
@@ -173,7 +174,8 @@ void Core::ota(message::InWrapped msg) {
   using namespace firmware;
 
   // OTA already in progress, do nothing (should never happen)
-  if (_ota) return;
+  if (_ota)
+    return;
 
   if (msg->unpack(_ota_cmd)) {
     const JsonObject cmd_root = _ota_cmd.as<JsonObject>();
@@ -192,7 +194,8 @@ void Core::ota(message::InWrapped msg) {
 
     trackHeap();
 
-    if (rc == pdFAIL) continue; // timeout == OTA in progress, just track heap
+    if (rc == pdFAIL)
+      continue; // timeout == OTA in progress, just track heap
 
     switch (val) {
     case OTA::Notifies::START: // ota started, wait for next notify
@@ -246,12 +249,13 @@ void Core::startEngines() {
 
   // in other words, we only want to create devices centrally once this host
   // has been assigned a name.
-  if (_engines_started || Net::hostIdAndNameAreEqual()) return;
+  if (_engines_started || Net::hostIdAndNameAreEqual())
+    return;
 
   const JsonObject profile = _profile.as<JsonObject>();
   profile["hostname"] = Net::hostname();
   profile["unique_id"] = Net::macAddress();
-  core::Engines::startConfigured(profile);
+  Engines::startConfigured(profile);
 
   _engines_started = true;
 }
@@ -275,7 +279,8 @@ void Core::startMqtt() {
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(60000));
 
   if ((notify & MQTT::CONNECTED) == false) {
-    ESP_LOGW(TAG, "while waiting for mqtt connection received %u instead of %u", notify, MQTT::CONNECTED);
+    ESP_LOGW(TAG, "while waiting for mqtt connection received %u instead of %u", notify,
+             MQTT::CONNECTED);
     vTaskDelay(pdMS_TO_TICKS(10000));
     esp_restart();
   }

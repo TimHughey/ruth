@@ -17,8 +17,9 @@
 
   https://www.wisslanding.com
 */
-#include "celsius_msg.hpp"
 
+#include "dev_ds/celsius_msg.hpp"
+namespace ruth {
 namespace ds {
 
 Celsius::Celsius(const Opts &opts) : message::Out(512) {
@@ -48,5 +49,5 @@ Celsius::Celsius(const Opts &opts) : message::Out(512) {
 }
 
 void Celsius::assembleData(JsonObject &root) {}
-
 } // namespace ds
+} // namespace ruth

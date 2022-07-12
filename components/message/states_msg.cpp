@@ -18,11 +18,12 @@
   https://www.wisslanding.com
 */
 
+#include "message/states_msg.hpp"
+
 #include <esp_attr.h>
 #include <esp_timer.h>
 
-#include "message/states_msg.hpp"
-
+namespace ruth {
 namespace message {
 
 IRAM_ATTR States::States(const char *ident) : message::Out(1024), _start_at(esp_timer_get_time()) {
@@ -57,3 +58,4 @@ IRAM_ATTR void States::assembleData(JsonObject &root) {
 IRAM_ATTR void States::finalize() { _read_us = esp_timer_get_time() - _start_at; }
 
 } // namespace message
+} // namespace ruth

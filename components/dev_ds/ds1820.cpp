@@ -18,15 +18,16 @@
     https://www.wisslanding.com
 */
 
+#include "dev_ds/ds1820.hpp"
+#include "ArduinoJson.h"
+#include "dev_ds/celsius_msg.hpp"
+#include "dev_ds/crc.hpp"
+#include "ruth_mqtt/mqtt.hpp"
+
 #include <esp_attr.h>
 #include <esp_log.h>
 
-#include "ArduinoJson.h"
-#include "celsius_msg.hpp"
-#include "crc.hpp"
-#include "dev_ds/ds1820.hpp"
-#include "ruth_mqtt/mqtt.hpp"
-
+namespace ruth {
 namespace ds {
 
 DS1820::DS1820(const uint8_t *addr) : Device(addr) { _mutable = false; }
@@ -50,7 +51,8 @@ IRAM_ATTR bool DS1820::report() {
 
     cmd[9] = 0xbe; // DS1820 read scratchpad
 
-    if (matchRomThenRead(cmd, cmd_len, data, data_len) == false) return false;
+    if (matchRomThenRead(cmd, cmd_len, data, data_len) == false)
+      return false;
     auto crc = crc8(data, data_len);
     if (crc != 0x00) {
       ESP_LOGD(ident(), "crc failure: 0x%02x", crc);
@@ -79,7 +81,8 @@ IRAM_ATTR bool DS1820::report() {
   if (rc) {
     updateSeenTimestamp();
     const uint32_t read_us = esp_timer_get_time() - start_at;
-    auto status = Celsius({ident(), Celsius::Status::OK, (float)raw / 16.0f, read_us, convert_us, 0});
+    auto status =
+        Celsius({ident(), Celsius::Status::OK, (float)raw / 16.0f, read_us, convert_us, 0});
     ruth::MQTT::send(status);
   } else {
     auto status = Celsius({ident(), Celsius::Status::ERROR, 0, 0, 0, busErrorCode()});
@@ -88,5 +91,6 @@ IRAM_ATTR bool DS1820::report() {
 
   return rc;
 }
-
 } // namespace ds
+
+} // namespace ruth

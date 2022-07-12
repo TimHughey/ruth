@@ -18,107 +18,121 @@
     https://www.wisslanding.com
 */
 
-#include <esp_log.h>
-
-#include "dmx/dmx.hpp"
+#include "lightdesk/lightdesk.hpp"
 #include "headunit/ac_power.hpp"
 #include "headunit/discoball.hpp"
 #include "headunit/elwire.hpp"
 #include "headunit/headunit.hpp"
 #include "headunit/ledforest.hpp"
-#include "lightdesk/lightdesk.hpp"
+#include "io/io.hpp"
+#include "msg.hpp"
 
-using namespace dmx;
+#include <array>
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
-namespace lightdesk {
+namespace ruth {
+namespace shared {
+shLightDesk __lightdesk;
+shLightDesk lightdesk() { return __lightdesk; }
+
+static HeadUnits headunits;
+TaskHandle_t lightdesk_task;
+} // namespace shared
+
+namespace desk {
+DRAM_ATTR static StaticTask_t tcb;
+DRAM_ATTR static std::array<StackType_t, 4096> stack;
+DRAM_ATTR static HeadUnits units;
+
+} // namespace desk
 
 static const char *TAG = "lightdesk";
-static dmx::Dmx *_dmx = nullptr;
+constexpr size_t RX_MAX_LEN = 1024;
+DRAM_ATTR static std::array<char, RX_MAX_LEN> rx_buff;
+// DRAM_ATTR static DeskMsg desk_msg;
 
-LightDesk::LightDesk(const Opts &opts) {
-  _idle_shutdown_ms = opts.idle_shutdown_ms;
-  _idle_check_ms = opts.idle_check_ms;
+// static method for create, access and reset of shared LightDesk
 
-  if (_dmx == nullptr) {
-    _dmx = new Dmx(opts.dmx_port);
-  }
+shLightDesk LightDesk::create(const LightDesk::Opts &opts) { // static
+  shared::__lightdesk = shLightDesk(new LightDesk(opts));
 
-  init();
-  start();
+  return shared::lightdesk();
 }
 
-IRAM_ATTR void LightDesk::idleWatch() {
-  static auto track = esp_timer_get_time();
-
-  if (_dmx->idle()) {
-    auto now = esp_timer_get_time();
-
-    auto idle_duration = now - track;
-
-    if (idle_duration >= (_idle_shutdown_ms * 1000)) {
-      dmx::HeadUnitTracker &headunits = _dmx->headunits();
-
-      for (auto hu : headunits) {
-        hu->dark();
-      }
-      track = now;
-    }
-
-  } else {
-    track = esp_timer_get_time();
-  }
-
-  xTimerStart(_idle_timer, pdMS_TO_TICKS(_idle_check_ms));
+IRAM_ATTR shLightDesk LightDesk::ptr() { // static
+  return shared::lightdesk()->shared_from_this();
 }
 
-IRAM_ATTR void LightDesk::idleWatchCallback(TimerHandle_t handle) {
-  LightDesk *desk = (LightDesk *)pvTimerGetTimerID(handle);
-
-  if (desk) desk->idleWatch();
+void LightDesk::reset() { // static
+  shared::lightdesk().reset();
 }
 
-void LightDesk::idleWatchDelete() {
-  if (_idle_timer != nullptr) {
-    if (xTimerIsTimerActive(_idle_timer) != pdFALSE) {
-      if (xTimerStop(_idle_timer, pdMS_TO_TICKS(1000)) == pdFAIL) {
-        goto FINISH;
-      }
-    }
+// static functions for FreeRTOS task
+static void task_start([[maybe_unused]] void *data) { LightDesk::ptr()->run(); }
 
-    auto to_delete = _idle_timer;
-    _idle_timer = nullptr;
-    if (xTimerDelete(to_delete, pdMS_TO_TICKS(1000)) == pdFAIL) {
-      _idle_timer = to_delete;
-    }
-  }
+// general API
 
-FINISH:
-  if (_idle_timer) {
-    ESP_LOGW(TAG, "lightdesk failed delete idle timer");
-  }
+IRAM_ATTR void LightDesk::idleWatchDog() {
+  // each call will restart the timer
+  idle_timer.expires_after(idle_check);
+
+  idle_timer.async_wait( //
+      [self = shared_from_this(), &units = shared::headunits](error_code ec) {
+        // if the timer ever expires then we're idle
+        if (!ec) {
+          std::for_each(units.begin(), units.end(), [](shHeadUnit unit) { unit->dark(); });
+
+          self->state = desk::State::IDLE;
+
+          self->idleWatchDog(); // always reschedule self
+        }
+      });
 }
 
-void LightDesk::init() {
+shLightDesk LightDesk::init() {
   ESP_LOGD(TAG, "enabled, starting up");
 
-  _dmx->start();
-  _dmx->addHeadUnit(std::make_shared<AcPower>());
-  _dmx->addHeadUnit(std::make_shared<DiscoBall>(1)); // pwm 1
-  _dmx->addHeadUnit(std::make_shared<ElWire>(2));    // pwm 2
-  _dmx->addHeadUnit(std::make_shared<ElWire>(3));    // pwm 3
-  _dmx->addHeadUnit(std::make_shared<LedForest>(4)); // pwm 4
+  shared::headunits.emplace_back(std::make_shared<AcPower>());
+  shared::headunits.emplace_back(std::make_shared<DiscoBall>(1));     // pwm 1
+  shared::headunits.emplace_back(std::make_shared<ElWire>("EL1", 2)); // pwm 2
+  shared::headunits.emplace_back(std::make_shared<ElWire>("EL2", 3)); // pwm 3
+  shared::headunits.emplace_back(std::make_shared<LedForest>(4));     // pwm 4
+
+  shared::lightdesk_task =                  // create the task using a static stack
+      xTaskCreateStatic(&task_start,        // static func to start task
+                        TAG,                // task name
+                        desk::stack.size(), // stack size
+                        nullptr,            // task data (use ptr() to access LightDesk)
+                        13,                 // priority
+                        desk::stack.data(), // static task stack
+                        &desk::tcb          // task control block
+      );
+
+  return shared_from_this();
 }
 
-void LightDesk::start() {
-  _idle_timer = xTimerCreate("dmx_idle", pdMS_TO_TICKS(_idle_check_ms), pdFALSE, nullptr, &idleWatchCallback);
-  vTimerSetTimerID(_idle_timer, this);
-  xTimerStart(_idle_timer, pdMS_TO_TICKS(_idle_check_ms));
+IRAM_ATTR void LightDesk::messageLoop() {
+
+  socket.async_receive_from(asio::buffer(rx_buff), remote_endpoint,
+                            [this, &buff = rx_buff](error_code ec, size_t rx_bytes) {
+                              if (!ec && rx_bytes) {
+                                if (auto msg = DeskMsg(buff); msg.validMagic()) {
+
+                                  idleWatchDog(); // reset watchdog, we have a msg
+                                }
+                              }
+                            });
 }
 
-void LightDesk::stop() {
-  idleWatchDelete();
+IRAM_ATTR void LightDesk::run() {
+  idleWatchDog();
+  messageLoop();
 
-  _dmx->stop();
+  io_ctx.run(); // returns when all io_ctx work is complete
+
+  state = desk::State::ZOMBIE;
 }
 
-} // namespace lightdesk
+} // namespace ruth

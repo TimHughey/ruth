@@ -17,8 +17,10 @@
 
   https://www.wisslanding.com
 */
-#include "ack_msg.hpp"
 
+#include "engine_pwm/ack_msg.hpp"
+
+namespace ruth {
 namespace pwm {
 
 Ack::Ack(const char *refid) : message::Out(128) {
@@ -30,3 +32,4 @@ Ack::Ack(const char *refid) : message::Out(128) {
 void Ack::assembleData(JsonObject &root) {}
 
 } // namespace pwm
+} // namespace ruth

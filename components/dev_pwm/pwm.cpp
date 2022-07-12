@@ -18,18 +18,17 @@
     https://www.wisslanding.com
 */
 
-#include <cstring>
+#include "dev_pwm/pwm.hpp"
+#include "dev_pwm/cmd_fixed.hpp"
+#include "dev_pwm/cmd_random.hpp"
 
+#include <cstring>
 #include <driver/gpio.h>
 #include <driver/ledc.h>
 #include <esp_attr.h>
 #include <esp_log.h>
 
-#include "dev_pwm/cmd_fixed.hpp"
-#include "dev_pwm/cmd_random.hpp"
-#include "dev_pwm/pwm.hpp"
-
-namespace device {
+namespace ruth {
 
 // construct a new PulseWidth with a known address
 PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) {
@@ -47,18 +46,23 @@ PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) {
 IRAM_ATTR PulseWidth::CmdType PulseWidth::cmdType(const JsonObject &root) const {
   const char *cmd = root["cmd"];
 
-  if (cmd == nullptr) return CmdType::NO_MATCH;
+  if (cmd == nullptr)
+    return CmdType::NO_MATCH;
 
   // is this a simple on/off command?
-  if ((cmd[0] == 'o') && (cmd[1] == 'n') && (cmd[2] == 0x00)) return CmdType::ON;
-  if ((cmd[0] == 'o') && (cmd[1] == 'f') && (cmd[2] == 'f') && (cmd[3] == 0x00)) return CmdType::OFF;
+  if ((cmd[0] == 'o') && (cmd[1] == 'n') && (cmd[2] == 0x00))
+    return CmdType::ON;
+  if ((cmd[0] == 'o') && (cmd[1] == 'f') && (cmd[2] == 'f') && (cmd[3] == 0x00))
+    return CmdType::OFF;
 
   // is this an extended commmand?
   const char *type = root["params"]["type"];
 
   if (type) {
-    if (strcmp(type, "fixed") == 0) return CmdType::FIXED;
-    if (strcmp(type, "random") == 0) return CmdType::RANDOM;
+    if (strcmp(type, "fixed") == 0)
+      return CmdType::FIXED;
+    if (strcmp(type, "random") == 0)
+      return CmdType::RANDOM;
   }
 
   return CmdType::NO_MATCH;
@@ -72,7 +76,8 @@ IRAM_ATTR bool PulseWidth::execute(const JsonObject &root) {
   switch (cmd_type) {
   case CmdType::ON:
   case CmdType::OFF:
-    if (_cmd) _cmd.reset(nullptr);
+    if (_cmd)
+      _cmd.reset(nullptr);
 
     cmdBasic(cmd_type);
     break;
@@ -133,4 +138,4 @@ IRAM_ATTR void PulseWidth::makeStatus() {
 
   itoa(duty_now, p, 10);
 }
-} // namespace device
+} // namespace ruth

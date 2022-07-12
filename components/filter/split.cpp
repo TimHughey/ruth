@@ -18,11 +18,12 @@
   https://www.wisslanding.com
 */
 
-#include <string.h>
+#include "filter/split.hpp"
 
 #include <esp_attr.h>
+#include <string.h>
 
-#include "filter/split.hpp"
+namespace ruth {
 
 namespace filter {
 
@@ -56,7 +57,8 @@ IRAM_ATTR void Split::split(const char *filter) {
     }
 
     // reached the end of the filter, stop searching
-    if (separator == nullptr) break;
+    if (separator == nullptr)
+      break;
 
     // null the separator, advance search to continue finding levels
     *separator = 0x00;
@@ -65,3 +67,4 @@ IRAM_ATTR void Split::split(const char *filter) {
 }
 
 } // namespace filter
+} // namespace ruth

@@ -18,13 +18,13 @@
   https://www.wisslanding.com
 */
 
-#ifndef i2c_ack_message_hpp
-#define i2c_ack_message_hpp
-
-#include <memory>
+#pragma once
 
 #include "message/out.hpp"
 
+#include <memory>
+
+namespace ruth {
 namespace message {
 
 class Ack : public message::Out {
@@ -38,5 +38,6 @@ private:
 private:
   int64_t _start_us;
 };
+
 } // namespace message
-#endif
+} // namespace ruth

@@ -18,14 +18,14 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_dev_ds1820_hpp
-#define ruth_dev_ds1820_hpp
-
-#include <memory>
+#pragma once
 
 #include "ArduinoJson.h"
 #include "dev_ds/ds.hpp"
 
+#include <memory>
+
+namespace ruth {
 namespace ds {
 class DS1820 : public Device {
 
@@ -38,5 +38,4 @@ private:
   bool celsius(float &val);
 };
 } // namespace ds
-
-#endif
+} // namespace ruth

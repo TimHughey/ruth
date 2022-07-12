@@ -18,15 +18,16 @@
     https://www.wisslanding.com
 */
 
+#include "dev_i2c/sht31.hpp"
+#include "dev_i2c/bus.hpp"
+#include "dev_i2c/relhum_msg.hpp"
+#include "ruth_mqtt/mqtt.hpp"
+
 #include <driver/i2c.h>
 #include <esp_attr.h>
 #include <esp_log.h>
 
-#include "bus.hpp"
-#include "dev_i2c/sht31.hpp"
-#include "relhum_msg.hpp"
-#include "ruth_mqtt/mqtt.hpp"
-
+namespace ruth {
 namespace i2c {
 static const char *dev_description = "sht31";
 
@@ -113,3 +114,4 @@ IRAM_ATTR bool SHT31::report() {
 }
 
 } // namespace i2c
+} // namespace ruth

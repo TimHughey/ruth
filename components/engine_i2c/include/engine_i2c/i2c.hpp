@@ -18,17 +18,17 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_i2c_engine_hpp
-#define ruth_i2c_engine_hpp
-
-#include <cstdlib>
-
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#pragma once
 
 #include "dev_i2c/i2c.hpp"
 #include "message/handler.hpp"
 #include "message/in.hpp"
+
+#include <cstdlib>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+namespace ruth {
 
 namespace i2c {
 
@@ -78,6 +78,6 @@ private:
   static constexpr size_t device_count = sizeof(_devices) / sizeof(Device *);
   static constexpr size_t max_queue_depth = 5;
 };
-} // namespace i2c
 
-#endif
+} // namespace i2c
+} // namespace ruth

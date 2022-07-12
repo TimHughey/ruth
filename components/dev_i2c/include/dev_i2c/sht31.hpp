@@ -18,10 +18,11 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_dev_sht31_hpp
-#define ruth_dev_sht31_hpp
+#pragma once
 
 #include "dev_i2c/i2c.hpp"
+
+namespace ruth {
 
 namespace i2c {
 
@@ -36,5 +37,4 @@ private:
 };
 
 } // namespace i2c
-
-#endif
+} // namespace ruth

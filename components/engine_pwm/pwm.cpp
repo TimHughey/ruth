@@ -18,20 +18,19 @@
       https://www.wisslanding.com
   */
 
+#include "dev_pwm/pwm.hpp"
+#include "engine_pwm/ack_msg.hpp"
+#include "engine_pwm/pwm.hpp"
+#include "engine_pwm/status_msg.hpp"
+#include "misc/status_led.hpp"
+#include "ruth_mqtt/mqtt.hpp"
+
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "dev_pwm/pwm.hpp"
-#include "engine_pwm/pwm.hpp"
-#include "misc/status_led.hpp"
-#include "ruth_mqtt/mqtt.hpp"
-
-#include "ack_msg.hpp"
-#include "status_msg.hpp"
-
+namespace ruth {
 namespace pwm {
-using namespace ruth;
 
 static const char *TAG_RPT = "pwm:report";
 static const char *TAG_CMD = "pwm:cmd";
@@ -122,7 +121,8 @@ void Engine::report(void *data) {
 }
 
 void Engine::start(Opts &opts) {
-  if (_instance_) return;
+  if (_instance_)
+    return;
 
   _instance_ = new Engine(opts.unique_id, opts.report.send_ms);
   TaskHandle_t &report_task = _instance_->_report_task;
@@ -142,3 +142,4 @@ void Engine::wantMessage(message::InWrapped &msg) {
 }
 
 } // namespace pwm
+} // namespace ruth

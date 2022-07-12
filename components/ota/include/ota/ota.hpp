@@ -18,15 +18,14 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_core_ota_hpp
-#define _ruth_core_ota_hpp
+#pragma once
 
 #include <cstdint>
-#include <memory.h>
-
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <memory.h>
 
+namespace ruth {
 namespace firmware {
 
 class OTA {
@@ -62,5 +61,4 @@ private:
 };
 
 } // namespace firmware
-
-#endif
+} // namespace ruth

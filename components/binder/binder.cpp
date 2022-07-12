@@ -18,8 +18,9 @@
     https://www.wisslanding.com
 */
 
-// #include <cstdlib>
-// #include <memory>
+#include "binder/binder.hpp"
+#include "ArduinoJson.h"
+
 #include <time.h>
 
 #include <esp_log.h>
@@ -27,8 +28,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-#include "ArduinoJson.h"
-#include "binder.hpp"
+namespace ruth {
 
 static Binder_t binder;
 static const char TAG[] = "Binder";
@@ -75,3 +75,4 @@ void Binder::parse() {
 
 // STATIC
 Binder_t *Binder::i() { return &binder; }
+} // namespace ruth

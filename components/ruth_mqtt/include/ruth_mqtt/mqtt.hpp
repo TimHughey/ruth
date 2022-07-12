@@ -18,15 +18,14 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_mqtt_hpp
-#define _ruth_mqtt_hpp
-
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#pragma once
 
 #include "filter/subscribe.hpp"
 #include "message/handler.hpp"
 #include "message/out.hpp"
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 namespace ruth {
 
@@ -90,5 +89,3 @@ private:
 private:
 };
 } // namespace ruth
-
-#endif // mqtt_h

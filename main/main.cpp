@@ -18,17 +18,14 @@
     https://www.wisslanding.com
 */
 
-#include <cstdlib>
+#include "core/core.hpp"
 
+#include <cstdlib>
 #include <esp_log.h>
 #include <esp_task_wdt.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <nvs_flash.h>
-
-#include "core.hpp"
-
-using namespace ruth;
 
 extern "C" {
 void app_main(void);
@@ -58,7 +55,8 @@ void app_main() {
   case ESP_ERR_NVS_NO_FREE_PAGES:
   case ESP_ERR_NVS_NEW_VERSION_FOUND:
     esp_rc = nvs_flash_erase();
-    if (esp_rc == ESP_OK) esp_rc = nvs_flash_init();
+    if (esp_rc == ESP_OK)
+      esp_rc = nvs_flash_init();
     break;
   default:
     ESP_LOGW("Core", "NVS failure [%s]", esp_err_to_name(esp_rc));
@@ -68,11 +66,11 @@ void app_main() {
   ESP_LOGI("Core", "NVS status [%s]", esp_err_to_name(esp_rc));
 
   // this is where our implementation begins by starting the Core
-  Core::boot();
+  ruth::Core::boot();
 
   esp_task_wdt_reset();
 
   for (;;) {
-    Core::loop();
+    ruth::Core::loop();
   }
 }

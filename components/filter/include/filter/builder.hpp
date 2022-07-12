@@ -18,12 +18,13 @@
   https://www.wisslanding.com
 */
 
-#ifndef ruth_filter_builder_hpp
-#define ruth_filter_builder_hpp
+#pragma once
+
+#include "filter/filter.hpp"
 
 #include <memory>
 
-#include "filter/filter.hpp"
+namespace ruth {
 
 namespace filter {
 
@@ -48,4 +49,4 @@ protected:
 };
 
 } // namespace filter
-#endif
+} // namespace ruth

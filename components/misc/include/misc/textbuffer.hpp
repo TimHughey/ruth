@@ -18,14 +18,14 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_text_buffer_hpp
-#define _ruth_text_buffer_hpp
+#pragma once
 
 #include <cstdio>
 #include <cstdlib>
 #include <stdarg.h>
 #include <string.h>
 
+namespace ruth {
 template <size_t CAP = 15> class TextBuffer {
 public:
   TextBuffer(){};
@@ -129,4 +129,4 @@ private:
   size_t _size = 0;
 };
 
-#endif
+} // namespace ruth

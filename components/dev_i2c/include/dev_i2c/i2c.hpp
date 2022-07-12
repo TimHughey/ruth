@@ -18,13 +18,13 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_dev_i2c_hpp
-#define ruth_dev_i2c_hpp
+#pragma once
 
 #include <memory>
 
 #include "message/in.hpp"
 
+namespace ruth {
 namespace i2c {
 class Device {
 public:
@@ -66,6 +66,6 @@ private:
   int64_t _seen_at; // µs since boot
   const char *_description = nullptr;
 };
-} // namespace i2c
 
-#endif
+} // namespace i2c
+} // namespace ruth

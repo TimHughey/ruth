@@ -18,13 +18,13 @@
   https://www.wisslanding.com
 */
 
-#include <ctime>
-#include <sys/time.h>
-
-#include <esp_attr.h>
-
 #include "message/out.hpp"
 
+#include <ctime>
+#include <esp_attr.h>
+#include <sys/time.h>
+
+namespace ruth {
 namespace message {
 
 IRAM_ATTR Out::Out(const size_t doc_size) : _doc(doc_size) {
@@ -52,3 +52,4 @@ IRAM_ATTR Packed Out::pack(size_t &length) {
 }
 
 } // namespace message
+} // namespace ruth

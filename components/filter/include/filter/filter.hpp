@@ -18,11 +18,11 @@
   https://www.wisslanding.com
 */
 
-#ifndef ruth_filter_hpp
-#define ruth_filter_hpp
+#pragma once
 
 #include <memory>
 
+namespace ruth {
 namespace filter {
 
 struct Opts {
@@ -55,6 +55,6 @@ protected:
   static constexpr size_t _max_capacity = 128;
   char _filter[_max_capacity] = {};
 };
-} // namespace filter
 
-#endif
+} // namespace filter
+} // namespace ruth

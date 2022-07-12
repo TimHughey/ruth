@@ -18,15 +18,15 @@
   https://www.wisslanding.com
 */
 
-#ifndef message_handler_hpp
-#define message_handler_hpp
+#pragma once
 
-#include <memory>
+#include "message/in.hpp"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <memory>
 
-#include "in.hpp"
+namespace ruth {
 
 namespace message {
 
@@ -61,5 +61,4 @@ protected:
 };
 
 } // namespace message
-
-#endif
+} // namespace ruth

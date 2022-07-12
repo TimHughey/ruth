@@ -18,19 +18,17 @@
     https://www.wisslanding.com
 */
 
-#ifndef _ruth_pwm_dev_hpp
-#define _ruth_pwm_dev_hpp
-
-#include <memory>
-
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#pragma once
 
 #include "ArduinoJson.h"
 #include "dev_pwm/cmd.hpp"
 #include "dev_pwm/hardware.hpp"
 
-namespace device {
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <memory>
+
+namespace ruth {
 class PulseWidth : public pwm::Hardware {
 
 public:
@@ -51,12 +49,12 @@ private:
 
 private:
   CmdType cmdType(const JsonObject &root) const;
-  inline void cmdBasic(const CmdType type) { updateDuty(type == CmdType::ON ? dutyMax() : dutyMin()); }
+  inline void cmdBasic(const CmdType type) {
+    updateDuty(type == CmdType::ON ? dutyMax() : dutyMin());
+  }
 
 private:
   char _status[32];
   pwm::CmdWrapped _cmd;
 };
-} // namespace device
-
-#endif // pwm_dev_hpp
+} // namespace ruth

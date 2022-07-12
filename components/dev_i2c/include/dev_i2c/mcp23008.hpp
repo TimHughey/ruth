@@ -18,11 +18,11 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_dev_mcp23008_hpp
-#define ruth_dev_mcp23008_hpp
+#pragma once
 
 #include "dev_i2c/i2c.hpp"
 
+namespace ruth {
 namespace i2c {
 
 class MCP23008 : public Device {
@@ -60,5 +60,4 @@ private:
 };
 
 } // namespace i2c
-
-#endif
+} // namespace ruth

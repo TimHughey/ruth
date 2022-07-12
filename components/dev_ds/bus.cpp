@@ -18,17 +18,17 @@
     https://www.wisslanding.com
 */
 
-#include <cstring>
+#include "dev_ds/bus.hpp"
+#include "owb/owb.h"
 
+#include <cstring>
 #include <esp_attr.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
-#include "bus.hpp"
-#include "owb/owb.h"
-
+namespace ruth {
 namespace ds {
 
 static const char *TAG = "ds:bus";
@@ -48,7 +48,8 @@ static inline bool ok() { return status == OWB_STATUS_OK; }
 bool Bus::acquire(uint32_t timeout_ms) {
 
   auto rc = false;
-  const UBaseType_t wait_ticks = (timeout_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
+  const UBaseType_t wait_ticks =
+      (timeout_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
 
   auto bus_requestor = xTaskGetCurrentTaskHandle();
 
@@ -201,7 +202,8 @@ bool Bus::release() {
 
 IRAM_ATTR bool Bus::reset() {
   status = owb_reset(owb, &present);
-  if (status == OWB_STATUS_OK) return true;
+  if (status == OWB_STATUS_OK)
+    return true;
 
   ESP_LOGW(TAG, "reset failed: [%d]", status);
   return false;
@@ -255,5 +257,5 @@ IRAM_ATTR bool Bus::writeThenRead(Bytes write, Len wlen, Bytes read, Len rlen) {
 
   return rc;
 }
-
 } // namespace ds
+} // namespace ruth

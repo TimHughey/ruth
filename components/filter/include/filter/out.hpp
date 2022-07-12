@@ -18,12 +18,13 @@
   https://www.wisslanding.com
 */
 
-#ifndef ruth_out_filter_hpp
-#define ruth_out_filter_hpp
+#pragma once
+
+#include "filter/builder.hpp"
 
 #include <memory>
 
-#include "filter/builder.hpp"
+namespace ruth {
 
 namespace filter {
 
@@ -36,4 +37,4 @@ public:
 };
 
 } // namespace filter
-#endif
+} // namespace ruth

@@ -10,7 +10,7 @@ endif()
 
 idf_component_register(
   SRCS binder.cpp
-  INCLUDE_DIRS .
+  INCLUDE_DIRS include
   REQUIRES arduino_json
   EMBED_TXTFILES ${BINDER_MP})
 

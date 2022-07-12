@@ -18,12 +18,13 @@
   https://www.wisslanding.com
 */
 
-#include <string.h>
+#include "filter/builder.hpp"
 
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <string.h>
 
-#include "filter/builder.hpp"
+namespace ruth {
 
 namespace filter {
 
@@ -38,7 +39,8 @@ IRAM_ATTR Builder::Builder(const char *first_level) {
 IRAM_ATTR void Builder::addChar(const char c, bool with_separator) {
   if (_capacity > 2) {
 
-    if (with_separator) addLevelSeparator();
+    if (with_separator)
+      addLevelSeparator();
 
     *_next++ = c;
     _capacity--;
@@ -46,9 +48,11 @@ IRAM_ATTR void Builder::addChar(const char c, bool with_separator) {
 }
 
 IRAM_ATTR void Builder::addLevel(const char *filter, bool with_separator) {
-  if (_capacity == 0) return;
+  if (_capacity == 0)
+    return;
 
-  if (with_separator) addLevelSeparator();
+  if (with_separator)
+    addLevelSeparator();
 
   char *p = _next;
   p = (char *)memccpy(p, filter, 0x00, _capacity);
@@ -62,3 +66,4 @@ IRAM_ATTR void Builder::addLevel(const char *filter, bool with_separator) {
 }
 
 } // namespace filter
+} // namespace ruth

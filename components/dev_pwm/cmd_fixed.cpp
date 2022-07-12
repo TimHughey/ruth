@@ -20,12 +20,12 @@
     https://www.wisslanding.com
 */
 
-#include <algorithm>
-
-#include <esp_log.h>
-
 #include "dev_pwm/cmd_fixed.hpp"
 
+#include <algorithm>
+#include <esp_log.h>
+
+namespace ruth {
 namespace pwm {
 
 Fixed::Fixed(Hardware *hardware, const JsonObject &cmd) : Command(hardware, cmd) {
@@ -60,3 +60,4 @@ IRAM_ATTR void Fixed::loop(void *task_data) {
 }
 
 } // namespace pwm
+} // namespace ruth

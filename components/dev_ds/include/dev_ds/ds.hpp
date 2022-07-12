@@ -18,15 +18,14 @@
     https://www.wisslanding.com
 */
 
-#ifndef ruth_dev_ds_hpp
-#define ruth_dev_ds_hpp
-
-#include <memory>
-
-#include <freertos/FreeRTOS.h>
+#pragma once
 
 #include "message/in.hpp"
 
+#include <freertos/FreeRTOS.h>
+#include <memory>
+
+namespace ruth {
 namespace ds {
 class Device {
 
@@ -91,5 +90,4 @@ private:
   int64_t _timestamp = 0; // last seen timestamp (microseconds since epoch)
 };
 } // namespace ds
-
-#endif
+} // namespace ruth

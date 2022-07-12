@@ -18,13 +18,13 @@
   https://www.wisslanding.com
 */
 
-#ifndef ruth_subscribe_filter_hpp
-#define ruth_subscribe_filter_hpp
-
-#include <memory>
+#pragma once
 
 #include "filter/builder.hpp"
 
+#include <memory>
+
+namespace ruth {
 namespace filter {
 
 class Subscribe : public Builder {
@@ -36,4 +36,4 @@ public:
 };
 
 } // namespace filter
-#endif
+} // namespace ruth

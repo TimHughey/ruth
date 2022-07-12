@@ -21,16 +21,15 @@
 // override component logging level (must be #define before including esp_log.h)
 // #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 
+#include "ruth_mqtt/mqtt.hpp"
+
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <mqtt_client.h>
 
-#include "ruth_mqtt/mqtt.hpp"
-
 namespace ruth {
 
-using namespace std;
 using namespace message;
 
 static const char *TAG = "Rmqtt";
@@ -114,7 +113,8 @@ IRAM_ATTR void MQTT::incomingMsg(InWrapped msg) {
   for (auto i = 0; (i < _max_handlers) && !wanted; i++) {
     message::Handler *registered = _handlers[i];
 
-    if (registered == nullptr) break; // stop checking once we hit an empty registration
+    if (registered == nullptr)
+      break; // stop checking once we hit an empty registration
 
     if (registered->matchCategory(msg->category())) {
       registered->wantMessage(msg);

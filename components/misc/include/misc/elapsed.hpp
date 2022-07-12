@@ -22,16 +22,12 @@
       Copyright (c) 2011 PJRC.COM, LLC
 */
 
-#ifndef _ruth_misc_elapsed_hpp
-#define _ruth_misc_elapsed_hpp
+#pragma once
 
 #include <cstdint>
 #include <esp_timer.h>
 
 namespace ruth {
-
-inline int64_t micros() { return (esp_timer_get_time()); };
-inline int64_t millis() { return (micros() / 1000); };
 
 class elapsedMillis {
 
@@ -84,6 +80,7 @@ private:
   int64_t _ms;
   bool _frozen = false;
 
+  inline static int64_t millis() { return (esp_timer_get_time() / 1000); };
   inline uint64_t val() const { return (_frozen) ? (_ms) : (millis() - _ms); }
 };
 
@@ -149,8 +146,7 @@ private:
   static constexpr double seconds_us = 1000.0 * 1000.0;
 
   inline uint64_t val() const { return (_frozen) ? (_us) : (micros() - _us); }
+  static inline int64_t micros() { return (esp_timer_get_time()); };
 };
 
 } // namespace ruth
-
-#endif

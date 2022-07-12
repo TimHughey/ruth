@@ -18,13 +18,13 @@
   https://www.wisslanding.com
 */
 
-#ifndef states_message_hpp
-#define states_message_hpp
-
-#include <memory>
+#pragma once
 
 #include "message/out.hpp"
 
+#include <memory>
+
+namespace ruth {
 namespace message {
 
 class States : public message::Out {
@@ -48,4 +48,4 @@ private:
   Status _status = OK;
 };
 } // namespace message
-#endif
+} // namespace ruth

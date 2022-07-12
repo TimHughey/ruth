@@ -18,14 +18,16 @@
     https://www.wisslanding.com
 */
 
-#include <esp_log.h>
-
-#include "ArduinoJson.h"
-#include "crc.hpp"
 #include "dev_ds/ds2408.hpp"
+#include "ArduinoJson.h"
+#include "dev_ds/crc.hpp"
 #include "message/ack_msg.hpp"
 #include "message/states_msg.hpp"
 #include "ruth_mqtt/mqtt.hpp"
+
+#include <esp_log.h>
+
+namespace ruth {
 
 namespace ds {
 
@@ -118,7 +120,8 @@ IRAM_ATTR bool DS2408::setPin(uint8_t pin, const char *cmd) {
                    dev_state);
           rc = true;
         } else {
-          ESP_LOGW(ident(), "SET FAILED conf[%02x] req[%02x] dev[%02x]", conf_byte, new_states, dev_state);
+          ESP_LOGW(ident(), "SET FAILED conf[%02x] req[%02x] dev[%02x]", conf_byte, new_states,
+                   dev_state);
         }
       }
     }
@@ -127,7 +130,8 @@ IRAM_ATTR bool DS2408::setPin(uint8_t pin, const char *cmd) {
   return rc;
 }
 
-IRAM_ATTR bool DS2408::cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask, uint8_t &state) {
+IRAM_ATTR bool DS2408::cmdToMaskAndState(uint8_t pin, const char *cmd, uint8_t &mask,
+                                         uint8_t &state) {
 
   auto rc = false;
 
@@ -182,7 +186,8 @@ IRAM_ATTR bool DS2408::status(uint8_t &states, uint64_t *elapsed_us) {
   static uint8_t *data = read_cmd + cmd_len;
   static constexpr size_t data_len = sizeof(read_cmd) - cmd_len;
 
-  if (matchRomThenRead(cmd, cmd_len, data, data_len) == false) return false;
+  if (matchRomThenRead(cmd, cmd_len, data, data_len) == false)
+    return false;
   // calculate the start/end of the block for the crc16 validation
   const uint8_t *crc_start = data - 1; // include the channel access read byte 0xf5
   const uint8_t *crc_end = data + data_len;
@@ -193,7 +198,8 @@ IRAM_ATTR bool DS2408::status(uint8_t &states, uint64_t *elapsed_us) {
     // invert states; device considers on as false, off as true
     states = ~(data[31]) & 0xff; // constrain to 8bits
 
-    if (elapsed_us) *elapsed_us = esp_timer_get_time() - start_at;
+    if (elapsed_us)
+      *elapsed_us = esp_timer_get_time() - start_at;
 
     ESP_LOGD(ident(), "states: 0x%02x", states);
   }
@@ -202,3 +208,4 @@ IRAM_ATTR bool DS2408::status(uint8_t &states, uint64_t *elapsed_us) {
 }
 
 } // namespace ds
+} // namespace ruth
