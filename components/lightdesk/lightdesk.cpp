@@ -19,6 +19,7 @@
 */
 
 #include "lightdesk/lightdesk.hpp"
+#include "dmx/dmx.hpp"
 #include "headunit/ac_power.hpp"
 #include "headunit/discoball.hpp"
 #include "headunit/elwire.hpp"
@@ -70,7 +71,7 @@ void LightDesk::reset() { // static
 }
 
 // static functions for FreeRTOS task
-static void task_start([[maybe_unused]] void *data) { LightDesk::ptr()->run(); }
+// static void task_start([[maybe_unused]] void *data) { LightDesk::ptr()->run(); }
 
 // general API
 
@@ -84,7 +85,7 @@ IRAM_ATTR void LightDesk::idleWatchDog() {
         if (!ec) {
           std::for_each(units.begin(), units.end(), [](shHeadUnit unit) { unit->dark(); });
 
-          self->state = desk::State::IDLE;
+          self->state.idle();
 
           self->idleWatchDog(); // always reschedule self
         }
@@ -94,18 +95,20 @@ IRAM_ATTR void LightDesk::idleWatchDog() {
 shLightDesk LightDesk::init() {
   ESP_LOGD(TAG, "enabled, starting up");
 
-  shared::headunits.emplace_back(std::make_shared<AcPower>());
-  shared::headunits.emplace_back(std::make_shared<DiscoBall>(1));     // pwm 1
-  shared::headunits.emplace_back(std::make_shared<ElWire>("EL1", 2)); // pwm 2
-  shared::headunits.emplace_back(std::make_shared<ElWire>("EL2", 3)); // pwm 3
-  shared::headunits.emplace_back(std::make_shared<LedForest>(4));     // pwm 4
+  shared::headunits.emplace_back(std::make_shared<AcPower>("ac power"));
+  shared::headunits.emplace_back(std::make_shared<DiscoBall>("disco ball", 1)); // pwm 1
+  shared::headunits.emplace_back(std::make_shared<ElWire>("el dance", 2));      // pwm 2
+  shared::headunits.emplace_back(std::make_shared<ElWire>("el entry", 3));      // pwm 3
+  shared::headunits.emplace_back(std::make_shared<LedForest>("led forest", 4)); // pwm 4
+
+  DMX::create()->start();
 
   shared::lightdesk_task =                  // create the task using a static stack
-      xTaskCreateStatic(&task_start,        // static func to start task
+      xTaskCreateStatic(&LightDesk::start,  // static func to start task
                         TAG,                // task name
                         desk::stack.size(), // stack size
                         nullptr,            // task data (use ptr() to access LightDesk)
-                        13,                 // priority
+                        15,                 // priority
                         desk::stack.data(), // static task stack
                         &desk::tcb          // task control block
       );
@@ -120,6 +123,12 @@ IRAM_ATTR void LightDesk::messageLoop() {
                               if (!ec && rx_bytes) {
                                 if (auto msg = DeskMsg(buff); msg.validMagic()) {
 
+                                  DMX::handleFrame(msg.dframe<dmx::Frame>());
+
+                                  for (auto unit : desk::units) {
+                                    unit->handleMsg(msg.root());
+                                  }
+
                                   idleWatchDog(); // reset watchdog, we have a msg
                                 }
                               }
@@ -132,7 +141,7 @@ IRAM_ATTR void LightDesk::run() {
 
   io_ctx.run(); // returns when all io_ctx work is complete
 
-  state = desk::State::ZOMBIE;
+  state.zombie();
 }
 
 } // namespace ruth

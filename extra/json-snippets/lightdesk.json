@@ -1,5 +1,33 @@
 {
-  "mtime": 1609606969,
-  "payload": "lightdesk",
-  "dance": { "interval_secs": 23.3 }
+  "seqno": 2345617,
+  "dframe": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22
+  ],
+  "ac power": true,
+  "disco ball": 4096,
+  "el dance": 4096,
+  "el entry": 4096,
+  "payload": "lightdesk"
 }

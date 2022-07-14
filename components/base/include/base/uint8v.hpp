@@ -38,6 +38,14 @@ public:
     assign(reserve_default, 0x00);
   }
 
+  uint8v(uint8v &src) = delete;                  // no copy assignment
+  uint8v(const uint8v &src) = delete;            // no copy constructor
+  uint8v &operator=(uint8v &rhs) = delete;       // no copy assignment
+  uint8v &operator=(const uint8v &rhs) = delete; // no copy assignment
+
+  uint8v(uint8v &&src) = default;
+  uint8v &operator=(uint8v &&rhs) = default;
+
   bool multiLineString() const {
     auto nl_count = std::count_if(begin(), end(), [](const char c) { return c == '\n'; });
 

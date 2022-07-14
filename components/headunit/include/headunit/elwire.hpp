@@ -31,7 +31,7 @@ class ElWire : public PulseWidthHeadUnit {
 public:
   ElWire(csv id, uint8_t pwm_num) : PulseWidthHeadUnit(id, pwm_num) {}
 
-  void handleMsg(const JsonObject &obj) override {
+  void handleMsg(JsonObjectConst obj) override {
     const uint32_t duty = obj[moduleId()] | 0;
 
     updateDuty(duty);

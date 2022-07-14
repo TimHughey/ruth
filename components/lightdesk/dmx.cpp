@@ -22,28 +22,22 @@
 #include "base/ru_time.hpp"
 #include "io/io.hpp"
 
-#include <chrono>
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_log.h>
 #include <esp_netif.h>
-#include <freertos/task.h>
-
-#include <array>
 #include <iterator>
-#include <lwip/err.h>
-#include <lwip/netdb.h>
-#include <lwip/sockets.h>
-#include <lwip/sys.h>
-#include <memory>
-#include <mutex>
 #include <soc/uart_periph.h>
 #include <soc/uart_reg.h>
-#include <vector>
 
 using namespace std::literals::chrono_literals;
 
 namespace ruth {
+
+namespace dmx {
+pthread_t thread;
+void join() { pthread_join(thread, nullptr); }
+} // namespace dmx
 
 // DMX frames per second
 using FPS = std::chrono::duration<float, std::ratio<1, 44>>;
@@ -67,117 +61,95 @@ static constexpr int uart_num = 1;
 constexpr gpio_num_t TX_PIN = GPIO_NUM_17;
 static esp_err_t uart_rc = ESP_FAIL;
 
-DMX::DMX(io_context &io_ctx)
-    : fps_timer(io_ctx) // frames per second timer
-{
-
+DMX::DMX() : fps_timer(io_ctx) {
   // uart driver not installed or failed last time
   if (uart_rc == ESP_FAIL) {
-    if (uart_rc = uart_driver_install(uart_num, 129, TX_LEN, 0, NULL, 0); uart_rc == ESP_OK) {
+    if (uart_rc = uart_driver_install(uart_num, 129, dmx::TX_LEN, 0, NULL, 0); uart_rc == ESP_OK) {
       uart_rc = uartInit();
     }
   }
 }
 
 IRAM_ATTR void DMX::fpsCalculate() {
+  static uint64_t calcs = 0;
+  static TimePoint fps_start = steady_clock::now();
 
-  if (state == desk::State::SHUTDOWN) {
+  if (state == desk::SHUTDOWN) {
     return;
   }
 
-  fps_timer.expires_at(render_start + Millis(FRAME_STATS * stats.frame_count));
+  fps_timer.expires_at(fps_start + Millis(FRAME_STATS * calcs++));
 
   fps_timer.async_wait([this](const error_code ec) {
-    if (!ec) {
-
-      if (frame_count_mark && stats.frame_count) {
-        fpcp = stats.frame_count - frame_count_mark;
-
-        auto fps = fpcp / FRAME_STATS.count();
-
-        stats.fps = fps;
-        ESP_LOGD("dmx", "fps=%2.2f", fps);
-      }
-
-      // save the frame count as of this invocation
-      frame_count_mark = stats.frame_count;
-
-      fpsCalculate(); // restart timer
-
-    } else if (ec != asio::error::basic_errors::operation_aborted) {
-      ESP_LOGD("DMX", "terminating resason=%s\n", ec.message().c_str());
+    if (ec != asio::error::basic_errors::operation_aborted) {
+      ESP_LOGD(TAG.data(), "terminating resason=%s\n", ec.message().c_str());
     }
+
+    if (stats.mark && stats.frame_count) {
+      stats.fps = (stats.frame_count - stats.mark) / FRAME_STATS.count();
+
+      ESP_LOGD(TAG.data(), "fps=%2.2f", stats.fps);
+    }
+
+    // save the frame count as of this invocation
+    stats.mark = stats.frame_count;
+
+    fpsCalculate(); // restart timer
   });
 }
 
-void DMX::stop() {
+IRAM_ATTR void *DMX::run([[maybe_unused]] void *data) { // static
+  ptr()->fpsCalculate();                                // adds work to io_context
+  ptr()->io_ctx.run();
 
-  fps_timer.cancel(ec);
-
-  state = Sate::SHUTDOWN;
+  return nullptr; // returns when all work is complete
 }
 
-IRAM_ATTR void DMX::renderLoop() {
+void DMX::start() { // static
+  pthread_attr_t attr;
 
-  auto &rxb = rxBuffer();
+  if (auto res = pthread_attr_init(&attr); res == 0) {
+    pthread_attr_setstacksize(&attr, 4096);
 
-  socket.async_receive_from(
-      asio::buffer(rxb.data(), rxb.size()), [this](error_code ec, size_t rx_bytes) {
-        if (!ec && rx_bytes) {
+    if (pthread_create(&dmx::thread, &attr, DMX::run, NULL) == 0) {
+      ESP_LOGI(TAG.data(), "created thread=%d\n", dmx::thread);
+      return;
+    }
+  }
 
-          std::copy(buff.begin(), buff.begin() + rx_bytes, std::back_inserter(packet));
-        }
-      });
+  ESP_LOGE(TAG.data(), "failed to create pthread\n");
+}
 
-  // when mode is SHUTDOWN this function returns
-  auto rx_bytes = 0;
-  while (mode != SHUTDOWN) {
-    dmx::Packet packet;
+IRAM_ATTR void DMX::txFrame(dmx::Frame &&frame) {
+  // wait up to the max time to transmit a TX frame
+  static TickType_t frame_ticks = pdMS_TO_TICKS(FRAME_MS.count());
 
-    rx_bytes = recvfrom(socket, packet.rxData(), packet.maxRxLength(), 0, nullptr, nullptr);
+  frame.preventFlicker();
 
-    if ((rx_bytes > 0) && packet.validMagic()) {
-      memcpy(frame.data(), packet.frameData(), packet.frameDataLength());
-      txFrame(packet);
+  asio::post(io_ctx, [self = ptr(), frame = std::move(frame)]() mutable {
+    // always ensure the previous tx has completed which includes
+    // the BREAK (low for 88us)
+    if (uart_wait_tx_done(uart_num, frame_ticks) == ESP_OK) {
+      // at the end of the TX the UART pulls the TX low to generate the BREAK
+      // once the code reaches this point the BREAK is complete
 
-      if (packet.deserializeMsg()) {
-        for (auto unit : head_units) {
-          unit->handleMsg(packet.rootObj());
-        }
+      // copy the packet DMX frame to the actual UART tx frame.  the UART tx
+      // frame is larger to ensure enough bytes are sent to minimize flicker
+      // for headunits that turn off between frames.
+
+      size_t bytes = uart_write_bytes_with_break( // write the frame to the uart
+          uart_num,                               // iart_num
+          frame.data(),                           // data to send
+          frame.size(),                           // number of bytes
+          FRAME_BREAK);                           // bits to send as frame break
+
+      if (bytes == frame.size()) {
+        self->stats.frame_count++;
+      } else {
+        self->stats.frame_shorts++;
       }
     }
-  }
-
-  // run loop is falling through
-}
-
-IRAM_ATTR void DMX::txFrame(const dmx::Packet &packet) {
-  // wait up to the max time to transmit a TX frame
-  TickType_t frame_ticks = pdMS_TO_TICKS(FRAME_MS.count());
-
-  // always ensure the previous tx has completed which includes
-  // the BREAK (low for 88us)
-  if (uart_wait_tx_done(uart_num, frame_ticks) == ESP_OK) {
-    // at the end of the TX the UART pulls the TX low to generate the BREAK
-    // once the code reaches this point the BREAK is complete
-
-    // copy the packet DMX frame to the actual UART tx frame.  the UART tx
-    // frame is larger to ensure enough bytes are sent to minimize flicker
-    // for headunits that turn off between frames.
-
-    const uint8_t *packet_frame = packet.frameData();
-    for (uint32_t k = 0; k < packet.frameDataLength(); k++) {
-      frame[k] = packet_frame[k];
-    }
-
-    size_t bytes = uart_write_bytes_with_break(uart_num, frame.data(), frame.size(), FRAME_BREAK);
-
-    if (bytes == frame.size()) {
-      stats.frame_count++;
-    } else {
-      stats.frame_shorts++;
-    }
-  }
+  });
 }
 
 esp_err_t DMX::uartInit() {

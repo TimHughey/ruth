@@ -20,87 +20,112 @@
 
 #pragma once
 
-#include "base/ru_time.hpp"
+#include "base/types.hpp"
 #include "base/uint8v.hpp"
 #include "io/io.hpp"
 #include "msg.hpp"
 #include "state/state.hpp"
 
-#include <esp_timer.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-
-#include <set>
-#include <string>
+#include "esp_pthread.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <memory>
+#include <pthread.h>
 #include <vector>
 
 namespace ruth {
 
 class DMX;
-typedef std::unique_ptr<DMX> upDMX;
+typedef std::shared_ptr<DMX> shDMX;
 
-class DMX {
+namespace shared {
+static shDMX __dmx;
+} // namespace shared
 
+namespace dmx {
+
+constexpr size_t FRAME_LEN = 384;
+constexpr size_t TX_LEN = FRAME_LEN < 128 ? 0 : FRAME_LEN + 1;
+class Frame : public uint8v {
 public:
-  typedef uint8v Frame;
+  Frame() : uint8v(dmx::FRAME_LEN) {}
+
+  Frame(Frame &src) = delete;                  // no copy assignment
+  Frame(const Frame &src) = delete;            // no copy constructor
+  Frame &operator=(Frame &rhs) = delete;       // no copy assignment
+  Frame &operator=(const Frame &rhs) = delete; // no copy assignment
+
+  Frame(Frame &&src) = default;
+  Frame &operator=(Frame &&rhs) = default;
+
+  void preventFlicker() {
+    // ensure the frame is of sufficient bytes to prevent flickering
+    if (auto need_bytes = dmx::TX_LEN - size(); need_bytes > 0) {
+      for (auto i = 0; i < need_bytes; i++) {
+        emplace_back(0x00);
+      }
+    }
+  }
+};
+
+} // namespace dmx
+
+class DMX : public std::enable_shared_from_this<DMX> {
 
 private:
-  // FRAME constants
-  static constexpr size_t FRAME_LEN = 384;
-  static constexpr size_t TX_LEN = FRAME_LEN < 128 ? 0 : FRAME_LEN + 1;
-  static constexpr size_t RX_MAX_LEN = 512;
-
-public:
   struct Stats {
     float fps = 0;
     uint64_t frame_count = 0;
     uint64_t frame_shorts = 0;
+    uint64_t mark = 0;
   };
 
+private:
+  DMX(); // all access via shared_ptr
+
 public:
-  DMX(io_context &io_ctx);
+  static shDMX create() {
+    shared::__dmx = shDMX(new DMX());
+    return ptr();
+  }
+
+  inline static shDMX ptr() { return shared::__dmx->shared_from_this(); }
+  static void reset() { shared::__dmx.reset(); }
+
   ~DMX() = default;
 
-  // uint64_t frameInterval() const { return _frame_us; }
-  // float frameIntervalAsSeconds() {
-  //   const float frame_us = static_cast<float>(_frame_us);
-  //   const float frame_secs = (frame_us / (1000.0f * 1000.0f));
-  //   return frame_secs;
-  // }
-
   float framesPerSecond() const { return stats.fps; }
+  static void handleFrame(dmx::Frame &&frame) { ptr()->txFrame(std::forward<dmx::Frame>(frame)); }
 
   float idle() const { return stats.fps == 0.0f; }
 
-  void render() {
-    state = State::RENDER;
-    render_start = ru_time::nowNanos();
-    renderLoop();
-  }
+  void txFrame(dmx::Frame &&frame); // move frame to here
 
-  void stop();
+  static void start();
+  void stop() {
+    asio::post(io_ctx, [self = ptr()]() {
+      self->io_ctx.stop();
+      self->state.zombie();
+    });
+  }
 
 private:
   void fpsCalculate();
 
   void renderLoop();
-  void txFrame(const dmx::Packet &packet);
+  static void *run(void *data);
+
   esp_err_t uartInit();
 
 private:
   // order dependent
-  strand local_strand;
-
+  io_context io_ctx;
   steady_timer fps_timer;
 
   // order independent
-  State state = State::IDLE;
-  DMX::Frame frame; // the DMX frame starts as all zeros
-  TimePoint render_start;
-
-  uint64_t frame_count_mark = 0;
-  float fpcp = 0; // frames per calculate period
+  desk::State state;
 
   Stats stats;
+  static constexpr csv TAG = "DMX";
 };
 } // namespace ruth

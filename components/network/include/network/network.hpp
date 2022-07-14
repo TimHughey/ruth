@@ -73,7 +73,7 @@ private:
   static constexpr size_t max_name_and_id_len = 32;
   char _host_id[max_name_and_id_len] = {};
   char _hostname[max_name_and_id_len] = {};
-  bool reconnect_ = true;
+  bool reconnect = true;
 
   static const uint8_t _ca_start_[] asm("_binary_ca_pem_start");
   static const uint8_t _ca_end_[] asm("_binary_ca_pem_end");

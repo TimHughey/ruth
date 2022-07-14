@@ -25,13 +25,13 @@
 namespace ruth {
 namespace desk {
 
+constexpr csv IDLE = "idle";
+constexpr csv RENDER = "render";
+constexpr csv SHUTDOWN = "shutdown";
+constexpr csv ZOMBIE = "zombie";
+
 struct State {
   State() = default;
-
-  static constexpr csv IDLE = "idle";
-  static constexpr csv RENDER = "render";
-  static constexpr csv SHUTDOWN = "shutdown";
-  static constexpr csv ZOMBIE = "zombie";
 
   State &operator=(csv next_state) {
     state = next_state;
@@ -40,7 +40,11 @@ struct State {
 
   friend bool operator==(const State &lhs, csv &rhs) { return lhs.state.front() == rhs.front(); }
 
-  string_view state = State::IDLE;
+  void idle() { state = desk::IDLE; }
+  void zombie() { state = desk::ZOMBIE; }
+
+private:
+  string_view state = desk::IDLE;
 };
 
 } // namespace desk

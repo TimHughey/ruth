@@ -28,7 +28,7 @@ namespace ruth {
 
 constexpr gpio_num_t pin = GPIO_NUM_21;
 
-AcPower::AcPower() : HeadUnit(csv("ACP")) {
+AcPower::AcPower(csv id) : HeadUnit(id) {
   gpio_config_t pins_cfg;
 
   pins_cfg.pin_bit_mask = GPIO_SEL_21;
@@ -43,12 +43,12 @@ AcPower::AcPower() : HeadUnit(csv("ACP")) {
 
 AcPower::~AcPower() { gpio_set_level(pin, 0); }
 
-bool AcPower::status() {
+IRAM_ATTR bool AcPower::status() {
   auto pin_level = gpio_get_level(pin);
   return (pin_level > 0) ? true : false;
 }
 
-bool AcPower::setLevel(bool level) {
+IRAM_ATTR bool AcPower::setLevel(bool level) {
   auto rc = false;
   bool pin_level = level ? 1 : 0;
   auto esp_rc = gpio_set_level(pin, pin_level);

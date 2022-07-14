@@ -27,9 +27,9 @@ namespace ruth {
 class DiscoBall : public PulseWidthHeadUnit {
 
 public:
-  DiscoBall(uint8_t pwm_num) : PulseWidthHeadUnit("DSB", pwm_num){};
+  DiscoBall(csv id, uint8_t pwm_num) : PulseWidthHeadUnit(id, pwm_num) {}
 
-  void handleMsg(const JsonObject &obj) override {
+  void handleMsg(JsonObjectConst obj) override {
     const uint32_t duty = obj[moduleId()] | 0;
 
     updateDuty(duty);

@@ -47,10 +47,9 @@ public:
 
 private:
   LightDesk(const Opts &opts)
-      : endpoint(ip_udp::v4(), 0),            //  udp endpoint (any available port)
-        socket(io_ctx, endpoint),             //  the msg socket
+      : endpoint(ip_udp::v4(), 0),            // udp endpoint (any available port)
+        socket(io_ctx, endpoint),             // the msg socket
         idle_timer(io_ctx),                   // idle timer
-                                              // dmx(new DMX(io_ctx)),
         start_at(ru_time::nowMicrosSystem()), // start_at- (ru_time::nowMicrosSystem()
         idle_at(ru_time::nowMicrosSystem()),  // system micros desk became idle
         idle_check(opts.idle_check)           // how often to check desk is idle
@@ -77,6 +76,9 @@ public: // static function to create, access and reset shared LightDesk
 private:
   void idleWatchDog();
   void messageLoop();
+
+  static inline void start([[maybe_unused]] void *data) { ptr()->run(); }
+
   void run();
 
 private:

@@ -27,9 +27,9 @@ namespace ruth {
 class LedForest : public PulseWidthHeadUnit {
 
 public:
-  LedForest(uint8_t pwm_num) : PulseWidthHeadUnit("LDR", pwm_num) {}
+  LedForest(csv id, uint8_t pwm_num) : PulseWidthHeadUnit(id, pwm_num) {}
 
-  void handleMsg(const JsonObject &obj) override {
+  void handleMsg(JsonObjectConst obj) override {
     const uint32_t duty = obj[moduleId()] | 0;
 
     updateDuty(duty);

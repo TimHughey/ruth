@@ -31,16 +31,16 @@ namespace ruth {
 
 class PulseWidthHeadUnit : public HeadUnit, public pwm::Hardware {
 public:
-  PulseWidthHeadUnit(csv module_id, uint8_t num)
-      : HeadUnit(module_id), // set module id in HeadUnit
-        Hardware(num)        // set pwm num in pwm::Hardware
+  PulseWidthHeadUnit(csv id, uint8_t num)
+      : HeadUnit(id), // set module id in HeadUnit
+        Hardware(num) // set pwm num in pwm::Hardware
   {}
 
   virtual ~PulseWidthHeadUnit() = default;
 
 public:
   virtual void dark() override { updateDuty(0); }
-  virtual void handleMsg(const JsonObject &obj) override = 0;
+  virtual void handleMsg(JsonObjectConst obj) override = 0;
 
 private:
 };

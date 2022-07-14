@@ -38,8 +38,9 @@ public:
   virtual ~HeadUnit() = default;
 
   virtual void dark() = 0;
-  virtual void handleMsg(const JsonObject &obj) = 0;
-  csv moduleId() const { return module_id; }
+  virtual void handleMsg(JsonObjectConst obj) = 0;
+
+  csv moduleId() { return module_id; }
 
 private:
   string_view module_id;

@@ -22,18 +22,16 @@
 
 #include "headunit/headunit.hpp"
 
-#include <driver/gpio.h>
-
 namespace ruth {
 
 class AcPower : public HeadUnit {
 public:
-  AcPower();
+  AcPower(csv id);
   ~AcPower() override;
 
 public:
   void dark() override { setLevel(false); }
-  void handleMsg(const JsonObject &obj) override { setLevel(obj["ACP"] | false); }
+  void handleMsg(JsonObjectConst obj) override { setLevel(obj[moduleId()] | false); }
 
   bool off() { return setLevel(false); }
   bool on() { return setLevel(true); }

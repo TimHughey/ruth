@@ -62,7 +62,7 @@ void Net::connected(void *event_data) {}
 
 void Net::disconnected(void *event_data) {
 
-  if (reconnect_) {
+  if (reconnect) {
     esp_wifi_connect();
   }
 }
@@ -246,7 +246,7 @@ bool Net::start(const Opts &opts) {
 void Net::stop() {
   Net &net = __singleton__;
 
-  net.reconnect_ = false;
+  net.reconnect = false;
 
   esp_wifi_disconnect();
   esp_wifi_stop();
