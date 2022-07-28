@@ -20,9 +20,9 @@
 
 #pragma once
 
-#include "base/types.hpp"
 #include "dev_pwm/pwm.hpp"
 #include "headunit/headunit.hpp"
+#include "ru_base/types.hpp"
 
 #include <driver/gpio.h>
 #include <driver/ledc.h>

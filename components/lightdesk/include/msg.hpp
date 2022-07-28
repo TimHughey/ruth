@@ -20,10 +20,11 @@
 
 #pragma once
 
-#include "base/uint8v.hpp"
 #include "io/io.hpp"
+#include "ru_base/uint8v.hpp"
 
 #include "ArduinoJson.h"
+#include <esp_log.h>
 #include <memory>
 
 namespace ruth {
@@ -36,12 +37,16 @@ class DeskMsg : public std::enable_shared_from_this<DeskMsg> {
 private:
   static constexpr csv MAGIC{"magic"};
   static constexpr csv DFRAME{"dframe"};
-  typedef DynamicJsonDocument MsgPackDoc;
 
 public:
-  DeskMsg(std::array<char, 1024> &buff, size_t capacity = 1024) : doc(capacity) {
+  DeskMsg(std::array<char, 1024> &buff, size_t rx_bytes) {
 
-    if (auto err = deserializeMsgPack(doc, buff.data()); !err) {
+    auto err = deserializeMsgPack(doc, buff.data(), rx_bytes);
+
+    if (err) {
+      ESP_LOGW("DeskMsg", "deserialize failure reason=%s", err.c_str());
+      deserialize_ok = false;
+    } else {
       deserialize_ok = true;
       root_obj = doc.as<JsonObjectConst>();
     }
@@ -61,11 +66,20 @@ public:
     return std::move(dmx_f);
   }
 
-  inline bool validMagic() const { return good() && ((root_obj[MAGIC] | 0x00) == 0xc9d2); }
+  inline bool validMagic() const {
+    uint32_t magic = root_obj[MAGIC];
+
+    if (magic != 0xc9d2) {
+      ESP_LOGW("DeskMsg", "invalid magic=0x%0x", magic);
+    }
+
+    return good() && (magic == 0xc9d2);
+  }
+
+  inline size_t inspect(string &json_debug) const { return serializeJsonPretty(doc, json_debug); }
 
 private:
-  uint8v rx_buff;
-  MsgPackDoc doc;
+  StaticJsonDocument<512> doc;
   JsonObjectConst root_obj;
 
   bool deserialize_ok = false;

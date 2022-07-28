@@ -19,8 +19,8 @@
 */
 
 #include "headunit/ac_power.hpp"
-#include "base/types.hpp"
 #include "headunit/headunit.hpp"
+#include "ru_base/types.hpp"
 
 #include <driver/gpio.h>
 

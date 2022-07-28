@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "base/types.hpp"
+#include "ru_base/types.hpp"
 
 namespace ruth {
 namespace desk {
@@ -39,7 +39,7 @@ struct State {
   }
 
   friend bool operator==(const State &lhs, csv &rhs) { return lhs.state.front() == rhs.front(); }
-
+  friend bool operator!=(const State &lhs, csv &rhs) { return !(lhs == rhs); }
   void idle() { state = desk::IDLE; }
   void zombie() { state = desk::ZOMBIE; }
 

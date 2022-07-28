@@ -258,6 +258,8 @@ void Core::startEngines() {
   Engines::startConfigured(profile);
 
   _engines_started = true;
+
+  ESP_LOGI(TAG, "engines started");
 }
 
 void Core::startMqtt() {

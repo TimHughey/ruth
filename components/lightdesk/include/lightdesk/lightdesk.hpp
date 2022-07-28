@@ -20,16 +20,11 @@
 
 #pragma once
 
-#include "base/ru_time.hpp"
 #include "io/io.hpp"
-#include "misc/elapsed.hpp"
+#include "ru_base/time.hpp"
 #include "state/state.hpp"
 
 #include <chrono>
-#include <esp_timer.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <freertos/timers.h>
 #include <memory>
 
 namespace ruth {
@@ -39,21 +34,25 @@ typedef std::shared_ptr<LightDesk> shLightDesk;
 
 class LightDesk : public std::enable_shared_from_this<LightDesk> {
 public:
+  static constexpr csv TAG = "lightdesk";
+
+public:
   struct Opts {
-    uint32_t dmx_port = 48005;
-    Millis idle_shutdown = ru_time::as_duration<Seconds, Millis>(600s);
+    Millis idle_shutdown = ru_time::as_duration<Seconds, Millis>(15s);
     Millis idle_check = ru_time::as_duration<Seconds, Millis>(1s);
   };
 
 private:
-  LightDesk(const Opts &opts)
-      : endpoint(ip_udp::v4(), 0),            // udp endpoint (any available port)
-        socket(io_ctx, endpoint),             // the msg socket
-        idle_timer(io_ctx),                   // idle timer
-        start_at(ru_time::nowMicrosSystem()), // start_at- (ru_time::nowMicrosSystem()
-        idle_at(ru_time::nowMicrosSystem()),  // system micros desk became idle
-        idle_check(opts.idle_check)           // how often to check desk is idle
-  {}
+  // LightDesk(const Opts &opts)
+  //     : endpoint(ip_udp::v4(), 0),            // udp endpoint (any available port)
+  //       socket(io_ctx, endpoint),             // the msg socket
+  //       idle_timer(io_ctx),                   // idle timer
+  //       start_at(ru_time::nowMicrosSystem()), // start_at- (ru_time::nowMicrosSystem()
+  //       idle_at(ru_time::nowMicrosSystem()),  // system micros desk became idle
+  //       idle_check(opts.idle_check)           // how often to check desk is idle
+  // {}
+
+  LightDesk(const Opts &opts) : opts(opts) {}
 
 public: // static function to create, access and reset shared LightDesk
   static shLightDesk create(const Opts &opts);
@@ -64,37 +63,37 @@ public: // static function to create, access and reset shared LightDesk
   shLightDesk init(); // starts LightDesk task
 
   static void stop() {
-    [[maybe_unused]] error_code ec;
+    // [[maybe_unused]] error_code ec;
     auto self = ptr();
 
-    self->socket.close(ec);
-
-    self->idle_timer.cancel();
+    // self->socket.close(ec);
+    // self->idle_timer.cancel();
     self->io_ctx.stop();
   }
 
 private:
-  void idleWatchDog();
-  void messageLoop();
+  // void idleWatchDog();
+  // void messageLoop();
 
-  static inline void start([[maybe_unused]] void *data) { ptr()->run(); }
-
-  void run();
+  static inline void _run([[maybe_unused]] void *data) { ptr()->run(); }
+  void run(); // see .cpp file
 
 private:
   // order dependent
   io_context io_ctx;
-  udp_endpoint endpoint;
-  udp_socket socket;
-  steady_timer idle_timer;
-  // upDMX dmx;
-  Micros start_at;
-  Micros idle_at;
-  Millis idle_check; // watchdog timeout to declare LightDesk idle
+  const Opts opts;
+  // udp_endpoint endpoint;
+  // udp_socket socket;
+  // steady_timer idle_timer;
+  // Micros start_at;
+  // Micros idle_at;
+  // Millis idle_check; // watchdog timeout to declare LightDesk idle
 
   // order independent
-  udp_endpoint remote_endpoint;
+  // udp_endpoint remote_endpoint;
   desk::State state;
+
+  static constexpr Port SERVICE_PORT = 49152;
 };
 
 } // namespace ruth

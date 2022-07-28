@@ -38,5 +38,11 @@ using udp_endpoint = asio::ip::udp::endpoint;
 using udp_socket = asio::ip::udp::socket;
 
 typedef uint16_t Port;
+namespace io {
+constexpr auto aborted = asio::error::basic_errors::operation_aborted;
+constexpr auto resource_unavailable = std::errc::resource_unavailable_try_again;
+constexpr auto noent = std::errc::no_such_file_or_directory;
+
+} // namespace io
 
 } // namespace ruth

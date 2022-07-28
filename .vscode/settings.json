@@ -1,4 +1,22 @@
 {
-  "C_Cpp.intelliSenseEngine": "Tag Parser",
-  "idf.adapterTargetName": "esp32"
+  "idf.adapterTargetName": "esp32",
+  "idf.flashType": "UART",
+  "idf.enableCCache": true,
+  "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: LLVM, UseTab: Never, ColumnLimit: 99 }",
+  "C_Cpp.clang_format_sortIncludes": true,
+  "C_Cpp.clang_format_style": "{ BasedOnStyle: LLVM, UseTab: Never, ColumnLimit: 99 }",
+  "idf.openOcdConfigs": [
+    "interface/ftdi/esp32_devkitj_v1.cfg",
+    "target/esp32.cfg"
+  ],
+  "css.format.spaceAroundSelectorSeparator": true,
+  "C_Cpp.autocompleteAddParentheses": true,
+  "C_Cpp.default.cppStandard": "c++17",
+  "C_Cpp.default.cStandard": "c11",
+  "idf.port": "/dev/tty.usbserial-0163A219",
+  "editor.bracketPairColorization.independentColorPoolPerBracketType": true,
+  "editor.smoothScrolling": true,
+  "editor.tabSize": 2,
+  "editor.wordWrapColumn": 99,
+  "editor.formatOnSave": true
 }

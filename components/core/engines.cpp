@@ -19,11 +19,11 @@
 */
 
 #include "core/engines.hpp"
-#include "base/ru_time.hpp"
 #include "engine_ds/ds.hpp"
 #include "engine_i2c/i2c.hpp"
 #include "engine_pwm/pwm.hpp"
 #include "lightdesk/lightdesk.hpp"
+#include "ru_base/time.hpp"
 
 #include <esp_log.h>
 
@@ -81,13 +81,10 @@ void Engines::startConfigured(const JsonObject &profile) {
   }
 
   if (lightdesk) {
-    LightDesk::Opts opts;
+    const LightDesk::Opts opts{.idle_shutdown = Millis(lightdesk["idle_shutdown_ms"]),
+                               .idle_check = Millis(lightdesk["idle_check_ms"])};
 
-    opts.dmx_port = lightdesk["dmx_port"];
-    opts.idle_shutdown = Millis(lightdesk["idle_shutdown_ms"]);
-    opts.idle_check = Millis(lightdesk["idle_check_ms"]);
-
-    LightDesk::create(opts)->init()->run();
+    LightDesk::create(opts)->init();
   }
 }
 

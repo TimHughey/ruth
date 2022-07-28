@@ -6,7 +6,7 @@ idf_component_register(
   SRCS                ac_power.cpp
   INCLUDE_DIRS        include
   PRIV_INCLUDE_DIRS   .
-  REQUIRES            base dev_pwm
+  REQUIRES            ru_base dev_pwm
 )
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

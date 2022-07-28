@@ -1,0 +1,31 @@
+{
+  "units": [
+    {
+      "type": "acp",
+      "name": "ac power",
+      "address": 0
+    },
+    {
+      "type": "dsb",
+      "name": "disco ball",
+      "address": 1
+    },
+    {
+      "type": "elw",
+      "name": "el dance",
+      "address": 2
+    },
+    {
+      "type": "elw",
+      "name": "el entry",
+      "address": 3
+    },
+    {
+      "type": "lef",
+      "name": "led forest",
+      "address": 4
+    }
+  ],
+  "idle_shutdown_ms": 600000,
+  "idle_check_ms": 1000
+}
