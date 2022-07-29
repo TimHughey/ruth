@@ -39,7 +39,7 @@ private:
   static constexpr csv DFRAME{"dframe"};
 
 public:
-  DeskMsg(std::array<char, 1024> &buff, size_t rx_bytes) {
+  DeskMsg(std::array<char, 256> &buff, size_t rx_bytes) {
 
     auto err = deserializeMsgPack(doc, buff.data(), rx_bytes);
 
@@ -79,7 +79,7 @@ public:
   inline size_t inspect(string &json_debug) const { return serializeJsonPretty(doc, json_debug); }
 
 private:
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<1536> doc;
   JsonObjectConst root_obj;
 
   bool deserialize_ok = false;

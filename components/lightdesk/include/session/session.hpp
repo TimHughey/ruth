@@ -46,23 +46,21 @@ private:
         idle_at(ru_time::nowMicrosSystem()),  // system micros desk became idle
         idle_check(di.idle_check),            // frequency of idle check timer
         idle_shutdown(di.idle_shutdown)       // when to declare session idle
-  {}
+  {
+    socket.set_option(socket_base::keep_alive(true));
+    socket.set_option(ip_tcp::no_delay(true));
+  }
 
 public:
   ~Session() {
     ESP_LOGI("DeskSession", "falling out of scope, handle=%d", socket.native_handle());
 
     [[maybe_unused]] error_code ec; // must use error_code overload to prevent throws
-    socket.cancel(ec);
-    idle_timer.cancel(ec);
     socket.shutdown(tcp_socket::shutdown_both, ec);
     socket.close(ec);
   }
 
   static shSession activeSession();
-
-private:
-  void idleWatchDog();
 
 private:
   // order dependent

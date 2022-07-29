@@ -50,14 +50,14 @@ public:
     Frame(Frame &&src) = default;                // allow move assignment
     Frame &operator=(Frame &&rhs) = default;     // allow copy assignment
 
-    inline void preventFlicker() {
-      // ensure the frame is of sufficient bytes to prevent flickering
-      if (auto need_bytes = TX_LEN - size(); need_bytes > 0) {
-        for (auto i = 0; i < need_bytes; i++) {
-          emplace_back(0x00);
-        }
-      }
-    }
+    // inline void preventFlicker() {
+    //   // ensure the frame is of sufficient bytes to prevent flickering
+    //   if (auto need_bytes = TX_LEN - size(); need_bytes > 0) {
+    //     for (auto i = 0; i < need_bytes; i++) {
+    //       emplace_back(0x00);
+    //     }
+    //   }
+    // }
   };
 
 private:
@@ -70,18 +70,18 @@ private:
     uint64_t mark = 0;
   };
 
-private:
-  DMX();
+private: // must use start to create object
+  DMX() : fps_timer(io_ctx) {}
 
 public:
-  static shDMX start();
-  ~DMX() = default;
+  ~DMX();
 
   float fps() const { return stats.fps; }
   float idle() const { return stats.fps == 0.0f; }
 
   void txFrame(DMX::Frame &&frame);
 
+  static shDMX start();
   void stop() { fps_timer.cancel(); }
 
 private:
