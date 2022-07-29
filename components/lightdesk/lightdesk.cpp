@@ -64,39 +64,10 @@ void LightDesk::reset() { // static
 
 // general API
 
-// IRAM_ATTR void LightDesk::idleWatchDog() {
-//   if (state != desk::SHUTDOWN) {
-//     // each call will restart the timer
-//     idle_timer.expires_after(idle_check);
-
-//     idle_timer.async_wait( //
-//         [self = shared_from_this(), &units = shared::headunits](error_code ec) {
-//           // if the timer ever expires then we're idle
-//           if (!ec) {
-//             std::for_each(units.begin(), units.end(), [](shHeadUnit unit) { unit->dark(); });
-
-//             self->state.idle();
-
-//             ESP_LOGD(TAG.data(), "is idle");
-
-//             self->idleWatchDog(); // always reschedule self
-//           } else {
-//             ESP_LOGD(TAG.data(), "idleWatchDog() ec=%s", ec.message().c_str());
-//           }
-//         });
-//   }
-// }
-
 shLightDesk LightDesk::init() {
   ESP_LOGI(TAG.data(), "enabled, starting up");
 
-  // shared::headunits.emplace_back(std::make_shared<AcPower>("ac power"));
-  // shared::headunits.emplace_back(std::make_shared<DiscoBall>("disco ball", 1)); // pwm 1
-  // shared::headunits.emplace_back(std::make_shared<ElWire>("el dance", 2));      // pwm 2
-  // shared::headunits.emplace_back(std::make_shared<ElWire>("el entry", 3));      // pwm 3
-  // shared::headunits.emplace_back(std::make_shared<LedForest>("led forest", 4)); // pwm 4
-
-  shared::lightdesk_task =                  // create the task using a static stack
+   shared::lightdesk_task =                  // create the task using a static stack
       xTaskCreateStatic(&LightDesk::_run,   // static func to start task
                         TAG.data(),         // task name
                         desk::stack.size(), // stack size
@@ -146,17 +117,13 @@ shLightDesk LightDesk::init() {
 // definefd in .cpp to limit exposure of Advertise
 void LightDesk::run() {
 
-  auto server = //
-      std::unique_ptr<desk::Server>(new desk::Server({.io_ctx = io_ctx,
-                                                      .listen_port = SERVICE_PORT,
-                                                      .idle_shutdown = opts.idle_shutdown,
-                                                      .idle_check = opts.idle_check}));
+  auto server = std::unique_ptr<desk::Server>(       //
+      new desk::Server({.io_ctx = io_ctx,            //
+                        .listen_port = SERVICE_PORT, //
+                        .idle_shutdown = opts.idle_shutdown}));
 
   desk::Advertise::create(server->localPort())->init();
-
-  // idleWatchDog();      // schedule idle watch dog
   server->asyncLoop(); // schedule accept connections
-  // messageLoop();
 
   // const auto msg_port = socket.local_endpoint().port();
   // desk::Advertise::create(server->localPort())->init()->addService();

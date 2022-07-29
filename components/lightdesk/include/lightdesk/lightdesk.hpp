@@ -39,19 +39,9 @@ public:
 public:
   struct Opts {
     Millis idle_shutdown = ru_time::as_duration<Seconds, Millis>(120s);
-    Millis idle_check = ru_time::as_duration<Seconds, Millis>(1s);
   };
 
 private:
-  // LightDesk(const Opts &opts)
-  //     : endpoint(ip_udp::v4(), 0),            // udp endpoint (any available port)
-  //       socket(io_ctx, endpoint),             // the msg socket
-  //       idle_timer(io_ctx),                   // idle timer
-  //       start_at(ru_time::nowMicrosSystem()), // start_at- (ru_time::nowMicrosSystem()
-  //       idle_at(ru_time::nowMicrosSystem()),  // system micros desk became idle
-  //       idle_check(opts.idle_check)           // how often to check desk is idle
-  // {}
-
   LightDesk(const Opts &opts) : opts(opts) {}
 
 public: // static function to create, access and reset shared LightDesk
@@ -82,12 +72,6 @@ private:
   // order dependent
   io_context io_ctx;
   const Opts opts;
-  // udp_endpoint endpoint;
-  // udp_socket socket;
-  // steady_timer idle_timer;
-  // Micros start_at;
-  // Micros idle_at;
-  // Millis idle_check; // watchdog timeout to declare LightDesk idle
 
   // order independent
   // udp_endpoint remote_endpoint;

@@ -68,8 +68,7 @@ void Server::asyncLoop(const error_code ec_last) {
         // assemble the dependency injection and start the server
         const session::Inject inject{.io_ctx = di.io_ctx, // io_cty (used to create a local strand)
                                      .socket = std::move(socket.value()),
-                                     .idle_shutdown = di.idle_shutdown,
-                                     .idle_check = di.idle_check};
+                                     .idle_shutdown = di.idle_shutdown};
 
         Session::start(inject);
       } else { // already have an active session

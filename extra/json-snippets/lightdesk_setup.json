@@ -26,6 +26,5 @@
       "address": 4
     }
   ],
-  "idle_shutdown_ms": 600000,
-  "idle_check_ms": 1000
+  "idle_shutdown_ms": 600000
 }

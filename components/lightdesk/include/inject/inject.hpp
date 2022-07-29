@@ -30,7 +30,6 @@ struct Inject {
   io_context &io_ctx;
   Port listen_port;
   Millis idle_shutdown;
-  Millis idle_check;
 };
 } // namespace server
 
@@ -40,7 +39,6 @@ struct Inject {
   io_context &io_ctx;
   tcp_socket &&socket;
   Millis idle_shutdown;
-  Millis idle_check;
 };
 
 } // namespace session
