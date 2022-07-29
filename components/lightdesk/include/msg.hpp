@@ -26,6 +26,7 @@
 #include "ArduinoJson.h"
 #include <esp_log.h>
 #include <memory>
+#include <optional>
 
 namespace ruth {
 
@@ -41,9 +42,7 @@ private:
 public:
   DeskMsg(std::array<char, 256> &buff, size_t rx_bytes) {
 
-    auto err = deserializeMsgPack(doc, buff.data(), rx_bytes);
-
-    if (err) {
+    if (auto err = deserializeMsgPack(doc, buff.data(), rx_bytes); err) {
       ESP_LOGW("DeskMsg", "deserialize failure reason=%s", err.c_str());
       deserialize_ok = false;
     } else {
@@ -59,8 +58,10 @@ public:
   template <typename T> inline T dframe() const {
     T dmx_f = T();
 
-    for (JsonVariantConst frame_byte : root_obj[DFRAME].as<JsonArrayConst>()) {
-      dmx_f.emplace_back(frame_byte.as<uint8_t>());
+    if (auto dframe_array = root_obj[DFRAME].as<JsonArrayConst>(); dframe_array) {
+      for (JsonVariantConst frame_byte : root_obj[DFRAME].as<JsonArrayConst>()) {
+        dmx_f.push_back(frame_byte.as<uint8_t>());
+      }
     }
 
     return std::move(dmx_f);
@@ -79,6 +80,11 @@ public:
   inline size_t inspect(string &json_debug) const { return serializeJsonPretty(doc, json_debug); }
 
 private:
+  static std::optional<udp_socket> socket;
+  udp_endpoint endpoint_local;
+  udp_endpoint endpoint_remote;
+
+  // order independent
   StaticJsonDocument<1536> doc;
   JsonObjectConst root_obj;
 

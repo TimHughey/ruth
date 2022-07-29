@@ -50,14 +50,14 @@ public:
     Frame(Frame &&src) = default;                // allow move assignment
     Frame &operator=(Frame &&rhs) = default;     // allow copy assignment
 
-    // inline void preventFlicker() {
-    //   // ensure the frame is of sufficient bytes to prevent flickering
-    //   if (auto need_bytes = TX_LEN - size(); need_bytes > 0) {
-    //     for (auto i = 0; i < need_bytes; i++) {
-    //       emplace_back(0x00);
-    //     }
-    //   }
-    // }
+    inline void preventFlicker() {
+      // ensure the frame is of sufficient bytes to prevent flickering
+      if (auto need_bytes = FRAME_LEN - size(); need_bytes > 0) {
+        for (auto i = 0; i < need_bytes; i++) {
+          push_back(0x00);
+        }
+      }
+    }
   };
 
 private:

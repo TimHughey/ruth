@@ -91,9 +91,10 @@ static void create_units() {
   units.emplace_back(std::make_shared<LedForest>("led forest", 4)); // pwm 4
 }
 
+DRAM_ATTR std::array<char, 256> msg_buff;
+
 IRAM_ATTR static const error_code handle_msg(tcp_socket &socket, shDMX dmx) {
-  std::array<char, 256> msg_buff;
-  StaticJsonDocument<512> doc;
+  // std::array<char, 256> msg_buff;
 
   msg_len = ntohs(msg_len); // network order to host order
 
@@ -111,6 +112,7 @@ IRAM_ATTR static const error_code handle_msg(tcp_socket &socket, shDMX dmx) {
 
       if (msg.validMagic()) {
         dmx->txFrame(msg.dframe<DMX::Frame>());
+        dmx->preventFlicker();
 
         for (auto unit : units) {
           unit->handleMsg(msg.root());

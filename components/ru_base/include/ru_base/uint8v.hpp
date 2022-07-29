@@ -34,8 +34,8 @@ namespace ruth {
 class uint8v : public std::vector<uint8_t> {
 public:
   uint8v() = default;
-  uint8v(size_t reserve_default) : reserve_default(reserve_default) {
-    assign(reserve_default, 0x00);
+  uint8v(size_t reserve_default) : reserve_default(reserve_default) { //
+    reserve(reserve_default);
   }
 
   uint8v(uint8v &src) = delete;                  // no copy assignment
