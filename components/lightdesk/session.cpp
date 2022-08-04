@@ -47,38 +47,57 @@ typedef std::vector<shHeadUnit> HeadUnits;
 DRAM_ATTR static HeadUnits units;
 
 static std::optional<shSession> active_session;
-static constexpr size_t MSG_LEN_SIZE = sizeof(uint16_t);
-static uint16_t msg_len = 0;
 
 // forward decl of static functions for Session
 static void async_loop(shSession session, shDMX dmx);
 static void create_units();
-static const error_code handle_msg(tcp_socket &socket, shDMX dmx);
 static void idle_watch_dog(shSession session, shDMX dmx);
 static void shutdown(shSession session, shDMX dmx);
 
+DRAM_ATTR DeskMsg::Packed packed;
+DRAM_ATTR uint16_t msg_len;
+static constexpr size_t MSG_LEN_SIZE = sizeof(msg_len);
+
 IRAM_ATTR static void async_loop(shSession session, shDMX dmx) {
-  // start by reading the packet length
 
-  asio::async_read(                                 // async read the length of the packet
-      session->socket,                              // read from socket
-      asio::mutable_buffer(&msg_len, MSG_LEN_SIZE), // into this buffer
-      asio::transfer_exactly(MSG_LEN_SIZE),         // the size of the pending packet
-      [session = session->shared_from_this(),       // capture shared ptrs
-       dmx = dmx->shared_from_this()](const error_code ec, size_t rx_bytes) {
-        if (!ec && (rx_bytes == MSG_LEN_SIZE)) {
-          idle_watch_dog(session, dmx); // reset the idle watchdog
+  asio::async_read(                         // async read the length of the packet
+      session->socket,                      // read from socket
+      asio::buffer(&msg_len, MSG_LEN_SIZE), // into this buffer
+      asio::transfer_exactly(MSG_LEN_SIZE), // the size of the pending packet
+      [session = session, dmx = dmx](const error_code ec, size_t rx_bytes) {
+        idle_watch_dog(session, dmx); // reset the idle watchdog
 
-          if (const auto msg_ec = handle_msg(session->socket, dmx); msg_ec) {
-            ESP_LOGD(TAG.data(), "handle_msg() failed reason=%s", msg_ec.message().c_str());
-            // fall through and close Session
-          } else {
-            // message handled, await next message and keep Session and DMX alive
-            async_loop(session, dmx);
-          }
-        } else {
-          ESP_LOGD(TAG.data(), "async_read() failed reason=%s", ec.message().c_str());
+        msg_len = ntohs(msg_len); // network order to host order
+
+        if (ec) { // error
+          ESP_LOGW(TAG.data(), "async_read() failed reason=%s", ec.message().c_str());
           shutdown(session, dmx);
+        } else {
+          // read the remainder of the packet
+          asio::async_read(session->socket,                 //
+                           asio::buffer(packed),            //
+                           asio::transfer_exactly(msg_len), //
+                           [=](const error_code ec, [[maybe_unused]] size_t rx_bytes) {
+                             if (ec) {
+                               ESP_LOGW(TAG.data(), "async_read() part two failed reason=%s",
+                                        ec.message().c_str());
+                               shutdown(session, dmx);
+                             }
+
+                             // second, now that we have the entire packed message
+                             // attempt to create the DeskMsg, ask DMX to send the frame then
+                             // ask each headunit to handle it's part of the message
+                             if (auto msg = DeskMsg(packed, msg_len); msg.validMagic()) {
+                               dmx->txFrame(msg.dframe<DMX::Frame>());
+
+                               for (auto unit : units) {
+                                 unit->handleMsg(msg.root());
+                               }
+                             }
+
+                             // call ourself and keep shared_ptrs in scope
+                             async_loop(session, dmx);
+                           });
         }
       });
 }
@@ -91,12 +110,11 @@ static void create_units() {
   units.emplace_back(std::make_shared<LedForest>("led forest", 4)); // pwm 4
 }
 
-DRAM_ATTR std::array<char, 256> msg_buff;
-
+/*
 IRAM_ATTR static const error_code handle_msg(tcp_socket &socket, shDMX dmx) {
   // std::array<char, 256> msg_buff;
 
-  msg_len = ntohs(msg_len); // network order to host order
+  auto buff_seq = std::array{mut_buffer(msg)}
 
   error_code msg_ec;
   auto bytes = asio::read(                                    // read the rest of the packet
@@ -112,7 +130,6 @@ IRAM_ATTR static const error_code handle_msg(tcp_socket &socket, shDMX dmx) {
 
       if (msg.validMagic()) {
         dmx->txFrame(msg.dframe<DMX::Frame>());
-        dmx->preventFlicker();
 
         for (auto unit : units) {
           unit->handleMsg(msg.root());
@@ -125,24 +142,24 @@ IRAM_ATTR static const error_code handle_msg(tcp_socket &socket, shDMX dmx) {
 
   return msg_ec;
 }
+*/
 
 IRAM_ATTR static void idle_watch_dog(shSession session, shDMX dmx) {
   auto expires = ru_time::as_duration<Seconds, Millis>(session->idle_shutdown);
   session->idle_timer.expires_after(expires);
-  session->idle_timer.async_wait( //
-      [session = session->shared_from_this(), dmx = dmx->shared_from_this()](const error_code ec) {
-        // if the timer ever expires then we're idle
-        if (!ec) {
-          std::for_each(units.begin(), units.end(), [](shHeadUnit unit) { unit->dark(); });
+  session->idle_timer.async_wait([=](const error_code ec) {
+    // if the timer ever expires then we're idle
+    if (!ec) {
+      std::for_each(units.begin(), units.end(), [](shHeadUnit unit) { unit->dark(); });
 
-          ESP_LOGI(TAG.data(), "is idle");
+      ESP_LOGI(TAG.data(), "is idle");
 
-          shutdown(session, dmx);
+      shutdown(session, dmx);
 
-        } else {
-          ESP_LOGD(TAG.data(), "idleWatchDog() terminating reason=%s", ec.message().c_str());
-        }
-      });
+    } else {
+      ESP_LOGD(TAG.data(), "idleWatchDog() terminating reason=%s", ec.message().c_str());
+    }
+  });
 }
 
 IRAM_ATTR static void shutdown(shSession session, shDMX dmx) {

@@ -49,8 +49,8 @@ void Server::asyncLoop(const error_code ec_last) {
   // optional for the lamba
   socket.emplace(di.io_ctx);
 
-  // since the io_ctx is wrapped in the optional and asyncLoop wants the actual
-  // io_ctx we must deference or get the value of the optional
+  // since the socket is wrapped in the optional and asyncLoop wants the actual
+  // socket we must deference or get the value of the optional
   acceptor.async_accept(*socket, [&](const error_code ec) {
     if (!ec) {
 

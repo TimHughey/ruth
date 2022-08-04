@@ -37,11 +37,10 @@ class DMX : public std::enable_shared_from_this<DMX> {
 public:
   class Frame : public uint8v {
   public:
-    static constexpr size_t FRAME_LEN = 384;
-    static constexpr size_t TX_LEN = FRAME_LEN < 128 ? 0 : FRAME_LEN + 1;
+    static constexpr size_t FRAME_LEN = 384; // minimum to prevent flicker
 
   public:
-    Frame() : uint8v(FRAME_LEN) {}
+    Frame() : uint8v(FRAME_LEN, 0x00) {}
 
     Frame(Frame &src) = delete;                  // no copy assignment
     Frame(const Frame &src) = delete;            // no copy constructor
@@ -49,15 +48,6 @@ public:
     Frame &operator=(const Frame &rhs) = delete; // no copy assignment
     Frame(Frame &&src) = default;                // allow move assignment
     Frame &operator=(Frame &&rhs) = default;     // allow copy assignment
-
-    inline void preventFlicker() {
-      // ensure the frame is of sufficient bytes to prevent flickering
-      if (auto need_bytes = FRAME_LEN - size(); need_bytes > 0) {
-        for (auto i = 0; i < need_bytes; i++) {
-          push_back(0x00);
-        }
-      }
-    }
   };
 
 private:

@@ -65,10 +65,12 @@ constexpr uint_fast32_t FRAME_BREAK = 22; // num bits at 250,000 baud (8µs)
 
 bool uart_init() {
   static esp_err_t uart_rc = ESP_FAIL;
+  constexpr size_t UART_MIN_BUFF = UART_FIFO_LEN + 1;
+  constexpr size_t UART_TX_BUFF = std::max(DMX::Frame::FRAME_LEN, UART_MIN_BUFF);
 
   // uart driver not installed or failed last time
   if (uart_rc == ESP_FAIL) {
-    if (uart_rc = uart_driver_install(UART_NUM, 129, DMX::Frame::TX_LEN, 0, NULL, 0);
+    if (uart_rc = uart_driver_install(UART_NUM, UART_MIN_BUFF, UART_TX_BUFF, 0, NULL, 0);
         uart_rc == ESP_OK) {
 
       uart_config_t uart_conf = {};
@@ -148,7 +150,7 @@ IRAM_ATTR void DMX::fpsCalculate() {
         // enough info to calc fps
         stats.fps = (stats.frame_count - stats.mark) / FRAME_STATS_SECS.count();
 
-        if (stats.fps < 43.5) {
+        if (stats.fps < 43.0) {
           ESP_LOGI(TAG.data(), "fps=%2.2f", stats.fps);
         }
       }

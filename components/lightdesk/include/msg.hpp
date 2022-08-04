@@ -21,10 +21,14 @@
 #pragma once
 
 #include "io/io.hpp"
+#include "misc/elapsed.hpp"
+#include "ru_base/time.hpp"
 #include "ru_base/uint8v.hpp"
 
 #include "ArduinoJson.h"
+#include <array>
 #include <esp_log.h>
+#include <esp_timer.h>
 #include <memory>
 #include <optional>
 
@@ -36,18 +40,28 @@ typedef std::shared_ptr<DeskMsg> shDeskMsg;
 class DeskMsg : public std::enable_shared_from_this<DeskMsg> {
 
 private:
+  static constexpr csv TAG = "DeskMsg";
+  typedef std::array<char, 384> Packed;
   static constexpr csv MAGIC{"magic"};
   static constexpr csv DFRAME{"dframe"};
+  static constexpr size_t DOC_SIZE = 1536; // JSON_ARRAY_SIZE(64) + JSON_OBJECT_SIZE(13);
 
 public:
-  DeskMsg(std::array<char, 256> &buff, size_t rx_bytes) {
-
+  DeskMsg(Packed &buff, size_t rx_bytes) {
     if (auto err = deserializeMsgPack(doc, buff.data(), rx_bytes); err) {
-      ESP_LOGW("DeskMsg", "deserialize failure reason=%s", err.c_str());
+      ESP_LOGW(TAG.data(), "deserialize failure reason=%s", err.c_str());
       deserialize_ok = false;
     } else {
       deserialize_ok = true;
       root_obj = doc.as<JsonObjectConst>();
+
+      int64_t nettime_now = root_obj["nettime_now_µs"].as<int64_t>();
+      int64_t frame_local = root_obj["frame_localtime_µs"].as<int64_t>();
+      int64_t remote_uptime = root_obj["uptime_µs"].as<int64_t>();
+      int64_t diff = std::abs(nettime_now - frame_local);
+
+      ESP_LOGD(TAG.data(), "nettime_now=%lld frame_local=%lld diff=%lld remote_uptime=%lld",
+               nettime_now, frame_local, diff, remote_uptime);
     }
   }
 
@@ -59,8 +73,9 @@ public:
     T dmx_f = T();
 
     if (auto dframe_array = root_obj[DFRAME].as<JsonArrayConst>(); dframe_array) {
+      size_t idx = 0;
       for (JsonVariantConst frame_byte : root_obj[DFRAME].as<JsonArrayConst>()) {
-        dmx_f.push_back(frame_byte.as<uint8_t>());
+        dmx_f[idx++] = frame_byte.as<uint8_t>();
       }
     }
 
@@ -71,7 +86,7 @@ public:
     uint32_t magic = root_obj[MAGIC];
 
     if (magic != 0xc9d2) {
-      ESP_LOGW("DeskMsg", "invalid magic=0x%0x", magic);
+      ESP_LOGW(TAG.data(), "invalid magic=0x%0x", magic);
     }
 
     return good() && (magic == 0xc9d2);
@@ -80,12 +95,8 @@ public:
   inline size_t inspect(string &json_debug) const { return serializeJsonPretty(doc, json_debug); }
 
 private:
-  static std::optional<udp_socket> socket;
-  udp_endpoint endpoint_local;
-  udp_endpoint endpoint_remote;
-
   // order independent
-  StaticJsonDocument<1536> doc;
+  StaticJsonDocument<DOC_SIZE> doc;
   JsonObjectConst root_obj;
 
   bool deserialize_ok = false;

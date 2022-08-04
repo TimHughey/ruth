@@ -20,6 +20,7 @@
 
 #include "inject/inject.hpp"
 #include "io/io.hpp"
+#include "misc/elapsed.hpp"
 #include "ru_base/types.hpp"
 #include "ru_base/uint8v.hpp"
 
@@ -36,6 +37,9 @@ typedef std::shared_ptr<Session> shSession;
 
 class Session : public std::enable_shared_from_this<Session> {
 public:
+  static constexpr size_t MSG_MIN_BYTES = 90;
+
+public:
   static void start(const session::Inject &di);
 
 private:
@@ -46,8 +50,10 @@ private:
         idle_at(ru_time::nowMicrosSystem()),  // system micros desk became idle
         idle_shutdown(di.idle_shutdown)       // when to declare session idle
   {
-    socket.set_option(socket_base::keep_alive(true));
     socket.set_option(ip_tcp::no_delay(true));
+    ESP_LOGI("DeskSession", "established connection handle=%d with host=%s port=%d",
+             socket.native_handle(), socket.remote_endpoint().address().to_string().c_str(),
+             socket.remote_endpoint().port());
   }
 
 public:
@@ -68,6 +74,9 @@ private:
   Micros start_at;
   Micros idle_at;
   Seconds idle_shutdown;
+
+  // order independent
+  Elapsed uptime;
 };
 
 } // namespace desk

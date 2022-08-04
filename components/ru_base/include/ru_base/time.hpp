@@ -24,6 +24,7 @@
 #include <chrono>
 #include <esp_timer.h>
 #include <time.h>
+#include <type_traits>
 
 namespace ruth {
 
@@ -58,6 +59,15 @@ struct ru_time {
     return std::chrono::duration_cast<T>(d2 - d1);
   }
 
+  template <typename T = Micros, typename S = T>
+  static constexpr T elapsed_abs(const T &d1, const S d2 = nowMicrosSystem()) {
+    if (std::is_same<T, S>::value) {
+      return std::chrono::abs(d2 - d1);
+    } else {
+      return std::chrono::abs(as_duration<S, T>(d2) - d1);
+    }
+  }
+
   static Nanos elapsed_abs_ns(const Nanos &d1,
                               const Nanos d2 = nowNanos()) { //
     return std::chrono::abs(d2 - d1);
@@ -72,15 +82,21 @@ struct ru_time {
 
   static Nanos nowNanos() {
     struct timespec tn;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &tn);
+    clock_gettime(CLOCK_MONOTONIC, &tn);
 
-    uint64_t secs_part = tn.tv_sec * NS_FACTOR.count();
-    uint64_t ns_part = tn.tv_nsec;
+    int64_t secs_part = tn.tv_sec * NS_FACTOR.count();
+    int64_t ns_part = tn.tv_nsec;
 
     return Nanos(secs_part + ns_part);
   }
 
-  template <typename T> static T nowSteady() { return as_duration<Nanos, T>(nowNanos()); }
+  template <typename T> static T nowSteady() {
+    if (std::is_same<T, Micros>::value) {
+      return Micros(esp_timer_get_time());
+    }
+
+    return as_duration<Nanos, T>(nowNanos());
+  }
 };
 
 } // namespace ruth

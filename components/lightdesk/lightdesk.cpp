@@ -23,10 +23,12 @@
 #include "io/io.hpp"
 #include "lightdesk/advertise.hpp"
 #include "msg.hpp"
+#include "ru_base/time.hpp"
 #include "server/server.hpp"
 
 #include <array>
 #include <esp_log.h>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -40,12 +42,7 @@ TaskHandle_t lightdesk_task;
 namespace desk {
 DRAM_ATTR static StaticTask_t tcb;
 DRAM_ATTR static std::array<StackType_t, 5 * 1024> stack;
-// DRAM_ATTR static HeadUnits units;
-
 } // namespace desk
-
-// constexpr size_t RX_MAX_LEN = 1024;
-// DRAM_ATTR static std::array<char, RX_MAX_LEN> rx_buff;
 
 // static method for create, access and reset of shared LightDesk
 shLightDesk LightDesk::create(const LightDesk::Opts &opts) { // static
@@ -67,7 +64,7 @@ void LightDesk::reset() { // static
 shLightDesk LightDesk::init() {
   ESP_LOGI(TAG.data(), "enabled, starting up");
 
-   shared::lightdesk_task =                  // create the task using a static stack
+  shared::lightdesk_task =                  // create the task using a static stack
       xTaskCreateStatic(&LightDesk::_run,   // static func to start task
                         TAG.data(),         // task name
                         desk::stack.size(), // stack size

@@ -25,6 +25,7 @@
 #include "state/state.hpp"
 
 #include <chrono>
+#include <esp_timer.h>
 #include <memory>
 
 namespace ruth {
@@ -52,19 +53,7 @@ public: // static function to create, access and reset shared LightDesk
   // general public API
   shLightDesk init(); // starts LightDesk task
 
-  static void stop() {
-    // [[maybe_unused]] error_code ec;
-    auto self = ptr();
-
-    // self->socket.close(ec);
-    // self->idle_timer.cancel();
-    self->io_ctx.stop();
-  }
-
 private:
-  // void idleWatchDog();
-  // void messageLoop();
-
   static inline void _run([[maybe_unused]] void *data) { ptr()->run(); }
   void run(); // see .cpp file
 
@@ -74,7 +63,7 @@ private:
   const Opts opts;
 
   // order independent
-  // udp_endpoint remote_endpoint;
+
   desk::State state;
 
   static constexpr Port SERVICE_PORT = 49152;

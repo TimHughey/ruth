@@ -62,6 +62,7 @@ private:
   tcp_acceptor acceptor;
 
   std::optional<tcp_socket> socket;
+
   static constexpr csv server_id = "DESK SERVER";
 };
 
