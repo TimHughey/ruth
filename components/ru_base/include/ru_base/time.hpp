@@ -37,6 +37,7 @@ using MillisFP = std::chrono::duration<double, std::chrono::milliseconds::period
 using Nanos = std::chrono::nanoseconds;
 using Seconds = std::chrono::duration<double>;
 using steady_clock = std::chrono::steady_clock;
+using system_clock = std::chrono::system_clock;
 using TimePoint = std::chrono::time_point<steady_clock>;
 
 struct ru_time {
@@ -76,6 +77,10 @@ struct ru_time {
   static constexpr Millis from_ms(int64_t ms) { return Millis(ms); }
   static constexpr Nanos from_ns(uint64_t ns) { return Nanos(ns); }
   static constexpr Nanos negative(Nanos d) { return Nanos::zero() - d; }
+
+  template <typename T> static T now_epoch() {
+    return std::chrono::duration_cast<T>(system_clock::now().time_since_epoch());
+  }
 
   static Micros nowMicrosSystem() { return Micros(esp_timer_get_time()); }
   static Millis nowMillis() { return std::chrono::duration_cast<Millis>(nowNanos()); }

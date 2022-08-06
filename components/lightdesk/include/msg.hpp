@@ -44,7 +44,7 @@ private:
   typedef std::array<char, 384> Packed;
   static constexpr csv MAGIC{"magic"};
   static constexpr csv DFRAME{"dframe"};
-  static constexpr size_t DOC_SIZE = 1536; // JSON_ARRAY_SIZE(64) + JSON_OBJECT_SIZE(13);
+  static constexpr size_t DOC_SIZE = 2048; // JSON_ARRAY_SIZE(64) + JSON_OBJECT_SIZE(13);
 
 public:
   DeskMsg(Packed &buff, size_t rx_bytes) {
@@ -55,13 +55,24 @@ public:
       deserialize_ok = true;
       root_obj = doc.as<JsonObjectConst>();
 
+      uint32_t seq_num = root_obj["seq_num"].as<uint32_t>();
+      uint32_t timestamp = root_obj["timestamp"].as<uint32_t>();
       int64_t nettime_now = root_obj["nettime_now_µs"].as<int64_t>();
       int64_t frame_local = root_obj["frame_localtime_µs"].as<int64_t>();
-      int64_t remote_uptime = root_obj["uptime_µs"].as<int64_t>();
+      int64_t remote_now = root_obj["now_µs"].as<int64_t>();
       int64_t diff = std::abs(nettime_now - frame_local);
+      bool silence = root_obj["silence"];
 
-      ESP_LOGD(TAG.data(), "nettime_now=%lld frame_local=%lld diff=%lld remote_uptime=%lld",
-               nettime_now, frame_local, diff, remote_uptime);
+      auto local_now_us = ru_time::now_epoch<Micros>();
+      auto remote_now_us = Micros(remote_now);
+      auto variance = local_now_us - remote_now_us;
+
+      if (std::chrono::abs(variance) > Micros(6000)) {
+        ESP_LOGI(TAG.data(), "variance=%lld", variance.count());
+      }
+
+      ESP_LOGD(TAG.data(), "seq_num=%u timestamp=%u diff=%-5lld %s", seq_num, timestamp, diff,
+               silence ? "SILENCE" : "");
     }
   }
 

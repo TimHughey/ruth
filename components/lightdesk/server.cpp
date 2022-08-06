@@ -38,6 +38,7 @@ void Server::asyncLoop(const error_code ec_last) {
     if ((ec_last != io::aborted) && (ec_last != io::resource_unavailable)) {
       ESP_LOGW(serverID(), "accept failed, reason=%s", ec_last.message().c_str());
     }
+
     // some kind of error occurred, simply close the socket
     [[maybe_unused]] error_code ec;
     acceptor.close(ec); // used error code overload to prevent throws
@@ -60,21 +61,20 @@ void Server::asyncLoop(const error_code ec_last) {
 
         // create the session passing all the options
         // notes
-        //  1: we move the socket (value of the optional) to session
-        //  2. we then start the session using the shared_ptr returned by Session::create()
-        //  3. Session::start() must ensure the shared_ptr pointer is captured in the
-        //     async lamba so it doesn't go out of scope
+        //  1: assemble the Inject options including moving the newly opened socket
+        //  2. start the Session and pass the inject options
+        //  3. Session will maintain the life of the shared ptr
 
         // assemble the dependency injection and start the server
-        const session::Inject inject{.io_ctx = di.io_ctx, // io_cty (used to create a local strand)
+        const session::Inject inject{.io_ctx = di.io_ctx, // io_ctx (used to create timers)
                                      .socket = std::move(socket.value()),
                                      .idle_shutdown = di.idle_shutdown};
 
         Session::start(inject);
       } else { // already have an active session
         [[maybe_unused]] error_code ec;
-        socket->shutdown(tcp_socket::shutdown_both);
-        socket->close();
+        socket->shutdown(tcp_socket::shutdown_both, ec);
+        socket->close(ec);
       }
 
       asyncLoop(ec); // schedule more work or gracefully exit

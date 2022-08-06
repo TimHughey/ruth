@@ -69,7 +69,7 @@ shLightDesk LightDesk::init() {
                         TAG.data(),         // task name
                         desk::stack.size(), // stack size
                         nullptr,            // task data (use ptr() to access LightDesk)
-                        5,                  // priority
+                        13,                 // priority
                         desk::stack.data(), // static task stack
                         &desk::tcb          // task control block
       );

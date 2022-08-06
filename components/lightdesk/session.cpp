@@ -69,10 +69,7 @@ IRAM_ATTR static void async_loop(shSession session, shDMX dmx) {
 
         msg_len = ntohs(msg_len); // network order to host order
 
-        if (ec) { // error
-          ESP_LOGW(TAG.data(), "async_read() failed reason=%s", ec.message().c_str());
-          shutdown(session, dmx);
-        } else {
+        if (!ec) {
           // read the remainder of the packet
           asio::async_read(session->socket,                 //
                            asio::buffer(packed),            //
@@ -98,6 +95,9 @@ IRAM_ATTR static void async_loop(shSession session, shDMX dmx) {
                              // call ourself and keep shared_ptrs in scope
                              async_loop(session, dmx);
                            });
+        } else {
+          ESP_LOGW(TAG.data(), "async_read() failed reason=%s", ec.message().c_str());
+          shutdown(session, dmx);
         }
       });
 }
