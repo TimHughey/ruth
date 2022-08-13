@@ -65,7 +65,7 @@ void Server::asyncLoop(const error_code ec_last) {
         //  2. start the Session and pass the inject options
         //  3. Session will maintain the life of the shared ptr
 
-        // assemble the dependency injection and start the server
+        // assemble the dependency injection and start the session
         const session::Inject inject{.io_ctx = di.io_ctx, // io_ctx (used to create timers)
                                      .socket = std::move(socket.value()),
                                      .idle_shutdown = di.idle_shutdown};
