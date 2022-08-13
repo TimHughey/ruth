@@ -60,6 +60,8 @@ static constexpr size_t MSG_LEN_SIZE = sizeof(msg_len);
 
 IRAM_ATTR static void async_loop(shSession session, shDMX dmx) {
 
+  // std::array buff_seq{asio::buffer(&msg_len, MSG_LEN_SIZE), asio::buffer(packed)};
+
   asio::async_read(                         // async read the length of the packet
       session->socket,                      // read from socket
       asio::buffer(&msg_len, MSG_LEN_SIZE), // into this buffer

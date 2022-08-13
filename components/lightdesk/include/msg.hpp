@@ -55,24 +55,23 @@ public:
       deserialize_ok = true;
       root_obj = doc.as<JsonObjectConst>();
 
-      uint32_t seq_num = root_obj["seq_num"].as<uint32_t>();
-      uint32_t timestamp = root_obj["timestamp"].as<uint32_t>();
-      int64_t nettime_now = root_obj["nettime_now_µs"].as<int64_t>();
-      int64_t frame_local = root_obj["frame_localtime_µs"].as<int64_t>();
+      // uint32_t seq_num = root_obj["seq_num"].as<uint32_t>();
+      // uint32_t timestamp = root_obj["timestamp"].as<uint32_t>();
+      // int64_t nettime_now = root_obj["nettime_now_µs"].as<int64_t>();
+      // int64_t frame_local = root_obj["frame_localtime_µs"].as<int64_t>();
       int64_t remote_now = root_obj["now_µs"].as<int64_t>();
-      int64_t diff = std::abs(nettime_now - frame_local);
-      bool silence = root_obj["silence"];
+      // int64_t diff = std::abs(nettime_now - frame_local);
+      // bool silence = root_obj["silence"];
 
-      auto local_now_us = ru_time::now_epoch<Micros>();
-      auto remote_now_us = Micros(remote_now);
-      auto variance = local_now_us - remote_now_us;
-
-      if (std::chrono::abs(variance) > Micros(6000)) {
-        ESP_LOGI(TAG.data(), "variance=%lld", variance.count());
+      if (MicrosFP variance =
+              std::chrono::abs(ru_time::now_epoch<MicrosFP>() - MicrosFP(remote_now));
+          variance > MicrosFP(10000)) {
+        ESP_LOGI(TAG.data(), "variance=%0.2f",
+                 ru_time::as_duration<MicrosFP, MillisFP>(variance).count());
       }
 
-      ESP_LOGD(TAG.data(), "seq_num=%u timestamp=%u diff=%-5lld %s", seq_num, timestamp, diff,
-               silence ? "SILENCE" : "");
+      // ESP_LOGD(TAG.data(), "seq_num=%u timestamp=%u diff=%-5lld %s", seq_num, timestamp, diff,
+      //          silence ? "SILENCE" : "");
     }
   }
 
