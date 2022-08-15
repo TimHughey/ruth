@@ -41,7 +41,7 @@ TaskHandle_t lightdesk_task;
 
 namespace desk {
 DRAM_ATTR static StaticTask_t tcb;
-DRAM_ATTR static std::array<StackType_t, 5 * 1024> stack;
+DRAM_ATTR static std::array<StackType_t, 7 * 1024> stack;
 } // namespace desk
 
 // static method for create, access and reset of shared LightDesk
@@ -121,9 +121,6 @@ void LightDesk::run() {
 
   desk::Advertise::create(server->localPort())->init();
   server->asyncLoop(); // schedule accept connections
-
-  // const auto msg_port = socket.local_endpoint().port();
-  // desk::Advertise::create(server->localPort())->init()->addService();
 
   io_ctx.run(); // returns when all io_ctx work is complete
 

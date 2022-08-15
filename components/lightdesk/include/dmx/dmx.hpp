@@ -40,7 +40,7 @@ public:
     static constexpr size_t FRAME_LEN = 384; // minimum to prevent flicker
 
   public:
-    Frame() : uint8v(FRAME_LEN, 0x00) {}
+    inline Frame() : uint8v(FRAME_LEN, 0x00) {}
 
     Frame(Frame &src) = delete;                  // no copy assignment
     Frame(const Frame &src) = delete;            // no copy constructor

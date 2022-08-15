@@ -125,7 +125,7 @@ shDMX DMX::start() { // static
                         TAG.data(),   // task name
                         stack.size(), // stack size
                         dmx.get(),    // task data
-                        15,           // priority
+                        5,            // priority
                         stack.data(), // static task stack
                         &tcb);        // task control block
 

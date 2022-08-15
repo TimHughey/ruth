@@ -21,6 +21,7 @@
 #include "inject/inject.hpp"
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
+#include "msg.hpp"
 #include "ru_base/types.hpp"
 #include "ru_base/uint8v.hpp"
 
@@ -43,12 +44,14 @@ public:
   static void start(const session::Inject &di);
 
 private:
-  Session(const session::Inject &di)          // create the session
-      : socket(std::move(di.socket)),         // move the socket connection accepted
-        idle_timer(di.io_ctx),                // idle timer
-        start_at(ru_time::nowMicrosSystem()), // start_at- (ru_time::nowMicrosSystem()
-        idle_at(ru_time::nowMicrosSystem()),  // system micros desk became idle
-        idle_shutdown(di.idle_shutdown)       // when to declare session idle
+  Session(const session::Inject &di)  // create the session
+      : socket(std::move(di.socket)), // move the socket connection accepted
+        data_endpoint(ip_udp::v4(), 0),
+        data_socket(di.io_ctx, data_endpoint), // create and open udp data socket
+        idle_timer(di.io_ctx),                 // idle timer
+        start_at(ru_time::nowMicrosSystem()),  // start_at- (ru_time::nowMicrosSystem()
+        idle_at(ru_time::nowMicrosSystem()),   // system micros desk became idle
+        idle_shutdown(di.idle_shutdown)        // when to declare session idle
   {
     socket.set_option(ip_tcp::no_delay(true));
     ESP_LOGI("DeskSession", "established connection handle=%d with host=%s port=%d",
@@ -63,6 +66,9 @@ public:
     [[maybe_unused]] error_code ec; // must use error_code overload to prevent throws
     socket.shutdown(tcp_socket::shutdown_both, ec);
     socket.close(ec);
+
+    data_socket.shutdown(udp_socket::shutdown_both, ec);
+    data_socket.close(ec);
   }
 
   static shSession activeSession();
@@ -70,6 +76,9 @@ public:
 private:
   // order dependent
   tcp_socket socket;
+  udp_endpoint data_endpoint;
+  udp_socket data_socket;
+  udp_endpoint sender_endpoint;
   steady_timer idle_timer;
   Micros start_at;
   Micros idle_at;
@@ -77,6 +86,9 @@ private:
 
   // order independent
   Elapsed uptime;
+  uint16_t msg_len = 0;
+  static constexpr uint16_t MSG_LEN_SIZE = sizeof(msg_len);
+  Packed packed{0};
 };
 
 } // namespace desk

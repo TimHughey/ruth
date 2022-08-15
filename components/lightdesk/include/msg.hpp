@@ -34,20 +34,18 @@
 
 namespace ruth {
 
-class DeskMsg;
-typedef std::shared_ptr<DeskMsg> shDeskMsg;
+typedef std::array<char, 384> Packed;
 
-class DeskMsg : public std::enable_shared_from_this<DeskMsg> {
+class DeskMsg {
 
 private:
   static constexpr csv TAG = "DeskMsg";
-  typedef std::array<char, 384> Packed;
   static constexpr csv MAGIC{"magic"};
   static constexpr csv DFRAME{"dframe"};
   static constexpr size_t DOC_SIZE = 2048; // JSON_ARRAY_SIZE(64) + JSON_OBJECT_SIZE(13);
 
 public:
-  DeskMsg(Packed &buff, size_t rx_bytes) {
+  inline DeskMsg(Packed &buff, size_t rx_bytes) {
     if (auto err = deserializeMsgPack(doc, buff.data(), rx_bytes); err) {
       ESP_LOGW(TAG.data(), "deserialize failure reason=%s", err.c_str());
       deserialize_ok = false;
@@ -57,21 +55,17 @@ public:
 
       // uint32_t seq_num = root_obj["seq_num"].as<uint32_t>();
       // uint32_t timestamp = root_obj["timestamp"].as<uint32_t>();
-      // int64_t nettime_now = root_obj["nettime_now_µs"].as<int64_t>();
-      // int64_t frame_local = root_obj["frame_localtime_µs"].as<int64_t>();
-      int64_t remote_now = root_obj["now_µs"].as<int64_t>();
-      // int64_t diff = std::abs(nettime_now - frame_local);
+
+      // int64_t remote_now = root_obj["now_µs"].as<int64_t>();
+
       // bool silence = root_obj["silence"];
 
-      if (MicrosFP variance =
-              std::chrono::abs(ru_time::now_epoch<MicrosFP>() - MicrosFP(remote_now));
-          variance > MicrosFP(10000)) {
-        ESP_LOGI(TAG.data(), "variance=%0.2f",
-                 ru_time::as_duration<MicrosFP, MillisFP>(variance).count());
-      }
-
-      // ESP_LOGD(TAG.data(), "seq_num=%u timestamp=%u diff=%-5lld %s", seq_num, timestamp, diff,
-      //          silence ? "SILENCE" : "");
+      // if (auto v = ru_time::now_epoch<Micros>().count() - remote_now; v > 10000) {
+      //   int64_t nettime_now = root_obj["nettime_now_µs"].as<int64_t>();
+      //   int64_t frame_local = root_obj["frame_localtime_µs"].as<int64_t>();
+      //   int64_t diff = std::abs(nettime_now - frame_local);
+      //   ESP_LOGI(TAG.data(), "variance=%lld src diff=%lld", v, diff);
+      // }
     }
   }
 
