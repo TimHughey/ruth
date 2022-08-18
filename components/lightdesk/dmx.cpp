@@ -123,7 +123,6 @@ constexpr Micros FRAME_US = FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF;
 constexpr Millis FRAME_MS = ru_time::as_duration<Micros, Millis>(FRAME_US);
 
 [[nodiscard]] std::unique_ptr<DMX> DMX::init() {
-
   // wait for previous DMX task to stop, if there is one
   for (auto waiting_ms = 0; task_handle; waiting_ms++) {
     vTaskDelay(pdMS_TO_TICKS(1));

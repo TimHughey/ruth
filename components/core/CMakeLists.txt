@@ -16,9 +16,6 @@ idf_component_register(
     network
     app_update
     dev_pwm
-    engine_pwm
-    engine_ds
-    engine_i2c
     lightdesk
     ota
   )

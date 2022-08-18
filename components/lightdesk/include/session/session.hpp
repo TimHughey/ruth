@@ -41,6 +41,8 @@ extern std::optional<Session> session;
 }
 
 class Session {
+public:
+  static constexpr csv TAG{"Session"};
 
 private:
   // use init() to construct a new Session
@@ -60,7 +62,7 @@ private:
   }
 
 public:
-  ~Session() { ESP_LOGI("DeskSession", "falling out of scope"); }
+  ~Session() { ESP_LOGI(TAG.data(), "falling out of scope"); }
 
   inline static bool active() {
     if (active::session.has_value() && active::session->socket_ctrl.is_open()) {

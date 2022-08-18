@@ -44,7 +44,6 @@ namespace ruth {
 namespace desk {
 
 using namespace std::chrono_literals;
-static constexpr csv TAG = "Session";
 
 typedef std::vector<shHeadUnit> HeadUnits;
 DRAM_ATTR static HeadUnits units;
@@ -172,9 +171,10 @@ bool Session::send_ctrl_msg(const JsonDocument &doc) {
 void IRAM_ATTR Session::shutdown() {
   [[maybe_unused]] error_code ec;
   idle_timer.cancel(ec);
+  fps_timer.cancel(ec);
 
   if (socket_data.is_open()) {
-    ESP_LOGI(TAG.data(), "shutting down data_handle=%d", socket_data.native_handle());
+    ESP_LOGD(TAG.data(), "shutting down data_handle=%d", socket_data.native_handle());
 
     socket_data.cancel(ec);
     socket_data.shutdown(udp_socket::shutdown_both, ec);
@@ -182,7 +182,7 @@ void IRAM_ATTR Session::shutdown() {
   }
 
   if (socket_ctrl.is_open()) {
-    ESP_LOGI(TAG.data(), "shutting down ctrl_handle=%d", socket_ctrl.native_handle());
+    ESP_LOGD(TAG.data(), "shutting down ctrl_handle=%d", socket_ctrl.native_handle());
 
     socket_ctrl.cancel(ec);
     socket_ctrl.shutdown(tcp_socket::shutdown_both, ec);
