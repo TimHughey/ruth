@@ -40,8 +40,8 @@ TaskHandle_t lightdesk_task;
 } // namespace shared
 
 namespace desk {
-DRAM_ATTR static StaticTask_t tcb;
-DRAM_ATTR static std::array<StackType_t, 7 * 1024> stack;
+DRAM_ATTR static StaticTask_t desk_tcb;
+DRAM_ATTR static std::array<StackType_t, 7 * 1024> desk_stack;
 } // namespace desk
 
 // static method for create, access and reset of shared LightDesk
@@ -64,54 +64,21 @@ void LightDesk::reset() { // static
 shLightDesk LightDesk::init() {
   ESP_LOGI(TAG.data(), "enabled, starting up");
 
-  shared::lightdesk_task =                  // create the task using a static stack
-      xTaskCreateStatic(&LightDesk::_run,   // static func to start task
-                        TAG.data(),         // task name
-                        desk::stack.size(), // stack size
-                        nullptr,            // task data (use ptr() to access LightDesk)
-                        5,                  // priority
-                        desk::stack.data(), // static task stack
-                        &desk::tcb          // task control block
+  shared::lightdesk_task =                       // create the task using a static desk_stack
+      xTaskCreateStatic(&LightDesk::_run,        // static func to start task
+                        TAG.data(),              // task name
+                        desk::desk_stack.size(), // desk_stack size
+                        nullptr,                 // task data (use ptr() to access LightDesk)
+                        4,                       // priority
+                        desk::desk_stack.data(), // static task desk_stack
+                        &desk::desk_tcb          // task control block
       );
 
-  ESP_LOGI(TAG.data(), "started tcb=%p", &desk::tcb);
+  ESP_LOGI(TAG.data(), "started desk_tcb=%p", &desk::desk_tcb);
   return shared_from_this();
 }
 
-// IRAM_ATTR void LightDesk::messageLoop() {
-//   [[maybe_unused]] static constexpr csv fn_id = "messageLoop()";
-//
-//   socket.async_receive_from(asio::buffer(rx_buff), remote_endpoint,
-//                             [this, &buff = rx_buff](error_code ec, size_t rx_bytes) {
-//                               // success and actual bytes
-//                               if (!ec && rx_bytes) {
-//                                 ESP_LOGD(TAG.data(), "%s rx=%04d remote=%s", fn_id.data(),
-//                                          rx_bytes,
-//                                          remote_endpoint.address().to_string().c_str());
-//
-//                                 auto msg = DeskMsg(buff, rx_bytes);
-//
-//                                 if (msg.validMagic()) {
-//                                   DMX::handleFrame(msg.dframe<DMX::Frame>());
-//
-//                                   // for (auto unit : desk::units) {
-//                                   //   unit->handleMsg(msg.root());
-//                                   // }
-//
-//                                   idleWatchDog(); // reset watchdog, we have a msg
-//                                 } else {
-//                                   ESP_LOGD(TAG.data(), "%s bad magic", fn_id.data());
-//                                 }
-//                               } else {
-//                                 ESP_LOGW(TAG.data(), "%s ec=%s\n", fn_id.data(),
-//                                          ec.message().c_str());
-//                               }
-//
-//                               messageLoop();
-//                             });
-// }
-
-// definefd in .cpp to limit exposure of Advertise
+// defined in .cpp to limit exposure of Advertise
 void LightDesk::run() {
 
   auto server = std::unique_ptr<desk::Server>(       //

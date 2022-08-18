@@ -81,8 +81,7 @@ void Engines::startConfigured(const JsonObject &profile) {
   }
 
   if (lightdesk) {
-    const LightDesk::Opts opts{.idle_shutdown = Millis(lightdesk["idle_shutdown_ms"])};
-
+    const LightDesk::Opts opts;
     LightDesk::create(opts)->init();
   }
 }

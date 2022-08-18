@@ -29,12 +29,6 @@ namespace desk {
 
 class Server {
 public:
-  // Server(const server::Inject &inject)
-  //     : di(inject), // safe to save injected deps here
-  //       acceptor{di.io_ctx, tcp_endpoint{ip_tcp::v4(), di.listen_port}} // use the injected
-  //       io_ctx
-  // {}
-
   Server(const server::Inject &inject)
       : di(inject), // safe to save injected deps here
         acceptor{di.io_ctx, tcp_endpoint{ip_tcp::v4(), di.listen_port}} // use the injected io_ctx

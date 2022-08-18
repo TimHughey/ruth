@@ -39,10 +39,10 @@ namespace ruth {
 
 static const char *TAG = "Core";
 
-static Core __singleton__;
-static StaticJsonDocument<2048> _profile;
-static StaticJsonDocument<1024> _ota_cmd;
-static firmware::OTA *_ota = nullptr;
+DRAM_ATTR static Core __singleton__;
+DRAM_ATTR static StaticJsonDocument<2048> _profile;
+DRAM_ATTR static StaticJsonDocument<1024> _ota_cmd;
+DRAM_ATTR static firmware::OTA *_ota = nullptr;
 
 Core::Core() : message::Handler("host", _max_queue_depth) {
   _heap_first = heap_caps_get_free_size(MALLOC_CAP_8BIT);
@@ -263,7 +263,6 @@ void Core::startEngines() {
 }
 
 void Core::startMqtt() {
-
   const auto mqtt_cfg = Binder::mqtt();
 
   StatusLED::brighter();

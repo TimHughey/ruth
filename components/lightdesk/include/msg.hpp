@@ -39,13 +39,20 @@ typedef std::array<char, 384> Packed;
 class DeskMsg {
 
 private:
-  static constexpr csv TAG = "DeskMsg";
+  static constexpr csv TAG{"DeskMsg"};
+
+  // doc keys
   static constexpr csv MAGIC{"magic"};
+  static constexpr csv SEQ_NUM{"seq_num"};
   static constexpr csv DFRAME{"dframe"};
+
+  // doc constant values
+  static constexpr uint32_t MAGIC_VAL{0xc9d2};
+
   static constexpr size_t DOC_SIZE = 2048; // JSON_ARRAY_SIZE(64) + JSON_OBJECT_SIZE(13);
 
 public:
-  inline DeskMsg(Packed &buff, size_t rx_bytes) {
+  inline DeskMsg(Packed &buff, size_t rx_bytes, int64_t async_us) : async_us(async_us) {
     if (auto err = deserializeMsgPack(doc, buff.data(), rx_bytes); err) {
       ESP_LOGW(TAG.data(), "deserialize failure reason=%s", err.c_str());
       deserialize_ok = false;
@@ -53,9 +60,7 @@ public:
       deserialize_ok = true;
       root_obj = doc.as<JsonObjectConst>();
 
-      // uint32_t seq_num = root_obj["seq_num"].as<uint32_t>();
       // uint32_t timestamp = root_obj["timestamp"].as<uint32_t>();
-
       // int64_t remote_now = root_obj["now_µs"].as<int64_t>();
 
       // bool silence = root_obj["silence"];
@@ -86,19 +91,28 @@ public:
     return std::move(dmx_f);
   }
 
-  inline bool validMagic() const {
+  inline bool playable() const {
+    uint32_t seq_num = root_obj[SEQ_NUM];
     uint32_t magic = root_obj[MAGIC];
 
-    if (magic != 0xc9d2) {
-      ESP_LOGW(TAG.data(), "invalid magic=0x%0x", magic);
+    bool can_play = deserialize_ok && (magic == MAGIC_VAL);
+
+    if (!can_play) {
+      ESP_LOGW(TAG.data(), "not playable deserialize=%s magic=%u",
+               deserialize_ok ? "ok" : "failed", magic);
     }
 
-    return good() && (magic == 0xc9d2);
+    ESP_LOGI(TAG.data(), "seq=num=%u async_us=%lld", seq_num, async_us);
+
+    return can_play;
   }
 
   inline size_t inspect(string &json_debug) const { return serializeJsonPretty(doc, json_debug); }
 
 private:
+  // order dependent
+  int64_t async_us;
+
   // order independent
   StaticJsonDocument<DOC_SIZE> doc;
   JsonObjectConst root_obj;

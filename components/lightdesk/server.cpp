@@ -56,8 +56,8 @@ void Server::asyncLoop(const error_code ec_last) {
     if (!ec) {
 
       // allow only one active session
-      if (!Session::activeSession()) {
-        ESP_LOGI(serverID(), "accepted connection, handle=%0x", socket->native_handle());
+      if (!Session::active()) {
+        ESP_LOGI(serverID(), "connection accepted, handle=%0x", socket->native_handle());
 
         // create the session passing all the options
         // notes
@@ -70,7 +70,8 @@ void Server::asyncLoop(const error_code ec_last) {
                                      .socket = std::move(socket.value()),
                                      .idle_shutdown = di.idle_shutdown};
 
-        Session::start(inject);
+        Session::init(inject);
+
       } else { // already have an active session
         [[maybe_unused]] error_code ec;
         socket->shutdown(tcp_socket::shutdown_both, ec);

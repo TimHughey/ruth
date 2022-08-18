@@ -1,5 +1,5 @@
 /*
-    protocols/dmx.hpp - Ruth DMX Protocol Engine
+    Ruth
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -24,23 +24,28 @@
 #include "msg.hpp"
 #include "ru_base/time.hpp"
 #include "ru_base/types.hpp"
-#include "ru_base/uint8v.hpp"
 
+#include <array>
+#include <freertos/message_buffer.h>
 #include <memory>
-#include <vector>
 
 namespace ruth {
 
-class DMX;
-typedef std::shared_ptr<DMX> shDMX;
-class DMX : public std::enable_shared_from_this<DMX> {
+namespace dmx {
+constexpr size_t FRAME_LEN = 384;
+using frame_data = std::array<uint8_t, FRAME_LEN>;
+} // namespace dmx
+
+class DMX {
 public:
-  class Frame : public uint8v {
+  static constexpr csv TAG = "dmx";
+
+  class Frame : public dmx::frame_data {
   public:
     static constexpr size_t FRAME_LEN = 384; // minimum to prevent flicker
 
   public:
-    inline Frame() : uint8v(FRAME_LEN, 0x00) {}
+    inline Frame() : dmx::frame_data{0} {}
 
     Frame(Frame &src) = delete;                  // no copy assignment
     Frame(const Frame &src) = delete;            // no copy constructor
@@ -66,13 +71,18 @@ private: // must use start to create object
 public:
   ~DMX();
 
+  // returns raw pointer managed by unique_ptr
+  static std::unique_ptr<DMX> init();
+
   float fps() const { return stats.fps; }
   float idle() const { return stats.fps == 0.0f; }
 
   void txFrame(DMX::Frame &&frame);
 
-  static shDMX start();
-  void stop() { fps_timer.cancel(); }
+  void stop() {
+    [[maybe_unused]] error_code ec;
+    fps_timer.cancel(ec);
+  }
 
 private:
   void fpsCalculate();
@@ -82,6 +92,8 @@ private:
   // order dependent
   io_context io_ctx;
   steady_timer fps_timer;
+
+  MessageBufferHandle_t msg_buff;
 
   Stats stats;
 };

@@ -39,7 +39,7 @@ public:
 
 public:
   struct Opts {
-    Millis idle_shutdown = ru_time::as_duration<Seconds, Millis>(120s);
+    Millis idle_shutdown = ru_time::as_duration<Seconds, Millis>(10s);
   };
 
 private:

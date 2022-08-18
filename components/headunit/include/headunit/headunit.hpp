@@ -29,7 +29,7 @@ namespace ruth {
 
 class HeadUnit;
 
-typedef std::shared_ptr<HeadUnit> shHeadUnit;
+typedef std::unique_ptr<HeadUnit> shHeadUnit;
 typedef std::vector<shHeadUnit> HeadUnits;
 
 class HeadUnit : std::enable_shared_from_this<HeadUnit> {

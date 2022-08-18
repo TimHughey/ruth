@@ -18,12 +18,14 @@
 
 #pragma once
 
+#include "dmx/dmx.hpp"
 #include "inject/inject.hpp"
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
 #include "msg.hpp"
 #include "ru_base/types.hpp"
 #include "ru_base/uint8v.hpp"
+#include "session/stats.hpp"
 
 #include "ArduinoJson.h"
 #include <esp_log.h>
@@ -33,62 +35,79 @@
 namespace ruth {
 namespace desk {
 
-class Session; // forward decl for shared_ptr def
-typedef std::shared_ptr<Session> shSession;
+class Session;
+namespace active {
+extern std::optional<Session> session;
+}
 
-class Session : public std::enable_shared_from_this<Session> {
-public:
-  static constexpr size_t MSG_MIN_BYTES = 90;
-
-public:
-  static void start(const session::Inject &di);
+class Session {
 
 private:
-  Session(const session::Inject &di)  // create the session
-      : socket(std::move(di.socket)), // move the socket connection accepted
-        data_endpoint(ip_udp::v4(), 0),
-        data_socket(di.io_ctx, data_endpoint), // create and open udp data socket
-        idle_timer(di.io_ctx),                 // idle timer
-        start_at(ru_time::nowMicrosSystem()),  // start_at- (ru_time::nowMicrosSystem()
-        idle_at(ru_time::nowMicrosSystem()),   // system micros desk became idle
-        idle_shutdown(di.idle_shutdown)        // when to declare session idle
+  // use init() to construct a new Session
+  inline Session(const session::Inject &di)        // create the session
+      : server_io_ctx(di.io_ctx),                  // server io_ctx (for session cleanup)
+        socket_ctrl(std::move(di.socket)),         // move the socket connection accepted
+        idle_timer(server_io_ctx),                 // idle timer
+        fps_timer(server_io_ctx, Millis(2000)),    // frames per second timer
+        endpoint_data(ip_udp::v4(), 0),            // udp data packets endpoint
+        socket_data(server_io_ctx, endpoint_data), // create and open udp data socket
+        start_at(ru_time::nowMicrosSystem()),      // start_at- (ru_time::nowMicrosSystem()
+        idle_at(ru_time::nowMicrosSystem()),       // system micros desk became idle
+        idle_shutdown(di.idle_shutdown)            // when to declare session idle
   {
-    socket.set_option(ip_tcp::no_delay(true));
-    ESP_LOGI("DeskSession", "established connection handle=%d with host=%s port=%d",
-             socket.native_handle(), socket.remote_endpoint().address().to_string().c_str(),
-             socket.remote_endpoint().port());
+    socket_ctrl.set_option(ip_tcp::no_delay(true));
+    ESP_LOGI(TAG.data(), "sizeof=%u", sizeof(Session));
   }
 
 public:
-  ~Session() {
-    ESP_LOGI("DeskSession", "falling out of scope, handle=%d", socket.native_handle());
+  ~Session() { ESP_LOGI("DeskSession", "falling out of scope"); }
 
-    [[maybe_unused]] error_code ec; // must use error_code overload to prevent throws
-    socket.shutdown(tcp_socket::shutdown_both, ec);
-    socket.close(ec);
+  inline static bool active() {
+    if (active::session.has_value() && active::session->socket_ctrl.is_open()) {
+      // an active session exists and the socket is open
+      return true;
+    } else if (active::session.has_value()) {
+      // there's a left over session and the socket is closed, deallocate it
+      active::session.reset();
+    }
 
-    data_socket.shutdown(udp_socket::shutdown_both, ec);
-    data_socket.close(ec);
+    return false;
   }
 
-  static shSession activeSession();
+  static void init(const session::Inject &di);
+
+private:
+  void data_msg_receive();
+  void fps_calc();
+  void handshake();
+  void idle_watch_dog();
+  void latency_feedback(int64_t async_us);
+  bool send_ctrl_msg(const JsonDocument &doc);
+  void shutdown();
 
 private:
   // order dependent
-  tcp_socket socket;
-  udp_endpoint data_endpoint;
-  udp_socket data_socket;
-  udp_endpoint sender_endpoint;
+  // NOTE:  all created sockets and timers use the Server io_ctx
+  Elapsed uptime;
+  io_context &server_io_ctx;
+  tcp_socket socket_ctrl;
   steady_timer idle_timer;
+  steady_timer fps_timer;
+  udp_endpoint endpoint_data;
+  udp_socket socket_data;
+
+  // misc session times
   Micros start_at;
   Micros idle_at;
-  Seconds idle_shutdown;
+  Millis idle_shutdown;
 
   // order independent
-  Elapsed uptime;
+  udp_endpoint endpoint_sender;
+  std::unique_ptr<DMX> dmx;
   uint16_t msg_len = 0;
   static constexpr uint16_t MSG_LEN_SIZE = sizeof(msg_len);
   Packed packed{0};
+  desk::stats stats;
 };
 
 } // namespace desk

@@ -26,6 +26,7 @@
 #include <driver/uart.h>
 #include <esp_log.h>
 #include <esp_netif.h>
+#include <freertos/message_buffer.h>
 #include <iterator>
 #include <optional>
 #include <soc/uart_periph.h>
@@ -37,26 +38,33 @@ namespace ruth {
 
 DRAM_ATTR static StaticTask_t tcb;
 DRAM_ATTR static std::array<StackType_t, 3072> stack;
-TaskHandle_t task_handle = nullptr;
+DRAM_ATTR static StaticMessageBuffer_t mbcb; // message buffer control block
+DRAM_ATTR static std::array<uint8_t, sizeof(DMX::Frame) * 3> mb_store;
 
-static constexpr csv TAG = "dmx";
+TaskHandle_t task_handle = nullptr;
 
 // forward decl of static functions for DMX
 static void run(void *data);
 static bool uart_init();
 
+// use a static run function because we're running a pure FreeRTOS
+// task (not a fancy Thread)
 void run(void *data) {
-  auto *dmx = static_cast<DMX *>(data); // note: raw pointer
+  // note: we can't use unique_ptr here because once vTaskDelete is called
+  //       this function is removed from the scheduler and the unique_ptr
+  //       destructor isn't executed
+
+  auto dmx = static_cast<DMX *>(data);
 
   dmx->fpsCalculate(); // add work to io_ctx
   dmx->io_ctx.run();   // returns when all io_ctx work is finished
 
-  ESP_LOGD(TAG.data(), "io_ctx finished, deleting task handle=%p", task_handle);
+  ESP_LOGD(DMX::TAG.data(), "io_ctx finished, deleting task handle=%p", task_handle);
 
-  auto task_to_delete = task_handle;
+  auto th = task_handle;
   task_handle = nullptr;
 
-  vTaskDelete(task_to_delete);
+  vTaskDelete(th);
 }
 
 constexpr int UART_NUM = 1; // UART0 is the console, UART2 has a defect... use UART1
@@ -114,9 +122,21 @@ constexpr Seconds FRAME_STATS_SECS = 2s;
 constexpr Micros FRAME_US = FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF;
 constexpr Millis FRAME_MS = ru_time::as_duration<Micros, Millis>(FRAME_US);
 
-// singular method for creating a DMX object, returns shared_ptr
-shDMX DMX::start() { // static
-  auto dmx = shDMX(new DMX());
+[[nodiscard]] std::unique_ptr<DMX> DMX::init() {
+
+  // wait for previous DMX task to stop, if there is one
+  for (auto waiting_ms = 0; task_handle; waiting_ms++) {
+    vTaskDelay(pdMS_TO_TICKS(1));
+
+    if ((waiting_ms % 100) == 0) {
+      ESP_LOGW(TAG.data(), "waiting to start task, %dms", waiting_ms);
+    }
+  }
+
+  auto *dmx = new DMX(); // wrapped in unique_ptr in run()
+
+  dmx->msg_buff = xMessageBufferCreateStatic(mb_store.size(), mb_store.data(), &mbcb);
+  ESP_LOGI(TAG.data(), "created msg_buff=%p", dmx->msg_buff);
 
   uart_init(); // only inits uart once
 
@@ -124,27 +144,29 @@ shDMX DMX::start() { // static
       xTaskCreateStatic(&run,         // static func to start task
                         TAG.data(),   // task name
                         stack.size(), // stack size
-                        dmx.get(),    // task data
-                        5,            // priority
+                        dmx,          // pass the newly created object to run()
+                        4,            // priority
                         stack.data(), // static task stack
                         &tcb);        // task control block
 
-  ESP_LOGI(TAG.data(), "started obj=%p tcb=%p", dmx.get(), &tcb);
+  ESP_LOGI(TAG.data(), "started obj=%p tcb=%p", dmx, &tcb);
 
-  return dmx;
+  return std::unique_ptr<DMX>(dmx);
 }
 
 DMX::~DMX() {
-  while (task_handle != nullptr) {
+  vMessageBufferDelete(msg_buff);
+
+  while (!io_ctx.stopped() || task_handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(1));
   }
 
   ESP_LOGI(TAG.data(), "falling out of scope");
 }
 
-IRAM_ATTR void DMX::fpsCalculate() {
+void IRAM_ATTR DMX::fpsCalculate() {
   fps_timer.expires_at(stats.fps_start + Millis(FRAME_STATS * stats.calcs++));
-  fps_timer.async_wait([&](const error_code ec) {
+  fps_timer.async_wait([this](const error_code ec) {
     if (!ec) { // success
       if (stats.mark && stats.frame_count) {
         // enough info to calc fps
@@ -155,7 +177,7 @@ IRAM_ATTR void DMX::fpsCalculate() {
         }
       }
 
-      // always save the frame count (which could be zero)
+      // save the current frame count as a reference (mark) for the next calc
       stats.mark = stats.frame_count;
 
       fpsCalculate(); // restart timer
@@ -165,7 +187,7 @@ IRAM_ATTR void DMX::fpsCalculate() {
   });
 }
 
-IRAM_ATTR void DMX::txFrame(DMX::Frame &&frame) {
+void IRAM_ATTR DMX::txFrame(DMX::Frame &&frame) {
   // wait up to the max time to transmit a TX frame
   static TickType_t frame_ticks = pdMS_TO_TICKS(FRAME_MS.count());
 
