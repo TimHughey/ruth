@@ -41,9 +41,9 @@ public:
       // enough info to calc fps
       fps = (frame_count - mark) / interval.count();
 
-      // if (fps < 43.0) {
-      ESP_LOGI(TAG.data(), "fps=%2.2f", fps);
-      // }
+      if (fps < 42.5) {
+        ESP_LOGI(TAG.data(), "fps=%2.2f", fps);
+      }
 
       // save the current frame count as a reference (mark) for the next calc
       mark = frame_count;
