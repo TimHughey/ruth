@@ -50,15 +50,16 @@ private:
       : server_io_ctx(di.io_ctx),                  // server io_ctx (for session cleanup)
         socket_ctrl(std::move(di.socket)),         // move the socket connection accepted
         idle_timer(server_io_ctx),                 // idle timer
-        fps_timer(server_io_ctx, Millis(2000)),    // frames per second timer
+        stats_timer(server_io_ctx),                // frames per second timer
         endpoint_data(ip_udp::v4(), 0),            // udp data packets endpoint
         socket_data(server_io_ctx, endpoint_data), // create and open udp data socket
+        stats_interval(2000),                      // frequency to calculate stats
+        stats(stats_interval),                     // initialize the stats object
         start_at(ru_time::nowMicrosSystem()),      // start_at- (ru_time::nowMicrosSystem()
         idle_at(ru_time::nowMicrosSystem()),       // system micros desk became idle
         idle_shutdown(di.idle_shutdown)            // when to declare session idle
   {
     socket_ctrl.set_option(ip_tcp::no_delay(true));
-    ESP_LOGI(TAG.data(), "sizeof=%u", sizeof(Session));
   }
 
 public:
@@ -94,11 +95,15 @@ private:
   io_context &server_io_ctx;
   tcp_socket socket_ctrl;
   steady_timer idle_timer;
-  steady_timer fps_timer;
+  steady_timer stats_timer;
   udp_endpoint endpoint_data;
   udp_socket socket_data;
 
-  // misc session times
+  // stats
+  Millis stats_interval;
+  desk::stats stats;
+
+  // misc operational times
   Micros start_at;
   Micros idle_at;
   Millis idle_shutdown;
@@ -109,7 +114,6 @@ private:
   uint16_t msg_len = 0;
   static constexpr uint16_t MSG_LEN_SIZE = sizeof(msg_len);
   Packed packed{0};
-  desk::stats stats;
 };
 
 } // namespace desk

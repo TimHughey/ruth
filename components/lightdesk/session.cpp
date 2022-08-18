@@ -70,6 +70,7 @@ void IRAM_ATTR Session::data_msg_receive() {
         // if no error, handle the incoming UDP data msg
         if (!ec) {
           const auto async_us = esp_timer_get_time() - start_us;
+          stats.saw_frame();
 
           // now that we have the entire packed message
           // attempt to create the DeskMsg, ask DMX to send the frame then
@@ -102,6 +103,17 @@ void IRAM_ATTR Session::data_msg_receive() {
       });
 }
 
+void IRAM_ATTR Session::fps_calc() {
+  stats_timer.expires_after(stats_interval);
+  stats_timer.async_wait([this](const error_code ec) {
+    if (!ec) {
+      stats.calc();
+
+      fps_calc();
+    }
+  });
+}
+
 void IRAM_ATTR Session::handshake() {
   StaticJsonDocument<256> doc;
   JsonObject root = doc.to<JsonObject>();
@@ -112,6 +124,7 @@ void IRAM_ATTR Session::handshake() {
   if (send_ctrl_msg(doc)) {
     dmx = DMX::init(); // start DMX task
 
+    fps_calc();
     data_msg_receive();
   } else {
     ESP_LOGW(TAG.data(), "handshake failed");
@@ -171,7 +184,7 @@ bool Session::send_ctrl_msg(const JsonDocument &doc) {
 void IRAM_ATTR Session::shutdown() {
   [[maybe_unused]] error_code ec;
   idle_timer.cancel(ec);
-  fps_timer.cancel(ec);
+  stats_timer.cancel(ec);
 
   if (socket_data.is_open()) {
     ESP_LOGD(TAG.data(), "shutting down data_handle=%d", socket_data.native_handle());

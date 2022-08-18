@@ -102,7 +102,7 @@ public:
                deserialize_ok ? "ok" : "failed", magic);
     }
 
-    ESP_LOGI(TAG.data(), "seq=num=%u async_us=%lld", seq_num, async_us);
+    ESP_LOGD(TAG.data(), "seq=num=%u async_us=%lld", seq_num, async_us);
 
     return can_play;
   }

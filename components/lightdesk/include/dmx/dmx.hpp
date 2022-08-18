@@ -56,17 +56,18 @@ public:
   };
 
 private:
-  struct Stats {
-    TimePoint fps_start = steady_clock::now();
-    uint64_t calcs = 0; // calcs * fps_start for "precise" timing
-    float fps = 0;
-    uint64_t frame_count = 0;
-    uint64_t frame_shorts = 0;
-    uint64_t mark = 0;
-  };
+  static constexpr Micros FRAME_MAB = 12us;
+  static constexpr Micros FRAME_BYTE = 44us;
+  static constexpr Micros FRAME_SC = FRAME_BYTE;
+  static constexpr Micros FRAME_MTBF = 44us;
+  static constexpr Micros FRAME_DATA = Micros(FRAME_BYTE * 512);
+
+  // frame interval does not include the BREAK as it is handled by the UART
+  static constexpr Micros FRAME_US = FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF;
+  static constexpr Millis FRAME_MS = ru_time::as_duration<Micros, Millis>(FRAME_US);
 
 private: // must use start to create object
-  DMX() : fps_timer(io_ctx) {}
+  DMX() : guard(io_ctx.get_executor()) {}
 
 public:
   ~DMX();
@@ -74,27 +75,21 @@ public:
   // returns raw pointer managed by unique_ptr
   static std::unique_ptr<DMX> init();
 
-  float fps() const { return stats.fps; }
-  float idle() const { return stats.fps == 0.0f; }
-
   void txFrame(DMX::Frame &&frame);
 
   void stop() {
     [[maybe_unused]] error_code ec;
-    fps_timer.cancel(ec);
+    guard.reset();
   }
 
 private:
-  void fpsCalculate();
   void renderLoop();
 
 private:
   // order dependent
   io_context io_ctx;
-  steady_timer fps_timer;
+  work_guard guard;
 
   MessageBufferHandle_t msg_buff;
-
-  Stats stats;
 };
 } // namespace ruth

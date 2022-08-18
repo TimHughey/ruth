@@ -20,45 +20,50 @@
 
 #pragma once
 
+#include <algorithm>
+#include <esp_log.h>
+
 #include "ru_base/time.hpp"
 #include "ru_base/types.hpp"
-
-#include <esp_log.h>
 
 namespace ruth {
 namespace desk {
 
-struct stats {
-  TimePoint fps_start = steady_clock::now();
-  uint64_t calcs = 0; // calcs * fps_start for "precise" timing
-  float fps = 0;
-  uint64_t frame_count = 0;
-  uint64_t frame_shorts = 0;
-  uint64_t mark = 0;
+class stats {
 
-  static constexpr Seconds FRAME_STATS_SECS = 2s;
-  static constexpr csv TAG = "desk::stats";
+public:
+  stats(const Millis &i) : interval(ru_time::as_duration<Millis, Seconds>(i)) {}
+
+  static constexpr csv TAG = "SessionStats";
 
   inline void calc() {
     if (mark && frame_count) {
       // enough info to calc fps
-      fps = (frame_count - mark) / FRAME_STATS_SECS.count();
+      fps = (frame_count - mark) / interval.count();
 
-      if (fps < 43.0) {
-        ESP_LOGI(TAG.data(), "fps=%2.2f", fps);
-      }
+      // if (fps < 43.0) {
+      ESP_LOGI(TAG.data(), "fps=%2.2f", fps);
+      // }
 
       // save the current frame count as a reference (mark) for the next calc
       mark = frame_count;
+    } else if (frame_count) {
+      mark = frame_count;
+      ESP_LOGI(TAG.data(), "set initial mark=%llu", mark);
     }
   }
 
-  inline void saw_frame() { frame_count++; }
-  inline void saw_short_frame() { frame_shorts++; }
-
-  inline float fps_now() const { return fps; }
+  inline float cached_fps() const { return fps; }
   inline bool idle() const { return fps == 0.0; }
-  inline void reset() { *this = stats(); }
+  inline void saw_frame() { frame_count++; }
+
+private:
+  const Seconds interval;
+  TimePoint fps_start = steady_clock::now();
+  uint64_t calcs = 0; // calcs * fps_start for "precise" timing
+  float fps = 0;
+  uint64_t frame_count = 0;
+  uint64_t mark = 0;
 };
 
 } // namespace desk

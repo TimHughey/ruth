@@ -56,8 +56,7 @@ void run(void *data) {
 
   auto dmx = static_cast<DMX *>(data);
 
-  dmx->fpsCalculate(); // add work to io_ctx
-  dmx->io_ctx.run();   // returns when all io_ctx work is finished
+  dmx->io_ctx.run(); // returns when all io_ctx work is finished
 
   ESP_LOGD(DMX::TAG.data(), "io_ctx finished, deleting task handle=%p", task_handle);
 
@@ -110,18 +109,6 @@ bool uart_init() {
 // DMX frames per second
 using FPS = std::chrono::duration<float, std::ratio<1, 44>>;
 
-constexpr Micros FRAME_MAB = 12us;
-constexpr Micros FRAME_BYTE = 44us;
-constexpr Micros FRAME_SC = FRAME_BYTE;
-constexpr Micros FRAME_MTBF = 44us;
-constexpr Micros FRAME_DATA = Micros(FRAME_BYTE * 512);
-constexpr Millis FRAME_STATS = Millis(2s);
-constexpr Seconds FRAME_STATS_SECS = 2s;
-
-// frame interval does not include the BREAK as it is handled by the UART
-constexpr Micros FRAME_US = FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF;
-constexpr Millis FRAME_MS = ru_time::as_duration<Micros, Millis>(FRAME_US);
-
 [[nodiscard]] std::unique_ptr<DMX> DMX::init() {
   // wait for previous DMX task to stop, if there is one
   for (auto waiting_ms = 0; task_handle; waiting_ms++) {
@@ -163,29 +150,6 @@ DMX::~DMX() {
   ESP_LOGI(TAG.data(), "falling out of scope");
 }
 
-void IRAM_ATTR DMX::fpsCalculate() {
-  fps_timer.expires_at(stats.fps_start + Millis(FRAME_STATS * stats.calcs++));
-  fps_timer.async_wait([this](const error_code ec) {
-    if (!ec) { // success
-      if (stats.mark && stats.frame_count) {
-        // enough info to calc fps
-        stats.fps = (stats.frame_count - stats.mark) / FRAME_STATS_SECS.count();
-
-        if (stats.fps < 43.0) {
-          ESP_LOGI(TAG.data(), "fps=%2.2f", stats.fps);
-        }
-      }
-
-      // save the current frame count as a reference (mark) for the next calc
-      stats.mark = stats.frame_count;
-
-      fpsCalculate(); // restart timer
-    } else {
-      ESP_LOGD(TAG.data(), "fpsCalculate() terminating reason=%s", ec.message().c_str());
-    }
-  });
-}
-
 void IRAM_ATTR DMX::txFrame(DMX::Frame &&frame) {
   // wait up to the max time to transmit a TX frame
   static TickType_t frame_ticks = pdMS_TO_TICKS(FRAME_MS.count());
@@ -207,10 +171,8 @@ void IRAM_ATTR DMX::txFrame(DMX::Frame &&frame) {
           frame.size(),                           // number of bytes
           FRAME_BREAK);                           // bits to send as frame break
 
-      if (bytes == frame.size()) {
-        stats.frame_count++;
-      } else {
-        stats.frame_shorts++;
+      if (bytes != frame.size()) {
+        ESP_LOGW(TAG.data(), "short frame, frame_bytes=%u tx_bytes=%u", frame.size(), bytes);
       }
     }
   });

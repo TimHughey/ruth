@@ -38,6 +38,7 @@ using tcp_endpoint = asio::ip::tcp::endpoint;
 using tcp_socket = asio::ip::tcp::socket;
 using udp_endpoint = asio::ip::udp::endpoint;
 using udp_socket = asio::ip::udp::socket;
+using work_guard = asio::executor_work_guard<asio::io_context::executor_type>;
 
 typedef uint16_t Port;
 namespace io {
