@@ -16,18 +16,6 @@
 //
 //  https://www.wisslanding.com
 
-#include "session/session.hpp"
-#include "dmx/dmx.hpp"
-#include "headunit/ac_power.hpp"
-#include "headunit/discoball.hpp"
-#include "headunit/elwire.hpp"
-#include "headunit/headunit.hpp"
-#include "headunit/ledforest.hpp"
-#include "inject/inject.hpp"
-#include "io/io.hpp"
-#include "msg.hpp"
-#include "ru_base/uint8v.hpp"
-
 #include "ArduinoJson.h"
 #include <algorithm>
 #include <arpa/inet.h>
@@ -39,6 +27,19 @@
 #include <freertos/task.h>
 #include <mutex>
 #include <vector>
+
+#include "dmx/dmx.hpp"
+#include "dmx/frame.hpp"
+#include "headunit/ac_power.hpp"
+#include "headunit/discoball.hpp"
+#include "headunit/elwire.hpp"
+#include "headunit/headunit.hpp"
+#include "headunit/ledforest.hpp"
+#include "inject/inject.hpp"
+#include "io/io.hpp"
+#include "msg.hpp"
+#include "ru_base/uint8v.hpp"
+#include "session/session.hpp"
 
 namespace ruth {
 namespace desk {
@@ -76,7 +77,7 @@ void IRAM_ATTR Session::data_msg_receive() {
           // attempt to create the DeskMsg, ask DMX to send the frame then
           // ask each headunit to handle it's part of the message
           if (auto msg = DeskMsg(packed, bytes, async_us); msg.playable()) {
-            dmx->txFrame(msg.dframe<DMX::Frame>());
+            dmx->tx_frame(msg.dframe<dmx::frame>());
 
             for (auto &unit : units) {
               unit->handleMsg(msg.root());

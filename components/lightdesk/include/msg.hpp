@@ -79,16 +79,12 @@ public:
 
 public:
   template <typename T> inline T dframe() const {
-    T dmx_f = T();
 
-    if (auto dframe_array = root_obj[DFRAME].as<JsonArrayConst>(); dframe_array) {
-      size_t idx = 0;
-      for (JsonVariantConst frame_byte : root_obj[DFRAME].as<JsonArrayConst>()) {
-        dmx_f[idx++] = frame_byte.as<uint8_t>();
-      }
+    if (auto array = root_obj[DFRAME].as<JsonArrayConst>(); array) {
+      return T(array);
     }
 
-    return std::move(dmx_f);
+    return T(0);
   }
 
   inline bool playable() const {

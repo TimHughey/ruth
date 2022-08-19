@@ -18,10 +18,6 @@
      https://www.wisslanding.com
  */
 
-#include "dmx/dmx.hpp"
-#include "io/io.hpp"
-#include "ru_base/time.hpp"
-
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_log.h>
@@ -32,16 +28,19 @@
 #include <soc/uart_periph.h>
 #include <soc/uart_reg.h>
 
-using namespace std::literals::chrono_literals;
+#include "dmx/dmx.hpp"
+#include "dmx/frame.hpp"
+#include "io/io.hpp"
+#include "ru_base/time.hpp"
 
 namespace ruth {
 
 DRAM_ATTR static StaticTask_t tcb;
 DRAM_ATTR static std::array<StackType_t, 3072> stack;
 DRAM_ATTR static StaticMessageBuffer_t mbcb; // message buffer control block
-DRAM_ATTR static std::array<uint8_t, sizeof(DMX::Frame) * 3> mb_store;
+DRAM_ATTR static std::array<uint8_t, dmx::FRAME_LEN * 3> mb_store;
 
-TaskHandle_t task_handle = nullptr;
+DRAM_ATTR TaskHandle_t task_handle = nullptr;
 
 // forward decl of static functions for DMX
 static void run(void *data);
@@ -56,7 +55,7 @@ void run(void *data) {
 
   auto dmx = static_cast<DMX *>(data);
 
-  dmx->io_ctx.run(); // returns when all io_ctx work is finished
+  dmx->spool_frames();
 
   ESP_LOGD(DMX::TAG.data(), "io_ctx finished, deleting task handle=%p", task_handle);
 
@@ -68,46 +67,58 @@ void run(void *data) {
 
 constexpr int UART_NUM = 1; // UART0 is the console, UART2 has a defect... use UART1
 constexpr gpio_num_t TX_PIN = GPIO_NUM_17;
-constexpr uint_fast32_t FRAME_BREAK = 22; // num bits at 250,000 baud (8µs)
+static constexpr uint32_t FRAME_BREAK = 22; // num bits at 250,000 baud (8µs)
 
 bool uart_init() {
   static esp_err_t uart_rc = ESP_FAIL;
   constexpr size_t UART_MIN_BUFF = UART_FIFO_LEN + 1;
-  constexpr size_t UART_TX_BUFF = std::max(DMX::Frame::FRAME_LEN, UART_MIN_BUFF);
+  constexpr size_t UART_TX_BUFF = std::max(dmx::frame::FRAME_LEN, UART_MIN_BUFF);
+
+  if (uart_rc == ESP_OK) { // successfully installed
+    return false;
+  }
 
   // uart driver not installed or failed last time
-  if (uart_rc == ESP_FAIL) {
-    if (uart_rc = uart_driver_install(UART_NUM, UART_MIN_BUFF, UART_TX_BUFF, 0, NULL, 0);
-        uart_rc == ESP_OK) {
+  auto flags = ESP_INTR_FLAG_IRAM;
+  if (uart_rc = uart_driver_install(UART_NUM, UART_MIN_BUFF, UART_TX_BUFF, 0, NULL, flags);
+      uart_rc == ESP_OK) {
 
-      uart_config_t uart_conf = {};
-      uart_conf.baud_rate = 250000;
-      uart_conf.data_bits = UART_DATA_8_BITS;
-      uart_conf.parity = UART_PARITY_DISABLE;
-      uart_conf.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
-      uart_conf.source_clk = UART_SCLK_APB;
-      uart_conf.stop_bits = UART_STOP_BITS_2;
+    uart_config_t uart_conf = {};
+    uart_conf.baud_rate = 250000;
+    uart_conf.data_bits = UART_DATA_8_BITS;
+    uart_conf.parity = UART_PARITY_DISABLE;
+    uart_conf.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+    uart_conf.source_clk = UART_SCLK_APB;
+    uart_conf.stop_bits = UART_STOP_BITS_2;
 
-      if (uart_rc = uart_param_config(UART_NUM, &uart_conf); uart_rc != ESP_OK) {
-        ESP_LOGW(pcTaskGetTaskName(nullptr), "[%s] uart_param_config()", esp_err_to_name(uart_rc));
-      }
-
-      uart_set_pin(UART_NUM, TX_PIN, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-
-      // this sequence is not part of the DMX512 protocol.  rather, these bytes
-      // are sent to identify initiialization when viewing the serial data on
-      // an oscillioscope.
-      const char init_bytes[] = {0xAA, 0x55, 0xAA, 0x55};
-      const size_t len = sizeof(init_bytes);
-      uart_write_bytes_with_break(UART_NUM, init_bytes, len, (FRAME_BREAK * 2));
+    if (uart_rc = uart_param_config(UART_NUM, &uart_conf); uart_rc != ESP_OK) {
+      ESP_LOGW(pcTaskGetTaskName(nullptr), "[%s] uart_param_config()", esp_err_to_name(uart_rc));
     }
+
+    uart_set_pin(UART_NUM, TX_PIN, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+
+    // this sequence is not part of the DMX512 protocol.  rather, these bytes
+    // are sent to identify initiialization when viewing the serial data on
+    // an oscillioscope.
+    const char init_bytes[] = {0xAA, 0x55, 0xAA, 0x55};
+    const size_t len = sizeof(init_bytes);
+    uart_write_bytes_with_break(UART_NUM, init_bytes, len, (FRAME_BREAK * 2));
   }
 
   return uart_rc == ESP_OK;
 }
 
-// DMX frames per second
-using FPS = std::chrono::duration<float, std::ratio<1, 44>>;
+// object API
+
+DMX::~DMX() {
+  vMessageBufferDelete(msg_buff);
+
+  while (task_handle != nullptr) {
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+
+  ESP_LOGI(TAG.data(), "falling out of scope");
+}
 
 [[nodiscard]] std::unique_ptr<DMX> DMX::init() {
   // wait for previous DMX task to stop, if there is one
@@ -131,7 +142,7 @@ using FPS = std::chrono::duration<float, std::ratio<1, 44>>;
                         TAG.data(),   // task name
                         stack.size(), // stack size
                         dmx,          // pass the newly created object to run()
-                        4,            // priority
+                        5,            // priority
                         stack.data(), // static task stack
                         &tcb);        // task control block
 
@@ -140,24 +151,21 @@ using FPS = std::chrono::duration<float, std::ratio<1, 44>>;
   return std::unique_ptr<DMX>(dmx);
 }
 
-DMX::~DMX() {
-  vMessageBufferDelete(msg_buff);
+void IRAM_ATTR DMX::spool_frames() {
 
-  while (!io_ctx.stopped() || task_handle != nullptr) {
-    vTaskDelay(pdMS_TO_TICKS(1));
-  }
+  while (live) {
+    dmx::frame frame;
 
-  ESP_LOGI(TAG.data(), "falling out of scope");
-}
-
-void IRAM_ATTR DMX::txFrame(DMX::Frame &&frame) {
-  // wait up to the max time to transmit a TX frame
-  static TickType_t frame_ticks = pdMS_TO_TICKS(FRAME_MS.count());
-
-  asio::post(io_ctx, [&, frame = std::move(frame)]() mutable {
     // always ensure the previous tx has completed which includes
     // the BREAK (low for 88us)
-    if (uart_wait_tx_done(UART_NUM, frame_ticks) == ESP_OK) {
+    if (ESP_OK != uart_wait_tx_done(UART_NUM, FRAME_TICKS)) {
+      ESP_LOGW(TAG.data(), "uart_wait_tx_done() timeout");
+      continue;
+    }
+
+    auto msg_bytes = xMessageBufferReceive(msg_buff, frame.data(), frame.size(), RECV_TIMEOUT);
+
+    if (msg_bytes) {
       // at the end of the TX the UART pulls the TX low to generate the BREAK
       // once the code reaches this point the BREAK is complete
 
@@ -166,7 +174,7 @@ void IRAM_ATTR DMX::txFrame(DMX::Frame &&frame) {
       // for headunits that turn off between frames.
 
       size_t bytes = uart_write_bytes_with_break( // write the frame to the uart
-          UART_NUM,                               // iart_num
+          UART_NUM,                               // uart_num
           frame.data(),                           // data to send
           frame.size(),                           // number of bytes
           FRAME_BREAK);                           // bits to send as frame break
@@ -174,8 +182,25 @@ void IRAM_ATTR DMX::txFrame(DMX::Frame &&frame) {
       if (bytes != frame.size()) {
         ESP_LOGW(TAG.data(), "short frame, frame_bytes=%u tx_bytes=%u", frame.size(), bytes);
       }
+    } else {
+      timeouts++;
     }
-  });
+  }
+}
+
+bool IRAM_ATTR DMX::tx_frame(dmx::frame &&frame) {
+  // wait up to the max time to transmit a TX frame
+  auto msg_bytes = xMessageBufferSend(msg_buff, frame.data(), frame.len, QUEUE_TICKS);
+
+  if (msg_bytes != frame.len) {
+    queue_fail++;
+
+    if ((queue_fail % 10) == 0) {
+      ESP_LOGW(TAG.data(), "tx failed, frame len=%u count=%lluu", frame.len, queue_fail);
+    }
+  }
+
+  return msg_bytes == frame.len;
 }
 
 } // namespace ruth

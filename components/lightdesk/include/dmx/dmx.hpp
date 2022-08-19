@@ -20,40 +20,21 @@
 
 #pragma once
 
+#include <array>
+#include <freertos/message_buffer.h>
+#include <memory>
+
+#include "dmx/frame.hpp"
 #include "io/io.hpp"
 #include "msg.hpp"
 #include "ru_base/time.hpp"
 #include "ru_base/types.hpp"
 
-#include <array>
-#include <freertos/message_buffer.h>
-#include <memory>
-
 namespace ruth {
-
-namespace dmx {
-constexpr size_t FRAME_LEN = 384;
-using frame_data = std::array<uint8_t, FRAME_LEN>;
-} // namespace dmx
 
 class DMX {
 public:
   static constexpr csv TAG = "dmx";
-
-  class Frame : public dmx::frame_data {
-  public:
-    static constexpr size_t FRAME_LEN = 384; // minimum to prevent flicker
-
-  public:
-    inline Frame() : dmx::frame_data{0} {}
-
-    Frame(Frame &src) = delete;                  // no copy assignment
-    Frame(const Frame &src) = delete;            // no copy constructor
-    Frame &operator=(Frame &rhs) = delete;       // no copy assignment
-    Frame &operator=(const Frame &rhs) = delete; // no copy assignment
-    Frame(Frame &&src) = default;                // allow move assignment
-    Frame &operator=(Frame &&rhs) = default;     // allow copy assignment
-  };
 
 private:
   static constexpr Micros FRAME_MAB = 12us;
@@ -65,9 +46,14 @@ private:
   // frame interval does not include the BREAK as it is handled by the UART
   static constexpr Micros FRAME_US = FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF;
   static constexpr Millis FRAME_MS = ru_time::as_duration<Micros, Millis>(FRAME_US);
+  static constexpr TickType_t FRAME_TICKS = pdMS_TO_TICKS(FRAME_MS.count());
+  static constexpr TickType_t RECV_TIMEOUT = FRAME_TICKS * 2.5;
+  static constexpr TickType_t QUEUE_TICKS = 1;
+
+  static constexpr std::array<uint8_t, 3> SHUTDOWN{0xaa, 0xcc, 0x55};
 
 private: // must use start to create object
-  DMX() : guard(io_ctx.get_executor()) {}
+  DMX() : live(true) {}
 
 public:
   ~DMX();
@@ -75,21 +61,18 @@ public:
   // returns raw pointer managed by unique_ptr
   static std::unique_ptr<DMX> init();
 
-  void txFrame(DMX::Frame &&frame);
+  bool tx_frame(dmx::frame &&frame);
 
-  void stop() {
-    [[maybe_unused]] error_code ec;
-    guard.reset();
-  }
+  void stop() { live = false; }
 
 private:
-  void renderLoop();
+  void spool_frames();
 
 private:
-  // order dependent
-  io_context io_ctx;
-  work_guard guard;
-
+  // order independent
+  bool live;
   MessageBufferHandle_t msg_buff;
+  uint64_t queue_fail = 0;
+  uint64_t timeouts = 0; // count of receive timeouts
 };
 } // namespace ruth
