@@ -65,9 +65,9 @@ void run(void *data) {
   vTaskDelete(th);
 }
 
-constexpr int UART_NUM = 1; // UART0 is the console, UART2 has a defect... use UART1
-constexpr gpio_num_t TX_PIN = GPIO_NUM_17;
-static constexpr uint32_t FRAME_BREAK = 22; // num bits at 250,000 baud (8µs)
+DRAM_ATTR static constexpr int UART_NUM = 1; // UART0=console, UART2=defect (use UART1)
+DRAM_ATTR static constexpr gpio_num_t TX_PIN = GPIO_NUM_17;
+DRAM_ATTR static constexpr uint32_t FRAME_BREAK = 22; // num bits at 250,000 baud (8µs)
 
 bool uart_init() {
   static esp_err_t uart_rc = ESP_FAIL;
@@ -83,13 +83,13 @@ bool uart_init() {
   if (uart_rc = uart_driver_install(UART_NUM, UART_MIN_BUFF, UART_TX_BUFF, 0, NULL, flags);
       uart_rc == ESP_OK) {
 
-    uart_config_t uart_conf = {};
-    uart_conf.baud_rate = 250000;
-    uart_conf.data_bits = UART_DATA_8_BITS;
-    uart_conf.parity = UART_PARITY_DISABLE;
-    uart_conf.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
-    uart_conf.source_clk = UART_SCLK_APB;
-    uart_conf.stop_bits = UART_STOP_BITS_2;
+    const uart_config_t uart_conf = {.baud_rate = 250000,
+                                     .data_bits = UART_DATA_8_BITS,
+                                     .parity = UART_PARITY_DISABLE,
+                                     .stop_bits = UART_STOP_BITS_2,
+                                     .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+                                     .rx_flow_ctrl_thresh = 0,
+                                     .source_clk = UART_SCLK_APB};
 
     if (uart_rc = uart_param_config(UART_NUM, &uart_conf); uart_rc != ESP_OK) {
       ESP_LOGW(pcTaskGetTaskName(nullptr), "[%s] uart_param_config()", esp_err_to_name(uart_rc));
