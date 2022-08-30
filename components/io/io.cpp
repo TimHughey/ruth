@@ -20,8 +20,11 @@
 
 #include "io/io.hpp"
 
-namespace ruth {
+#include <esp_types.h>
 
-// dummy .cpp file for ESP-IDF build system
+namespace ruth {
+namespace io {
+error_code IRAM_ATTR make_error(errc e) { return asio::error::make_error_code(e); }
+} // namespace io
 
 } // namespace ruth

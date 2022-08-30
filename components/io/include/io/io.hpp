@@ -19,12 +19,14 @@
 
 #pragma once
 
+#include <array>
 #include <asio.hpp>
 #include <cstdint>
 
 namespace ruth {
 
 using error_code = asio::error_code;
+using errc = asio::error::basic_errors;
 using io_context = asio::io_context;
 using ip_address = asio::ip::address;
 using ip_tcp = asio::ip::tcp;
@@ -45,6 +47,10 @@ namespace io {
 constexpr auto aborted = asio::error::basic_errors::operation_aborted;
 constexpr auto resource_unavailable = std::errc::resource_unavailable_try_again;
 constexpr auto noent = std::errc::no_such_file_or_directory;
+
+error_code make_error(errc e);
+
+typedef std::array<char, 1024> Packed;
 
 } // namespace io
 

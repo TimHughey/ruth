@@ -34,12 +34,12 @@ class Elapsed {
 public:
   Elapsed(void) noexcept : val(esp_timer_get_time()) {}
 
-  template <typename T> T as() const { return ru_time::as_duration<Nanos, T>(elapsed()); }
-  Seconds asSecs() const { return ru_time::as_secs(elapsed()); }
+  template <typename T> T as() const { return rut::as_duration<Nanos, T>(elapsed()); }
+  Seconds asSecs() const { return rut::as_secs(elapsed()); }
 
   Elapsed &freeze() {
     frozen = true;
-    val = std::chrono::abs(ru_time::nowMicrosSystem() - val);
+    val = std::chrono::abs(rut::raw() - val);
     return *this;
   }
 
@@ -52,7 +52,7 @@ public:
   }
 
 private:
-  Micros elapsed() const { return frozen ? val : ru_time::elapsed_abs<Micros>(val); }
+  Micros elapsed() const { return frozen ? val : rut::elapsed_abs<Micros>(val); }
 
 private:
   Micros val;

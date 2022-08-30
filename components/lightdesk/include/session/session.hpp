@@ -46,20 +46,18 @@ public:
 
 private:
   // use init() to construct a new Session
-  inline Session(const session::Inject &di)        // create the session
-      : server_io_ctx(di.io_ctx),                  // server io_ctx (for session cleanup)
-        socket_ctrl(std::move(di.socket)),         // move the socket connection accepted
-        idle_timer(server_io_ctx),                 // idle timer
-        stats_timer(server_io_ctx),                // frames per second timer
-        endpoint_data(ip_udp::v4(), 0),            // udp data packets endpoint
-        socket_data(server_io_ctx, endpoint_data), // create and open udp data socket
-        stats_interval(2000),                      // frequency to calculate stats
-        stats(stats_interval),                     // initialize the stats object
-        start_at(ru_time::nowMicrosSystem()),      // start_at- (ru_time::nowMicrosSystem()
-        idle_at(ru_time::nowMicrosSystem()),       // system micros desk became idle
-        idle_shutdown(di.idle_shutdown)            // when to declare session idle
+  inline Session(const session::Inject &di) // create the session
+      : local_ref_time(rut::raw()),         // for calculating local system time diffs
+        server_io_ctx(di.io_ctx),           // server io_ctx (for session cleanup)
+        socket_ctrl(std::move(di.socket)),  // move the socket connection accepted
+        idle_timer(server_io_ctx),          // idle timer
+        stats_timer(server_io_ctx),         // frames per second timer
+        idle_shutdown(di.idle_shutdown),    // when to declare session idle
+        stats_interval(2000),               // frequency to calculate stats
+        stats(stats_interval)               // initialize the stats object
   {
     socket_ctrl.set_option(ip_tcp::no_delay(true));
+    handshake();
   }
 
 public:
@@ -81,39 +79,51 @@ public:
 
 private:
   void data_msg_receive();
+  void connect_data(Port port);
   void fps_calc();
   void handshake();
   void idle_watch_dog();
-  void latency_feedback(int64_t async_us);
-  bool send_ctrl_msg(const JsonDocument &doc);
+  bool send_ctrl_msg(const JsonDocument &doc, bool defer = false);
+  bool send_feedback(const JsonDocument &data_doc, const int64_t async_us, Elapsed &elapsed);
   void shutdown();
+
+  // misc debug, logging
+  inline bool log_send_msg(const error_code ec, size_t to_tx, size_t tx_bytes) {
+    auto err = ec || (tx_bytes != to_tx);
+    if (err) {
+      ESP_LOGW(TAG.data(), "send_ctrl_msg failed, bytes=%u/%u reason: %s", tx_bytes, to_tx,
+               ec.message().c_str());
+    }
+
+    return !err;
+  }
 
 private:
   // order dependent
   // NOTE:  all created sockets and timers use the Server io_ctx
-  Elapsed uptime;
+  const Micros local_ref_time; // system micros
   io_context &server_io_ctx;
   tcp_socket socket_ctrl;
   steady_timer idle_timer;
   steady_timer stats_timer;
-  udp_endpoint endpoint_data;
-  udp_socket socket_data;
-
-  // stats
+  Millis idle_shutdown;
   Millis stats_interval;
   desk::stats stats;
 
-  // misc operational times
-  Micros start_at;
-  Micros idle_at;
-  Millis idle_shutdown;
+  // order independent
+  std::optional<tcp_socket> socket_data;
+
+  // time keeping
+  Micros remote_ref_time;
 
   // order independent
-  udp_endpoint endpoint_sender;
   std::unique_ptr<DMX> dmx;
   uint16_t msg_len = 0;
   static constexpr uint16_t MSG_LEN_SIZE = sizeof(msg_len);
-  Packed packed{0};
+  io::Packed packed{0};
+
+  // constants
+  static constexpr bool SEND_ASYNC = true;
 };
 
 } // namespace desk

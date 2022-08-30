@@ -34,8 +34,6 @@
 
 namespace ruth {
 
-typedef std::array<char, 384> Packed;
-
 class DeskMsg {
 
 private:
@@ -49,35 +47,14 @@ private:
   // doc constant values
   static constexpr uint32_t MAGIC_VAL{0xc9d2};
 
-  static constexpr size_t DOC_SIZE = 2048; // JSON_ARRAY_SIZE(64) + JSON_OBJECT_SIZE(13);
-
 public:
-  inline DeskMsg(Packed &buff, size_t rx_bytes, int64_t async_us) : async_us(async_us) {
-    if (auto err = deserializeMsgPack(doc, buff.data(), rx_bytes); err) {
-      ESP_LOGW(TAG.data(), "deserialize failure reason=%s", err.c_str());
-      deserialize_ok = false;
-    } else {
-      deserialize_ok = true;
-      root_obj = doc.as<JsonObjectConst>();
-
-      // uint32_t timestamp = root_obj["timestamp"].as<uint32_t>();
-      // int64_t remote_now = root_obj["now_µs"].as<int64_t>();
-
-      // bool silence = root_obj["silence"];
-
-      // if (auto v = ru_time::now_epoch<Micros>().count() - remote_now; v > 10000) {
-      //   int64_t nettime_now = root_obj["nettime_now_µs"].as<int64_t>();
-      //   int64_t frame_local = root_obj["frame_localtime_µs"].as<int64_t>();
-      //   int64_t diff = std::abs(nettime_now - frame_local);
-      //   ESP_LOGI(TAG.data(), "variance=%lld src diff=%lld", v, diff);
-      // }
-    }
-  }
+  inline DeskMsg(JsonDocument &doc) : root_obj(doc.as<JsonObjectConst>()) {}
 
   inline auto root() const { return root_obj; }
-  inline bool good() const { return deserialize_ok; }
 
 public:
+  inline bool can_render() const { return root_obj[MAGIC].as<int64_t>() == MAGIC_VAL; }
+
   template <typename T> inline T dframe() const {
 
     if (auto array = root_obj[DFRAME].as<JsonArrayConst>(); array) {
@@ -87,33 +64,9 @@ public:
     return T(0);
   }
 
-  inline bool playable() const {
-    uint32_t seq_num = root_obj[SEQ_NUM];
-    uint32_t magic = root_obj[MAGIC];
-
-    bool can_play = deserialize_ok && (magic == MAGIC_VAL);
-
-    if (!can_play) {
-      ESP_LOGW(TAG.data(), "not playable deserialize=%s magic=%u",
-               deserialize_ok ? "ok" : "failed", magic);
-    }
-
-    ESP_LOGD(TAG.data(), "seq=num=%u async_us=%lld", seq_num, async_us);
-
-    return can_play;
-  }
-
-  inline size_t inspect(string &json_debug) const { return serializeJsonPretty(doc, json_debug); }
-
 private:
   // order dependent
-  int64_t async_us;
-
-  // order independent
-  StaticJsonDocument<DOC_SIZE> doc;
   JsonObjectConst root_obj;
-
-  bool deserialize_ok = false;
 };
 
 } // namespace ruth
