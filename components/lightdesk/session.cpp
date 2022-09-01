@@ -247,6 +247,7 @@ bool IRAM_ATTR Session::send_feedback(const JsonDocument &data_doc, const int64_
   root["async_µs"] = async_us;
   root["elapsed_µs"] = elapsed().count();
   root["echoed_now_µs"] = data_doc["now_µs"];
+  root["jitter_µs"] = async_us - data_doc["sync_wait_µs"].as<int64_t>();
   root["fps"] = stats.cached_fps();
 
   return send_ctrl_msg(doc, SEND_ASYNC);
