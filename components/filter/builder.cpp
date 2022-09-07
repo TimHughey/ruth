@@ -28,7 +28,7 @@ namespace ruth {
 
 namespace filter {
 
-IRAM_ATTR Builder::Builder(const char *first_level) {
+Builder::Builder(const char *first_level) {
   if (first_level) {
     addLevel(first_level, false);
   } else {
@@ -36,7 +36,7 @@ IRAM_ATTR Builder::Builder(const char *first_level) {
   }
 }
 
-IRAM_ATTR void Builder::addChar(const char c, bool with_separator) {
+void Builder::addChar(const char c, bool with_separator) {
   if (_capacity > 2) {
 
     if (with_separator)
@@ -47,7 +47,7 @@ IRAM_ATTR void Builder::addChar(const char c, bool with_separator) {
   }
 }
 
-IRAM_ATTR void Builder::addLevel(const char *filter, bool with_separator) {
+void Builder::addLevel(const char *filter, bool with_separator) {
   if (_capacity == 0)
     return;
 

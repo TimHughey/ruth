@@ -25,6 +25,7 @@
 
 namespace ruth {
 
+using const_buff = asio::const_buffer;
 using error_code = asio::error_code;
 using errc = asio::error::basic_errors;
 using io_context = asio::io_context;

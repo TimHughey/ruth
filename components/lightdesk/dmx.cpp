@@ -48,7 +48,7 @@ static bool uart_init();
 
 // use a static run function because we're running a pure FreeRTOS
 // task (not a fancy Thread)
-void run(void *data) {
+void IRAM_ATTR run(void *data) {
   // note: we can't use unique_ptr here because once vTaskDelete is called
   //       this function is removed from the scheduler and the unique_ptr
   //       destructor isn't executed
@@ -144,7 +144,8 @@ DMX::~DMX() {
                         dmx,          // pass the newly created object to run()
                         5,            // priority
                         stack.data(), // static task stack
-                        &tcb);        // task control block
+                        &tcb          // task control block
+      );
 
   ESP_LOGI(TAG.data(), "started obj=%p tcb=%p", dmx, &tcb);
 

@@ -43,7 +43,7 @@ void MQTT::connectionClosed() {
   // _mqtt_ready = false;
 }
 
-IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
+static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
   esp_err_t rc = ESP_OK;
   esp_mqtt_connect_return_code_t status;
 
@@ -101,14 +101,14 @@ IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
   return rc;
 }
 
-IRAM_ATTR static void eventHandler(void *handler_args, esp_event_base_t base, int32_t event_id,
-                                   void *event_data) {
+static void eventHandler(void *handler_args, esp_event_base_t base, int32_t event_id,
+                         void *event_data) {
   esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
 
   eventCallback(event);
 }
 
-IRAM_ATTR void MQTT::incomingMsg(InWrapped msg) {
+void MQTT::incomingMsg(InWrapped msg) {
   bool wanted = false;
   for (auto i = 0; (i < _max_handlers) && !wanted; i++) {
     message::Handler *registered = _handlers[i];
@@ -202,7 +202,7 @@ void MQTT::subscribe(const filter::Subscribe &filter) {
   ESP_LOGD(TAG, "SUBSCRIBE TO filter[%s] msg_id[%d]", filter.c_str(), sub_msg_id);
 }
 
-IRAM_ATTR bool MQTT::send(message::Out &msg) {
+bool MQTT::send(message::Out &msg) {
   size_t bytes;
   auto packed = msg.pack(bytes);
 

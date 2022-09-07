@@ -26,13 +26,13 @@
 namespace ruth {
 namespace message {
 
-IRAM_ATTR States::States(const char *ident) : message::Out(1024), _start_at(esp_timer_get_time()) {
+States::States(const char *ident) : message::Out(1024), _start_at(esp_timer_get_time()) {
   _filter.addLevel("mut");
   _filter.addLevel("status");
   _filter.addLevel(ident);
 }
 
-IRAM_ATTR void States::addPin(uint8_t pin_num, const char *status) {
+void States::addPin(uint8_t pin_num, const char *status) {
   JsonObject obj = rootObject();
   JsonArray pins = obj["pins"];
   if (!pins) {
@@ -44,7 +44,7 @@ IRAM_ATTR void States::addPin(uint8_t pin_num, const char *status) {
   pin_status.add(status);
 }
 
-IRAM_ATTR void States::assembleData(JsonObject &root) {
+void States::assembleData(JsonObject &root) {
   auto metrics = root.createNestedObject("metrics");
   metrics["read"] = _read_us;
 
@@ -55,7 +55,7 @@ IRAM_ATTR void States::assembleData(JsonObject &root) {
   }
 }
 
-IRAM_ATTR void States::finalize() { _read_us = esp_timer_get_time() - _start_at; }
+void States::finalize() { _read_us = esp_timer_get_time() - _start_at; }
 
 } // namespace message
 } // namespace ruth

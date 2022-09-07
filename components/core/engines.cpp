@@ -31,7 +31,7 @@ void Engines::startConfigured(const JsonObject &profile) {
 
   if (lightdesk) {
     const LightDesk::Opts opts;
-    LightDesk::create(opts)->init();
+    LightDesk::create(opts).init();
   }
 }
 

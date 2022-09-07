@@ -22,7 +22,6 @@
 #include "dmx/dmx.hpp"
 #include "io/io.hpp"
 #include "lightdesk/advertise.hpp"
-#include "msg.hpp"
 #include "ru_base/time.hpp"
 #include "server/server.hpp"
 
@@ -31,69 +30,66 @@
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <optional>
 
 namespace ruth {
 namespace shared {
-shLightDesk __lightdesk;
-shLightDesk lightdesk() { return __lightdesk; }
-TaskHandle_t lightdesk_task;
+DRAM_ATTR std::optional<LightDesk> desk;
+DRAM_ATTR std::optional<desk::Server> desk_server;
+TaskHandle_t desk_task;
 } // namespace shared
 
 namespace desk {
 DRAM_ATTR static StaticTask_t desk_tcb;
-DRAM_ATTR static std::array<StackType_t, 7 * 1024> desk_stack;
+DRAM_ATTR static std::array<StackType_t, 10 * 1024> desk_stack;
 } // namespace desk
 
 // static method for create, access and reset of shared LightDesk
-shLightDesk LightDesk::create(const LightDesk::Opts &opts) { // static
-  shared::__lightdesk = shLightDesk(new LightDesk(opts));
-
-  return shared::lightdesk();
-}
-
-IRAM_ATTR shLightDesk LightDesk::ptr() { // static
-  return shared::lightdesk()->shared_from_this();
+LightDesk &LightDesk::create(const LightDesk::Opts &opts) { // static
+  return shared::desk.emplace(opts);
 }
 
 void LightDesk::reset() { // static
-  shared::lightdesk().reset();
+  shared::desk_server->shutdown();
+  shared::desk->io_ctx.stop();
+
+  shared::desk_server.reset();
+  shared::desk.reset();
+}
+
+// run the lightdesk
+void LightDesk::_run([[maybe_unused]] void *data) {
+  shared::desk_server.emplace(                               //
+      desk::server::Inject{shared::desk->io_ctx,             //
+                           SERVICE_PORT,                     //
+                           shared::desk->opts.idle_shutdown} //
+  );
+
+  desk::Advertise::create(shared::desk_server->localPort())->init();
+  shared::desk_server->asyncLoop(); // schedule accept connections
+
+  shared::desk->io_ctx.run();
+
+  ESP_LOGI(TAG.data(), "run() io_ctx work exhausted");
+
+  vTaskDelete(shared::desk_task);
 }
 
 // general API
-
-shLightDesk LightDesk::init() {
+void LightDesk::init() {
   ESP_LOGI(TAG.data(), "enabled, starting up");
 
-  shared::lightdesk_task =                       // create the task using a static desk_stack
+  shared::desk_task =                            // create the task using a static desk_stack
       xTaskCreateStatic(&LightDesk::_run,        // static func to start task
                         TAG.data(),              // task name
                         desk::desk_stack.size(), // desk_stack size
-                        nullptr,                 // task data (use ptr() to access LightDesk)
+                        nullptr,                 // none, use shared::desk
                         4,                       // priority
                         desk::desk_stack.data(), // static task desk_stack
                         &desk::desk_tcb          // task control block
       );
 
   ESP_LOGI(TAG.data(), "started desk_tcb=%p", &desk::desk_tcb);
-  return shared_from_this();
-}
-
-// defined in .cpp to limit exposure of Advertise
-void LightDesk::run() {
-
-  auto server = std::unique_ptr<desk::Server>(       //
-      new desk::Server({.io_ctx = io_ctx,            //
-                        .listen_port = SERVICE_PORT, //
-                        .idle_shutdown = opts.idle_shutdown}));
-
-  desk::Advertise::create(server->localPort())->init();
-  server->asyncLoop(); // schedule accept connections
-
-  io_ctx.run(); // returns when all io_ctx work is complete
-
-  ESP_LOGI(TAG.data(), "run() io_ctx work exhausted");
-
-  state.zombie();
 }
 
 } // namespace ruth

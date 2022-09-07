@@ -33,18 +33,18 @@ public:
   static esp_err_t allOff();
 
   uint32_t duty(bool *changed = nullptr);
-  uint32_t dutyMax() const { return _duty_max; };
-  uint32_t dutyMin() const { return _duty_min; };
+  inline uint32_t dutyMax() const { return _duty_max; };
+  inline uint32_t dutyMin() const { return _duty_min; };
   uint32_t dutyPercent(const float percent) const {
     return uint32_t((float)_duty_max * (percent / 100));
   }
-  esp_err_t lastRC() const { return _last_rc; }
-  bool off() { return updateDuty(dutyMin()); }
-  bool on() { return updateDuty(dutyMax()); }
+  inline esp_err_t lastRC() const { return _last_rc; }
+  inline bool off() { return updateDuty(dutyMin()); }
+  inline bool on() { return updateDuty(dutyMax()); }
 
   inline uint8_t pinNum() const { return _pin_num; }
 
-  Hardware *self() { return this; }
+  inline Hardware *self() { return this; }
   const char *shortName() const;
   bool stop(uint32_t final_duty);
 

@@ -27,7 +27,7 @@
 namespace ruth {
 namespace message {
 
-IRAM_ATTR Out::Out(const size_t doc_size) : _doc(doc_size) {
+Out::Out(const size_t doc_size) : _doc(doc_size) {
   JsonObject root = _doc.to<JsonObject>();
 
   struct timeval time_now {};
@@ -37,7 +37,7 @@ IRAM_ATTR Out::Out(const size_t doc_size) : _doc(doc_size) {
   root["mtime"] = mtime_ms;
 }
 
-IRAM_ATTR Packed Out::pack(size_t &length) {
+Packed Out::pack(size_t &length) {
   JsonObject root = rootObject();
 
   assembleData(root);

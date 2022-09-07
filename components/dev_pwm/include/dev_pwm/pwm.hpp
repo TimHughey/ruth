@@ -21,7 +21,6 @@
 #pragma once
 
 #include "ArduinoJson.h"
-#include "dev_pwm/cmd.hpp"
 #include "dev_pwm/hardware.hpp"
 
 #include <freertos/FreeRTOS.h>
@@ -35,26 +34,6 @@ public:
   PulseWidth(uint8_t pin_num);
 
   inline uint8_t devAddr() const { return pinNum(); }
-  bool execute(const JsonObject &root);
-  // bool execute(const char *cmd);
-  bool execute(pwm::CmdWrapped cmd);
-  const char *id() const { return shortName(); }
-
-  void makeStatus();
-
-  const char *status() const { return _status; }
-
-private:
-  enum CmdType : uint32_t { NO_MATCH = 0, ON, OFF, FIXED, RANDOM };
-
-private:
-  CmdType cmdType(const JsonObject &root) const;
-  inline void cmdBasic(const CmdType type) {
-    updateDuty(type == CmdType::ON ? dutyMax() : dutyMin());
-  }
-
-private:
-  char _status[32];
-  pwm::CmdWrapped _cmd;
+  inline const char *id() const { return shortName(); }
 };
 } // namespace ruth

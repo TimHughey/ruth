@@ -27,7 +27,7 @@ namespace ruth {
 
 namespace message {
 
-IRAM_ATTR Ack::Ack(const char *refid) : message::Out(192) {
+Ack::Ack(const char *refid) : message::Out(192) {
   _start_us = esp_timer_get_time();
 
   _filter.addLevel("mut");
@@ -35,7 +35,7 @@ IRAM_ATTR Ack::Ack(const char *refid) : message::Out(192) {
   _filter.addLevel(refid);
 }
 
-IRAM_ATTR void Ack::assembleData(JsonObject &root) {
+void Ack::assembleData(JsonObject &root) {
   const uint32_t elapsed_us = esp_timer_get_time() - _start_us;
   root["elapsed_us"] = elapsed_us;
 }

@@ -19,8 +19,6 @@
 */
 
 #include "dev_pwm/pwm.hpp"
-#include "dev_pwm/cmd_fixed.hpp"
-#include "dev_pwm/cmd_random.hpp"
 
 #include <cstring>
 #include <driver/gpio.h>
@@ -31,111 +29,6 @@
 namespace ruth {
 
 // construct a new PulseWidth with a known address
-PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) {
-  updateDuty(0);
+PulseWidth::PulseWidth(uint8_t pin_num) : pwm::Hardware(pin_num) { updateDuty(0); }
 
-  // default status to off
-  auto *p = _status;
-
-  *p++ = 'o';
-  *p++ = 'f';
-  *p++ = 'f';
-  *p++ = 0x00;
-}
-
-IRAM_ATTR PulseWidth::CmdType PulseWidth::cmdType(const JsonObject &root) const {
-  const char *cmd = root["cmd"];
-
-  if (cmd == nullptr)
-    return CmdType::NO_MATCH;
-
-  // is this a simple on/off command?
-  if ((cmd[0] == 'o') && (cmd[1] == 'n') && (cmd[2] == 0x00))
-    return CmdType::ON;
-  if ((cmd[0] == 'o') && (cmd[1] == 'f') && (cmd[2] == 'f') && (cmd[3] == 0x00))
-    return CmdType::OFF;
-
-  // is this an extended commmand?
-  const char *type = root["params"]["type"];
-
-  if (type) {
-    if (strcmp(type, "fixed") == 0)
-      return CmdType::FIXED;
-    if (strcmp(type, "random") == 0)
-      return CmdType::RANDOM;
-  }
-
-  return CmdType::NO_MATCH;
-}
-
-IRAM_ATTR bool PulseWidth::execute(const JsonObject &root) {
-  auto rc = true;
-
-  auto cmd_type = cmdType(root);
-
-  switch (cmd_type) {
-  case CmdType::ON:
-  case CmdType::OFF:
-    if (_cmd)
-      _cmd.reset(nullptr);
-
-    cmdBasic(cmd_type);
-    break;
-
-  case CmdType::FIXED:
-    _cmd.reset(new pwm::Fixed(self(), root));
-    rc = _cmd->run();
-    break;
-
-  case CmdType::RANDOM:
-    _cmd.reset(new pwm::Random(self(), root));
-    rc = _cmd->run();
-    break;
-
-  default:
-    rc = false;
-  }
-
-  return rc;
-}
-
-IRAM_ATTR void PulseWidth::makeStatus() {
-  constexpr size_t capacity = sizeof(_status) - 1;
-  auto *p = _status;
-
-  // if a cmd is running, use it's name as the status
-  if (_cmd) {
-    memccpy(p, _cmd->name(), 0x00, capacity);
-    return;
-  }
-
-  // otherwise, create a text representation of the duty value
-  uint32_t duty_now = duty();
-
-  // going for ultimate efficiency here
-  if (duty_now == dutyMin()) { // handle off
-    *p++ = 'o';
-    *p++ = 'f';
-    *p++ = 'f';
-    *p++ = 0x00;
-    return;
-  }
-
-  if (duty_now == dutyMax()) { // handle on
-    *p++ = 'o';
-    *p++ = 'n';
-    *p++ = 0x00;
-    return;
-  }
-
-  // not on or off, create a custom status using the duty val
-  *p++ = 'f';
-  *p++ = 'i';
-  *p++ = 'x';
-  *p++ = 'e';
-  *p++ = 'd';
-  *p++ = ' ';
-
-  itoa(duty_now, p, 10);
-}
 } // namespace ruth

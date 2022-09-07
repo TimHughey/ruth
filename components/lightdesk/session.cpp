@@ -25,6 +25,7 @@
 #include <esp_log.h>
 #include <esp_timer.h>
 #include <freertos/task.h>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -36,9 +37,9 @@
 #include "headunit/headunit.hpp"
 #include "headunit/ledforest.hpp"
 #include "inject/inject.hpp"
-#include "io/async_msg.hpp"
+#include "io/async_msg2.hpp"
 #include "io/io.hpp"
-#include "msg.hpp"
+#include "io/msg_static.hpp"
 #include "ru_base/time.hpp"
 #include "ru_base/uint8v.hpp"
 #include "session/session.hpp"
@@ -46,14 +47,18 @@
 namespace ruth {
 namespace desk {
 
-using namespace std::chrono_literals;
-
 typedef std::vector<shHeadUnit> HeadUnits;
 DRAM_ATTR static HeadUnits units;
 
 namespace active {
 DRAM_ATTR std::optional<Session> session;
 } // namespace active
+
+namespace buffers {
+DRAM_ATTR io::StaticPacked alpha;
+DRAM_ATTR io::StaticPacked beta;
+DRAM_ATTR io::StaticPacked gamma;
+} // namespace buffers
 
 static void create_units() {
   units.emplace_back(std::make_unique<AcPower>("ac power"));
@@ -65,44 +70,53 @@ static void create_units() {
 
 // Object API
 
-void IRAM_ATTR Session::data_msg_receive() {
-  static io::StaticDoc doc;
-  static io::Packed buff;
+void IRAM_ATTR Session::data_feedback(const JsonDocument &data_doc, const int64_t async_us,
+                                      Elapsed &elapsed) {
 
-  io::async_tld(    //
-      *socket_data, //
-      buff,         //
-      doc,          //
-      [this, async_start_us = rut::raw_us()](error_code ec, size_t bytes) {
-        // if no error, handle the incoming UDP data msg
+  auto msg = io::Msg(io::FEEDBACK, buffers::gamma);
+
+  msg.add_kv(io::SEQ_NUM, data_doc[io::SEQ_NUM].as<uint32_t>());
+  msg.add_kv(io::NOW_US, rut::raw_us());
+  msg.add_kv(io::ASYNC_US, async_us);
+  msg.add_kv(io::ELAPSED_US, elapsed().count());
+  msg.add_kv(io::ECHOED_NOW_US, data_doc[io::NOW_US]);
+  msg.add_kv(io::JITTER_US, async_us - data_doc[io::SYNC_WAIT_US].as<int64_t>());
+  msg.add_kv(io::FPS, stats.cached_fps());
+
+  auto ec = io::write_msg(socket_ctrl, msg);
+
+  log_feedback(ec);
+}
+
+void IRAM_ATTR Session::data_msg_rx() {
+
+  io::async_read_msg( //
+      *socket_data,   //
+      buffers::alpha, [this, async_start_us = rut::raw_us()](const error_code ec, io::Msg msg) {
         const auto async_us = rut::raw_us() - async_start_us;
+        JsonDocument &doc = msg.doc;
 
-        if (!ec && bytes) {
-          Elapsed elapsed;
+        if (success(ec)) {                                          // no socket error, confirm doc
+          if (!doc.isNull() && (doc[io::MAGIC] == io::MAGIC_VAL)) { // doc is good
+            Elapsed elapsed;
 
-          stats.saw_frame();
-          idle_watch_dog(); // reset the idle watchdog, we received a data msg
+            stats.saw_frame();
+            idle_watch_dog(); // reset the idle watchdog, we received a data msg
 
-          // now that we have the entire packed message
-          // attempt to create the DeskMsg, ask DMX to send the frame then
-          // ask each headunit to handle it's part of the message
-          if (auto msg = DeskMsg(doc); msg.can_render()) {
             dmx->tx_frame(msg.dframe<dmx::frame>());
 
             for (auto &unit : units) {
-              unit->handleMsg(msg.root());
+              unit->handleMsg(doc);
             }
-          } else {
-            ESP_LOGW(TAG.data(), "not renderable, bad magic");
+
+            data_feedback(doc, async_us, elapsed);
+          } else { // doc bad
+            ESP_LOGW(TAG.data(), "not renderable, is_null=%s magic=0x%x",
+                     doc.isNull() ? "true " : "false", doc[io::MAGIC].as<uint16_t>());
           }
 
-          send_feedback(doc, async_us, elapsed);
-          data_msg_receive();
-        } else if (ec) {
-
-          ESP_LOGW(TAG.data(), "recv msg failed, bytes= %d reason=%s", bytes,
-                   ec.message().c_str());
-          shutdown();
+          // prepare for next msg (no socket error)
+          data_msg_rx();
         }
       });
 }
@@ -115,12 +129,14 @@ void IRAM_ATTR Session::connect_data(Port port) {
   asio::async_connect(*socket_data, std::array{endpoint},
                       [this](const error_code ec, const tcp_endpoint remote_endpoint) {
                         if (!ec) {
+                          socket_data->set_option(ip_tcp::no_delay(true));
+
                           ESP_LOGI(TAG.data(), "data socket connected=%s:%d handle=%d",
                                    remote_endpoint.address().to_string().c_str(),
                                    remote_endpoint.port(), socket_data->native_handle());
 
                           fps_calc();
-                          data_msg_receive();
+                          data_msg_rx();
 
                         } else {
                           ESP_LOGW(TAG.data(), "data socket failed, reason=%s",
@@ -140,47 +156,40 @@ void IRAM_ATTR Session::fps_calc() {
   });
 }
 
-void IRAM_ATTR Session::handshake() {
-  auto doc = std::make_unique<io::StaticDoc>();
-  auto root = doc->to<JsonObject>();
+// sends initial handshake
+void IRAM_ATTR Session::handshake_part1() {
+  io::Msg msg(buffers::beta);
 
-  root["type"] = "handshake";
-  root["now_µs"] = rut::now_epoch<Micros>().count();
-  root["ref_µs"] = local_ref_time.count();
+  msg.add_kv(io::TYPE, io::HANDSHAKE);
+  msg.add_kv(io::NOW_US, rut::now_epoch<Micros>().count());
+  msg.add_kv(io::REF_US, local_ref_time.count());
 
-  send_ctrl_msg(*doc); // send initial handshake request
+  if (auto ec = io::write_msg(socket_ctrl, msg); !ec) {
+    handshake_part2();
+  }
+}
 
-  auto buff = std::make_unique<io::Packed>();
-  auto &bref = *buff;
-  auto &dref = *doc;
+// receives final handshake
+void IRAM_ATTR Session::handshake_part2() {
+  io::async_read_msg(socket_ctrl, buffers::alpha, [this](const error_code ec, io::Msg msg) {
+    JsonDocument &doc = msg.doc;
 
-  // read the handshake reply
-  io::async_tld(   //
-      socket_ctrl, //
-      bref,        //
-      dref,        //
-      [this, doc = std::move(doc), buff = std::move(buff)](error_code ec, size_t bytes) mutable {
-        // if no error, handle the incoming UDP data msg
-        if (!ec && bytes) {
-          auto root = doc->as<JsonObject>();
-          csv type = root["type"] | "unknown";
-          Port port = root["data_port"] | 0;
-          int64_t idle_ms = root["idle_shutdown_ms"] | idle_shutdown.count();
-          idle_shutdown = Millis(idle_ms);
-          remote_ref_time = Micros(root["ref_µs"] | 0);
+    if (!ec && !doc.isNull() && (io::HANDSHAKE == csv(doc[io::TYPE])) && (doc[io::DATA_PORT])) {
+      // proper reply to handshake
+      Port port = doc[io::DATA_PORT];
+      int64_t idle_ms = doc[io::IDLE_SHUTDOWN_US] | idle_shutdown.count();
+      idle_shutdown = Millis(idle_ms);
+      remote_ref_time = Micros(doc[io::REF_US] | 0);
 
-          if (type == csv{"handshake"} && port) {
-            dmx = DMX::init();
-            connect_data(port);
-          }
-        } else {
-          ESP_LOGW(TAG.data(), "failed, bytes=%u reason=%s", bytes, ec.message().c_str());
-          shutdown();
-        }
-
-        doc.reset();
-        buff.reset();
-      });
+      if (port) {           // we got a port
+        dmx = DMX::init();  // spin up DMX
+        connect_data(port); // connect to the data port
+      }
+    } else {
+      ESP_LOGW(TAG.data(), "failed, reason=%s", ec.message().c_str());
+      shutdown();
+    }
+  });
 }
 
 void IRAM_ATTR Session::idle_watch_dog() {
@@ -208,69 +217,19 @@ void IRAM_ATTR Session::init(const session::Inject &di) { // static
   active::session.emplace(di);
 }
 
-bool IRAM_ATTR Session::send_ctrl_msg(const JsonDocument &doc, bool async) {
-  auto buff = std::make_unique<io::Packed>();
-
-  auto mp_buff = buff->data() + MSG_LEN_SIZE;
-  const auto mp_max = buff->size() - MSG_LEN_SIZE;
-  uint16_t mp_bytes = serializeMsgPack(doc, mp_buff, mp_max);
-  const uint16_t msg_len = htons(mp_bytes);
-
-  memcpy(buff->data(), &msg_len, MSG_LEN_SIZE);
-  const size_t to_tx = mp_bytes + MSG_LEN_SIZE;
-
-  if (async) {
-    auto b = asio::buffer(buff->data(), to_tx);
-    socket_ctrl.async_write_some(
-        b, [this, _b = std::move(buff), to_tx](const error_code ec, size_t tx_bytes) mutable {
-          log_send_msg(ec, to_tx, tx_bytes);
-          _b.reset();
-        });
-  } else {
-    error_code ec;
-    auto tx_bytes = socket_ctrl.send(asio::buffer(buff->data(), to_tx), 0, ec);
-
-    return log_send_msg(ec, to_tx, tx_bytes);
-  }
-
-  return true; // async always returns true
-}
-
-bool IRAM_ATTR Session::send_feedback(const JsonDocument &data_doc, const int64_t async_us,
-                                      Elapsed &elapsed) {
-  DynamicJsonDocument doc(1024);
-  JsonObject root = doc.to<JsonObject>();
-
-  root["type"] = "feedback";
-  root["seq_num"] = data_doc["seq_num"];
-  root["now_µs"] = rut::raw_us();
-  root["async_µs"] = async_us;
-  root["elapsed_µs"] = elapsed().count();
-  root["echoed_now_µs"] = data_doc["now_µs"];
-  root["jitter_µs"] = async_us - data_doc["sync_wait_µs"].as<int64_t>();
-  root["fps"] = stats.cached_fps();
-
-  return send_ctrl_msg(doc, SEND_ASYNC);
-}
-
 void IRAM_ATTR Session::shutdown() {
   [[maybe_unused]] error_code ec;
   idle_timer.cancel(ec);
   stats_timer.cancel(ec);
 
   if (socket_ctrl.is_open()) {
-    ESP_LOGD(TAG.data(), "shutting down ctrl handle=%d", socket_ctrl.native_handle());
-
-    socket_ctrl.cancel(ec);
-    socket_ctrl.shutdown(tcp_socket::shutdown_both, ec);
+    ESP_LOGI(TAG.data(), "shutting down ctrl handle=%d", socket_ctrl.native_handle());
     socket_ctrl.close(ec);
   }
 
-  if (socket_data->is_open()) {
-    ESP_LOGD(TAG.data(), "shutting down data handle==%d", socket_ctrl.native_handle());
-
-    socket_data->cancel(ec);
-    socket_data->shutdown(tcp_socket::shutdown_both, ec);
+  if (socket_data.has_value() && socket_data->is_open()) {
+    ESP_LOGI(TAG.data(), "shutting down data handle=%d", socket_data->native_handle());
+    socket_data->close(ec);
     socket_data.reset();
   }
 
@@ -281,7 +240,7 @@ void IRAM_ATTR Session::shutdown() {
 
   // execute the final clean up (reset of active session optional) outside the
   // scope of this function
-  asio::defer(server_io_ctx, [] { active::session.reset(); });
+  asio::post(server_io_ctx, [] { active::session.reset(); });
 }
 
 } // namespace desk

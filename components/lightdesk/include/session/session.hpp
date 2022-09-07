@@ -22,7 +22,6 @@
 #include "inject/inject.hpp"
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
-#include "msg.hpp"
 #include "ru_base/types.hpp"
 #include "ru_base/uint8v.hpp"
 #include "session/stats.hpp"
@@ -57,7 +56,7 @@ private:
         stats(stats_interval)               // initialize the stats object
   {
     socket_ctrl.set_option(ip_tcp::no_delay(true));
-    handshake();
+    handshake_part1();
   }
 
 public:
@@ -78,24 +77,33 @@ public:
   static void init(const session::Inject &di);
 
 private:
-  void data_msg_receive();
+  void data_feedback(const JsonDocument &data_doc, const int64_t async_us, Elapsed &elapsed);
+  void data_msg_rx();
   void connect_data(Port port);
   void fps_calc();
-  void handshake();
+  void handshake_part1();
+  void handshake_part2();
   void idle_watch_dog();
-  bool send_ctrl_msg(const JsonDocument &doc, bool defer = false);
-  bool send_feedback(const JsonDocument &data_doc, const int64_t async_us, Elapsed &elapsed);
+
+  inline bool success(const error_code ec) {
+    if (ec) {
+      ESP_LOGW(TAG.data(), "shutdown, reason=%s", ec.message().c_str());
+      shutdown();
+    }
+
+    return !ec;
+  }
+
   void shutdown();
 
   // misc debug, logging
-  inline bool log_send_msg(const error_code ec, size_t to_tx, size_t tx_bytes) {
-    auto err = ec || (tx_bytes != to_tx);
-    if (err) {
-      ESP_LOGW(TAG.data(), "send_ctrl_msg failed, bytes=%u/%u reason: %s", tx_bytes, to_tx,
-               ec.message().c_str());
-    }
+  inline void log_feedback(const error_code &ec) {
 
-    return !err;
+    if (ec) {
+      ESP_LOGW(TAG.data(), "async_write_msg() failed, reason: %s", ec.message().c_str());
+
+      shutdown();
+    }
   }
 
 private:
@@ -119,11 +127,6 @@ private:
   // order independent
   std::unique_ptr<DMX> dmx;
   uint16_t msg_len = 0;
-  static constexpr uint16_t MSG_LEN_SIZE = sizeof(msg_len);
-  io::Packed packed{0};
-
-  // constants
-  static constexpr bool SEND_ASYNC = true;
 };
 
 } // namespace desk

@@ -38,7 +38,7 @@ public:
   virtual ~HeadUnit() = default;
 
   virtual void dark() = 0;
-  virtual void handleMsg(JsonObjectConst obj) = 0;
+  virtual void handleMsg(JsonDocument &doc) = 0;
 
   csv moduleId() { return module_id; }
 

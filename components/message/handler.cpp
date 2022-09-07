@@ -65,11 +65,11 @@ bool Handler::accept(std::unique_ptr<In> msg) {
   return false;
 }
 
-IRAM_ATTR bool Handler::matchCategory(const char *to_match) const {
+bool Handler::matchCategory(const char *to_match) const {
   return strncmp(_category, to_match, sizeof(_category)) == 0 ? true : false;
 }
 
-IRAM_ATTR InWrapped Handler::waitForMessage(uint32_t wait_ms, bool *timeout) {
+InWrapped Handler::waitForMessage(uint32_t wait_ms, bool *timeout) {
   InWrapped return_msg(nullptr);
   In *received_msg;
 
@@ -96,7 +96,7 @@ void Handler::notifyThisTask(UBaseType_t notify_val) {
   _notify_msg_val = notify_val;
 }
 
-IRAM_ATTR InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
+InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
   InWrapped return_msg(nullptr);
   In *received_msg = nullptr;
   // always do a no wait check for messages in the queue

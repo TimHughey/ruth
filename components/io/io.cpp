@@ -24,7 +24,7 @@
 
 namespace ruth {
 namespace io {
-error_code IRAM_ATTR make_error(errc e) { return asio::error::make_error_code(e); }
+error_code make_error(errc e) { return asio::error::make_error_code(e); }
 } // namespace io
 
 } // namespace ruth

@@ -45,20 +45,20 @@ using rut = ru_time;
 struct ru_time {
   static constexpr Nanos NS_FACTOR{upow(10, 9)};
 
-  template <typename FROM, typename TO> static constexpr TO as_duration(auto x) {
+  template <typename FROM, typename TO> static inline constexpr TO as_duration(auto x) {
     return std::chrono::duration_cast<TO>(FROM(x));
   }
 
-  template <typename T> static constexpr MillisFP as_millis_fp(const T &d) {
+  template <typename T> static constexpr inline MillisFP as_millis_fp(const T &d) {
     return std::chrono::duration_cast<MillisFP>(d);
   }
 
-  template <typename T> static constexpr Seconds as_secs(const T &d) {
+  template <typename T> static constexpr inline Seconds as_secs(const T &d) {
     return std::chrono::duration_cast<Seconds>(d);
   }
 
   template <typename T = Micros, typename S = T>
-  static constexpr T elapsed_abs(const T &d1, const S d2 = rut::raw()) {
+  static constexpr inline T elapsed_abs(const T &d1, const S d2 = rut::raw()) {
     if (std::is_same<T, S>::value) {
       return std::chrono::abs(d2 - d1);
     } else {
@@ -66,9 +66,9 @@ struct ru_time {
     }
   }
 
-  static constexpr Millis from_ms(int64_t ms) { return Millis(ms); }
+  static constexpr inline Millis from_ms(int64_t ms) { return Millis(ms); }
 
-  template <typename T> static T now_epoch() {
+  template <typename T> static inline T now_epoch() {
     return std::chrono::duration_cast<T>(system_clock::now().time_since_epoch());
   }
 

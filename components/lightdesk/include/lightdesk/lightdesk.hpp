@@ -27,13 +27,16 @@
 #include <chrono>
 #include <esp_timer.h>
 #include <memory>
+#include <optional>
 
 namespace ruth {
 
 class LightDesk;
-typedef std::shared_ptr<LightDesk> shLightDesk;
+namespace shared {
+extern std::optional<LightDesk> desk;
+}
 
-class LightDesk : public std::enable_shared_from_this<LightDesk> {
+class LightDesk {
 public:
   static constexpr csv TAG = "lightdesk";
 
@@ -46,16 +49,15 @@ private:
   LightDesk(const Opts &opts) : opts(opts) {}
 
 public: // static function to create, access and reset shared LightDesk
-  static shLightDesk create(const Opts &opts);
-  static shLightDesk ptr();
+  static LightDesk &create(const Opts &opts);
   static void reset(); // reset (deallocate) shared instance
 
   // general public API
-  shLightDesk init(); // starts LightDesk task
+  void init(); // starts LightDesk task
 
 private:
-  static inline void _run([[maybe_unused]] void *data) { ptr()->run(); }
-  void run(); // see .cpp file
+  // static inline void _run([[maybe_unused]] void *data) { ptr()->run(); }
+  static void _run(void *data);
 
 private:
   // order dependent
