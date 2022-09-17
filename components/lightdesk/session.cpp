@@ -54,12 +54,6 @@ namespace active {
 DRAM_ATTR std::optional<Session> session;
 } // namespace active
 
-namespace buffers {
-DRAM_ATTR io::StaticPacked alpha;
-DRAM_ATTR io::StaticPacked beta;
-DRAM_ATTR io::StaticPacked gamma;
-} // namespace buffers
-
 static void create_units() {
   units.emplace_back(std::make_unique<AcPower>("ac power"));
   units.emplace_back(std::make_unique<DiscoBall>("disco ball", 1)); // pwm 1
@@ -73,7 +67,9 @@ static void create_units() {
 void IRAM_ATTR Session::data_feedback(const JsonDocument &data_doc, const int64_t async_us,
                                       Elapsed &elapsed) {
 
-  auto msg = io::Msg(io::FEEDBACK, buffers::gamma);
+  DRAM_ATTR static io::StaticPacked packed;
+
+  auto msg = io::Msg(io::FEEDBACK, packed);
 
   msg.add_kv(io::SEQ_NUM, data_doc[io::SEQ_NUM].as<uint32_t>());
   msg.add_kv(io::NOW_US, rut::raw_us());
@@ -89,10 +85,12 @@ void IRAM_ATTR Session::data_feedback(const JsonDocument &data_doc, const int64_
 }
 
 void IRAM_ATTR Session::data_msg_rx() {
+  DRAM_ATTR static io::StaticPacked packed;
 
   io::async_read_msg( //
       *socket_data,   //
-      buffers::alpha, [this, async_start_us = rut::raw_us()](const error_code ec, io::Msg msg) {
+      packed,         //
+      [this, async_start_us = rut::raw_us()](const error_code ec, io::Msg msg) {
         const auto async_us = rut::raw_us() - async_start_us;
         JsonDocument &doc = msg.doc;
 
@@ -158,7 +156,8 @@ void IRAM_ATTR Session::fps_calc() {
 
 // sends initial handshake
 void IRAM_ATTR Session::handshake_part1() {
-  io::Msg msg(buffers::beta);
+  DRAM_ATTR static io::StaticPacked packed;
+  io::Msg msg(packed);
 
   msg.add_kv(io::TYPE, io::HANDSHAKE);
   msg.add_kv(io::NOW_US, rut::now_epoch<Micros>().count());
@@ -171,25 +170,31 @@ void IRAM_ATTR Session::handshake_part1() {
 
 // receives final handshake
 void IRAM_ATTR Session::handshake_part2() {
-  io::async_read_msg(socket_ctrl, buffers::alpha, [this](const error_code ec, io::Msg msg) {
-    JsonDocument &doc = msg.doc;
+  DRAM_ATTR static io::StaticPacked packed;
 
-    if (!ec && !doc.isNull() && (io::HANDSHAKE == csv(doc[io::TYPE])) && (doc[io::DATA_PORT])) {
-      // proper reply to handshake
-      Port port = doc[io::DATA_PORT];
-      int64_t idle_ms = doc[io::IDLE_SHUTDOWN_US] | idle_shutdown.count();
-      idle_shutdown = Millis(idle_ms);
-      remote_ref_time = Micros(doc[io::REF_US] | 0);
+  io::async_read_msg( //
+      socket_ctrl,    //
+      packed,         //
+      [this](const error_code ec, io::Msg msg) {
+        JsonDocument &doc = msg.doc;
 
-      if (port) {           // we got a port
-        dmx = DMX::init();  // spin up DMX
-        connect_data(port); // connect to the data port
-      }
-    } else {
-      ESP_LOGW(TAG.data(), "failed, reason=%s", ec.message().c_str());
-      shutdown();
-    }
-  });
+        if (!ec && !doc.isNull() && (io::HANDSHAKE == csv(doc[io::TYPE])) &&
+            (doc[io::DATA_PORT])) {
+          // proper reply to handshake
+          Port port = doc[io::DATA_PORT];
+          int64_t idle_ms = doc[io::IDLE_SHUTDOWN_US] | idle_shutdown.count();
+          idle_shutdown = Millis(idle_ms);
+          remote_ref_time = Micros(doc[io::REF_US] | 0);
+
+          if (port) {           // we got a port
+            dmx = DMX::init();  // spin up DMX
+            connect_data(port); // connect to the data port
+          }
+        } else {
+          ESP_LOGW(TAG.data(), "failed, reason=%s", ec.message().c_str());
+          shutdown();
+        }
+      });
 }
 
 void IRAM_ATTR Session::idle_watch_dog() {
