@@ -52,7 +52,6 @@ static constexpr ccs FEEDBACK = "feedback";
 static constexpr ccs FPS = "fps";
 static constexpr ccs HANDSHAKE = "handshake";
 static constexpr ccs IDLE_SHUTDOWN_US = "idle_shutdown_µs";
-static constexpr ccs JITTER_US = "jitter_µs";
 static constexpr ccs MAGIC = "magic";
 static constexpr ccs NOW_US = "now_µs";
 static constexpr ccs READ_MSG = "read_msg";

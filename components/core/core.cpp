@@ -122,6 +122,7 @@ void Core::boot() {
 }
 void Core::bootComplete() {
   // send our boot stats
+
   const char *profile_name = _profile["meta"]["name"] | "unknown";
   message::Boot msg(_stack_size, profile_name);
   MQTT::send(msg);
@@ -133,8 +134,13 @@ void Core::bootComplete() {
 
   // start our scheduled reports
   uint32_t report_ms = _profile["host"]["report_ms"] | 7000;
-  _report_timer =
-      xTimerCreate("core_report", pdMS_TO_TICKS(report_ms), pdTRUE, nullptr, &reportTimer);
+
+  _report_timer = xTimerCreate("core_report",            //
+                               pdMS_TO_TICKS(report_ms), //
+                               pdTRUE,                   //
+                               nullptr,                  //
+                               &reportTimer);
+
   vTimerSetTimerID(_report_timer, this);
   xTimerStart(_report_timer, pdMS_TO_TICKS(0));
 
@@ -174,8 +180,7 @@ void Core::ota(message::InWrapped msg) {
   using namespace firmware;
 
   // OTA already in progress, do nothing (should never happen)
-  if (_ota)
-    return;
+  if (_ota) return;
 
   if (msg->unpack(_ota_cmd)) {
     const JsonObject cmd_root = _ota_cmd.as<JsonObject>();
@@ -194,8 +199,7 @@ void Core::ota(message::InWrapped msg) {
 
     trackHeap();
 
-    if (rc == pdFAIL)
-      continue; // timeout == OTA in progress, just track heap
+    if (rc == pdFAIL) continue; // timeout == OTA in progress, just track heap
 
     switch (val) {
     case OTA::Notifies::START: // ota started, wait for next notify
@@ -249,8 +253,7 @@ void Core::startEngines() {
 
   // in other words, we only want to create devices centrally once this host
   // has been assigned a name.
-  if (_engines_started || Net::hostIdAndNameAreEqual())
-    return;
+  if (_engines_started || Net::hostIdAndNameAreEqual()) return;
 
   const JsonObject profile = _profile.as<JsonObject>();
   profile["hostname"] = Net::hostname();

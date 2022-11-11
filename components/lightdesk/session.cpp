@@ -76,7 +76,6 @@ void IRAM_ATTR Session::data_feedback(const JsonDocument &data_doc, const int64_
   msg.add_kv(io::ASYNC_US, async_us);
   msg.add_kv(io::ELAPSED_US, elapsed().count());
   msg.add_kv(io::ECHOED_NOW_US, data_doc[io::NOW_US]);
-  msg.add_kv(io::JITTER_US, async_us - data_doc[io::SYNC_WAIT_US].as<int64_t>());
   msg.add_kv(io::FPS, stats.cached_fps());
 
   auto ec = io::write_msg(socket_ctrl, msg);
@@ -178,8 +177,7 @@ void IRAM_ATTR Session::handshake_part2() {
       [this](const error_code ec, io::Msg msg) {
         JsonDocument &doc = msg.doc;
 
-        if (!ec && !doc.isNull() && (io::HANDSHAKE == csv(doc[io::TYPE])) &&
-            (doc[io::DATA_PORT])) {
+        if (!ec && !doc.isNull() && (io::HANDSHAKE == csv(doc[io::TYPE])) && (doc[io::DATA_PORT])) {
           // proper reply to handshake
           Port port = doc[io::DATA_PORT];
           int64_t idle_ms = doc[io::IDLE_SHUTDOWN_US] | idle_shutdown.count();
