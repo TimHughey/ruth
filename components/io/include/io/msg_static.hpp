@@ -35,31 +35,29 @@
 namespace ruth {
 namespace io {
 
-static constexpr size_t DOC_DEFAULT_MAX_SIZE = 512;
-static constexpr size_t MSG_LEN_SIZE = sizeof(uint16_t);
-static constexpr size_t PACKED_DEFAULT_MAX_SIZE = DOC_DEFAULT_MAX_SIZE / 2;
+static constexpr size_t DOC_DEFAULT_MAX_SIZE{512};
+static constexpr size_t MSG_LEN_SIZE{sizeof(uint16_t)};
+static constexpr size_t PACKED_DEFAULT_MAX_SIZE{DOC_DEFAULT_MAX_SIZE / 2};
 
 using StaticPacked = std::array<char, PACKED_DEFAULT_MAX_SIZE>;
 using StaticDoc = StaticJsonDocument<DOC_DEFAULT_MAX_SIZE>;
 
-static constexpr ccs ASYNC_US = "async_µs";
-static constexpr ccs DATA_PORT = "data_port";
-static constexpr ccs DFRAME = "dframe";
-static constexpr ccs ECHOED_NOW_US = "echoed_now_µs";
-static constexpr ccs ELAPSED_US = "elapsed_µs";
-static constexpr ccs FEEDBACK = "feedback";
-static constexpr ccs FPS = "fps";
-static constexpr ccs HANDSHAKE = "handshake";
-static constexpr ccs IDLE_SHUTDOWN_US = "idle_shutdown_µs";
-static constexpr ccs JITTER_US = "jitter_µs";
-static constexpr ccs MAGIC = "magic";
-static constexpr ccs NOW_US = "now_µs";
-static constexpr ccs READ_MSG = "read_msg";
-static constexpr ccs REF_US = "ref_µs";
-static constexpr ccs SEQ_NUM = "seq_num";
-static constexpr ccs SYNC_WAIT_US = "sync_wait_µs";
-static constexpr ccs TYPE = "type";
-static constexpr uint16_t MAGIC_VAL = 0xc9d2;
+static constexpr auto DATA_PORT{"data_port"};
+static constexpr auto DATA_WAIT_US{"data_wait_µs"};
+static constexpr auto DFRAME{"dframe"};
+static constexpr auto ECHO_NOW_US{"echo_now_µs"};
+static constexpr auto ELAPSED_US{"elapsed_µs"};
+static constexpr auto FEEDBACK{"feedback"};
+static constexpr auto FPS{"fps"};
+static constexpr auto HANDSHAKE{"handshake"};
+static constexpr auto IDLE_SHUTDOWN_MS{"idle_shutdown_ms"};
+static constexpr auto MAGIC{"magic"};
+static constexpr auto NOW_US{"now_µs"};
+static constexpr auto READ_MSG{"read_msg"};
+static constexpr auto REF_US{"ref_µs"};
+static constexpr auto SEQ_NUM{"seq_num"};
+static constexpr auto TYPE{"type"};
+static constexpr uint16_t MAGIC_VAL{0xc9d2};
 
 class Msg {
 public:
@@ -75,7 +73,14 @@ public:
   Msg(const Msg &m) = delete;
   inline Msg(Msg &&m) = default;
 
-  inline void add_kv(csv key, auto val) { doc[key] = val; }
+  inline void add_kv(csv key, auto val) {
+
+    if constexpr (std::is_same_v<decltype(val), Elapsed>) {
+      doc[key] = val().count();
+    } else {
+      doc[key] = val;
+    }
+  }
 
   // for Msg RX
   inline auto buff_msg_len() { return asio::buffer(packed.data(), MSG_LEN_SIZE); }
@@ -157,8 +162,8 @@ public:
   StaticDoc doc;
 
   // order independent
-  size_t packed_len = 0;
-  size_t tx_len = 0;
+  size_t packed_len{0};
+  size_t tx_len{0};
 
   // misc debug
   static constexpr csv module_id{"io::Msg"};

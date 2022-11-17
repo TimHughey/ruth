@@ -77,7 +77,7 @@ public:
   static void init(const session::Inject &di);
 
 private:
-  void data_feedback(const JsonDocument &data_doc, const int64_t async_us, Elapsed &elapsed);
+  void data_feedback(const JsonDocument &data_doc, Elapsed &msg_e, Elapsed &frame_e);
   void data_msg_rx();
   void connect_data(Port port);
   void fps_calc();
@@ -95,16 +95,6 @@ private:
   }
 
   void shutdown();
-
-  // misc debug, logging
-  inline void log_feedback(const error_code &ec) {
-
-    if (ec) {
-      ESP_LOGW(TAG.data(), "async_write_msg() failed, reason: %s", ec.message().c_str());
-
-      shutdown();
-    }
-  }
 
 private:
   // order dependent

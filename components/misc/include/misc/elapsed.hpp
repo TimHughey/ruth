@@ -32,27 +32,34 @@ namespace ruth {
 
 class Elapsed {
 public:
-  inline Elapsed(void) noexcept : val(esp_timer_get_time()) {}
+  inline Elapsed(void) noexcept : val(rut::raw()) {}
 
-  template <typename T> inline T as() const { return rut::as_duration<Nanos, T>(elapsed()); }
-  inline Seconds asSecs() const { return rut::as_secs(elapsed()); }
+  template <typename T> inline T as() const noexcept {
+    return rut::as_duration<Nanos, T>(elapsed());
+  }
 
-  inline Elapsed &freeze() {
-    frozen = true;
-    val = std::chrono::abs(rut::raw() - val);
+  inline Seconds asSecs() const noexcept { return rut::as_secs(elapsed()); }
+
+  inline Elapsed &freeze() noexcept {
+    if (!frozen) {
+      frozen = true;
+      val = rut::raw() - val;
+    }
     return *this;
   }
 
-  inline Micros operator()() const { return elapsed(); }
-  template <typename T> inline bool operator>=(const T &rhs) const { return elapsed() >= rhs; }
+  inline Micros operator()() const noexcept { return elapsed(); }
+  template <typename T> inline bool operator>=(const T &rhs) const noexcept {
+    return elapsed() >= rhs;
+  }
 
-  inline Elapsed &reset() {
+  inline Elapsed &reset() noexcept {
     *this = Elapsed();
     return *this;
   }
 
 private:
-  inline Micros elapsed() const { return frozen ? val : rut::elapsed_abs<Micros>(val); }
+  inline Micros elapsed() const noexcept { return frozen ? val : rut::raw() - val; }
 
 private:
   Micros val;

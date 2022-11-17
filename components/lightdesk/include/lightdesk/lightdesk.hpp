@@ -38,7 +38,7 @@ extern std::optional<LightDesk> desk;
 
 class LightDesk {
 public:
-  static constexpr csv TAG = "lightdesk";
+  static constexpr csv TAG{"lightdesk"};
 
 public:
   struct Opts {
@@ -56,7 +56,6 @@ public: // static function to create, access and reset shared LightDesk
   void init(); // starts LightDesk task
 
 private:
-  // static inline void _run([[maybe_unused]] void *data) { ptr()->run(); }
   static void _run(void *data);
 
 private:
@@ -68,7 +67,7 @@ private:
 
   desk::State state;
 
-  static constexpr Port SERVICE_PORT = 49152;
+  static constexpr Port SERVICE_PORT{49152};
 };
 
 } // namespace ruth

@@ -101,6 +101,7 @@ inline auto async_read_msg(tcp_socket &socket, B &static_buff, CompletionToken &
 }
 
 inline auto write_msg(tcp_socket &socket, Msg &msg) {
+  static constexpr csv TAG{"io::write_msg"};
   error_code ec;
 
   msg.serialize();
@@ -108,74 +109,19 @@ inline auto write_msg(tcp_socket &socket, Msg &msg) {
   // must grab the buff_seq and tx_len BEFORE moving the msg
   auto bytes = socket.write_some(msg.buff_tx(), ec);
 
-  if (!ec && (bytes == msg.tx_len)) {
+  auto buffs = msg.buff_tx();
+  auto tx_len = msg.tx_len;
+
+  auto tx_actual = asio::write(socket, buffs, asio::transfer_exactly(tx_len), ec);
+
+  if (!ec && (tx_actual == tx_len)) {
     return ec;
   }
+
+  ESP_LOGI(TAG.data(), "failed, reason=%s tx_bytes=%d/%d", ec.message().c_str(), bytes, tx_len);
 
   return io::make_error(errc::message_size);
 }
 
-//
-// async_write_msg(): write a message object to the socket
-//
-/*
-template <typename CompletionToken>
-inline auto async_write_msg(tcp_socket &socket, std::unique_ptr<Msg> msg,
-                            CompletionToken &&token) {
-
-  auto initiation = [](auto &&completion_handler, tcp_socket &socket, std::unique_ptr<Msg> msg)
-{ struct intermediate_completion_handler { tcp_socket &socket; // for multiple write ops and
-obtaining I/O executor std::unique_ptr<Msg> msg;
-
-      typename std::decay<decltype(completion_handler)>::type handler;
-
-      void operator()(const error_code &ec, std::size_t bytes) {
-        msg->log_tx(ec, bytes);
-
-        handler(ec); // call user-supplied handler
-      }
-
-      using executor_type =
-          asio::associated_executor_t<typename std::decay<decltype(completion_handler)>::type,
-                                      tcp_socket::executor_type>;
-
-      executor_type get_executor() const noexcept {
-        return asio::get_associated_executor(handler, socket.get_executor());
-      }
-
-      using allocator_type =
-          asio::associated_allocator_t<typename std::decay<decltype(completion_handler)>::type,
-                                       std::allocator<void>>;
-
-      allocator_type get_allocator() const noexcept {
-        return asio::get_associated_allocator(handler, std::allocator<void>{});
-      }
-    };
-
-    // must grab the buff_seq and tx_len BEFORE moving the msg
-    auto buff_tx = msg->buff_tx();
-    auto tx_len = msg->tx_len;
-
-    // initiate the actual async operation
-    asio::async_write(
-        socket, buff_tx, asio::transfer_exactly(tx_len),
-        intermediate_completion_handler{
-            socket,                                                        // pass the socket
-along std::move(msg),                                                // move the msg along
-            std::forward<decltype(completion_handler)>(completion_handler) // forward token
-        });
-  };
-
-  msg->serialize();
-
-  // initiate the async operation
-  return asio::async_initiate<CompletionToken, void(error_code)>(
-      initiation,       // initiation function object
-      token,            // user supplied callback
-      std::ref(socket), // wrap non-const args to prevent incorrect decay-copies
-      std::move(msg)    // move the msg for use within the async operation
-  );
-}
-*/
 } // namespace io
 } // namespace ruth

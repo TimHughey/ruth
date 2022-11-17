@@ -35,12 +35,6 @@ desk::shAdvertise __desk_advertise;
 
 namespace desk {
 
-// object creation and access
-// shAdvertise Advertise::create(const Port service_port, const Port msg_port) { // static
-//   shared::__desk_advertise = shAdvertise(new Advertise(service_port, msg_port));
-//   return ptr();
-// }
-
 shAdvertise Advertise::create(const Port service_port) { // static
   shared::__desk_advertise = shAdvertise(new Advertise(service_port));
   return ptr();
@@ -49,23 +43,6 @@ shAdvertise Advertise::ptr() { return shared::__desk_advertise; }
 void Advertise::reset() { shared::__desk_advertise.reset(); } // reset (deallocate) shared instance
 
 // general API
-
-// shAdvertise Advertise::addService() {
-//   auto txt_data = std::array<mdns_txt_item_t>{{"desk", "true"}};
-// std::vector<mdns_txt_item_t> txt_data{{"desk", "true"}};
-
-// char *buf;
-// if (auto bytes = asprintf(&buf, "%d", msg_port); bytes != -1) {
-//   msg_port_txt = std::unique_ptr<char>(buf);
-//   txt_data.emplace_back(mdns_txt_item_t{"msg_port", msg_port_txt.get()});
-// }
-
-// initialize service
-//   mdns_service_add(name.get(), service.data(), protocol.data(), service_port, txt_data.data(),
-//                    txt_data.size());
-
-//   return shared_from_this();
-// }
 
 shAdvertise Advertise::init() {
   const auto host = Net::hostname();
@@ -80,8 +57,8 @@ shAdvertise Advertise::init() {
       if (mdns_instance_name_set(name.get()) == ESP_OK) {
         ESP_LOGI(TAG.data(), "host=%s instance=%s", Net::hostname(), name.get());
         auto txt_data = std::array<mdns_txt_item_t, 1>{{"desk", "true"}};
-        mdns_service_add(name.get(), service.data(), protocol.data(), service_port,
-                         txt_data.data(), txt_data.size());
+        mdns_service_add(name.get(), service.data(), protocol.data(), service_port, txt_data.data(),
+                         txt_data.size());
       } else {
         ESP_LOGE(TAG.data(), "mdns_instance_name_set() failed\n");
       }

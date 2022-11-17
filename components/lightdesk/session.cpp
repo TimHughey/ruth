@@ -64,23 +64,21 @@ static void create_units() {
 
 // Object API
 
-void IRAM_ATTR Session::data_feedback(const JsonDocument &data_doc, const int64_t async_us,
-                                      Elapsed &elapsed) {
-
+void IRAM_ATTR Session::data_feedback(const JsonDocument &data_doc, Elapsed &msg_e,
+                                      Elapsed &frame_e) {
   DRAM_ATTR static io::StaticPacked packed;
-
   auto msg = io::Msg(io::FEEDBACK, packed);
 
   msg.add_kv(io::SEQ_NUM, data_doc[io::SEQ_NUM].as<uint32_t>());
-  msg.add_kv(io::NOW_US, rut::raw_us());
-  msg.add_kv(io::ASYNC_US, async_us);
-  msg.add_kv(io::ELAPSED_US, elapsed().count());
-  msg.add_kv(io::ECHOED_NOW_US, data_doc[io::NOW_US]);
+  msg.add_kv(io::DATA_WAIT_US, msg_e);
+  msg.add_kv(io::ELAPSED_US, frame_e);
+  msg.add_kv(io::ECHO_NOW_US, data_doc[io::NOW_US]);
   msg.add_kv(io::FPS, stats.cached_fps());
 
-  auto ec = io::write_msg(socket_ctrl, msg);
-
-  log_feedback(ec);
+  if (auto ec = io::write_msg(socket_ctrl, msg); ec) {
+    ESP_LOGW(TAG.data(), "io::write_msg failed, reason: %s", ec.message().c_str());
+    shutdown();
+  }
 }
 
 void IRAM_ATTR Session::data_msg_rx() {
@@ -89,13 +87,13 @@ void IRAM_ATTR Session::data_msg_rx() {
   io::async_read_msg( //
       *socket_data,   //
       packed,         //
-      [this, async_start_us = rut::raw_us()](const error_code ec, io::Msg msg) {
-        const auto async_us = rut::raw_us() - async_start_us;
+      [this, msg_wait = Elapsed()](const error_code ec, io::Msg msg) mutable {
+        msg_wait.freeze();
         JsonDocument &doc = msg.doc;
 
         if (success(ec)) {                                          // no socket error, confirm doc
           if (!doc.isNull() && (doc[io::MAGIC] == io::MAGIC_VAL)) { // doc is good
-            Elapsed elapsed;
+            Elapsed e;
 
             stats.saw_frame();
             idle_watch_dog(); // reset the idle watchdog, we received a data msg
@@ -106,7 +104,8 @@ void IRAM_ATTR Session::data_msg_rx() {
               unit->handleMsg(doc);
             }
 
-            data_feedback(doc, async_us, elapsed);
+            e.freeze();
+            data_feedback(doc, msg_wait, e);
           } else { // doc bad
             ESP_LOGW(TAG.data(), "not renderable, is_null=%s magic=0x%x",
                      doc.isNull() ? "true " : "false", doc[io::MAGIC].as<uint16_t>());
@@ -177,16 +176,19 @@ void IRAM_ATTR Session::handshake_part2() {
       [this](const error_code ec, io::Msg msg) {
         JsonDocument &doc = msg.doc;
 
-        if (!ec && !doc.isNull() && (io::HANDSHAKE == csv(doc[io::TYPE])) && (doc[io::DATA_PORT])) {
+        csv type{doc[io::TYPE].as<const char *>()};
+        if (!ec && !doc.isNull() && (csv{io::HANDSHAKE} == type)) {
           // proper reply to handshake
-          Port port = doc[io::DATA_PORT];
-          int64_t idle_ms = doc[io::IDLE_SHUTDOWN_US] | idle_shutdown.count();
-          idle_shutdown = Millis(idle_ms);
+
+          idle_shutdown = Millis(doc[io::IDLE_SHUTDOWN_MS] | idle_shutdown.count());
           remote_ref_time = Micros(doc[io::REF_US] | 0);
+          Port port = doc[io::DATA_PORT] | 0;
 
           if (port) {           // we got a port
             dmx = DMX::init();  // spin up DMX
             connect_data(port); // connect to the data port
+          } else {
+            ESP_LOGW(TAG.data(), "data_port=0");
           }
         } else {
           ESP_LOGW(TAG.data(), "failed, reason=%s", ec.message().c_str());
@@ -196,7 +198,7 @@ void IRAM_ATTR Session::handshake_part2() {
 }
 
 void IRAM_ATTR Session::idle_watch_dog() {
-  auto expires = rut::as_duration<Seconds, Millis>(idle_shutdown);
+  static auto expires = rut::as_duration<Seconds, Millis>(idle_shutdown);
   idle_timer.expires_after(expires);
   idle_timer.async_wait([this](const error_code ec) {
     // if the timer ever expires then we're idle
