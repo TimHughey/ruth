@@ -37,7 +37,7 @@
 #include "headunit/headunit.hpp"
 #include "headunit/ledforest.hpp"
 #include "inject/inject.hpp"
-#include "io/async_msg2.hpp"
+#include "io/async_msg.hpp"
 #include "io/io.hpp"
 #include "io/msg_static.hpp"
 #include "ru_base/time.hpp"
