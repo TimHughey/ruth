@@ -85,7 +85,7 @@ void IRAM_ATTR Session::data_msg_rx() {
   DRAM_ATTR static io::StaticPacked packed;
 
   io::async_read_msg( //
-      *socket_data,   //
+      *data_sock,     //
       packed,         //
       [this, msg_wait = Elapsed()](const error_code ec, io::Msg msg) mutable {
         msg_wait.freeze();
@@ -120,25 +120,26 @@ void IRAM_ATTR Session::data_msg_rx() {
 void IRAM_ATTR Session::connect_data(Port port) {
   auto address = socket_ctrl.remote_endpoint().address();
   auto endpoint = tcp_endpoint(address, port);
-  socket_data.emplace(server_io_ctx);
+  data_sock.emplace(server_io_ctx);
 
-  asio::async_connect(*socket_data, std::array{endpoint},
-                      [this](const error_code ec, const tcp_endpoint remote_endpoint) {
-                        if (!ec) {
-                          socket_data->set_option(ip_tcp::no_delay(true));
+  asio::async_connect(
+      *data_sock, std::array{endpoint}, [this](const error_code ec, const tcp_endpoint r) {
+        if (!ec) {
+          data_sock->set_option(ip_tcp::no_delay(true));
 
-                          ESP_LOGI(TAG.data(), "data socket connected=%s:%d handle=%d",
-                                   remote_endpoint.address().to_string().c_str(),
-                                   remote_endpoint.port(), socket_data->native_handle());
+          const auto &l = data_sock->local_endpoint();
 
-                          fps_calc();
-                          data_msg_rx();
+          ESP_LOGI(TAG.data(), "%s:%d -> %s:%d data connected, handle=%d",
+                   l.address().to_string().c_str(), l.port(), r.address().to_string().c_str(),
+                   r.port(), data_sock->native_handle());
 
-                        } else {
-                          ESP_LOGW(TAG.data(), "data socket failed, reason=%s",
-                                   ec.message().c_str());
-                        }
-                      });
+          fps_calc();
+          data_msg_rx();
+
+        } else {
+          ESP_LOGW(TAG.data(), "data socket failed, reason=%s", ec.message().c_str());
+        }
+      });
 }
 
 void IRAM_ATTR Session::fps_calc() {
@@ -232,10 +233,10 @@ void IRAM_ATTR Session::shutdown() {
     socket_ctrl.close(ec);
   }
 
-  if (socket_data.has_value() && socket_data->is_open()) {
-    ESP_LOGI(TAG.data(), "shutting down data handle=%d", socket_data->native_handle());
-    socket_data->close(ec);
-    socket_data.reset();
+  if (data_sock.has_value() && data_sock->is_open()) {
+    ESP_LOGI(TAG.data(), "shutting down data handle=%d", data_sock->native_handle());
+    data_sock->close(ec);
+    data_sock.reset();
   }
 
   if (dmx) {

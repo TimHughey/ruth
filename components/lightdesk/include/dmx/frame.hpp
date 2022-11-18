@@ -30,13 +30,12 @@
 namespace ruth {
 
 namespace dmx {
-constexpr size_t FRAME_LEN = 384;
+constexpr size_t FRAME_LEN{412}; // minimum to prevent flicker
 using frame_data = std::array<uint8_t, FRAME_LEN>;
 
 class frame : public dmx::frame_data {
 public:
   static constexpr csv TAG{"dmx::frame"};
-  static constexpr size_t FRAME_LEN = 384; // minimum to prevent flicker
 
 public:
   using frame_data::frame_data;

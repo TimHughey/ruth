@@ -34,21 +34,21 @@ namespace ruth {
 
 class DMX {
 public:
-  static constexpr csv TAG = "dmx";
+  static constexpr csv TAG{"dmx"};
 
 private:
-  static constexpr Micros FRAME_MAB = 12us;
-  static constexpr Micros FRAME_BYTE = 44us;
-  static constexpr Micros FRAME_SC = FRAME_BYTE;
-  static constexpr Micros FRAME_MTBF = 44us;
-  static constexpr Micros FRAME_DATA = Micros(FRAME_BYTE * 512);
+  static constexpr Micros FRAME_MAB{12us};
+  static constexpr Micros FRAME_BYTE{44us};
+  static constexpr Micros FRAME_SC{FRAME_BYTE};
+  static constexpr Micros FRAME_MTBF{44us};
+  static constexpr Micros FRAME_DATA{Micros(FRAME_BYTE * 512)};
 
   // frame interval does not include the BREAK as it is handled by the UART
-  static constexpr Micros FRAME_US = FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF;
-  static constexpr Millis FRAME_MS = ru_time::as_duration<Micros, Millis>(FRAME_US);
-  static constexpr TickType_t FRAME_TICKS = pdMS_TO_TICKS(FRAME_MS.count());
-  static constexpr TickType_t RECV_TIMEOUT = FRAME_TICKS * 2.5;
-  static constexpr TickType_t QUEUE_TICKS = 1;
+  static constexpr Micros FRAME_US{FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF};
+  static constexpr Millis FRAME_MS{ru_time::as_duration<Micros, Millis>(FRAME_US)};
+  static constexpr TickType_t FRAME_TICKS{pdMS_TO_TICKS(FRAME_MS.count())};
+  static constexpr TickType_t RECV_TIMEOUT{FRAME_TICKS * 3};
+  static constexpr TickType_t QUEUE_TICKS{1};
 
   static constexpr std::array<uint8_t, 3> SHUTDOWN{0xaa, 0xcc, 0x55};
 
@@ -72,7 +72,7 @@ private:
   // order independent
   bool live;
   MessageBufferHandle_t msg_buff;
-  uint64_t queue_fail = 0;
-  uint64_t timeouts = 0; // count of receive timeouts
+  uint64_t queue_fail{0};
+  uint64_t timeouts{0}; // count of receive timeouts
 };
 } // namespace ruth

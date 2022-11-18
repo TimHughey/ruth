@@ -102,25 +102,23 @@ inline auto async_read_msg(tcp_socket &socket, B &static_buff, CompletionToken &
 
 inline auto write_msg(tcp_socket &socket, Msg &msg) {
   static constexpr csv TAG{"io::write_msg"};
-  error_code ec;
 
   msg.serialize();
 
   // must grab the buff_seq and tx_len BEFORE moving the msg
-  auto bytes = socket.write_some(msg.buff_tx(), ec);
+  const auto buffs = msg.buff_tx();
+  const auto tx_len = msg.tx_len;
 
-  auto buffs = msg.buff_tx();
-  auto tx_len = msg.tx_len;
-
+  error_code ec;
   auto tx_actual = asio::write(socket, buffs, asio::transfer_exactly(tx_len), ec);
 
-  if (!ec && (tx_actual == tx_len)) {
-    return ec;
+  if (ec || (tx_actual != tx_len)) {
+    ec = ec ? ec : io::make_error(errc::message_size);
+    ESP_LOGI(TAG.data(), "failed, reason=%s tx_bytes=%d/%d", //
+             ec.message().c_str(), tx_actual, tx_len);
   }
 
-  ESP_LOGI(TAG.data(), "failed, reason=%s tx_bytes=%d/%d", ec.message().c_str(), bytes, tx_len);
-
-  return io::make_error(errc::message_size);
+  return ec;
 }
 
 } // namespace io

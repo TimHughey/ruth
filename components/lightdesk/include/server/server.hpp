@@ -29,12 +29,12 @@ namespace desk {
 
 class Server {
 public:
-  Server(const server::Inject &inject)
+  Server(const server::Inject &inject) noexcept
       : di(inject), // safe to save injected deps here
         acceptor{di.io_ctx, tcp_endpoint{ip_tcp::v4(), di.listen_port}} // use the injected io_ctx
   {}
 
-  ~Server();
+  ~Server() noexcept;
 
   // asyncLoop is invoked to:
   //  1. schedule the initial async accept
@@ -43,12 +43,11 @@ public:
   // with this in mind we accept an error code that is checked before
   // starting the next async_accept.  when the error code is not specified
   // assume this is startup and all is well.
-  void asyncLoop(const error_code ec_last = error_code());
+  void asyncLoop(const error_code ec_last = error_code()) noexcept;
 
-  Port localPort() { return acceptor.local_endpoint().port(); }
-  void teardown(); // issue cancel to acceptor
-  static ccs serverID() { return server_id.data(); }
-  void shutdown() { teardown(); }
+  Port localPort() noexcept { return acceptor.local_endpoint().port(); }
+  void teardown() noexcept; // issue cancel to acceptor
+  void shutdown() noexcept { teardown(); }
 
 private:
   // order dependent
@@ -57,7 +56,8 @@ private:
 
   std::optional<tcp_socket> socket;
 
-  static constexpr csv server_id = "DESK SERVER";
+public:
+  static constexpr csv server_id{"desk"};
 };
 
 } // namespace desk

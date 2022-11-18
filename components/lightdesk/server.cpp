@@ -25,18 +25,18 @@
 namespace ruth {
 namespace desk {
 
-Server::~Server() {
+Server::~Server() noexcept {
   [[maybe_unused]] auto handle = acceptor.native_handle();
   [[maybe_unused]] error_code ec;
   acceptor.close(ec); // use error_code overload to prevent throws
 }
 
-void Server::asyncLoop(const error_code ec_last) {
+void Server::asyncLoop(const error_code ec_last) noexcept {
   // first things first, check ec_last passed in, bail out if needed
   if (ec_last || !acceptor.is_open()) { // problem
     // don't highlight "normal" shutdown
     if ((ec_last != io::aborted) && (ec_last != io::resource_unavailable)) {
-      ESP_LOGW(serverID(), "accept failed, reason=%s", ec_last.message().c_str());
+      ESP_LOGW(server_id.data(), "accept failed, reason=%s", ec_last.message().c_str());
     }
 
     // some kind of error occurred, simply close the socket
@@ -57,7 +57,13 @@ void Server::asyncLoop(const error_code ec_last) {
 
       // allow only one active session
       if (!Session::active()) {
-        ESP_LOGI(serverID(), "connection accepted, handle=%0x", socket->native_handle());
+
+        const auto &r = socket->remote_endpoint();
+        const auto &l = socket->local_endpoint();
+        ESP_LOGI(server_id.data(), "%s:%d -> %s:%d ctrl connected, handle=%0x", //
+                 r.address().to_string().c_str(), r.port(),                     //
+                 l.address().to_string().c_str(), l.port(),                     //
+                 socket->native_handle());
 
         // create the session passing all the options
         // notes
@@ -83,7 +89,7 @@ void Server::asyncLoop(const error_code ec_last) {
   });
 }
 
-void Server::teardown() {
+void Server::teardown() noexcept {
   // here we only issue the cancel to the acceptor.
   // the closing of the acceptor will be handled when
   // the error is caught by asyncLoop

@@ -65,14 +65,14 @@ void IRAM_ATTR run(void *data) {
   vTaskDelete(th);
 }
 
-DRAM_ATTR static constexpr int UART_NUM = 1; // UART0=console, UART2=defect (use UART1)
-DRAM_ATTR static constexpr gpio_num_t TX_PIN = GPIO_NUM_17;
-DRAM_ATTR static constexpr uint32_t FRAME_BREAK = 22; // num bits at 250,000 baud (8µs)
+DRAM_ATTR static constexpr int UART_NUM{1}; // UART0=console, UART2=defect (use UART1)
+DRAM_ATTR static constexpr gpio_num_t TX_PIN{GPIO_NUM_17};
+DRAM_ATTR static constexpr uint32_t FRAME_BREAK{22}; // num bits at 250,000 baud (8µs)
 
 bool uart_init() {
-  static esp_err_t uart_rc = ESP_FAIL;
-  constexpr size_t UART_MIN_BUFF = UART_FIFO_LEN + 1;
-  constexpr size_t UART_TX_BUFF = std::max(dmx::frame::FRAME_LEN, UART_MIN_BUFF);
+  static esp_err_t uart_rc{ESP_FAIL};
+  constexpr size_t UART_MIN_BUFF{UART_FIFO_LEN + 1};
+  constexpr size_t UART_TX_BUFF{std::max(dmx::FRAME_LEN, UART_MIN_BUFF)};
 
   if (uart_rc == ESP_OK) { // successfully installed
     return false;
@@ -133,7 +133,6 @@ DMX::~DMX() {
   auto *dmx = new DMX(); // wrapped in unique_ptr in run()
 
   dmx->msg_buff = xMessageBufferCreateStatic(mb_store.size(), mb_store.data(), &mbcb);
-  ESP_LOGI(TAG.data(), "created msg_buff=%p", dmx->msg_buff);
 
   uart_init(); // only inits uart once
 

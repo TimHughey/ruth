@@ -109,7 +109,7 @@ private:
   desk::stats stats;
 
   // order independent
-  std::optional<tcp_socket> socket_data;
+  std::optional<tcp_socket> data_sock;
 
   // time keeping
   Micros remote_ref_time;
