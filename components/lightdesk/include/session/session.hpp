@@ -36,74 +36,47 @@ namespace desk {
 
 class Session;
 namespace active {
-extern std::optional<Session> session;
+extern std::shared_ptr<Session> session;
 }
 
-class Session {
-public:
-  static constexpr csv TAG{"Session"};
+class Session : public std::enable_shared_from_this<Session> {
 
 private:
   // use init() to construct a new Session
   inline Session(const session::Inject &di) // create the session
-      : local_ref_time(rut::raw()),         // for calculating local system time diffs
-        server_io_ctx(di.io_ctx),           // server io_ctx (for session cleanup)
-        socket_ctrl(std::move(di.socket)),  // move the socket connection accepted
+      : server_io_ctx(di.io_ctx),           // server io_ctx (for session cleanup)
+        ctrl_sock(std::move(di.socket)),    // move the socket connection accepted
         idle_timer(server_io_ctx),          // idle timer
         stats_timer(server_io_ctx),         // frames per second timer
         idle_shutdown(di.idle_shutdown),    // when to declare session idle
-        stats_interval(2000),               // frequency to calculate stats
+        stats_interval(2s),                 // frequency to calculate stats
         stats(stats_interval)               // initialize the stats object
-  {
-    socket_ctrl.set_option(ip_tcp::no_delay(true));
-    handshake_part1();
-  }
+  {}
 
 public:
-  ~Session() { ESP_LOGI(TAG.data(), "falling out of scope"); }
+  ~Session() = default;
 
-  inline static bool active() {
-    if (active::session.has_value() && active::session->socket_ctrl.is_open()) {
-      // an active session exists and the socket is open
-      return true;
-    } else if (active::session.has_value()) {
-      // there's a left over session and the socket is closed, deallocate it
-      active::session.reset();
-    }
-
-    return false;
-  }
-
-  static void init(const session::Inject &di);
+  static std::shared_ptr<Session> init(const session::Inject &di);
 
 private:
-  void data_feedback(const JsonDocument &data_doc, Elapsed &msg_e, Elapsed &frame_e);
-  void data_msg_rx();
-  void connect_data(Port port);
-  void fps_calc();
-  void handshake_part1();
-  void handshake_part2();
-  void idle_watch_dog();
+  void ctrl_msg_loop() noexcept;
+  void data_msg_loop() noexcept;
+  void connect_data(Port port) noexcept;
+  void fps_calc() noexcept;
 
-  inline bool success(const error_code ec) {
-    if (ec) {
-      ESP_LOGW(TAG.data(), "shutdown, reason=%s", ec.message().c_str());
-      shutdown();
-    }
+  // kick off the session, the shared_ptr is passed to handlers keeping
+  // the session in memory
+  static void handshake(std::shared_ptr<Session> session) noexcept;
 
-    return !ec;
-  }
-
-  void shutdown();
+  void idle_watch_dog() noexcept;
 
 private:
   // order dependent
   // NOTE:  all created sockets and timers use the Server io_ctx
-  const Micros local_ref_time; // system micros
   io_context &server_io_ctx;
-  tcp_socket socket_ctrl;
-  steady_timer idle_timer;
-  steady_timer stats_timer;
+  tcp_socket ctrl_sock;
+  system_timer idle_timer;
+  system_timer stats_timer;
   Millis idle_shutdown;
   Millis stats_interval;
   desk::stats stats;
@@ -117,6 +90,9 @@ private:
   // order independent
   std::unique_ptr<DMX> dmx;
   uint16_t msg_len = 0;
+
+public:
+  static constexpr csv TAG{"Session"};
 };
 
 } // namespace desk

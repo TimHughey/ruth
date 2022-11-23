@@ -53,39 +53,39 @@ void Server::asyncLoop(const error_code ec_last) noexcept {
   // since the socket is wrapped in the optional and asyncLoop wants the actual
   // socket we must deference or get the value of the optional
   acceptor.async_accept(*socket, [&](const error_code ec) {
-    if (!ec) {
+    static std::shared_ptr<Session> active;
 
-      // allow only one active session
-      if (!Session::active()) {
+    if (!ec && (active.use_count() <= 1)) { // allow only one active session
 
-        const auto &r = socket->remote_endpoint();
-        const auto &l = socket->local_endpoint();
-        ESP_LOGI(server_id.data(), "%s:%d -> %s:%d ctrl connected, handle=%0x", //
-                 r.address().to_string().c_str(), r.port(),                     //
-                 l.address().to_string().c_str(), l.port(),                     //
-                 socket->native_handle());
+      const auto &r = socket->remote_endpoint();
+      const auto &l = socket->local_endpoint();
+      ESP_LOGI(server_id.data(), "%s:%d -> %s:%d ctrl connected, handle=%0x", //
+               r.address().to_string().c_str(), r.port(),                     //
+               l.address().to_string().c_str(), l.port(),                     //
+               socket->native_handle());
 
-        // create the session passing all the options
-        // notes
-        //  1: assemble the Inject options including moving the newly opened socket
-        //  2. start the Session and pass the inject options
-        //  3. Session will maintain the life of the shared ptr
+      socket->set_option(ip_tcp::no_delay(true));
 
-        // assemble the dependency injection and start the session
-        const session::Inject inject{.io_ctx = di.io_ctx, // io_ctx (used to create timers)
-                                     .socket = std::move(socket.value()),
-                                     .idle_shutdown = di.idle_shutdown};
+      // create the session passing all the options
+      // notes
+      //  1: assemble the Inject options including moving the newly opened socket
+      //  2. start the Session and pass the inject options
+      //  3. Session will maintain the life of the shared ptr
 
-        Session::init(inject);
+      // assemble the dependency injection and start the session
+      const session::Inject inject{.io_ctx = di.io_ctx, // io_ctx (used to create timers)
+                                   .socket = std::move(socket.value()),
+                                   .idle_shutdown = di.idle_shutdown};
 
-      } else { // already have an active session
-        [[maybe_unused]] error_code ec;
-        socket->shutdown(tcp_socket::shutdown_both, ec);
-        socket->close(ec);
-      }
+      active = Session::init(inject);
 
-      asyncLoop(ec); // schedule more work or gracefully exit
+    } else if (!ec) { // already have an active session
+      [[maybe_unused]] error_code ec;
+      socket->shutdown(tcp_socket::shutdown_both, ec);
+      socket->close(ec);
     }
+
+    asyncLoop(ec); // schedule more work or gracefully exit
   });
 }
 

@@ -25,10 +25,12 @@
 #include "ru_base/time.hpp"
 #include "ru_base/types.hpp"
 
-#include <array>
+#include <atomic>
 #include <freertos/FreeRTOS.h>
 #include <freertos/message_buffer.h>
+#include <future>
 #include <memory>
+#include <optional>
 
 namespace ruth {
 
@@ -50,29 +52,33 @@ private:
   static constexpr TickType_t RECV_TIMEOUT{FRAME_TICKS * 3};
   static constexpr TickType_t QUEUE_TICKS{1};
 
-  static constexpr std::array<uint8_t, 3> SHUTDOWN{0xaa, 0xcc, 0x55};
-
 private: // must use start to create object
-  DMX() : live(true) {}
+  DMX() noexcept : qok{0}, qrf(0), qsf(0) {}
 
 public:
-  ~DMX();
+  ~DMX() noexcept;
 
   // returns raw pointer managed by unique_ptr
   static std::unique_ptr<DMX> init();
 
+  // queue statistics, qok + qrf + qsf = total frames
+  inline auto q_ok() const noexcept { return qok.load(); } // queue ok count
+  inline auto q_rf() const noexcept { return qrf.load(); } // queue recv failures
+  inline auto q_sf() const noexcept { return qsf.load(); } // queue send failurs
+
+  std::future<bool> stop() noexcept { return shutdown_prom.emplace().get_future(); }
+
+  void spool_frames() noexcept;
   bool tx_frame(dmx::frame &&frame);
 
-  void stop() { live = false; }
-
 private:
-  void spool_frames();
+  // order dependent
+  std::atomic_int64_t qok; // count of frames queued/dequeued ok
+  std::atomic_int64_t qrf; // count of frame dequeue failures
+  std::atomic_int64_t qsf; // count of frame queue failures
 
-private:
   // order independent
-  bool live;
+  std::optional<std::promise<bool>> shutdown_prom;
   MessageBufferHandle_t msg_buff;
-  uint64_t queue_fail{0};
-  uint64_t timeouts{0}; // count of receive timeouts
 };
 } // namespace ruth

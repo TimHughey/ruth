@@ -20,11 +20,12 @@
 
 #pragma once
 
-#include <algorithm>
-#include <esp_log.h>
-
 #include "ru_base/time.hpp"
 #include "ru_base/types.hpp"
+
+#include <algorithm>
+#include <atomic>
+#include <esp_log.h>
 
 namespace ruth {
 namespace desk {
@@ -32,33 +33,39 @@ namespace desk {
 class stats {
 
 public:
-  stats(const Millis &i) : interval(ru_time::as_duration<Millis, Seconds>(i)) {}
-
-  static constexpr csv TAG = "SessionStats";
+  stats(const Millis &i)
+      : interval(i),    // how often fps is calculated
+        fps{0.0},       // cached (last) calculated fps
+        frame_count{0}, // count of frames for current internval
+        mark{0}         // frame count at last fps calculation
+  {}
 
   inline void calc() {
-    if (mark && frame_count) {
-      // enough info to calc fps
-      fps = (frame_count - mark) / interval.count();
+    // we can calculate fps when both mark and frame count are non-zero
+    if (mark.load() && frame_count.load()) {
+      // fps is calculated via the diff in frames since last calc
+      // divided by the interval
+      fps = (frame_count.load() - mark.load()) / interval.count();
 
-      // save the current frame count as a reference (mark) for the next calc
-      mark = frame_count;
-    } else if (frame_count) {
-      mark = frame_count;
+      mark.store(frame_count.load()); // reference (mark) of frame count for the next calc
+    } else if (frame_count.load()) {
+      // fps hasn't been calculated yet, set mark to prepare for next calc
+      mark.store(frame_count.load());
     }
   }
 
-  inline float cached_fps() const { return fps; }
-  inline bool idle() const { return fps == 0.0; }
-  inline void saw_frame() { frame_count++; }
+  inline float cached_fps() const noexcept { return fps; }
+  inline void saw_frame() noexcept { frame_count++; }
 
 private:
+  // order dependent
   const Seconds interval;
-  TimePoint fps_start = steady_clock::now();
-  uint64_t calcs = 0; // calcs * fps_start for "precise" timing
-  float fps = 0;
-  uint64_t frame_count = 0;
-  uint64_t mark = 0;
+  float fps;
+  std::atomic_int64_t frame_count;
+  std::atomic_int64_t mark;
+
+public:
+  static constexpr csv TAG{"SessionStats"};
 };
 
 } // namespace desk

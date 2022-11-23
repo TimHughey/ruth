@@ -35,7 +35,7 @@
 namespace ruth {
 namespace io {
 
-static constexpr size_t DOC_DEFAULT_MAX_SIZE{512};
+static constexpr size_t DOC_DEFAULT_MAX_SIZE{640};
 static constexpr size_t MSG_LEN_SIZE{sizeof(uint16_t)};
 static constexpr size_t PACKED_DEFAULT_MAX_SIZE{DOC_DEFAULT_MAX_SIZE / 2};
 
@@ -45,6 +45,9 @@ using StaticDoc = StaticJsonDocument<DOC_DEFAULT_MAX_SIZE>;
 static constexpr auto DATA_PORT{"data_port"};
 static constexpr auto DATA_WAIT_US{"data_wait_µs"};
 static constexpr auto DFRAME{"dframe"};
+static constexpr auto DMX_QOK{"dmx_qok"}; // dmx queue operation ok
+static constexpr auto DMX_QRF{"dmx_qrf"}; // dmx queue recv failure count
+static constexpr auto DMX_QSF{"dmx_qsf"}; // dmx queue send failure count
 static constexpr auto ECHO_NOW_US{"echo_now_µs"};
 static constexpr auto ELAPSED_US{"elapsed_µs"};
 static constexpr auto FEEDBACK{"feedback"};
@@ -73,10 +76,13 @@ public:
   Msg(const Msg &m) = delete;
   inline Msg(Msg &&m) = default;
 
-  inline void add_kv(csv key, auto val) {
+  template <typename T> inline void add_kv(csv key, T val) {
 
-    if constexpr (std::is_same_v<decltype(val), Elapsed>) {
+    if constexpr (std::is_same_v<T, Elapsed>) {
       doc[key] = val().count();
+    } else if constexpr (std::is_same_v<T, Nanos> || std::is_same_v<T, Micros> ||
+                         std::is_same_v<T, Millis>) {
+      doc[key] = val.count();
     } else {
       doc[key] = val;
     }
@@ -140,8 +146,8 @@ public:
   // misc logging, debug
   inline error_code log_rx(const error_code ec, const size_t bytes, const auto err) {
     if (ec || (packed_len != bytes) || err) {
-      ESP_LOGW(module_id.data(), "%s failed, bytes=%d/%d reason=%s deserialize=%s", type.c_str(),
-               bytes, packed_len, ec.message().c_str(), err.c_str());
+      ESP_LOGW(module_id.data(), "%s bytes=%d/%d %s %s", type.c_str(), bytes, packed_len,
+               ec.message().c_str(), err.c_str());
     }
 
     return ec;
@@ -149,7 +155,7 @@ public:
 
   inline error_code log_tx(const error_code ec, const size_t bytes) {
     if (ec || (tx_len != bytes)) {
-      ESP_LOGW(module_id.data(), "%s failed, bytes=%d/%d reason=%s", type.c_str(), bytes, tx_len,
+      ESP_LOGW(module_id.data(), "%s bytes=%d/%d %s", type.c_str(), bytes, tx_len,
                ec.message().c_str());
     }
 

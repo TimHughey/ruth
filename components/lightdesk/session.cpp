@@ -47,12 +47,8 @@
 namespace ruth {
 namespace desk {
 
-typedef std::vector<shHeadUnit> HeadUnits;
+using HeadUnits = std::vector<shHeadUnit>;
 DRAM_ATTR static HeadUnits units;
-
-namespace active {
-DRAM_ATTR std::optional<Session> session;
-} // namespace active
 
 static void create_units() {
   units.emplace_back(std::make_unique<AcPower>("ac power"));
@@ -64,189 +60,197 @@ static void create_units() {
 
 // Object API
 
-void IRAM_ATTR Session::data_feedback(const JsonDocument &data_doc, Elapsed &msg_e,
-                                      Elapsed &frame_e) {
+void IRAM_ATTR Session::ctrl_msg_loop() noexcept {
   DRAM_ATTR static io::StaticPacked packed;
-  auto msg = io::Msg(io::FEEDBACK, packed);
 
-  msg.add_kv(io::SEQ_NUM, data_doc[io::SEQ_NUM].as<uint32_t>());
-  msg.add_kv(io::DATA_WAIT_US, msg_e);
-  msg.add_kv(io::ELAPSED_US, frame_e);
-  msg.add_kv(io::ECHO_NOW_US, data_doc[io::NOW_US]);
-  msg.add_kv(io::FPS, stats.cached_fps());
+  idle_watch_dog();
 
-  if (auto ec = io::write_msg(socket_ctrl, msg); ec) {
-    ESP_LOGW(TAG.data(), "io::write_msg failed, reason: %s", ec.message().c_str());
-    shutdown();
-  }
+  io::async_read_msg( //
+      ctrl_sock,      //
+      packed,         //
+      [s = shared_from_this()](const error_code ec, io::Msg msg) {
+        JsonDocument &doc = msg.doc;
+        csv type{doc[io::TYPE].as<const char *>()}; // get msg type
+
+        if (ec || doc.isNull()) { // fall out of scope
+          ESP_LOGW(TAG.data(), "ctrl_msg_loop: %s", ec.message().c_str());
+          return;
+        }
+
+        if (csv{io::HANDSHAKE} == type) { // the handshake reply
+
+          s->idle_shutdown = Millis(doc[io::IDLE_SHUTDOWN_MS] | s->idle_shutdown.count());
+          s->remote_ref_time = Micros(doc[io::REF_US] | 0);
+          Port port = doc[io::DATA_PORT] | 0;
+
+          if (port) {              // we got a port
+            s->connect_data(port); // connect to the data port
+          } else {
+            ESP_LOGE(TAG.data(), "data_port=0");
+          }
+        }
+      });
 }
 
-void IRAM_ATTR Session::data_msg_rx() {
+void IRAM_ATTR Session::data_msg_loop() noexcept {
   DRAM_ATTR static io::StaticPacked packed;
+
+  idle_watch_dog();
 
   io::async_read_msg( //
       *data_sock,     //
       packed,         //
-      [this, msg_wait = Elapsed()](const error_code ec, io::Msg msg) mutable {
+      [s = shared_from_this(), msg_wait = Elapsed()](const error_code ec, io::Msg msg) mutable {
+        Elapsed e;
+
         msg_wait.freeze();
         JsonDocument &doc = msg.doc;
+        const uint16_t magic = doc[io::MAGIC] | 0x0000;
 
-        if (success(ec)) {                                          // no socket error, confirm doc
-          if (!doc.isNull() && (doc[io::MAGIC] == io::MAGIC_VAL)) { // doc is good
-            Elapsed e;
-
-            stats.saw_frame();
-            idle_watch_dog(); // reset the idle watchdog, we received a data msg
-
-            dmx->tx_frame(msg.dframe<dmx::frame>());
-
-            for (auto &unit : units) {
-              unit->handleMsg(doc);
-            }
-
-            e.freeze();
-            data_feedback(doc, msg_wait, e);
-          } else { // doc bad
-            ESP_LOGW(TAG.data(), "not renderable, is_null=%s magic=0x%x",
-                     doc.isNull() ? "true " : "false", doc[io::MAGIC].as<uint16_t>());
-          }
-
-          // prepare for next msg (no socket error)
-          data_msg_rx();
+        if (ec || (magic != io::MAGIC_VAL)) {
+          ESP_LOGE(TAG.data(), "magic=%04x %s", magic, ec.message().c_str());
+          return; // fall out of scope
         }
+
+        s->stats.saw_frame();
+        s->idle_watch_dog(); // reset the idle watchdog, we received a data msg
+
+        s->dmx->tx_frame(msg.dframe<dmx::frame>());
+
+        for (auto &unit : units) {
+          unit->handleMsg(doc);
+        }
+
+        DRAM_ATTR static io::StaticPacked packed;
+        auto tx_msg = io::Msg(io::FEEDBACK, packed);
+
+        tx_msg.add_kv(io::SEQ_NUM, doc[io::SEQ_NUM].as<uint32_t>());
+        tx_msg.add_kv(io::DATA_WAIT_US, msg_wait);
+        tx_msg.add_kv(io::ELAPSED_US, e.freeze());
+        tx_msg.add_kv(io::ECHO_NOW_US, doc[io::NOW_US]);
+        tx_msg.add_kv(io::FPS, s->stats.cached_fps());
+
+        // dmx stats
+        tx_msg.add_kv(io::DMX_QOK, s->dmx->q_ok());
+        tx_msg.add_kv(io::DMX_QRF, s->dmx->q_rf());
+        tx_msg.add_kv(io::DMX_QSF, s->dmx->q_sf());
+
+        s->idle_watch_dog();
+
+        auto &ctrl_sock = s->ctrl_sock;
+
+        io::async_write_msg( //
+            ctrl_sock, std::move(tx_msg), [s = std::move(s)](const error_code ec) mutable {
+              if (ec) { // write failed
+                ESP_LOGW(TAG.data(), "data_msg_rx: %s", ec.message().c_str());
+                return; // fall out of scope, idle timeout will clean up
+              }
+
+              s->data_msg_loop(); // wait for next data msg
+            });
       });
 }
 
-void IRAM_ATTR Session::connect_data(Port port) {
-  auto address = socket_ctrl.remote_endpoint().address();
+void IRAM_ATTR Session::connect_data(Port port) noexcept {
+  auto address = ctrl_sock.remote_endpoint().address();
   auto endpoint = tcp_endpoint(address, port);
   data_sock.emplace(server_io_ctx);
 
-  asio::async_connect(
-      *data_sock, std::array{endpoint}, [this](const error_code ec, const tcp_endpoint r) {
-        if (!ec) {
-          data_sock->set_option(ip_tcp::no_delay(true));
+  asio::async_connect(*data_sock, std::array{endpoint},
+                      [s = shared_from_this()](const error_code ec, const tcp_endpoint r) {
+                        if (ec) {
+                          ESP_LOGW(TAG.data(), "connect_data: %s", ec.message().c_str());
+                          return; // fall out of scope, idle timeout will clean up
+                        }
 
-          const auto &l = data_sock->local_endpoint();
+                        auto &data_sock = s->data_sock; // get ref to avoid pointer dereference
 
-          ESP_LOGI(TAG.data(), "%s:%d -> %s:%d data connected, handle=%d",
-                   l.address().to_string().c_str(), l.port(), r.address().to_string().c_str(),
-                   r.port(), data_sock->native_handle());
+                        data_sock->set_option(ip_tcp::no_delay(true));
 
-          fps_calc();
-          data_msg_rx();
+                        const auto &l = data_sock->local_endpoint();
 
-        } else {
-          ESP_LOGW(TAG.data(), "data socket failed, reason=%s", ec.message().c_str());
-        }
-      });
+                        ESP_LOGI(TAG.data(), "%s:%d -> %s:%d data connected, handle=%d",
+                                 l.address().to_string().c_str(), l.port(),
+                                 r.address().to_string().c_str(), r.port(),
+                                 data_sock->native_handle());
+
+                        s->fps_calc();
+                        s->data_msg_loop();
+                      });
 }
 
-void IRAM_ATTR Session::fps_calc() {
+void IRAM_ATTR Session::fps_calc() noexcept {
   stats_timer.expires_after(stats_interval);
-  stats_timer.async_wait([this](const error_code ec) {
-    if (!ec) {
-      stats.calc();
+  stats_timer.async_wait([s = shared_from_this()](const error_code ec) {
+    if (ec) return; // timer shutdown
 
-      fps_calc();
-    }
+    s->stats.calc();
+    s->fps_calc();
   });
 }
 
 // sends initial handshake
-void IRAM_ATTR Session::handshake_part1() {
+void IRAM_ATTR Session::handshake(std::shared_ptr<Session> session) noexcept { // static
   DRAM_ATTR static io::StaticPacked packed;
-  io::Msg msg(packed);
 
-  msg.add_kv(io::TYPE, io::HANDSHAKE);
+  session->idle_watch_dog();
+
+  io::Msg msg(io::HANDSHAKE, packed);
+
   msg.add_kv(io::NOW_US, rut::now_epoch<Micros>().count());
-  msg.add_kv(io::REF_US, local_ref_time.count());
 
-  if (auto ec = io::write_msg(socket_ctrl, msg); !ec) {
-    handshake_part2();
-  }
-}
+  // HANDSHAKE PART ONE:  write a minimal data feedback message to the ctrl sock
+  auto &ctrl_sock = session->ctrl_sock;
+  io::async_write_msg( //
+      ctrl_sock, std::move(msg), [s = session->shared_from_this()](const error_code ec) mutable {
+        if (ec) { // write failed
+          ESP_LOGW(TAG.data(), "handshake: %s", ec.message().c_str());
 
-// receives final handshake
-void IRAM_ATTR Session::handshake_part2() {
-  DRAM_ATTR static io::StaticPacked packed;
-
-  io::async_read_msg( //
-      socket_ctrl,    //
-      packed,         //
-      [this](const error_code ec, io::Msg msg) {
-        JsonDocument &doc = msg.doc;
-
-        csv type{doc[io::TYPE].as<const char *>()};
-        if (!ec && !doc.isNull() && (csv{io::HANDSHAKE} == type)) {
-          // proper reply to handshake
-
-          idle_shutdown = Millis(doc[io::IDLE_SHUTDOWN_MS] | idle_shutdown.count());
-          remote_ref_time = Micros(doc[io::REF_US] | 0);
-          Port port = doc[io::DATA_PORT] | 0;
-
-          if (port) {           // we got a port
-            dmx = DMX::init();  // spin up DMX
-            connect_data(port); // connect to the data port
-          } else {
-            ESP_LOGW(TAG.data(), "data_port=0");
-          }
-        } else {
-          ESP_LOGW(TAG.data(), "failed, reason=%s", ec.message().c_str());
-          shutdown();
+          return; // fall out of scope, idle timeout will detect
         }
+
+        // handshake message sent, move to ctrl msg loop
+        s->ctrl_msg_loop();
       });
 }
 
-void IRAM_ATTR Session::idle_watch_dog() {
+void IRAM_ATTR Session::idle_watch_dog() noexcept {
   static auto expires = rut::as_duration<Seconds, Millis>(idle_shutdown);
+
   idle_timer.expires_after(expires);
-  idle_timer.async_wait([this](const error_code ec) {
+  idle_timer.async_wait([s = shared_from_this()](const error_code ec) {
     // if the timer ever expires then we're idle
-    if (!ec) {
-      ESP_LOGI(TAG.data(), "idle timeout");
+    if (ec) {
+      ESP_LOGD(TAG.data(), "idle_watch_dog: %s", ec.message().c_str());
+      return;
+    }
+
+    ESP_LOGI(TAG.data(), "idle timeout");
+
+    { // graceful shutdown
+      [[maybe_unused]] error_code ec;
+      s->idle_timer.cancel(ec);
+      s->stats_timer.cancel(ec);
 
       std::for_each(units.begin(), units.end(), [](auto &unit) { unit->dark(); });
 
-      shutdown();
-    } else {
-      ESP_LOGD(TAG.data(), "idleWatchDog() terminating reason=%s", ec.message().c_str());
+      if (s->dmx && (s->dmx->stop().get() == true)) { // stop dmx and wait for confirmation
+        s->dmx.reset();
+      }
     }
   });
 }
 
-void IRAM_ATTR Session::init(const session::Inject &di) { // static
+std::shared_ptr<Session> IRAM_ATTR Session::init(const session::Inject &di) { // static
   if (units.empty()) { // headunit creation/destruction aligned with desk session
     create_units();
   }
 
-  active::session.emplace(di);
-}
+  auto session = std::shared_ptr<Session>(new Session(di));
+  session->dmx = DMX::init(); // spin up DMX
 
-void IRAM_ATTR Session::shutdown() {
-  [[maybe_unused]] error_code ec;
-  idle_timer.cancel(ec);
-  stats_timer.cancel(ec);
-
-  if (socket_ctrl.is_open()) {
-    ESP_LOGI(TAG.data(), "shutting down ctrl handle=%d", socket_ctrl.native_handle());
-    socket_ctrl.close(ec);
-  }
-
-  if (data_sock.has_value() && data_sock->is_open()) {
-    ESP_LOGI(TAG.data(), "shutting down data handle=%d", data_sock->native_handle());
-    data_sock->close(ec);
-    data_sock.reset();
-  }
-
-  if (dmx) {
-    dmx->stop(); // sockets are closed, safe to stop DMX
-    dmx.reset();
-  }
-
-  // execute the final clean up (reset of active session optional) outside the
-  // scope of this function
-  asio::post(server_io_ctx, [] { active::session.reset(); });
+  handshake(session->shared_from_this());
+  return session->shared_from_this();
 }
 
 } // namespace desk

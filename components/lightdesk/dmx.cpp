@@ -57,7 +57,7 @@ void IRAM_ATTR run(void *data) {
 
   dmx->spool_frames();
 
-  ESP_LOGD(DMX::TAG.data(), "io_ctx finished, deleting task handle=%p", task_handle);
+  ESP_LOGD(DMX::TAG.data(), "finished, deleting task handle=%p", task_handle);
 
   auto th = task_handle;
   task_handle = nullptr;
@@ -110,14 +110,14 @@ bool uart_init() {
 
 // object API
 
-DMX::~DMX() {
+DMX::~DMX() noexcept {
   vMessageBufferDelete(msg_buff);
 
   while (task_handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(1));
   }
 
-  ESP_LOGI(TAG.data(), "falling out of scope");
+  ESP_LOGD(TAG.data(), "falling out of scope");
 }
 
 [[nodiscard]] std::unique_ptr<DMX> DMX::init() {
@@ -130,7 +130,7 @@ DMX::~DMX() {
     }
   }
 
-  auto *dmx = new DMX(); // wrapped in unique_ptr in run()
+  auto dmx = std::make_unique<DMX>(); // wrapped in unique_ptr in run()
 
   dmx->msg_buff = xMessageBufferCreateStatic(mb_store.size(), mb_store.data(), &mbcb);
 
@@ -140,20 +140,20 @@ DMX::~DMX() {
       xTaskCreateStatic(&run,         // static func to start task
                         TAG.data(),   // task name
                         stack.size(), // stack size
-                        dmx,          // pass the newly created object to run()
+                        dmx.get(),    // pass the newly created object to run()
                         5,            // priority
                         stack.data(), // static task stack
                         &tcb          // task control block
       );
 
-  ESP_LOGI(TAG.data(), "started obj=%p tcb=%p", dmx, &tcb);
+  ESP_LOGD(TAG.data(), "started obj=%p tcb=%p", dmx.get(), &tcb);
 
-  return std::unique_ptr<DMX>(dmx);
+  return std::move(dmx);
 }
 
-void IRAM_ATTR DMX::spool_frames() {
+void IRAM_ATTR DMX::spool_frames() noexcept {
 
-  while (live) {
+  while (shutdown_prom.has_value() == false) {
     dmx::frame frame;
 
     // always ensure the previous tx has completed which includes
@@ -166,6 +166,8 @@ void IRAM_ATTR DMX::spool_frames() {
     auto msg_bytes = xMessageBufferReceive(msg_buff, frame.data(), frame.size(), RECV_TIMEOUT);
 
     if (msg_bytes) {
+
+      qok++;
       // at the end of the TX the UART pulls the TX low to generate the BREAK
       // once the code reaches this point the BREAK is complete
 
@@ -183,22 +185,18 @@ void IRAM_ATTR DMX::spool_frames() {
         ESP_LOGW(TAG.data(), "short frame, frame_bytes=%u tx_bytes=%u", frame.size(), bytes);
       }
     } else {
-      timeouts++;
+      qrf++;
     }
   }
+
+  shutdown_prom->set_value(true);
 }
 
 bool IRAM_ATTR DMX::tx_frame(dmx::frame &&frame) {
   // wait up to the max time to transmit a TX frame
   auto msg_bytes = xMessageBufferSend(msg_buff, frame.data(), frame.len, QUEUE_TICKS);
 
-  if (msg_bytes != frame.len) {
-    queue_fail++;
-
-    if ((queue_fail % 10) == 0) {
-      ESP_LOGW(TAG.data(), "tx failed, frame len=%u count=%lluu", frame.len, queue_fail);
-    }
-  }
+  if (msg_bytes != frame.len) qsf++;
 
   return msg_bytes == frame.len;
 }
