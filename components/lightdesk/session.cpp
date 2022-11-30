@@ -217,28 +217,39 @@ void IRAM_ATTR Session::handshake(std::shared_ptr<Session> session) noexcept { /
 void IRAM_ATTR Session::idle_watch_dog() noexcept {
   static auto expires = rut::as_duration<Seconds, Millis>(idle_shutdown);
 
-  idle_timer.expires_after(expires);
-  idle_timer.async_wait([s = shared_from_this()](const error_code ec) {
-    // if the timer ever expires then we're idle
-    if (ec) {
-      ESP_LOGD(TAG.data(), "idle_watch_dog: %s", ec.message().c_str());
-      return;
-    }
-
-    ESP_LOGI(TAG.data(), "idle timeout");
-
-    { // graceful shutdown
-      [[maybe_unused]] error_code ec;
-      s->idle_timer.cancel(ec);
-      s->stats_timer.cancel(ec);
-
-      std::for_each(units.begin(), units.end(), [](auto &unit) { unit->dark(); });
-
-      if (s->dmx && (s->dmx->stop().get() == true)) { // stop dmx and wait for confirmation
-        s->dmx.reset();
+  if (ctrl_sock.is_open()) {
+    idle_timer.expires_after(expires);
+    idle_timer.async_wait([s = shared_from_this()](const error_code ec) {
+      // if the timer ever expires then we're idle
+      if (ec) {
+        ESP_LOGD(TAG.data(), "idle_watch_dog: %s", ec.message().c_str());
+        return;
       }
-    }
-  });
+
+      ESP_LOGI(TAG.data(), "idle timeout");
+
+      { // graceful shutdown
+        [[maybe_unused]] error_code ec;
+
+        if (s->data_sock.has_value()) {
+          s->data_sock->shutdown(tcp_socket::shutdown_both, ec);
+          s->data_sock->close(ec);
+        }
+
+        s->ctrl_sock.close(ec);
+        s->ctrl_sock.shutdown(tcp_socket::shutdown_both, ec);
+
+        s->idle_timer.cancel(ec);
+        s->stats_timer.cancel(ec);
+
+        std::for_each(units.begin(), units.end(), [](auto &unit) { unit->dark(); });
+
+        if (s->dmx && (s->dmx->stop().get() == true)) { // stop dmx and wait for confirmation
+          s->dmx.reset();
+        }
+      }
+    });
+  }
 }
 
 std::shared_ptr<Session> IRAM_ATTR Session::init(const session::Inject &di) { // static

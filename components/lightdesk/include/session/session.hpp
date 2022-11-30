@@ -89,7 +89,7 @@ private:
 
   // order independent
   std::unique_ptr<DMX> dmx;
-  uint16_t msg_len = 0;
+  uint16_t msg_len{0};
 
 public:
   static constexpr csv TAG{"Session"};
