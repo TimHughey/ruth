@@ -19,7 +19,7 @@
 #pragma once
 
 #include "dmx/dmx.hpp"
-#include "inject/inject.hpp"
+#include "io/async_msg.hpp"
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
 #include "ru_base/types.hpp"
@@ -35,51 +35,47 @@ namespace ruth {
 namespace desk {
 
 class Session;
-namespace active {
-extern std::shared_ptr<Session> session;
 }
 
-class Session : public std::enable_shared_from_this<Session> {
+namespace shared {
+extern std::optional<desk::Session> active_session;
+}
 
-private:
-  // use init() to construct a new Session
-  inline Session(const session::Inject &di) // create the session
-      : server_io_ctx(di.io_ctx),           // server io_ctx (for session cleanup)
-        ctrl_sock(std::move(di.socket)),    // move the socket connection accepted
-        idle_timer(server_io_ctx),          // idle timer
-        stats_timer(server_io_ctx),         // frames per second timer
-        idle_shutdown(di.idle_shutdown),    // when to declare session idle
-        stats_interval(2s),                 // frequency to calculate stats
-        stats(stats_interval)               // initialize the stats object
-  {}
+namespace desk {
+
+class Session {
 
 public:
-  ~Session() = default;
+  // use init() to construct a new Session
+  Session(tcp_socket &&sock) noexcept;
 
-  static std::shared_ptr<Session> init(const session::Inject &di);
+  ~Session() noexcept;
 
 private:
-  void ctrl_msg_loop() noexcept;
-  void data_msg_loop() noexcept;
+  void close() noexcept;
   void connect_data(Port port) noexcept;
+  void ctrl_msg_process(io::Msg &&msg) noexcept;
+  void ctrl_msg_read() noexcept;
+  void data_msg_read() noexcept;
+  void data_msg_reply(io::Msg &&msg, const Elapsed &&msg_wait) noexcept;
+
   void fps_calc() noexcept;
 
   // kick off the session, the shared_ptr is passed to handlers keeping
   // the session in memory
-  static void handshake(std::shared_ptr<Session> session) noexcept;
+  void handshake() noexcept;
 
   void idle_watch_dog() noexcept;
 
 private:
   // order dependent
-  // NOTE:  all created sockets and timers use the Server io_ctx
-  io_context &server_io_ctx;
+  // NOTE:  all created sockets and timers use the socket executor
   tcp_socket ctrl_sock;
+  Millis idle_shutdown; // initial default, may be overriden by handshake
   system_timer idle_timer;
+  Millis stats_interval; // initial default, may be overriden by handshake
   system_timer stats_timer;
-  Millis idle_shutdown;
-  Millis stats_interval;
-  desk::stats stats;
+  esp_timer_handle_t destruct_timer;
 
   // order independent
   std::optional<tcp_socket> data_sock;
@@ -89,6 +85,7 @@ private:
 
   // order independent
   std::unique_ptr<DMX> dmx;
+  std::optional<desk::stats> stats;
   uint16_t msg_len{0};
 
 public:

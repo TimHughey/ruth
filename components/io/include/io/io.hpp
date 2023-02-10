@@ -22,6 +22,7 @@
 #include <array>
 #include <asio.hpp>
 #include <cstdint>
+#include <string_view>
 
 namespace ruth {
 
@@ -50,6 +51,8 @@ constexpr auto aborted = asio::error::basic_errors::operation_aborted;
 constexpr auto resource_unavailable = std::errc::resource_unavailable_try_again;
 constexpr auto noent = std::errc::no_such_file_or_directory;
 
+void log_accept_socket(const std::string_view module_id, const std::string_view type,
+                       tcp_socket &sock, const tcp_endpoint &r, bool log = true) noexcept;
 error_code make_error(errc e);
 
 typedef std::array<char, 1024> Packed;

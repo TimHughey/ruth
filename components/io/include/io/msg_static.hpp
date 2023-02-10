@@ -1,22 +1,21 @@
-/*
-    Ruth
-    Copyright (C) 2022  Tim Hughey
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-    https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2022  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #pragma once
 
@@ -59,6 +58,8 @@ static constexpr auto NOW_US{"now_µs"};
 static constexpr auto READ_MSG{"read_msg"};
 static constexpr auto REF_US{"ref_µs"};
 static constexpr auto SEQ_NUM{"seq_num"};
+static constexpr auto SHUTDOWN{"shutdown"};
+static constexpr auto STATS_MS{"stats_ms"};
 static constexpr auto TYPE{"type"};
 static constexpr uint16_t MAGIC_VAL{0xc9d2};
 
@@ -112,6 +113,8 @@ public:
     return asio::buffer(packed.data(), tx_len);
   }
 
+  inline bool can_render() const { return MAGIC_VAL == (doc[io::MAGIC] | 0x000); }
+
   inline auto deserialize(error_code ec, size_t bytes) {
     const auto err = deserializeMsgPack(doc, packed.data(), packed.size());
 
@@ -119,8 +122,6 @@ public:
 
     return !err;
   }
-
-  inline bool can_render() const { return doc[MAGIC].as<int64_t>() == MAGIC_VAL; }
 
   template <typename T> inline T dframe() const {
     if (auto array = doc[DFRAME].as<JsonArrayConst>(); array) {

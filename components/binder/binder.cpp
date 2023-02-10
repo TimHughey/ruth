@@ -1,22 +1,21 @@
-/*
-    binder.cpp --  Abstraction for ESP32 SPIFFS
-    Copyright (C) 2020  Tim Hughey
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-    https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2020  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #include "binder/binder.hpp"
 #include "ArduinoJson.h"
@@ -30,7 +29,10 @@
 
 namespace ruth {
 
-static Binder_t binder;
+namespace shared {
+Binder binder;
+}
+
 static const char TAG[] = "Binder";
 
 extern const uint8_t raw_start[] asm("_binary_binder_0_mp_start");
@@ -73,6 +75,4 @@ void Binder::parse() {
   }
 }
 
-// STATIC
-Binder_t *Binder::i() { return &binder; }
 } // namespace ruth

@@ -1,22 +1,21 @@
-/*
-  Message
-  (C)opyright 2021  Tim Hughey
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-  https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2021  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #include "message/handler.hpp"
 
@@ -70,25 +69,20 @@ bool Handler::matchCategory(const char *to_match) const {
 }
 
 InWrapped Handler::waitForMessage(uint32_t wait_ms, bool *timeout) {
-  InWrapped return_msg(nullptr);
   In *received_msg;
 
   auto q_rc = xQueueReceive(_msg_q, &received_msg, pdMS_TO_TICKS(wait_ms));
 
   if (q_rc == pdTRUE) {
     // got a message from the queue, wrap it in a unique_ptr and return
-    if (timeout)
-      *timeout = false;
+    if (timeout) *timeout = false;
 
-    return_msg = InWrapped(received_msg);
-
-    return std::move(return_msg);
+    return InWrapped(received_msg);
   }
 
   // note a timeout occurred and return the empty unique_ptr
-  if (timeout)
-    *timeout = true;
-  return std::move(return_msg);
+  if (timeout) *timeout = true;
+  return InWrapped(nullptr);
 }
 
 void Handler::notifyThisTask(UBaseType_t notify_val) {
@@ -97,7 +91,6 @@ void Handler::notifyThisTask(UBaseType_t notify_val) {
 }
 
 InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
-  InWrapped return_msg(nullptr);
   In *received_msg = nullptr;
   // always do a no wait check for messages in the queue
 
@@ -106,8 +99,7 @@ InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
   // if we got a message from the queue, then return it without waiting for a task notify
   if (q_rc == pdTRUE) {
     ESP_LOGI("message:handler", "msg was waiting in the queue");
-    return_msg = InWrapped(received_msg);
-    return std::move(return_msg);
+    return InWrapped(received_msg);
   }
 
   // wait for a task notification.  on any notification do a no wait queue pop and return
@@ -118,9 +110,7 @@ InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
   // pop it from the queue and return it
   // always do a no wait check for messages in the queue
   xQueueReceive(_msg_q, &received_msg, 0);
-  return_msg = InWrapped(received_msg);
-
-  return std::move(return_msg);
+  return InWrapped(received_msg);
 }
 
 } // namespace message

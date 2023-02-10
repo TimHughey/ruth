@@ -1,22 +1,21 @@
-/*
-     mqtt.cpp - Ruth MQTT
-     Copyright (C) 2017  Tim Hughey
 
-     This program is free software: you can redistribute it and/or modify
-     it under the terms of the GNU General Public License as published by
-     the Free Software Foundation, either version 3 of the License, or
-     (at your option) any later version.
-
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU General Public License for more details.
-
-     You should have received a copy of the GNU General Public License
-     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-     https://www.wisslanding.com
- */
+//  Ruth
+//  Copyright (C) 2017  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 // override component logging level (must be #define before including esp_log.h)
 // #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
@@ -81,8 +80,7 @@ static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
   case MQTT_EVENT_DATA:
     // ensure there is actually a payload to handle
     if (event->total_data_len > 0) {
-      InWrapped msg = In::make(event->topic, event->topic_len, event->data, event->data_len);
-      mqtt->incomingMsg(std::move(msg));
+      mqtt->incomingMsg(In::make(event->topic, event->topic_len, event->data, event->data_len));
     }
     break;
 
@@ -113,8 +111,7 @@ void MQTT::incomingMsg(InWrapped msg) {
   for (auto i = 0; (i < _max_handlers) && !wanted; i++) {
     message::Handler *registered = _handlers[i];
 
-    if (registered == nullptr)
-      break; // stop checking once we hit an empty registration
+    if (registered == nullptr) break; // stop checking once we hit an empty registration
 
     if (registered->matchCategory(msg->category())) {
       registered->wantMessage(msg);

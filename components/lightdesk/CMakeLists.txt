@@ -3,7 +3,7 @@
 ##
 
 idf_component_register(
-  SRCS                lightdesk.cpp dmx.cpp advertise.cpp server.cpp session.cpp
+  SRCS                lightdesk.cpp dmx.cpp advertise.cpp session.cpp
   INCLUDE_DIRS        include
   PRIV_INCLUDE_DIRS   include
   REQUIRES            io ru_base message
