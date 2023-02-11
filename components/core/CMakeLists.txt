@@ -8,16 +8,18 @@ idf_component_register(
   REQUIRES
     arduino_json
     binder
+    esp_timer
     filter
     message
     ruth_mqtt
-    esp_adc_cal
+    esp_adc
     misc
     network
     app_update
     dev_pwm
     lightdesk
     ota
+
   )
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

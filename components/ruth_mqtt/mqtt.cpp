@@ -46,7 +46,7 @@ static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
   esp_err_t rc = ESP_OK;
   esp_mqtt_connect_return_code_t status;
 
-  MQTT *mqtt = (MQTT *)event->user_context;
+  MQTT *mqtt = &__singleton__;
 
   switch (event->event_id) {
   case MQTT_EVENT_BEFORE_CONNECT:
@@ -137,17 +137,15 @@ void MQTT::initAndStart(const ConnOpts &opts) {
   esp_log_level_set(TAG, ESP_LOG_INFO);
   esp_mqtt_client_config_t client_opts = {};
 
-  client_opts.uri = opts.uri;
-  client_opts.disable_clean_session = true;
-  client_opts.username = opts.user;
-  client_opts.password = opts.passwd;
-  client_opts.client_id = opts.client_id;
-  client_opts.reconnect_timeout_ms = 3000;
-  // priority of the ESP MQTT task responsible for sending and receiving messages
-  client_opts.task_prio = 11;
-  client_opts.buffer_size = 1024;
-  client_opts.out_buffer_size = 5120;
-  client_opts.user_context = &__singleton__;
+  client_opts.broker.address.uri = opts.uri;
+  client_opts.buffer.out_size = 5120;
+  client_opts.buffer.size = 1024;
+  client_opts.credentials.client_id = opts.client_id;
+  client_opts.credentials.authentication.password = opts.passwd;
+  client_opts.credentials.username = opts.user;
+  client_opts.network.reconnect_timeout_ms = 3000;
+  client_opts.session.disable_clean_session = true;
+  client_opts.task.priority = 11;
 
   conn = esp_mqtt_client_init(&client_opts);
   esp_mqtt_client_register_event(conn, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, eventHandler, conn);

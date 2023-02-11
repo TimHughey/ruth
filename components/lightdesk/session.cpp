@@ -63,7 +63,7 @@ static void create_units() {
 }
 
 static void self_destruct(void *) noexcept {
-  // ESP_LOGI(Session::TAG.data(), "self-destruct");
+  ESP_LOGD(Session::TAG.data(), "self-destruct");
 
   shared::active_session.reset();
 }
@@ -81,7 +81,7 @@ Session::Session(tcp_socket &&sock) noexcept
   // headunits are static outside of class, make sure they are created
   if (units.empty()) create_units();
 
-  dmx = DMX::init(); // spin up DMX
+  dmx = std::make_unique<DMX>();
 
   handshake();
 }

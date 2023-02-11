@@ -90,7 +90,7 @@ void Handler::notifyThisTask(UBaseType_t notify_val) {
   _notify_msg_val = notify_val;
 }
 
-InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
+InWrapped Handler::waitForNotifyOrMessage(uint32_t *notified) {
   In *received_msg = nullptr;
   // always do a no wait check for messages in the queue
 
@@ -105,7 +105,7 @@ InWrapped Handler::waitForNotifyOrMessage(UBaseType_t *notified) {
   // wait for a task notification.  on any notification do a no wait queue pop and return
   // whatever was popped (or not popped)
   xTaskNotifyWait(0x00, portMAX_DELAY, notified, portMAX_DELAY);
-  ESP_LOGD("message:handler", "notified 0x%0x", *notified);
+  ESP_LOGD("message:handler", "notified 0x%0lx", *notified);
 
   // pop it from the queue and return it
   // always do a no wait check for messages in the queue

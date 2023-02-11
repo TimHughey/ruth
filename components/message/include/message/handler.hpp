@@ -46,7 +46,7 @@ public:
 
   virtual InWrapped waitForMessage() { return waitForMessage(portMAX_DELAY, nullptr); }
   virtual InWrapped waitForMessage(uint32_t wait_ms, bool *timeout = nullptr);
-  virtual InWrapped waitForNotifyOrMessage(UBaseType_t *notified);
+  virtual InWrapped waitForNotifyOrMessage(uint32_t *notified);
   virtual void wantMessage(InWrapped &msg) = 0;
 
 public:

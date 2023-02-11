@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include "dmx/dmx.hpp"
 #include "io/async_msg.hpp"
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
@@ -32,6 +31,9 @@
 #include <optional>
 
 namespace ruth {
+
+class DMX;
+
 namespace desk {
 
 class Session;

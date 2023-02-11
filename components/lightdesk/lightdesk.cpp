@@ -25,12 +25,9 @@
 #include "session/session.hpp"
 
 #include <array>
-#include <asio/placeholders.hpp>
 #include <esp_log.h>
-#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <functional>
 #include <optional>
 
 namespace ruth {

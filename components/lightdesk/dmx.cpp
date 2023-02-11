@@ -40,7 +40,7 @@ DRAM_ATTR static std::array<StackType_t, 3072> stack;
 DRAM_ATTR static StaticMessageBuffer_t mbcb; // message buffer control block
 DRAM_ATTR static std::array<uint8_t, dmx::FRAME_LEN * 3> mb_store;
 
-DRAM_ATTR TaskHandle_t task_handle = nullptr;
+DRAM_ATTR TaskHandle_t task_handle{nullptr};
 
 // forward decl of static functions for DMX
 static void run(void *data);
@@ -49,18 +49,16 @@ static bool uart_init();
 // use a static run function because we're running a pure FreeRTOS
 // task (not a fancy Thread)
 void IRAM_ATTR run(void *data) {
-  // note: we can't use unique_ptr here because once vTaskDelete is called
-  //       this function is removed from the scheduler and the unique_ptr
-  //       destructor isn't executed
-
   auto dmx = static_cast<DMX *>(data);
+
+  ESP_LOGI(DMX::TAG.data(), "requested, run task_handle=%p", task_handle);
 
   dmx->spool_frames();
 
-  ESP_LOGD(DMX::TAG.data(), "finished, deleting task handle=%p", task_handle);
+  ESP_LOGI(DMX::TAG.data(), "completed, deleting task handle=%p", task_handle);
 
-  auto th = task_handle;
   task_handle = nullptr;
+  auto th = task_handle;
 
   vTaskDelete(th);
 }
@@ -92,7 +90,7 @@ bool uart_init() {
                                      .source_clk = UART_SCLK_APB};
 
     if (uart_rc = uart_param_config(UART_NUM, &uart_conf); uart_rc != ESP_OK) {
-      ESP_LOGW(pcTaskGetTaskName(nullptr), "[%s] uart_param_config()", esp_err_to_name(uart_rc));
+      ESP_LOGW(pcTaskGetName(nullptr), "[%s] uart_param_config()", esp_err_to_name(uart_rc));
     }
 
     uart_set_pin(UART_NUM, TX_PIN, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
@@ -110,17 +108,7 @@ bool uart_init() {
 
 // object API
 
-DMX::~DMX() noexcept {
-  vMessageBufferDelete(msg_buff);
-
-  while (task_handle != nullptr) {
-    vTaskDelay(pdMS_TO_TICKS(1));
-  }
-
-  ESP_LOGD(TAG.data(), "falling out of scope");
-}
-
-[[nodiscard]] std::unique_ptr<DMX> DMX::init() {
+DMX::DMX() noexcept : qok{0}, qrf(0), qsf(0) {
   // wait for previous DMX task to stop, if there is one
   for (auto waiting_ms = 0; task_handle; waiting_ms++) {
     vTaskDelay(pdMS_TO_TICKS(1));
@@ -130,9 +118,7 @@ DMX::~DMX() noexcept {
     }
   }
 
-  auto dmx = std::make_unique<DMX>(); // wrapped in unique_ptr in run()
-
-  dmx->msg_buff = xMessageBufferCreateStatic(mb_store.size(), mb_store.data(), &mbcb);
+  msg_buff = xMessageBufferCreateStatic(mb_store.size(), mb_store.data(), &mbcb);
 
   uart_init(); // only inits uart once
 
@@ -140,15 +126,23 @@ DMX::~DMX() noexcept {
       xTaskCreateStatic(&run,         // static func to start task
                         TAG.data(),   // task name
                         stack.size(), // stack size
-                        dmx.get(),    // pass the newly created object to run()
+                        this,         // pass the newly created object to run()
                         5,            // priority
                         stack.data(), // static task stack
                         &tcb          // task control block
       );
 
-  ESP_LOGD(TAG.data(), "started obj=%p tcb=%p", dmx.get(), &tcb);
+  ESP_LOGD(TAG.data(), "init, obj=%p tcb=%p", this, &tcb);
+}
 
-  return std::move(dmx);
+DMX::~DMX() noexcept {
+  vMessageBufferDelete(msg_buff);
+
+  while (task_handle != nullptr) {
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+
+  ESP_LOGD(TAG.data(), "falling out of scope");
 }
 
 void IRAM_ATTR DMX::spool_frames() noexcept {

@@ -9,9 +9,14 @@ else()
 endif()
 
 idf_component_register(
-  SRCS binder.cpp
-  INCLUDE_DIRS include
-  REQUIRES arduino_json
-  EMBED_TXTFILES ${BINDER_MP})
+  SRCS
+    binder.cpp
+  INCLUDE_DIRS
+    include
+  REQUIRES
+    arduino_json
+  EMBED_TXTFILES
+    ${BINDER_MP}
+)
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

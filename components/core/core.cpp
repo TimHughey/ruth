@@ -70,7 +70,7 @@ void Core::boot() {
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(15000));
 
   if ((notify & Net::READY) == false) {
-    ESP_LOGW(TAG, "while waiting for net ready received %u instead of %u", notify, Net::READY);
+    ESP_LOGW(TAG, "while waiting for net ready received %lu instead of %lu", notify, Net::READY);
     vTaskDelay(pdMS_TO_TICKS(3333));
     esp_restart();
   }
@@ -283,7 +283,7 @@ void Core::startMqtt() {
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(60000));
 
   if ((notify & MQTT::CONNECTED) == false) {
-    ESP_LOGW(TAG, "while waiting for mqtt connection received %u instead of %u", notify,
+    ESP_LOGW(TAG, "while waiting for mqtt connection received %lu instead of %lu", notify,
              MQTT::CONNECTED);
     vTaskDelay(pdMS_TO_TICKS(10000));
     esp_restart();
@@ -295,7 +295,7 @@ void Core::startMqtt() {
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(10000));
 
   if ((notify & MQTT::READY) == false) {
-    ESP_LOGW(TAG, "while waiting for mqtt ready received %u instead of %u", notify, MQTT::READY);
+    ESP_LOGW(TAG, "while waiting for mqtt ready received %lu instead of %lu", notify, MQTT::READY);
     vTaskDelay(pdMS_TO_TICKS(10000));
     esp_restart();
   }

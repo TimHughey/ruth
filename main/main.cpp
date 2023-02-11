@@ -55,8 +55,7 @@ void app_main() {
   case ESP_ERR_NVS_NO_FREE_PAGES:
   case ESP_ERR_NVS_NEW_VERSION_FOUND:
     esp_rc = nvs_flash_erase();
-    if (esp_rc == ESP_OK)
-      esp_rc = nvs_flash_init();
+    if (esp_rc == ESP_OK) esp_rc = nvs_flash_init();
     break;
   default:
     ESP_LOGW("Core", "NVS failure [%s]", esp_err_to_name(esp_rc));

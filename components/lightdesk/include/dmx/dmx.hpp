@@ -52,10 +52,8 @@ private:
   static constexpr TickType_t RECV_TIMEOUT{FRAME_TICKS * 3};
   static constexpr TickType_t QUEUE_TICKS{1};
 
-private: // must use start to create object
-  DMX() noexcept : qok{0}, qrf(0), qsf(0) {}
-
 public:
+  DMX() noexcept;
   ~DMX() noexcept;
 
   // returns raw pointer managed by unique_ptr
