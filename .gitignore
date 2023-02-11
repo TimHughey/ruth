@@ -19,3 +19,5 @@ kconfig_bin
 sdkconfig
 
 .DS_Store
+.vscode
+managed_components/espressif_*
