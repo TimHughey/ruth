@@ -6,5 +6,3 @@ otadata,  data, ota,      ,       8K,
 ota_0,    app,  ota_0,    ,       1300k,
 ota_1,    app,  ota_1,    ,       1300k,
 ruthfs,   data, fat,      ,       512k,
-
-

@@ -55,7 +55,7 @@ shAdvertise Advertise::init() {
       name = std::unique_ptr<char>(n);
 
       if (mdns_instance_name_set(name.get()) == ESP_OK) {
-        ESP_LOGI(TAG.data(), "host=%s instance=%s", Net::hostname(), name.get());
+        ESP_LOGI(TAG.data(), "host[%s] instance[%s]", Net::hostname(), name.get());
         auto txt_data = std::array<mdns_txt_item_t, 1>{{"desk", "true"}};
         mdns_service_add(name.get(), service.data(), protocol.data(), service_port, txt_data.data(),
                          txt_data.size());

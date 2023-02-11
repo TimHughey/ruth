@@ -1,4 +1,4 @@
-//  Pierre - Custom Light Show for Wiss Landing
+//  Ruth
 //  Copyright (C) 2022  Tim Hughey
 //
 //  This program is free software: you can redistribute it and/or modify

@@ -19,6 +19,7 @@
 
 #include "io/io.hpp"
 
+#include <esp_log.h>
 #include <esp_types.h>
 
 namespace ruth {

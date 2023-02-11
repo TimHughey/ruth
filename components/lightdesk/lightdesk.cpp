@@ -93,7 +93,7 @@ void LightDesk::async_accept() noexcept {
 }
 
 // run the lightdesk
-void LightDesk::run() {
+void LightDesk::run() noexcept {
   async_accept();
 
   io_ctx.run();

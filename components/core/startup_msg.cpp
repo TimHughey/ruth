@@ -1,25 +1,24 @@
-/*
-  Ruth
-  (C)opyright 2021  Tim Hughey
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-  https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2021  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #include "core/startup_msg.hpp"
 
+#include <esp_app_desc.h>
 #include <esp_ota_ops.h>
 #include <esp_system.h>
 
@@ -35,9 +34,9 @@ void Startup::assembleData(JsonObject &data) {
   constexpr size_t app_sha_length = 12;
   char app_sha[app_sha_length + 1] = {};
 
-  esp_ota_get_app_elf_sha256(app_sha, app_sha_length);
+  esp_app_get_elf_sha256(app_sha, app_sha_length);
 
-  auto app_desc = esp_ota_get_app_description();
+  const auto app_desc = esp_app_get_description();
 
   data["app_sha"] = app_sha;
   data["build_time"] = app_desc->time;

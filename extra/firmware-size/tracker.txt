@@ -616,3 +616,11 @@ Used static IRAM:   90339 bytes (  40733 available, 68.9% used)
     Flash rodata:  120824 bytes
 Total image size:~ 865690 bytes (.bin may be padded larger)
 <<<
+>>>
+ceea14e Symbolic link to active partition table
+Total sizes:
+Used static DRAM:   54232 bytes ( 126504 remain, 30.0% used)
+Used static IRAM:  107486 bytes (  23586 remain, 82.0% used)
+Used Flash size :  918844 bytes
+Total image size: 1059362 bytes (.bin may be padded larger)
+<<<

@@ -1,25 +1,25 @@
-/*
-    Ruth
-    Copyright (C) 2020  Tim Hughey
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-    https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2020  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #include "dev_pwm/hardware.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cstring>
 #include <driver/gpio.h>
 #include <driver/ledc.h>
@@ -29,17 +29,22 @@ namespace ruth {
 namespace pwm {
 
 static ledc_timer_config_t ledc_timer[2];
-static ledc_timer_t pinToTimerMap[5] = {LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_1,
-                                        LEDC_TIMER_1};
+static ledc_timer_t pinToTimerMap[5] = //
+    {LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_0, LEDC_TIMER_1, LEDC_TIMER_1};
+
 static constexpr size_t num_channels = 5;
 static ledc_channel_config_t channel_config[num_channels] = {};
-static ledc_channel_t numToChannelMap[num_channels] = {
-    LEDC_CHANNEL_0, LEDC_CHANNEL_1, LEDC_CHANNEL_2, LEDC_CHANNEL_3, LEDC_CHANNEL_4};
-static gpio_num_t numToGpioMap[num_channels] = {GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33,
-                                                GPIO_NUM_27};
+static ledc_channel_t numToChannelMap[num_channels] = //
+    {LEDC_CHANNEL_0, LEDC_CHANNEL_1, LEDC_CHANNEL_2, LEDC_CHANNEL_3, LEDC_CHANNEL_4};
+
+static constexpr auto numToGpioMap2 =
+    std::array{GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
+
+static gpio_num_t numToGpioMap[num_channels] = //
+    {GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
 
 static constexpr uint64_t pwm_gpio_pin_sel =
-    (GPIO_NUM_13 | GPIO_NUM_32 | GPIO_NUM_15 | GPIO_NUM_33 | GPIO_NUM_27);
+    ((1ULL << 13) | (1ULL << 32) | (1ULL << 15) | (1ULL << 33) | (1ULL << 27));
 
 static const char *pin_name[num_channels] = {"led.0", "pin.1", "pin.2", "pin.3", "pin.4"};
 
@@ -59,9 +64,13 @@ esp_err_t Hardware::allOff() {
   if (onetime) return ESP_OK;
 
   // ensure all pins to be used as PWM are off
-  gpio_config_t pins_cfg;
+  gpio_config_t pins_cfg{};
 
-  pins_cfg.pin_bit_mask = pwm_gpio_pin_sel;
+  // pins_cfg.pin_bit_mask = 0;
+  std::for_each(numToGpioMap2.begin(), numToGpioMap2.end(),
+                [&](const auto gpio) { pins_cfg.pin_bit_mask |= (1ULL < gpio); });
+
+  // pins_cfg.pin_bit_mask = pwm_gpio_pin_sel;
   pins_cfg.mode = GPIO_MODE_OUTPUT;
   pins_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
   pins_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
