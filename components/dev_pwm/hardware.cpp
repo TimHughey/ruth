@@ -18,7 +18,6 @@
 
 #include "dev_pwm/hardware.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cstring>
 #include <driver/gpio.h>
@@ -37,11 +36,8 @@ static ledc_channel_config_t channel_config[num_channels] = {};
 static ledc_channel_t numToChannelMap[num_channels] = //
     {LEDC_CHANNEL_0, LEDC_CHANNEL_1, LEDC_CHANNEL_2, LEDC_CHANNEL_3, LEDC_CHANNEL_4};
 
-static constexpr auto numToGpioMap2 =
+DRAM_ATTR static constexpr auto numToGiopMap =
     std::array{GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
-
-static gpio_num_t numToGpioMap[num_channels] = //
-    {GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
 
 static constexpr uint64_t pwm_gpio_pin_sel =
     ((1ULL << 13) | (1ULL << 32) | (1ULL << 15) | (1ULL << 33) | (1ULL << 27));
@@ -58,7 +54,6 @@ Hardware::Hardware(uint8_t pin_num) : _pin_num(pin_num) {
 }
 
 esp_err_t Hardware::allOff() {
-  gpio_num_t pins[] = {GPIO_NUM_13, GPIO_NUM_32, GPIO_NUM_15, GPIO_NUM_33, GPIO_NUM_27};
   static bool onetime = false;
 
   if (onetime) return ESP_OK;
@@ -66,21 +61,28 @@ esp_err_t Hardware::allOff() {
   // ensure all pins to be used as PWM are off
   gpio_config_t pins_cfg{};
 
-  // pins_cfg.pin_bit_mask = 0;
-  std::for_each(numToGpioMap2.begin(), numToGpioMap2.end(),
-                [&](const auto gpio) { pins_cfg.pin_bit_mask |= (1ULL < gpio); });
-
-  // pins_cfg.pin_bit_mask = pwm_gpio_pin_sel;
+  // setup common values
   pins_cfg.mode = GPIO_MODE_OUTPUT;
   pins_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
   pins_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
   pins_cfg.intr_type = GPIO_INTR_DISABLE;
 
+  // setup bitmask
+  for (const auto pin : numToGiopMap) {
+    // note: pin_bit_mask is uint64_t
+    pins_cfg.pin_bit_mask |= (1ULL << pin);
+  }
+
+  // apply configuration
   auto esp_rc = gpio_config(&pins_cfg);
 
-  constexpr size_t num_pins = sizeof(pins) / sizeof(gpio_num_t);
-  for (size_t i = 0; i < num_pins; i++) {
-    esp_rc = gpio_set_level(pins[i], 0);
+  // all is well?  switch off all pins
+  if (esp_rc == ESP_OK) {
+    for (const auto pin : numToGiopMap) {
+      esp_rc = gpio_set_level(pin, 0);
+
+      if (esp_rc != ESP_OK) break;
+    }
   }
 
   onetime = true;
@@ -107,7 +109,7 @@ void Hardware::ensureChannel(uint8_t num) {
   if (_channel_configured[num]) return;
   if (_last_rc != ESP_OK) return;
 
-  auto gpio = numToGpioMap[num];
+  auto gpio = numToGiopMap[num];
 
   gpio_set_level(gpio, 0);
 

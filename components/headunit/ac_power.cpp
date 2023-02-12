@@ -32,7 +32,7 @@ constexpr gpio_num_t pin = GPIO_NUM_21;
 AcPower::AcPower(csv id) : HeadUnit(id) {
   gpio_config_t pins_cfg;
 
-  pins_cfg.pin_bit_mask = GPIO_NUM_21;
+  pins_cfg.pin_bit_mask = (1ULL << GPIO_NUM_21);
   pins_cfg.mode = GPIO_MODE_OUTPUT;
   pins_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
   pins_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
