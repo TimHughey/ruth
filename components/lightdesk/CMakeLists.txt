@@ -3,10 +3,25 @@
 ##
 
 idf_component_register(
-  SRCS                lightdesk.cpp dmx.cpp advertise.cpp server.cpp session.cpp
-  INCLUDE_DIRS        include
-  PRIV_INCLUDE_DIRS   include
-  REQUIRES            io ru_base message
-  PRIV_REQUIRES       pthread mdns network headunit)
+  SRCS                
+    advertise.cpp
+    dmx.cpp 
+    lightdesk.cpp
+    session.cpp
+  INCLUDE_DIRS
+    include
+  PRIV_INCLUDE_DIRS
+    include
+  REQUIRES
+    io
+    message
+    ru_base
+  PRIV_REQUIRES
+    esp_timer
+    headunit
+    mdns
+    network
+    pthread
+  )
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

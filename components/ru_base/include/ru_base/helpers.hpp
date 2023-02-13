@@ -22,7 +22,7 @@
 
 namespace ruth {
 
-constexpr uint64_t upow(uint64_t base, uint64_t exp) {
+constexpr inline uint64_t upow(uint64_t base, uint64_t exp) {
   uint64_t result = 1;
 
   for (;;) {

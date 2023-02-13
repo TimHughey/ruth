@@ -1,5 +1,5 @@
 /*
-    protocols/dmx.hpp - Ruth DMX Protocol Engine
+    Ruth
     Copyright (C) 2020  Tim Hughey
 
     This program is free software: you can redistribute it and/or modify
@@ -20,69 +20,63 @@
 
 #pragma once
 
+#include "dmx/frame.hpp"
 #include "io/io.hpp"
-#include "msg.hpp"
 #include "ru_base/time.hpp"
 #include "ru_base/types.hpp"
-#include "ru_base/uint8v.hpp"
 
+#include <atomic>
+#include <freertos/FreeRTOS.h>
+#include <freertos/message_buffer.h>
+#include <future>
 #include <memory>
-#include <vector>
+#include <optional>
 
 namespace ruth {
 
-class DMX;
-typedef std::shared_ptr<DMX> shDMX;
-class DMX : public std::enable_shared_from_this<DMX> {
+class DMX {
 public:
-  class Frame : public uint8v {
-  public:
-    static constexpr size_t FRAME_LEN = 384; // minimum to prevent flicker
-
-  public:
-    inline Frame() : uint8v(FRAME_LEN, 0x00) {}
-
-    Frame(Frame &src) = delete;                  // no copy assignment
-    Frame(const Frame &src) = delete;            // no copy constructor
-    Frame &operator=(Frame &rhs) = delete;       // no copy assignment
-    Frame &operator=(const Frame &rhs) = delete; // no copy assignment
-    Frame(Frame &&src) = default;                // allow move assignment
-    Frame &operator=(Frame &&rhs) = default;     // allow copy assignment
-  };
+  static constexpr csv TAG{"dmx"};
 
 private:
-  struct Stats {
-    TimePoint fps_start = steady_clock::now();
-    uint64_t calcs = 0; // calcs * fps_start for "precise" timing
-    float fps = 0;
-    uint64_t frame_count = 0;
-    uint64_t frame_shorts = 0;
-    uint64_t mark = 0;
-  };
+  static constexpr Micros FRAME_MAB{12us};
+  static constexpr Micros FRAME_BYTE{44us};
+  static constexpr Micros FRAME_SC{FRAME_BYTE};
+  static constexpr Micros FRAME_MTBF{44us};
+  static constexpr Micros FRAME_DATA{Micros(FRAME_BYTE * 512)};
 
-private: // must use start to create object
-  DMX() : fps_timer(io_ctx) {}
+  // frame interval does not include the BREAK as it is handled by the UART
+  static constexpr Micros FRAME_US{FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF};
+  static constexpr Millis FRAME_MS{ru_time::as_duration<Micros, Millis>(FRAME_US)};
+  static constexpr TickType_t FRAME_TICKS{pdMS_TO_TICKS(FRAME_MS.count())};
+  static constexpr TickType_t RECV_TIMEOUT{FRAME_TICKS * 3};
+  static constexpr TickType_t QUEUE_TICKS{1};
 
 public:
-  ~DMX();
+  DMX() noexcept;
+  ~DMX() noexcept;
 
-  float fps() const { return stats.fps; }
-  float idle() const { return stats.fps == 0.0f; }
+  // returns raw pointer managed by unique_ptr
+  static std::unique_ptr<DMX> init();
 
-  void txFrame(DMX::Frame &&frame);
+  // queue statistics, qok + qrf + qsf = total frames
+  inline auto q_ok() const noexcept { return qok.load(); } // queue ok count
+  inline auto q_rf() const noexcept { return qrf.load(); } // queue recv failures
+  inline auto q_sf() const noexcept { return qsf.load(); } // queue send failurs
 
-  static shDMX start();
-  void stop() { fps_timer.cancel(); }
+  std::future<bool> stop() noexcept { return shutdown_prom.emplace().get_future(); }
 
-private:
-  void fpsCalculate();
-  void renderLoop();
+  void spool_frames() noexcept;
+  bool tx_frame(dmx::frame &&frame);
 
 private:
   // order dependent
-  io_context io_ctx;
-  steady_timer fps_timer;
+  std::atomic_int64_t qok; // count of frames queued/dequeued ok
+  std::atomic_int64_t qrf; // count of frame dequeue failures
+  std::atomic_int64_t qsf; // count of frame queue failures
 
-  Stats stats;
+  // order independent
+  std::optional<std::promise<bool>> shutdown_prom;
+  MessageBufferHandle_t msg_buff;
 };
 } // namespace ruth

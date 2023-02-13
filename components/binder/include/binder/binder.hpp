@@ -1,22 +1,21 @@
-/*
-    binder.hpp -- Abstraction for ESP32 SPIFFS
-    Copyright (C) 2020  Tim Hughey
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-    https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2020  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #pragma once
 
@@ -26,36 +25,26 @@
 
 namespace ruth {
 
-typedef class Binder Binder_t;
+class Binder;
+namespace shared {
+extern Binder binder;
+}
 
 class Binder {
 
 public:
-  Binder(){}; // SINGLETON
-  static void init() { i()->parse(); }
-  static Binder_t *instance() { return i(); }
+  Binder() = default;
+  static void init() { shared::binder.parse(); }
+  static Binder *instance() { return &shared::binder; }
 
-  static const char *env() { return i()->meta["env"] | "test"; }
-  static const JsonObject mqtt() {
-    JsonObject mqtt = i()->root["mqtt"];
+  static const char *env() { return shared::binder.meta["env"] | "test"; }
+  static const JsonObject mqtt() { return shared::binder.root["mqtt"]; }
+  static const JsonArray ntp() { return shared::binder.root["ntp"].as<JsonArray>(); }
 
-    return std::move(mqtt);
-  }
-  static const JsonArray ntp() {
-    JsonArray ntp = i()->root["ntp"].as<JsonArray>();
-
-    return std::move(ntp);
-  }
   static int64_t now();
-  static const JsonObject wifi() {
-    JsonObject wifi = i()->root["wifi"];
-
-    return std::move(wifi);
-  }
+  static const JsonObject wifi() { return shared::binder.root["wifi"]; }
 
 private:
-  static Binder *i();
-
   void parse();
 
 private:

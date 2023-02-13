@@ -3,8 +3,18 @@
 ##
 
 idf_component_register(
-  SRCS out.cpp in.cpp handler.cpp states_msg.cpp ack_msg.cpp
-  INCLUDE_DIRS include
-  REQUIRES arduino_json filter)
+  SRCS
+    ack_msg.cpp
+    handler.cpp
+    in.cpp
+    out.cpp
+    states_msg.cpp
+  INCLUDE_DIRS
+    include
+  REQUIRES 
+    arduino_json
+    esp_timer
+    filter
+  )
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

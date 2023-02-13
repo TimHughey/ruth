@@ -1,22 +1,20 @@
-/*
-    Ruth
-    Copyright (C) 2022  Tim Hughey
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-    https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2022  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #pragma once
 
@@ -33,9 +31,9 @@ namespace ruth {
 
 class uint8v : public std::vector<uint8_t> {
 public:
-  uint8v() = default;
-  uint8v(size_t count, uint8_t val) { assign(count, val); }
-  uint8v(size_t reserve_default) : reserve_default(reserve_default) { //
+  inline uint8v() = default;
+  inline uint8v(size_t count, uint8_t val) { assign(count, val); }
+  inline uint8v(size_t reserve_default) : reserve_default(reserve_default) { //
     reserve(reserve_default);
   }
 
@@ -44,8 +42,8 @@ public:
   uint8v &operator=(uint8v &rhs) = delete;       // no copy assignment
   uint8v &operator=(const uint8v &rhs) = delete; // no copy assignment
 
-  uint8v(uint8v &&src) = default;
-  uint8v &operator=(uint8v &&rhs) = default;
+  inline uint8v(uint8v &&src) = default;
+  inline uint8v &operator=(uint8v &&rhs) = default;
 
   bool multiLineString() const {
     auto nl_count = std::count_if(begin(), end(), [](const char c) { return c == '\n'; });
@@ -53,8 +51,8 @@ public:
     return nl_count > 2;
   }
 
-  template <typename T> const T *raw() const { return (const T *)data(); }
-  void reset(size_t reserve_bytes = 0) {
+  template <typename T> inline const T *raw() const { return (const T *)data(); }
+  inline void reset(size_t reserve_bytes = 0) {
     clear();
 
     if ((reserve_bytes == 0) && (reserve_default > 0)) {

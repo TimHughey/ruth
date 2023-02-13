@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <esp_log.h>
+#include <esp_random.h>
 
 namespace ruth {
 namespace pwm {

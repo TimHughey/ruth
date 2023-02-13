@@ -30,13 +30,13 @@ namespace filter {
 
 static const char *TAG = "filter In";
 
-IRAM_ATTR In::In(const char *filter, const size_t len) : Split(len) {
+In::In(const char *filter, const size_t len) : Split(len) {
   split(filter);
 
   // dump();
 }
 
-IRAM_ATTR void In::dump() const {
+void In::dump() const {
 
   for (size_t i = 0; i < _level_count; i++) {
     ESP_LOGI(TAG, "level[%u] %s", i, _levels[i]);

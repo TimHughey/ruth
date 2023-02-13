@@ -23,6 +23,7 @@
 
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
@@ -72,8 +73,7 @@ IRAM_ATTR bool Device::convert() {
   }
 
   while (Bus::convert(complete)) {
-    if (complete)
-      break; // convert is complete
+    if (complete) break; // convert is complete
 
     vTaskDelay(Convert::CHECK_TICKS); // delay between checks
 
@@ -111,8 +111,7 @@ void Device::makeID() {
     const uint8_t byte = _addr[i];
 
     // this is knownly duplicated code to avoid creating dependencies
-    if (byte < 0x10)
-      *p++ = '0';                      // zero pad values less than 0x10
+    if (byte < 0x10) *p++ = '0';       // zero pad values less than 0x10
     itoa(byte, p, 16);                 // convert to hex
     p = (byte < 0x10) ? p + 1 : p + 2; // move pointer forward based on zero padding
   }

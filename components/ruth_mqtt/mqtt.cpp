@@ -1,22 +1,21 @@
-/*
-     mqtt.cpp - Ruth MQTT
-     Copyright (C) 2017  Tim Hughey
 
-     This program is free software: you can redistribute it and/or modify
-     it under the terms of the GNU General Public License as published by
-     the Free Software Foundation, either version 3 of the License, or
-     (at your option) any later version.
-
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU General Public License for more details.
-
-     You should have received a copy of the GNU General Public License
-     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-     https://www.wisslanding.com
- */
+//  Ruth
+//  Copyright (C) 2017  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 // override component logging level (must be #define before including esp_log.h)
 // #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
@@ -43,11 +42,11 @@ void MQTT::connectionClosed() {
   // _mqtt_ready = false;
 }
 
-IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
+static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
   esp_err_t rc = ESP_OK;
   esp_mqtt_connect_return_code_t status;
 
-  MQTT *mqtt = (MQTT *)event->user_context;
+  MQTT *mqtt = &__singleton__;
 
   switch (event->event_id) {
   case MQTT_EVENT_BEFORE_CONNECT:
@@ -81,8 +80,7 @@ IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
   case MQTT_EVENT_DATA:
     // ensure there is actually a payload to handle
     if (event->total_data_len > 0) {
-      InWrapped msg = In::make(event->topic, event->topic_len, event->data, event->data_len);
-      mqtt->incomingMsg(std::move(msg));
+      mqtt->incomingMsg(In::make(event->topic, event->topic_len, event->data, event->data_len));
     }
     break;
 
@@ -101,20 +99,19 @@ IRAM_ATTR static esp_err_t eventCallback(esp_mqtt_event_handle_t event) {
   return rc;
 }
 
-IRAM_ATTR static void eventHandler(void *handler_args, esp_event_base_t base, int32_t event_id,
-                                   void *event_data) {
+static void eventHandler(void *handler_args, esp_event_base_t base, int32_t event_id,
+                         void *event_data) {
   esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
 
   eventCallback(event);
 }
 
-IRAM_ATTR void MQTT::incomingMsg(InWrapped msg) {
+void MQTT::incomingMsg(InWrapped msg) {
   bool wanted = false;
   for (auto i = 0; (i < _max_handlers) && !wanted; i++) {
     message::Handler *registered = _handlers[i];
 
-    if (registered == nullptr)
-      break; // stop checking once we hit an empty registration
+    if (registered == nullptr) break; // stop checking once we hit an empty registration
 
     if (registered->matchCategory(msg->category())) {
       registered->wantMessage(msg);
@@ -140,17 +137,15 @@ void MQTT::initAndStart(const ConnOpts &opts) {
   esp_log_level_set(TAG, ESP_LOG_INFO);
   esp_mqtt_client_config_t client_opts = {};
 
-  client_opts.uri = opts.uri;
-  client_opts.disable_clean_session = true;
-  client_opts.username = opts.user;
-  client_opts.password = opts.passwd;
-  client_opts.client_id = opts.client_id;
-  client_opts.reconnect_timeout_ms = 3000;
-  // priority of the ESP MQTT task responsible for sending and receiving messages
-  client_opts.task_prio = 11;
-  client_opts.buffer_size = 1024;
-  client_opts.out_buffer_size = 5120;
-  client_opts.user_context = &__singleton__;
+  client_opts.broker.address.uri = opts.uri;
+  client_opts.buffer.out_size = 5120;
+  client_opts.buffer.size = 1024;
+  client_opts.credentials.client_id = opts.client_id;
+  client_opts.credentials.authentication.password = opts.passwd;
+  client_opts.credentials.username = opts.user;
+  client_opts.network.reconnect_timeout_ms = 3000;
+  client_opts.session.disable_clean_session = true;
+  client_opts.task.priority = 11;
 
   conn = esp_mqtt_client_init(&client_opts);
   esp_mqtt_client_register_event(conn, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, eventHandler, conn);
@@ -202,7 +197,7 @@ void MQTT::subscribe(const filter::Subscribe &filter) {
   ESP_LOGD(TAG, "SUBSCRIBE TO filter[%s] msg_id[%d]", filter.c_str(), sub_msg_id);
 }
 
-IRAM_ATTR bool MQTT::send(message::Out &msg) {
+bool MQTT::send(message::Out &msg) {
   size_t bytes;
   auto packed = msg.pack(bytes);
 

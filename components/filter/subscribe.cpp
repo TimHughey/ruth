@@ -30,7 +30,7 @@ namespace filter {
 
 static const char *TAG = "filter Subscribe";
 
-IRAM_ATTR Subscribe::Subscribe(const char *first_level) : Builder(first_level) {
+Subscribe::Subscribe(const char *first_level) : Builder(first_level) {
   addLevel("c2");
   addHostId();
   addChar('#');

@@ -44,7 +44,7 @@ private:
   };
 
 private:
-  static size_t availablePrimes();
+  static uint32_t availablePrimes();
 
   static int32_t randomDirection();
   static uint32_t randomNum(uint32_t modulo);

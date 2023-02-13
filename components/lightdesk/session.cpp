@@ -16,18 +16,6 @@
 //
 //  https://www.wisslanding.com
 
-#include "session/session.hpp"
-#include "dmx/dmx.hpp"
-#include "headunit/ac_power.hpp"
-#include "headunit/discoball.hpp"
-#include "headunit/elwire.hpp"
-#include "headunit/headunit.hpp"
-#include "headunit/ledforest.hpp"
-#include "inject/inject.hpp"
-#include "io/io.hpp"
-#include "msg.hpp"
-#include "ru_base/uint8v.hpp"
-
 #include "ArduinoJson.h"
 #include <algorithm>
 #include <arpa/inet.h>
@@ -36,245 +24,256 @@
 #include <cmath>
 #include <esp_log.h>
 #include <esp_timer.h>
+#include <freertos/task.h>
+#include <memory>
 #include <mutex>
 #include <vector>
 
+#include "dmx/dmx.hpp"
+#include "dmx/frame.hpp"
+#include "headunit/ac_power.hpp"
+#include "headunit/discoball.hpp"
+#include "headunit/elwire.hpp"
+#include "headunit/headunit.hpp"
+#include "headunit/ledforest.hpp"
+#include "io/async_msg.hpp"
+#include "io/io.hpp"
+#include "io/msg_static.hpp"
+#include "ru_base/time.hpp"
+#include "ru_base/uint8v.hpp"
+#include "session/session.hpp"
+
 namespace ruth {
+
+namespace shared {
+std::optional<desk::Session> active_session;
+}
+
 namespace desk {
 
-using namespace std::chrono_literals;
-static constexpr csv TAG = "DeskSession";
-
-typedef std::vector<shHeadUnit> HeadUnits;
+using HeadUnits = std::vector<shHeadUnit>;
 DRAM_ATTR static HeadUnits units;
 
-static std::optional<shSession> active_session;
-
-// forward decl of static functions for Session
-static void async_loop(shSession, shDMX dmx);
-static void create_units();
-static void idle_watch_dog(shSession session, shDMX dmx);
-static void shutdown(shSession session, shDMX dmx = shDMX());
-
-IRAM_ATTR void async_loop(shSession session, shDMX dmx) {
-  session->msg_len = 0;
-
-  udp_socket &socket = session->data_socket;
-
-  auto start_us = esp_timer_get_time();
-  socket.async_receive( //
-      asio::buffer(session->packed), [=](error_code ec, size_t bytes) {
-        if (ec) {
-          ESP_LOGW(TAG.data(), "recv msg failed, bytes= %d reason=%s", bytes,
-                   ec.message().c_str());
-          shutdown(session, dmx);
-          return;
-        }
-
-        const auto async_us = esp_timer_get_time() - start_us;
-
-        if ((async_us < 2500) || (async_us > 30000)) {
-          ESP_LOGI(TAG.data(), "async_us=%lld", async_us);
-        }
-        // now that we have the entire packed message
-        // attempt to create the DeskMsg, ask DMX to send the frame then
-        // ask each headunit to handle it's part of the message
-        if (auto msg = DeskMsg(session->packed, bytes); msg.validMagic()) {
-          dmx->txFrame(msg.dframe<DMX::Frame>());
-
-          for (auto unit : units) {
-            unit->handleMsg(msg.root());
-          }
-        }
-
-        idle_watch_dog(session, dmx); // reset the idle watchdog
-
-        // call ourself and keep shared_ptrs in scope
-        async_loop(session, dmx);
-      });
-
-  /*
-
-    // we reuse ec so no const
-    asio::async_read(session->socket, asio::buffer(&msg_len, MSG_LEN_SIZE),
-                     asio::transfer_exactly(MSG_LEN_SIZE), [=](error_code ec, size_t bytes) {
-                       msg_len = ntohs(msg_len); // network order to host order
-
-                       if (!ec) {
-                         bytes = asio::read(session->socket, asio::buffer(packed),
-                                            asio::transfer_exactly(msg_len), ec);
-                         // confirm the read was successful and we got the bytes we need
-                         if (!ec && (bytes == msg_len)) {
-                           idle_watch_dog(session, dmx);
-
-                           // now that we have the entire packed message
-                           // attempt to create the DeskMsg, ask DMX to send the frame then
-                           // ask each headunit to handle it's part of the message
-                           if (auto msg = DeskMsg(packed, msg_len); msg.validMagic()) {
-                             dmx->txFrame(msg.dframe<DMX::Frame>());
-
-                             for (auto unit : units) {
-                               unit->handleMsg(msg.root());
-                             }
-                           }
-
-                           // call ourself and keep shared_ptrs in scope
-                           async_loop(session, dmx);
-                         } else {
-                           ESP_LOGW(TAG.data(), "read msg failed, wanted=%d got=%d reason=%s",
-                                    msg_len, bytes, ec.message().c_str());
-                         }
-
-                       } else {
-                         ESP_LOGW(TAG.data(), "async_read() failed reason=%s",
-    ec.message().c_str()); shutdown(session, dmx);
-                       }
-                     });
-    */
-}
-
 static void create_units() {
-  units.emplace_back(std::make_shared<AcPower>("ac power"));
-  units.emplace_back(std::make_shared<DiscoBall>("disco ball", 1)); // pwm 1
-  units.emplace_back(std::make_shared<ElWire>("el dance", 2));      // pwm 2
-  units.emplace_back(std::make_shared<ElWire>("el entry", 3));      // pwm 3
-  units.emplace_back(std::make_shared<LedForest>("led forest", 4)); // pwm 4
+  units.emplace_back(std::make_unique<AcPower>("ac power"));
+  units.emplace_back(std::make_unique<DiscoBall>("disco ball", 1)); // pwm 1
+  units.emplace_back(std::make_unique<ElWire>("el dance", 2));      // pwm 2
+  units.emplace_back(std::make_unique<ElWire>("el entry", 3));      // pwm 3
+  units.emplace_back(std::make_unique<LedForest>("led forest", 4)); // pwm 4
 }
 
-IRAM_ATTR static void idle_watch_dog(shSession session, shDMX dmx) {
-  auto expires = ru_time::as_duration<Seconds, Millis>(session->idle_shutdown);
-  session->idle_timer.expires_after(expires);
-  session->idle_timer.async_wait([=](const error_code ec) {
-    // if the timer ever expires then we're idle
-    if (!ec) {
-      std::for_each(units.begin(), units.end(), [](shHeadUnit unit) { unit->dark(); });
+static void self_destruct(void *) noexcept {
+  ESP_LOGD(Session::TAG.data(), "self-destruct");
 
-      ESP_LOGI(TAG.data(), "is idle");
-
-      shutdown(session, dmx);
-
-    } else {
-      ESP_LOGD(TAG.data(), "idleWatchDog() terminating reason=%s", ec.message().c_str());
-    }
-  });
-}
-
-IRAM_ATTR static void shutdown(shSession session, shDMX dmx) {
-  if (active_session.has_value() && (active_session.value() == session)) {
-    ESP_LOGD(TAG.data(), "shutting down session=%p", session.get());
-    active_session.reset();
-    ESP_LOGD(TAG.data(), "active_session=%s", active_session.has_value() ? "true" : "false");
-
-    [[maybe_unused]] error_code ec;
-    session->socket.cancel(ec);
-    session->data_socket.cancel(ec);
-    session->idle_timer.cancel(ec);
-
-    if (dmx) {
-      dmx->stop();
-    }
-  }
+  shared::active_session.reset();
 }
 
 // Object API
 
-IRAM_ATTR shSession Session::activeSession() { // static
-  return active_session.value_or(shSession());
+Session::Session(tcp_socket &&sock) noexcept
+    : ctrl_sock(std::move(sock)),            // move the accepted socket
+      idle_shutdown(10000),                  // default, may be overriden
+      idle_timer(ctrl_sock.get_executor()),  // idle timer, same executor as ctrl_socket
+      stats_interval(2000),                  // default, may be overriden
+      stats_timer(ctrl_sock.get_executor()), // fps/stats timer, same executor as ctrl_socket
+      destruct_timer{nullptr}                // esp_timer to destructor via separate task
+{
+  // headunits are static outside of class, make sure they are created
+  if (units.empty()) create_units();
+
+  dmx = std::make_unique<DMX>();
+
+  handshake();
 }
 
-void Session::start(const session::Inject &di) { // static
-  if (units.empty()) { // headunit creation/destruction aligned with desk session
-    create_units();
+Session::~Session() noexcept {
+  // graceful shutdown
+  [[maybe_unused]] error_code ec;
+  idle_timer.cancel(ec);
+  stats_timer.cancel(ec);
+
+  if (data_sock.has_value()) data_sock->close(ec);
+  ctrl_sock.close(ec);
+
+  std::for_each(units.begin(), units.end(), [](auto &unit) { unit->dark(); });
+
+  // stop dmx and wait for confirmation
+  if (dmx && (dmx->stop().get() == true)) dmx.reset();
+
+  if (destruct_timer) esp_timer_delete(destruct_timer);
+}
+
+void Session::close() noexcept {
+  if (destruct_timer) return; // self destruct in progress
+
+  idle_shutdown = Millis(0);
+  idle_watch_dog();
+}
+
+void IRAM_ATTR Session::connect_data(Port port) noexcept {
+  auto address = ctrl_sock.remote_endpoint().address();
+  auto endpoint = tcp_endpoint(address, port);
+  data_sock.emplace(ctrl_sock.get_executor());
+
+  asio::async_connect(*data_sock, std::array{endpoint},
+                      [this](const error_code ec, const tcp_endpoint r) {
+                        if (ec) return;
+
+                        data_sock->set_option(ip_tcp::no_delay(true));
+
+                        // io::log_accept_socket(TAG, "data"sv, *data_sock, r);
+
+                        fps_calc();
+                        data_msg_read();
+                      });
+}
+
+void IRAM_ATTR Session::ctrl_msg_process(io::Msg &&msg) noexcept {
+  JsonDocument &doc = msg.doc;
+  csv type{doc[io::TYPE].as<const char *>()}; // get msg type
+
+  if (csv{io::HANDSHAKE} == type) { // the handshake reply
+    idle_shutdown = Millis(doc[io::IDLE_SHUTDOWN_MS] | idle_shutdown.count());
+    remote_ref_time = Micros(doc[io::REF_US] | 0);
+    Port port = doc[io::DATA_PORT] | 0;
+
+    if (port) connect_data(port);
+
+    // start stats reporting
+    stats.emplace(Millis(doc[io::STATS_MS] | stats_interval.count()));
+  } else if (csv{io::SHUTDOWN} == type) {
+    close();
+    return;
   }
 
-  // creates a new session shared_ptr, saves as active session
-  auto session = active_session.emplace(new Session(di));
-
-  StaticJsonDocument<256> doc;
-  JsonObject root = doc.to<JsonObject>();
-
-  uint16_t data_port = session->data_socket.local_endpoint().port();
-  root["data_port"] = data_port;
-
-  static std::array<char, 128> packed;
-  static uint16_t msg_len = 0;
-  auto bytes = serializeMsgPack(doc, packed.data(), packed.size());
-
-  msg_len = htons(bytes);
-  auto buff_seq =
-      std::array{asio::buffer(&msg_len, MSG_LEN_SIZE), asio::buffer(packed.data(), bytes)};
-
-  ESP_LOGI(TAG.data(), "sending setup msg, bytes=%d", bytes);
-
-  asio::async_write(
-      session->socket, buff_seq, [=](const error_code ec, [[maybe_unused]] size_t bytes) {
-        if (ec) {
-          ESP_LOGI(TAG.data(), "async_write() failed, reason=%s", ec.message().c_str());
-
-          shutdown(session);
-          return;
-        }
-
-        ESP_LOGI(TAG.data(), "udp data_port=%d", data_port);
-      });
-
-  async_loop(session, DMX::start());
+  ctrl_msg_read();
 }
 
-/*
-constructor notes:
-  1. socket is passed as a reference to a reference so we must move to our local
-socket reference
+void IRAM_ATTR Session::ctrl_msg_read() noexcept {
+  DRAM_ATTR static io::StaticPacked packed;
 
-asyncLoop() notes:
-  1. nothing within this function can be captured by the lamba
-     because the scope of this function ends before
-     the lamba executes
+  // note: we do not reset the idle watch dog for ctrl messages
+  //       idle is based entirely on data messages
 
-  2. the async_* call will attach the lamba to the io_ctx
-     then immediately return and then this function returns
+  io::async_read_msg(ctrl_sock, packed, [this](const error_code ec, io::Msg msg) {
+    if (!ec) ctrl_msg_process(std::move(msg));
+  });
+}
 
-  3. we capture a shared_ptr (self) for access within the lamba,
-     that shared_ptr is kept in scope while async_read is
-     waiting for data on the socket then during execution
-     of the lamba
+void IRAM_ATTR Session::data_msg_read() noexcept {
+  DRAM_ATTR static io::StaticPacked packed;
 
-  4. when called again from within the lamba the sequence of
-     events repeats (this function returns) and the shared_ptr
-     once again goes out of scope
+  idle_watch_dog();
 
-  5. the crucial point -- we must keep the use count
-     of the session above zero until the session ends
-     (e.g. due to error, natural completion, io_ctx is stopped)
+  io::async_read_msg( //
+      *data_sock,     //
+      packed, [this, msg_wait = Elapsed()](const error_code ec, io::Msg msg) mutable {
+        if (!ec) {
+          msg_wait.freeze();
+          data_msg_reply(std::move(msg), std::move(msg_wait));
+        } else {
+          close();
+        }
+      });
+}
 
-within the lamba:
+void IRAM_ATTR Session::data_msg_reply(io::Msg &&msg, const Elapsed &&msg_wait) noexcept {
+  Elapsed e;
 
-  1. since this isn't captured all access to member functions/variables
-     must use self
+  JsonDocument &doc = msg.doc;
+  // const uint16_t magic = doc[io::MAGIC] | 0x0000;
 
-  2. in general, we try to minimize logic in the lamba and instead call
-     member functions to get back within this context
+  if (!msg.can_render()) return;
 
-  3. check the socket status frequently and bail out if error
-     (bailing out implies allowing the shared_ptr to go out of scope)
+  stats->saw_frame();
+  idle_watch_dog(); // reset the idle watchdog, we received a data msg
 
-  4. upon receipt of the packet length we check if that many bytes are
-     available (for debug) then async_* them in
+  dmx->tx_frame(msg.dframe<dmx::frame>());
 
-  5. if at any point the socket isn't ready fall through and release the
-     shared_ptr
+  for (auto &unit : units) {
+    unit->handleMsg(doc);
+  }
 
-  6. otherwise schedule async_* of next packet
+  DRAM_ATTR static io::StaticPacked packed;
+  auto tx_msg = io::Msg(io::FEEDBACK, packed);
 
-  7. reminder this session will auto destruct if more async_ work isn't
-scheduled
+  tx_msg.add_kv(io::SEQ_NUM, doc[io::SEQ_NUM].as<uint32_t>());
+  tx_msg.add_kv(io::DATA_WAIT_US, msg_wait);
+  tx_msg.add_kv(io::ECHO_NOW_US, doc[io::NOW_US]);
+  tx_msg.add_kv(io::FPS, stats->cached_fps());
 
-misc notes:
-  1. the first return of this function traverses back to the Server that created
-the Session (in the same io_ctx)
-  2. subsequent returns are to the io_ctx and match the required void return
-signature
-*/
+  // dmx stats
+  tx_msg.add_kv(io::DMX_QOK, dmx->q_ok());
+  tx_msg.add_kv(io::DMX_QRF, dmx->q_rf());
+  tx_msg.add_kv(io::DMX_QSF, dmx->q_sf());
+
+  idle_watch_dog();
+
+  tx_msg.add_kv(io::ELAPSED_US, e.freeze());
+
+  io::async_write_msg(ctrl_sock, std::move(tx_msg), [this](const error_code ec) {
+    if (!ec) {
+      data_msg_read(); // wait for next data msg
+    } else {
+      close();
+    }
+  });
+}
+
+void IRAM_ATTR Session::fps_calc() noexcept {
+  stats_timer.expires_after(stats_interval);
+  stats_timer.async_wait([this](const error_code ec) {
+    if (ec) return; // timer shutdown
+
+    stats->calc();
+    fps_calc();
+  });
+}
+
+// sends initial handshake
+void IRAM_ATTR Session::handshake() noexcept {
+  DRAM_ATTR static io::StaticPacked packed;
+
+  idle_watch_dog();
+
+  io::Msg msg(io::HANDSHAKE, packed);
+
+  msg.add_kv(io::NOW_US, rut::now_epoch<Micros>().count());
+
+  // HANDSHAKE PART ONE:  write a minimal data feedback message to the ctrl sock
+  io::async_write_msg( //
+      ctrl_sock, std::move(msg), [this](const error_code ec) mutable {
+        if (ec) { // write failed
+          ESP_LOGW(TAG.data(), "handshake: %s", ec.message().c_str());
+
+          return; // fall out of scope, idle timeout will detect
+        }
+
+        // handshake message sent, move to ctrl msg loop
+        ctrl_msg_read();
+      });
+}
+
+void IRAM_ATTR Session::idle_watch_dog() noexcept {
+  static auto expires = rut::as_duration<Seconds, Millis>(idle_shutdown);
+
+  if (ctrl_sock.is_open()) {
+    idle_timer.expires_after(expires);
+    idle_timer.async_wait([this](const error_code ec) {
+      if (ec) return;
+
+      // if the timer ever expires then we're idle
+      ESP_LOGI(TAG.data(), "idle timeout");
+
+      if (destruct_timer) return;
+
+      esp_timer_create_args_t args{self_destruct, nullptr, ESP_TIMER_TASK, "session", true};
+
+      esp_timer_create(&args, &destruct_timer);
+      esp_timer_start_once(destruct_timer, 0);
+    });
+  }
+}
 
 } // namespace desk
 } // namespace ruth

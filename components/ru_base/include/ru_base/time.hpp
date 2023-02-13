@@ -1,4 +1,4 @@
-//  Pierre - Custom Light Show for Wiss Landing
+//  Ruth
 //  Copyright (C) 2022  Tim Hughey
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -23,7 +23,6 @@
 
 #include <chrono>
 #include <esp_timer.h>
-#include <time.h>
 #include <type_traits>
 
 namespace ruth {
@@ -40,28 +39,26 @@ using steady_clock = std::chrono::steady_clock;
 using system_clock = std::chrono::system_clock;
 using TimePoint = std::chrono::time_point<steady_clock>;
 
+struct ru_time;
+using rut = ru_time;
+
 struct ru_time {
   static constexpr Nanos NS_FACTOR{upow(10, 9)};
 
-  template <typename FROM, typename TO> static constexpr TO as_duration(auto x) {
+  template <typename FROM, typename TO> static inline constexpr TO as_duration(auto x) {
     return std::chrono::duration_cast<TO>(FROM(x));
   }
 
-  template <typename T> static constexpr MillisFP as_millis_fp(const T &d) {
+  template <typename T> static constexpr inline MillisFP as_millis_fp(const T &d) {
     return std::chrono::duration_cast<MillisFP>(d);
   }
 
-  template <typename T> static constexpr Seconds as_secs(const T &d) {
+  template <typename T> static constexpr inline Seconds as_secs(const T &d) {
     return std::chrono::duration_cast<Seconds>(d);
   }
 
-  template <typename T>
-  static constexpr T elapsed_as(const Nanos &d1, const Nanos d2 = nowNanos()) {
-    return std::chrono::duration_cast<T>(d2 - d1);
-  }
-
   template <typename T = Micros, typename S = T>
-  static constexpr T elapsed_abs(const T &d1, const S d2 = nowMicrosSystem()) {
+  static constexpr inline T elapsed_abs(const T &d1, const S d2 = rut::raw()) {
     if (std::is_same<T, S>::value) {
       return std::chrono::abs(d2 - d1);
     } else {
@@ -69,39 +66,14 @@ struct ru_time {
     }
   }
 
-  static Nanos elapsed_abs_ns(const Nanos &d1,
-                              const Nanos d2 = nowNanos()) { //
-    return std::chrono::abs(d2 - d1);
-  }
+  static constexpr inline Millis from_ms(int64_t ms) { return Millis(ms); }
 
-  static constexpr Millis from_ms(int64_t ms) { return Millis(ms); }
-  static constexpr Nanos from_ns(uint64_t ns) { return Nanos(ns); }
-  static constexpr Nanos negative(Nanos d) { return Nanos::zero() - d; }
-
-  template <typename T> static T now_epoch() {
+  template <typename T> static inline T now_epoch() {
     return std::chrono::duration_cast<T>(system_clock::now().time_since_epoch());
   }
 
-  static Micros nowMicrosSystem() { return Micros(esp_timer_get_time()); }
-  static Millis nowMillis() { return std::chrono::duration_cast<Millis>(nowNanos()); }
-
-  static Nanos nowNanos() {
-    struct timespec tn;
-    clock_gettime(CLOCK_MONOTONIC, &tn);
-
-    int64_t secs_part = tn.tv_sec * NS_FACTOR.count();
-    int64_t ns_part = tn.tv_nsec;
-
-    return Nanos(secs_part + ns_part);
-  }
-
-  template <typename T> static T nowSteady() {
-    if (std::is_same<T, Micros>::value) {
-      return Micros(esp_timer_get_time());
-    }
-
-    return as_duration<Nanos, T>(nowNanos());
-  }
+  static inline Micros raw() { return Micros(esp_timer_get_time()); }
+  static inline int64_t raw_us() { return esp_timer_get_time(); }
 };
 
 } // namespace ruth

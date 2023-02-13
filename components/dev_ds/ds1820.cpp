@@ -26,6 +26,7 @@
 
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <esp_timer.h>
 
 namespace ruth {
 namespace ds {
@@ -51,8 +52,7 @@ IRAM_ATTR bool DS1820::report() {
 
     cmd[9] = 0xbe; // DS1820 read scratchpad
 
-    if (matchRomThenRead(cmd, cmd_len, data, data_len) == false)
-      return false;
+    if (matchRomThenRead(cmd, cmd_len, data, data_len) == false) return false;
     auto crc = crc8(data, data_len);
     if (crc != 0x00) {
       ESP_LOGD(ident(), "crc failure: 0x%02x", crc);

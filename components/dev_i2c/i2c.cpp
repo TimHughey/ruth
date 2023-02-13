@@ -23,6 +23,7 @@
 
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <esp_timer.h>
 
 namespace ruth {
 namespace i2c {
@@ -58,8 +59,7 @@ IRAM_ATTR void Device::makeID() {
   p--;
   *p++ = '.';
 
-  if (_addr < 0x10)
-    *p++ = '0';                       // zero pad values less than 0x10
+  if (_addr < 0x10) *p++ = '0';       // zero pad values less than 0x10
   itoa(_addr, p, 16);                 // convert to hex
   p = (_addr < 0x10) ? p + 1 : p + 2; // move pointer forward based on zero padding
 

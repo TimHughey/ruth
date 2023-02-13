@@ -1,22 +1,20 @@
-/*
-    main.cpp - Ruth Remote Main App
-    Copyright (C) 2017  Tim Hughey
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-    https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2017  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #include "core/core.hpp"
 
@@ -31,10 +29,11 @@ extern "C" {
 void app_main(void);
 }
 
-// app_main() contains minimal implementation to keep code base maintainable
-// for actual implementation see component/ruth
+// app_main() is intentionally kept to a minimum
+// component/ruth contains full implementation
 
 void app_main() {
+  static const char *TAG{"app_main"};
 
   // prevent unnecessary logging by gpio API
   esp_log_level_set("gpio", ESP_LOG_ERROR);
@@ -44,31 +43,24 @@ void app_main() {
   // our implementation begins
   constexpr float tick_us = 1000.0 / (float)portTICK_PERIOD_MS;
 
-  ESP_LOGI("Core", "portTICK_PERIOD_MS[%u] tick[%0.2fµs]", portTICK_PERIOD_MS, tick_us);
+  ESP_LOGI(TAG, "portTICK_PERIOD_MS[%lu] tick[%0.2fµs]", portTICK_PERIOD_MS, tick_us);
 
   // Initialize NVS
-  esp_err_t esp_rc = nvs_flash_init();
+  auto err = nvs_flash_init();
 
-  switch (esp_rc) {
-  case ESP_OK:
-    break;
-  case ESP_ERR_NVS_NO_FREE_PAGES:
-  case ESP_ERR_NVS_NEW_VERSION_FOUND:
-    esp_rc = nvs_flash_erase();
-    if (esp_rc == ESP_OK)
-      esp_rc = nvs_flash_init();
-    break;
-  default:
-    ESP_LOGW("Core", "NVS failure [%s]", esp_err_to_name(esp_rc));
-    break;
+  if ((err == ESP_ERR_NVS_NO_FREE_PAGES) || (err == ESP_ERR_NVS_NEW_VERSION_FOUND)) {
+    ESP_LOGI(TAG, "nvs_flash_erase() required: %s", esp_err_to_name(err));
+
+    ESP_ERROR_CHECK(nvs_flash_erase());
+
+    err = nvs_flash_init();
+    ESP_ERROR_CHECK(err);
   }
 
-  ESP_LOGI("Core", "NVS status [%s]", esp_err_to_name(esp_rc));
+  ESP_LOGI(TAG, "nvs status [%s]", esp_err_to_name(err));
 
   // this is where our implementation begins by starting the Core
   ruth::Core::boot();
-
-  esp_task_wdt_reset();
 
   for (;;) {
     ruth::Core::loop();

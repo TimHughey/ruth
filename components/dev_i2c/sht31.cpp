@@ -26,6 +26,7 @@
 #include <driver/i2c.h>
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <esp_timer.h>
 
 namespace ruth {
 namespace i2c {

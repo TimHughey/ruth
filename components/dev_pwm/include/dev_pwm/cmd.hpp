@@ -57,15 +57,15 @@ protected:
   uint32_t notifyValue() const { return _notify_val; }
   void pause(uint32_t);
   inline bool setDuty(uint32_t duty) { return _hw->updateDuty(duty); }
-  xTaskHandle taskHandle() { return _task.handle; }
-  const char *taskName(xTaskHandle handle = nullptr) { return pcTaskGetTaskName(handle); }
+  TaskHandle_t taskHandle() { return _task.handle; }
+  const char *taskName(TaskHandle_t handle = nullptr) { return pcTaskGetName(handle); }
 
 protected:
   Hardware *_hw;
 
 private:
-  char _name[32] = {};           // name of this cmd
-  xTaskHandle _parent = nullptr; // task handle of parent for notification purposes
+  char _name[32] = {};            // name of this cmd
+  TaskHandle_t _parent = nullptr; // task handle of parent for notification purposes
 
   // Task Specific member variables
   uint32_t _notify_val = 0;

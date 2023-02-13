@@ -38,18 +38,18 @@ public:
     const char *unique_id;
 
     struct {
-      UBaseType_t stack = 4096;
-      UBaseType_t priority = 13;
+      uint32_t stack = 4096;
+      uint32_t priority = 13;
     } command;
 
     struct {
-      UBaseType_t stack = 3048;
-      UBaseType_t priority = 1;
+      uint32_t stack = 3048;
+      uint32_t priority = 1;
       uint32_t send_ms = 7000;
     } report;
   };
 
-  enum Notifies : UBaseType_t { QUEUED_MSG = 0xa000, CMD_ENDING = 0x9000 };
+  enum Notifies : uint32_t { QUEUED_MSG = 0xa000, CMD_ENDING = 0x9000 };
 
   typedef PulseWidth Device;
 

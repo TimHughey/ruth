@@ -62,7 +62,7 @@ void Engine::command(void *task_data) {
   MQTT::registerHandler(pwm);
 
   for (;;) {
-    UBaseType_t notify_val;
+    uint32_t notify_val;
     auto msg = pwm->waitForNotifyOrMessage(&notify_val);
 
     if (msg) {
@@ -84,7 +84,7 @@ void Engine::command(void *task_data) {
         }
       }
     } else {
-      ESP_LOGW(TAG_CMD, "unhandled notify: 0x%x", notify_val);
+      ESP_LOGW(TAG_CMD, "unhandled notify: 0x%lx", notify_val);
     }
   }
 }
@@ -121,8 +121,7 @@ void Engine::report(void *data) {
 }
 
 void Engine::start(Opts &opts) {
-  if (_instance_)
-    return;
+  if (_instance_) return;
 
   _instance_ = new Engine(opts.unique_id, opts.report.send_ms);
   TaskHandle_t &report_task = _instance_->_report_task;

@@ -29,8 +29,8 @@ class DiscoBall : public PulseWidthHeadUnit {
 public:
   DiscoBall(csv id, uint8_t pwm_num) : PulseWidthHeadUnit(id, pwm_num) {}
 
-  void handleMsg(JsonObjectConst obj) override {
-    const uint32_t duty = obj[moduleId()] | 0;
+  inline void handleMsg(JsonDocument &doc) override {
+    const uint32_t duty = doc[moduleId()] | 0;
 
     updateDuty(duty);
   }

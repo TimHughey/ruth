@@ -30,7 +30,7 @@ namespace i2c {
 class Bus {
 public:
   inline static bool acquire(const uint32_t timeout_ms) {
-    const UBaseType_t wait_ticks = pdMS_TO_TICKS(timeout_ms);
+    const uint32_t wait_ticks = pdMS_TO_TICKS(timeout_ms);
     return xSemaphoreTake(mutex, wait_ticks) == pdTRUE;
   }
 

@@ -27,9 +27,9 @@ namespace ruth {
 
 namespace filter {
 
-IRAM_ATTR Split::Split(const size_t len) : _length(len) {}
+Split::Split(const size_t len) : _length(len) {}
 
-IRAM_ATTR void Split::split(const char *filter) {
+void Split::split(const char *filter) {
   // 1. make a copy of the event topic (filter) and null terminate
   // 2. search the filter for the level separator
   // 3. when each level separator is found record the starting pointer and replace

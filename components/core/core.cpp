@@ -1,22 +1,20 @@
-/*
-  Ruth
-  (C)opyright 2020  Tim Hughey
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-  https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2021 Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #include "core/core.hpp"
 #include "ArduinoJson.h"
@@ -39,10 +37,10 @@ namespace ruth {
 
 static const char *TAG = "Core";
 
-static Core __singleton__;
-static StaticJsonDocument<2048> _profile;
-static StaticJsonDocument<1024> _ota_cmd;
-static firmware::OTA *_ota = nullptr;
+DRAM_ATTR static Core __singleton__;
+DRAM_ATTR static StaticJsonDocument<2048> _profile;
+DRAM_ATTR static StaticJsonDocument<1024> _ota_cmd;
+DRAM_ATTR static firmware::OTA *_ota = nullptr;
 
 Core::Core() : message::Handler("host", _max_queue_depth) {
   _heap_first = heap_caps_get_free_size(MALLOC_CAP_8BIT);
@@ -70,7 +68,7 @@ void Core::boot() {
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(15000));
 
   if ((notify & Net::READY) == false) {
-    ESP_LOGW(TAG, "while waiting for net ready received %u instead of %u", notify, Net::READY);
+    ESP_LOGW(TAG, "while waiting for net ready received %lu instead of %lu", notify, Net::READY);
     vTaskDelay(pdMS_TO_TICKS(3333));
     esp_restart();
   }
@@ -122,6 +120,7 @@ void Core::boot() {
 }
 void Core::bootComplete() {
   // send our boot stats
+
   const char *profile_name = _profile["meta"]["name"] | "unknown";
   message::Boot msg(_stack_size, profile_name);
   MQTT::send(msg);
@@ -133,8 +132,13 @@ void Core::bootComplete() {
 
   // start our scheduled reports
   uint32_t report_ms = _profile["host"]["report_ms"] | 7000;
-  _report_timer =
-      xTimerCreate("core_report", pdMS_TO_TICKS(report_ms), pdTRUE, nullptr, &reportTimer);
+
+  _report_timer = xTimerCreate("core_report",            //
+                               pdMS_TO_TICKS(report_ms), //
+                               pdTRUE,                   //
+                               nullptr,                  //
+                               &reportTimer);
+
   vTimerSetTimerID(_report_timer, this);
   xTimerStart(_report_timer, pdMS_TO_TICKS(0));
 
@@ -174,8 +178,7 @@ void Core::ota(message::InWrapped msg) {
   using namespace firmware;
 
   // OTA already in progress, do nothing (should never happen)
-  if (_ota)
-    return;
+  if (_ota) return;
 
   if (msg->unpack(_ota_cmd)) {
     const JsonObject cmd_root = _ota_cmd.as<JsonObject>();
@@ -194,8 +197,7 @@ void Core::ota(message::InWrapped msg) {
 
     trackHeap();
 
-    if (rc == pdFAIL)
-      continue; // timeout == OTA in progress, just track heap
+    if (rc == pdFAIL) continue; // timeout == OTA in progress, just track heap
 
     switch (val) {
     case OTA::Notifies::START: // ota started, wait for next notify
@@ -249,8 +251,7 @@ void Core::startEngines() {
 
   // in other words, we only want to create devices centrally once this host
   // has been assigned a name.
-  if (_engines_started || Net::hostIdAndNameAreEqual())
-    return;
+  if (_engines_started || Net::hostIdAndNameAreEqual()) return;
 
   const JsonObject profile = _profile.as<JsonObject>();
   profile["hostname"] = Net::hostname();
@@ -263,7 +264,6 @@ void Core::startEngines() {
 }
 
 void Core::startMqtt() {
-
   const auto mqtt_cfg = Binder::mqtt();
 
   StatusLED::brighter();
@@ -281,7 +281,7 @@ void Core::startMqtt() {
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(60000));
 
   if ((notify & MQTT::CONNECTED) == false) {
-    ESP_LOGW(TAG, "while waiting for mqtt connection received %u instead of %u", notify,
+    ESP_LOGW(TAG, "while waiting for mqtt connection received %lu instead of %lu", notify,
              MQTT::CONNECTED);
     vTaskDelay(pdMS_TO_TICKS(10000));
     esp_restart();
@@ -293,7 +293,7 @@ void Core::startMqtt() {
   xTaskNotifyWait(0, ULONG_MAX, &notify, pdMS_TO_TICKS(10000));
 
   if ((notify & MQTT::READY) == false) {
-    ESP_LOGW(TAG, "while waiting for mqtt ready received %u instead of %u", notify, MQTT::READY);
+    ESP_LOGW(TAG, "while waiting for mqtt ready received %lu instead of %lu", notify, MQTT::READY);
     vTaskDelay(pdMS_TO_TICKS(10000));
     esp_restart();
   }

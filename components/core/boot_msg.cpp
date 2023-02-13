@@ -1,27 +1,26 @@
-/*
-  Ruth
-  (C)opyright 2021  Tim Hughey
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-  https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2021  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #include "core/boot_msg.hpp"
 
 #include <esp_log.h>
 #include <esp_system.h>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -39,11 +38,11 @@ Boot::Boot(const size_t stack_size, const char *profile_name) : _stack_size(stac
 
 void Boot::assembleData(JsonObject &data) {
   auto task_count = uxTaskGetNumberOfTasks();
-  UBaseType_t high_water = uxTaskGetStackHighWaterMark(nullptr);
+  uint32_t high_water = uxTaskGetStackHighWaterMark(nullptr);
 
   const uint32_t elapsed_ms = esp_timer_get_time() / 1000;
 
-  ESP_LOGI(TAG, "BOOT COMPLETE %ums tasks[%d] stack[%u] hw[%u]", elapsed_ms, task_count,
+  ESP_LOGI(TAG, "BOOT COMPLETE %lums tasks[%d] stack[%u] hw[%lu]", elapsed_ms, task_count,
            _stack_size, high_water);
 
   data["elapsed_ms"] = elapsed_ms;
@@ -55,4 +54,4 @@ void Boot::assembleData(JsonObject &data) {
 }
 
 } // namespace message
-}
+} // namespace ruth

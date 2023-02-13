@@ -46,7 +46,7 @@ IRAM_ATTR void Engine::command(void *task_data) {
   ESP_LOGD(TAG_CMD, "task started");
 
   for (;;) {
-    UBaseType_t notify_val;
+    uint32_t notify_val;
     auto msg = ds->waitForNotifyOrMessage(&notify_val);
 
     if (msg) {
@@ -61,7 +61,7 @@ IRAM_ATTR void Engine::command(void *task_data) {
       }
 
     } else {
-      ESP_LOGW(TAG_CMD, "unhandled notify: 0x%x", notify_val);
+      ESP_LOGW(TAG_CMD, "unhandled notify: 0x%lx", notify_val);
     }
   }
 }
@@ -132,7 +132,7 @@ IRAM_ATTR void Engine::discover(const uint32_t loops_per_discover) {
 
   } while (found);
 
-  ESP_LOGD(TAG_RPT, "discovered %d devices", found_count);
+  ESP_LOGD(TAG_RPT, "discovered %ld devices", found_count);
 }
 
 IRAM_ATTR Device *Engine::findDevice(const char *ident) {
@@ -189,8 +189,7 @@ IRAM_ATTR void Engine::report(void *data) {
 }
 
 void Engine::start(const Opts &opts) {
-  if (_instance_)
-    return;
+  if (_instance_) return;
 
   // pass the send frequency to the Bus to control the frequency of temperature converts
   const auto send_ms = opts.report.send_ms;

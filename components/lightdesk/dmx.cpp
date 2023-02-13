@@ -18,105 +18,107 @@
      https://www.wisslanding.com
  */
 
-#include "dmx/dmx.hpp"
-#include "io/io.hpp"
-#include "ru_base/time.hpp"
-
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_log.h>
 #include <esp_netif.h>
+#include <freertos/message_buffer.h>
 #include <iterator>
 #include <optional>
 #include <soc/uart_periph.h>
 #include <soc/uart_reg.h>
 
-using namespace std::literals::chrono_literals;
+#include "dmx/dmx.hpp"
+#include "dmx/frame.hpp"
+#include "io/io.hpp"
+#include "ru_base/time.hpp"
 
 namespace ruth {
 
 DRAM_ATTR static StaticTask_t tcb;
 DRAM_ATTR static std::array<StackType_t, 3072> stack;
-TaskHandle_t task_handle = nullptr;
+DRAM_ATTR static StaticMessageBuffer_t mbcb; // message buffer control block
+DRAM_ATTR static std::array<uint8_t, dmx::FRAME_LEN * 3> mb_store;
 
-static constexpr csv TAG = "dmx";
+DRAM_ATTR TaskHandle_t task_handle{nullptr};
 
 // forward decl of static functions for DMX
 static void run(void *data);
 static bool uart_init();
 
-void run(void *data) {
-  auto *dmx = static_cast<DMX *>(data); // note: raw pointer
+// use a static run function because we're running a pure FreeRTOS
+// task (not a fancy Thread)
+void IRAM_ATTR run(void *data) {
+  auto dmx = static_cast<DMX *>(data);
 
-  dmx->fpsCalculate(); // add work to io_ctx
-  dmx->io_ctx.run();   // returns when all io_ctx work is finished
+  ESP_LOGI(DMX::TAG.data(), "requested, run task_handle=%p", task_handle);
 
-  ESP_LOGD(TAG.data(), "io_ctx finished, deleting task handle=%p", task_handle);
+  dmx->spool_frames();
 
-  auto task_to_delete = task_handle;
+  ESP_LOGI(DMX::TAG.data(), "completed, deleting task handle=%p", task_handle);
+
   task_handle = nullptr;
+  auto th = task_handle;
 
-  vTaskDelete(task_to_delete);
+  vTaskDelete(th);
 }
 
-constexpr int UART_NUM = 1; // UART0 is the console, UART2 has a defect... use UART1
-constexpr gpio_num_t TX_PIN = GPIO_NUM_17;
-constexpr uint_fast32_t FRAME_BREAK = 22; // num bits at 250,000 baud (8µs)
+DRAM_ATTR static constexpr int UART_NUM{1}; // UART0=console, UART2=defect (use UART1)
+DRAM_ATTR static constexpr gpio_num_t TX_PIN{GPIO_NUM_17};
+DRAM_ATTR static constexpr uint32_t FRAME_BREAK{22}; // num bits at 250,000 baud (8µs)
 
 bool uart_init() {
-  static esp_err_t uart_rc = ESP_FAIL;
-  constexpr size_t UART_MIN_BUFF = UART_FIFO_LEN + 1;
-  constexpr size_t UART_TX_BUFF = std::max(DMX::Frame::FRAME_LEN, UART_MIN_BUFF);
+  static esp_err_t uart_rc{ESP_FAIL};
+  constexpr size_t UART_MIN_BUFF{UART_FIFO_LEN + 1};
+  constexpr size_t UART_TX_BUFF{std::max(dmx::FRAME_LEN, UART_MIN_BUFF)};
+
+  if (uart_rc == ESP_OK) { // successfully installed
+    return false;
+  }
 
   // uart driver not installed or failed last time
-  if (uart_rc == ESP_FAIL) {
-    if (uart_rc = uart_driver_install(UART_NUM, UART_MIN_BUFF, UART_TX_BUFF, 0, NULL, 0);
-        uart_rc == ESP_OK) {
+  auto flags = ESP_INTR_FLAG_IRAM;
+  if (uart_rc = uart_driver_install(UART_NUM, UART_MIN_BUFF, UART_TX_BUFF, 0, NULL, flags);
+      uart_rc == ESP_OK) {
 
-      uart_config_t uart_conf = {};
-      uart_conf.baud_rate = 250000;
-      uart_conf.data_bits = UART_DATA_8_BITS;
-      uart_conf.parity = UART_PARITY_DISABLE;
-      uart_conf.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
-      uart_conf.source_clk = UART_SCLK_APB;
-      uart_conf.stop_bits = UART_STOP_BITS_2;
+    const uart_config_t uart_conf = {.baud_rate = 250000,
+                                     .data_bits = UART_DATA_8_BITS,
+                                     .parity = UART_PARITY_DISABLE,
+                                     .stop_bits = UART_STOP_BITS_2,
+                                     .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+                                     .rx_flow_ctrl_thresh = 0,
+                                     .source_clk = UART_SCLK_APB};
 
-      if (uart_rc = uart_param_config(UART_NUM, &uart_conf); uart_rc != ESP_OK) {
-        ESP_LOGW(pcTaskGetTaskName(nullptr), "[%s] uart_param_config()", esp_err_to_name(uart_rc));
-      }
-
-      uart_set_pin(UART_NUM, TX_PIN, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-
-      // this sequence is not part of the DMX512 protocol.  rather, these bytes
-      // are sent to identify initiialization when viewing the serial data on
-      // an oscillioscope.
-      const char init_bytes[] = {0xAA, 0x55, 0xAA, 0x55};
-      const size_t len = sizeof(init_bytes);
-      uart_write_bytes_with_break(UART_NUM, init_bytes, len, (FRAME_BREAK * 2));
+    if (uart_rc = uart_param_config(UART_NUM, &uart_conf); uart_rc != ESP_OK) {
+      ESP_LOGW(pcTaskGetName(nullptr), "[%s] uart_param_config()", esp_err_to_name(uart_rc));
     }
+
+    uart_set_pin(UART_NUM, TX_PIN, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+
+    // this sequence is not part of the DMX512 protocol.  rather, these bytes
+    // are sent to identify initiialization when viewing the serial data on
+    // an oscillioscope.
+    const char init_bytes[] = {0xAA, 0x55, 0xAA, 0x55};
+    const size_t len = sizeof(init_bytes);
+    uart_write_bytes_with_break(UART_NUM, init_bytes, len, (FRAME_BREAK * 2));
   }
 
   return uart_rc == ESP_OK;
 }
 
-// DMX frames per second
-using FPS = std::chrono::duration<float, std::ratio<1, 44>>;
+// object API
 
-constexpr Micros FRAME_MAB = 12us;
-constexpr Micros FRAME_BYTE = 44us;
-constexpr Micros FRAME_SC = FRAME_BYTE;
-constexpr Micros FRAME_MTBF = 44us;
-constexpr Micros FRAME_DATA = Micros(FRAME_BYTE * 512);
-constexpr Millis FRAME_STATS = Millis(2s);
-constexpr Seconds FRAME_STATS_SECS = 2s;
+DMX::DMX() noexcept : qok{0}, qrf(0), qsf(0) {
+  // wait for previous DMX task to stop, if there is one
+  for (auto waiting_ms = 0; task_handle; waiting_ms++) {
+    vTaskDelay(pdMS_TO_TICKS(1));
 
-// frame interval does not include the BREAK as it is handled by the UART
-constexpr Micros FRAME_US = FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF;
-constexpr Millis FRAME_MS = ru_time::as_duration<Micros, Millis>(FRAME_US);
+    if ((waiting_ms % 100) == 0) {
+      ESP_LOGW(TAG.data(), "waiting to start task, %dms", waiting_ms);
+    }
+  }
 
-// singular method for creating a DMX object, returns shared_ptr
-shDMX DMX::start() { // static
-  auto dmx = shDMX(new DMX());
+  msg_buff = xMessageBufferCreateStatic(mb_store.size(), mb_store.data(), &mbcb);
 
   uart_init(); // only inits uart once
 
@@ -124,55 +126,42 @@ shDMX DMX::start() { // static
       xTaskCreateStatic(&run,         // static func to start task
                         TAG.data(),   // task name
                         stack.size(), // stack size
-                        dmx.get(),    // task data
+                        this,         // pass the newly created object to run()
                         5,            // priority
                         stack.data(), // static task stack
-                        &tcb);        // task control block
+                        &tcb          // task control block
+      );
 
-  ESP_LOGI(TAG.data(), "started obj=%p tcb=%p", dmx.get(), &tcb);
-
-  return dmx;
+  ESP_LOGD(TAG.data(), "init, obj=%p tcb=%p", this, &tcb);
 }
 
-DMX::~DMX() {
+DMX::~DMX() noexcept {
+  vMessageBufferDelete(msg_buff);
+
   while (task_handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(1));
   }
 
-  ESP_LOGI(TAG.data(), "falling out of scope");
+  ESP_LOGD(TAG.data(), "falling out of scope");
 }
 
-IRAM_ATTR void DMX::fpsCalculate() {
-  fps_timer.expires_at(stats.fps_start + Millis(FRAME_STATS * stats.calcs++));
-  fps_timer.async_wait([&](const error_code ec) {
-    if (!ec) { // success
-      if (stats.mark && stats.frame_count) {
-        // enough info to calc fps
-        stats.fps = (stats.frame_count - stats.mark) / FRAME_STATS_SECS.count();
+void IRAM_ATTR DMX::spool_frames() noexcept {
 
-        if (stats.fps < 43.0) {
-          ESP_LOGI(TAG.data(), "fps=%2.2f", stats.fps);
-        }
-      }
+  while (shutdown_prom.has_value() == false) {
+    dmx::frame frame;
 
-      // always save the frame count (which could be zero)
-      stats.mark = stats.frame_count;
-
-      fpsCalculate(); // restart timer
-    } else {
-      ESP_LOGD(TAG.data(), "fpsCalculate() terminating reason=%s", ec.message().c_str());
-    }
-  });
-}
-
-IRAM_ATTR void DMX::txFrame(DMX::Frame &&frame) {
-  // wait up to the max time to transmit a TX frame
-  static TickType_t frame_ticks = pdMS_TO_TICKS(FRAME_MS.count());
-
-  asio::post(io_ctx, [&, frame = std::move(frame)]() mutable {
     // always ensure the previous tx has completed which includes
     // the BREAK (low for 88us)
-    if (uart_wait_tx_done(UART_NUM, frame_ticks) == ESP_OK) {
+    if (ESP_OK != uart_wait_tx_done(UART_NUM, FRAME_TICKS)) {
+      ESP_LOGW(TAG.data(), "uart_wait_tx_done() timeout");
+      continue;
+    }
+
+    auto msg_bytes = xMessageBufferReceive(msg_buff, frame.data(), frame.size(), RECV_TIMEOUT);
+
+    if (msg_bytes) {
+
+      qok++;
       // at the end of the TX the UART pulls the TX low to generate the BREAK
       // once the code reaches this point the BREAK is complete
 
@@ -181,18 +170,29 @@ IRAM_ATTR void DMX::txFrame(DMX::Frame &&frame) {
       // for headunits that turn off between frames.
 
       size_t bytes = uart_write_bytes_with_break( // write the frame to the uart
-          UART_NUM,                               // iart_num
+          UART_NUM,                               // uart_num
           frame.data(),                           // data to send
           frame.size(),                           // number of bytes
           FRAME_BREAK);                           // bits to send as frame break
 
-      if (bytes == frame.size()) {
-        stats.frame_count++;
-      } else {
-        stats.frame_shorts++;
+      if (bytes != frame.size()) {
+        ESP_LOGW(TAG.data(), "short frame, frame_bytes=%u tx_bytes=%u", frame.size(), bytes);
       }
+    } else {
+      qrf++;
     }
-  });
+  }
+
+  shutdown_prom->set_value(true);
+}
+
+bool IRAM_ATTR DMX::tx_frame(dmx::frame &&frame) {
+  // wait up to the max time to transmit a TX frame
+  auto msg_bytes = xMessageBufferSend(msg_buff, frame.data(), frame.len, QUEUE_TICKS);
+
+  if (msg_bytes != frame.len) qsf++;
+
+  return msg_bytes == frame.len;
 }
 
 } // namespace ruth

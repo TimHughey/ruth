@@ -40,7 +40,7 @@ public:
 
 public:
   virtual void dark() override { updateDuty(0); }
-  virtual void handleMsg(JsonObjectConst obj) override = 0;
+  virtual void handleMsg(JsonDocument &doc) override = 0;
 
 private:
 };

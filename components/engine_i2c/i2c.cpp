@@ -52,7 +52,7 @@ IRAM_ATTR void Engine::command(void *task_data) {
   MQTT::registerHandler(i2c);
 
   for (;;) {
-    UBaseType_t notify_val;
+    uint32_t notify_val;
     auto msg = i2c->waitForNotifyOrMessage(&notify_val);
 
     if (msg) {

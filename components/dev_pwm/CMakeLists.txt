@@ -5,6 +5,6 @@
 idf_component_register(
   SRCS pwm.cpp hardware.cpp cmd.cpp cmd_fixed.cpp cmd_random.cpp
   INCLUDE_DIRS include
-  REQUIRES arduino_json misc)
+  REQUIRES arduino_json driver esp_system misc)
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

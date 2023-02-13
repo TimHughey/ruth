@@ -31,15 +31,15 @@ constexpr size_t task_max_name_len = CONFIG_FREERTOS_MAX_TASK_NAME_LEN;
 typedef struct {
   TaskHandle_t handle;
   void *data;
-  UBaseType_t priority;
-  UBaseType_t stackSize;
+  uint32_t priority;
+  uint32_t stackSize;
 } Task_t;
 
 struct Task {
   TaskHandle_t handle;
   void *data;
-  UBaseType_t priority;
-  UBaseType_t stack;
+  uint32_t priority;
+  uint32_t stack;
 };
 
 typedef void(TaskFunc_t)(void *);

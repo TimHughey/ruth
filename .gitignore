@@ -17,7 +17,6 @@ config
 Makefile
 kconfig_bin
 sdkconfig
-
+.vscode/
 .DS_Store
-.vscode
-managed_components/espressif_*
+managed_components/espressif*

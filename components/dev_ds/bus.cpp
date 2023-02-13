@@ -22,6 +22,8 @@
 #include "owb/owb.h"
 
 #include <cstring>
+#include <driver/rmt_rx.h>
+#include <driver/rmt_tx.h>
 #include <esp_attr.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
@@ -48,7 +50,7 @@ static inline bool ok() { return status == OWB_STATUS_OK; }
 bool Bus::acquire(uint32_t timeout_ms) {
 
   auto rc = false;
-  const UBaseType_t wait_ticks =
+  const uint32_t wait_ticks =
       (timeout_ms == UINT32_MAX) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
 
   auto bus_requestor = xTaskGetCurrentTaskHandle();
@@ -72,7 +74,7 @@ bool Bus::acquire(uint32_t timeout_ms) {
 
 bool Bus::ensure() {
   constexpr uint8_t pin = 14;
-  owb = owb_rmt_initialize(&rmt_driver, pin, RMT_CHANNEL_0, RMT_CHANNEL_1);
+  owb = owb_rmt_initialize(&rmt_driver, pin);
 
   if (owb) {
     owb_use_crc(owb, true);
@@ -202,8 +204,7 @@ bool Bus::release() {
 
 IRAM_ATTR bool Bus::reset() {
   status = owb_reset(owb, &present);
-  if (status == OWB_STATUS_OK)
-    return true;
+  if (status == OWB_STATUS_OK) return true;
 
   ESP_LOGW(TAG, "reset failed: [%d]", status);
   return false;

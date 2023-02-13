@@ -23,6 +23,7 @@
 #include "ru_base/types.hpp"
 
 #include <driver/gpio.h>
+#include <esp_attr.h>
 
 namespace ruth {
 
@@ -31,7 +32,7 @@ constexpr gpio_num_t pin = GPIO_NUM_21;
 AcPower::AcPower(csv id) : HeadUnit(id) {
   gpio_config_t pins_cfg;
 
-  pins_cfg.pin_bit_mask = GPIO_SEL_21;
+  pins_cfg.pin_bit_mask = (1ULL << GPIO_NUM_21);
   pins_cfg.mode = GPIO_MODE_OUTPUT;
   pins_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
   pins_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
@@ -43,12 +44,12 @@ AcPower::AcPower(csv id) : HeadUnit(id) {
 
 AcPower::~AcPower() { gpio_set_level(pin, 0); }
 
-IRAM_ATTR bool AcPower::status() {
+bool IRAM_ATTR AcPower::status() {
   auto pin_level = gpio_get_level(pin);
   return (pin_level > 0) ? true : false;
 }
 
-IRAM_ATTR bool AcPower::setLevel(bool level) {
+bool IRAM_ATTR AcPower::setLevel(bool level) {
   auto rc = false;
   bool pin_level = level ? 1 : 0;
   auto esp_rc = gpio_set_level(pin, pin_level);

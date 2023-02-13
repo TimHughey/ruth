@@ -18,12 +18,12 @@
 
 #pragma once
 
-#include "inject/inject.hpp"
+#include "io/async_msg.hpp"
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
-#include "msg.hpp"
 #include "ru_base/types.hpp"
 #include "ru_base/uint8v.hpp"
+#include "session/stats.hpp"
 
 #include "ArduinoJson.h"
 #include <esp_log.h>
@@ -31,64 +31,67 @@
 #include <optional>
 
 namespace ruth {
+
+class DMX;
+
 namespace desk {
 
-class Session; // forward decl for shared_ptr def
-typedef std::shared_ptr<Session> shSession;
+class Session;
+}
 
-class Session : public std::enable_shared_from_this<Session> {
-public:
-  static constexpr size_t MSG_MIN_BYTES = 90;
+namespace shared {
+extern std::optional<desk::Session> active_session;
+}
+
+namespace desk {
+
+class Session {
 
 public:
-  static void start(const session::Inject &di);
+  // use init() to construct a new Session
+  Session(tcp_socket &&sock) noexcept;
+
+  ~Session() noexcept;
 
 private:
-  Session(const session::Inject &di)  // create the session
-      : socket(std::move(di.socket)), // move the socket connection accepted
-        data_endpoint(ip_udp::v4(), 0),
-        data_socket(di.io_ctx, data_endpoint), // create and open udp data socket
-        idle_timer(di.io_ctx),                 // idle timer
-        start_at(ru_time::nowMicrosSystem()),  // start_at- (ru_time::nowMicrosSystem()
-        idle_at(ru_time::nowMicrosSystem()),   // system micros desk became idle
-        idle_shutdown(di.idle_shutdown)        // when to declare session idle
-  {
-    socket.set_option(ip_tcp::no_delay(true));
-    ESP_LOGI("DeskSession", "established connection handle=%d with host=%s port=%d",
-             socket.native_handle(), socket.remote_endpoint().address().to_string().c_str(),
-             socket.remote_endpoint().port());
-  }
+  void close() noexcept;
+  void connect_data(Port port) noexcept;
+  void ctrl_msg_process(io::Msg &&msg) noexcept;
+  void ctrl_msg_read() noexcept;
+  void data_msg_read() noexcept;
+  void data_msg_reply(io::Msg &&msg, const Elapsed &&msg_wait) noexcept;
 
-public:
-  ~Session() {
-    ESP_LOGI("DeskSession", "falling out of scope, handle=%d", socket.native_handle());
+  void fps_calc() noexcept;
 
-    [[maybe_unused]] error_code ec; // must use error_code overload to prevent throws
-    socket.shutdown(tcp_socket::shutdown_both, ec);
-    socket.close(ec);
+  // kick off the session, the shared_ptr is passed to handlers keeping
+  // the session in memory
+  void handshake() noexcept;
 
-    data_socket.shutdown(udp_socket::shutdown_both, ec);
-    data_socket.close(ec);
-  }
-
-  static shSession activeSession();
+  void idle_watch_dog() noexcept;
 
 private:
   // order dependent
-  tcp_socket socket;
-  udp_endpoint data_endpoint;
-  udp_socket data_socket;
-  udp_endpoint sender_endpoint;
-  steady_timer idle_timer;
-  Micros start_at;
-  Micros idle_at;
-  Seconds idle_shutdown;
+  // NOTE:  all created sockets and timers use the socket executor
+  tcp_socket ctrl_sock;
+  Millis idle_shutdown; // initial default, may be overriden by handshake
+  system_timer idle_timer;
+  Millis stats_interval; // initial default, may be overriden by handshake
+  system_timer stats_timer;
+  esp_timer_handle_t destruct_timer;
 
   // order independent
-  Elapsed uptime;
-  uint16_t msg_len = 0;
-  static constexpr uint16_t MSG_LEN_SIZE = sizeof(msg_len);
-  Packed packed{0};
+  std::optional<tcp_socket> data_sock;
+
+  // time keeping
+  Micros remote_ref_time;
+
+  // order independent
+  std::unique_ptr<DMX> dmx;
+  std::optional<desk::stats> stats;
+  uint16_t msg_len{0};
+
+public:
+  static constexpr csv TAG{"Session"};
 };
 
 } // namespace desk

@@ -1,23 +1,21 @@
-/*
-  Message
-  (C)opyright 2021  Tim Hughey
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-  https://www.wisslanding.com
-*/
-
+//  Ruth
+//  Copyright (C) 2021  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 #include "message/in.hpp"
 
 #include <esp_attr.h>
@@ -28,15 +26,14 @@ namespace message {
 
 static const char *TAG = "In";
 
-IRAM_ATTR In::In(const char *filter, const size_t filter_len, const char *packed,
-                 const size_t packed_len)
+In::In(const char *filter, const size_t filter_len, const char *packed, const size_t packed_len)
     : _filter(filter, filter_len), _packed_len(packed_len) {
   _packed = std::make_unique<char[]>(packed_len);
 
   memcpy(_packed.get(), packed, packed_len);
 }
 
-IRAM_ATTR void In::checkTime(JsonDocument &root) {
+void In::checkTime(JsonDocument &root) {
 
   struct timeval time_now {};
   gettimeofday(&time_now, nullptr);
@@ -52,20 +49,17 @@ IRAM_ATTR void In::checkTime(JsonDocument &root) {
 
   _valid = (mtime > (now_ms - 1000)) ? true : false;
 
-  if (_valid)
-    return;
+  if (_valid) return;
 
   ESP_LOGI(TAG, "mtime variance[%llu]", (mtime > now_ms) ? (mtime - now_ms) : (now_ms - mtime));
 }
 
-IRAM_ATTR InWrapped In::make(const char *filter, const size_t filter_len, const char *packed,
-                             const size_t packed_len) {
-  auto msg = std::make_unique<In>(filter, filter_len, packed, packed_len);
-
-  return std::move(msg);
+InWrapped In::make(const char *filter, const size_t filter_len, const char *packed,
+                   const size_t packed_len) {
+  return std::make_unique<In>(filter, filter_len, packed, packed_len);
 }
 
-IRAM_ATTR bool In::unpack(JsonDocument &doc) {
+bool In::unpack(JsonDocument &doc) {
   doc.clear();
 
   _err = deserializeMsgPack(doc, _packed.get(), _packed_len);

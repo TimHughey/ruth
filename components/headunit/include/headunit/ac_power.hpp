@@ -31,7 +31,7 @@ public:
 
 public:
   void dark() override { setLevel(false); }
-  void handleMsg(JsonObjectConst obj) override { setLevel(obj[moduleId()] | false); }
+  inline void handleMsg(JsonDocument &doc) override { setLevel(doc[moduleId()] | false); }
 
   bool off() { return setLevel(false); }
   bool on() { return setLevel(true); }

@@ -39,10 +39,10 @@ typedef std::array<char, 384> Packed;
 class DeskMsg {
 
 private:
-  static constexpr csv TAG = "DeskMsg";
+  static constexpr csv TAG{"DeskMsg"};
   static constexpr csv MAGIC{"magic"};
   static constexpr csv DFRAME{"dframe"};
-  static constexpr size_t DOC_SIZE = 2048; // JSON_ARRAY_SIZE(64) + JSON_OBJECT_SIZE(13);
+  static constexpr size_t DOC_SIZE{2048}; // JSON_ARRAY_SIZE(64) + JSON_OBJECT_SIZE(13);
 
 public:
   inline DeskMsg(Packed &buff, size_t rx_bytes) {
@@ -52,20 +52,6 @@ public:
     } else {
       deserialize_ok = true;
       root_obj = doc.as<JsonObjectConst>();
-
-      // uint32_t seq_num = root_obj["seq_num"].as<uint32_t>();
-      // uint32_t timestamp = root_obj["timestamp"].as<uint32_t>();
-
-      // int64_t remote_now = root_obj["now_µs"].as<int64_t>();
-
-      // bool silence = root_obj["silence"];
-
-      // if (auto v = ru_time::now_epoch<Micros>().count() - remote_now; v > 10000) {
-      //   int64_t nettime_now = root_obj["nettime_now_µs"].as<int64_t>();
-      //   int64_t frame_local = root_obj["frame_localtime_µs"].as<int64_t>();
-      //   int64_t diff = std::abs(nettime_now - frame_local);
-      //   ESP_LOGI(TAG.data(), "variance=%lld src diff=%lld", v, diff);
-      // }
     }
   }
 
@@ -78,6 +64,7 @@ public:
 
     if (auto dframe_array = root_obj[DFRAME].as<JsonArrayConst>(); dframe_array) {
       size_t idx = 0;
+
       for (JsonVariantConst frame_byte : root_obj[DFRAME].as<JsonArrayConst>()) {
         dmx_f[idx++] = frame_byte.as<uint8_t>();
       }
@@ -87,7 +74,7 @@ public:
   }
 
   inline bool validMagic() const {
-    uint32_t magic = root_obj[MAGIC];
+    uint32_t magic{root_obj[MAGIC] | 0};
 
     if (magic != 0xc9d2) {
       ESP_LOGW(TAG.data(), "invalid magic=0x%0x", magic);

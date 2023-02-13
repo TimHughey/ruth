@@ -29,7 +29,7 @@ namespace ruth {
 
 class HeadUnit;
 
-typedef std::shared_ptr<HeadUnit> shHeadUnit;
+typedef std::unique_ptr<HeadUnit> shHeadUnit;
 typedef std::vector<shHeadUnit> HeadUnits;
 
 class HeadUnit : std::enable_shared_from_this<HeadUnit> {
@@ -38,7 +38,7 @@ public:
   virtual ~HeadUnit() = default;
 
   virtual void dark() = 0;
-  virtual void handleMsg(JsonObjectConst obj) = 0;
+  virtual void handleMsg(JsonDocument &doc) = 0;
 
   csv moduleId() { return module_id; }
 

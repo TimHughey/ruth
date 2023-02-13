@@ -1,7 +1,13 @@
 idf_component_register(
-  SRCS network.cpp
-  INCLUDE_DIRS include
-  REQUIRES misc
-  EMBED_TXTFILES ca.pem)
+  SRCS 
+    network.cpp
+  INCLUDE_DIRS
+    include
+  REQUIRES
+    esp_wifi
+    misc
+  EMBED_TXTFILES
+    ca.pem
+)
 
 set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)
