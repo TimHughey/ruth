@@ -8,6 +8,5 @@ idf_component_register(
   REQUIRES      misc
 )
 
-target_compile_options(${COMPONENT_LIB} PUBLIC -fconcepts)
+# target_compile_options(${COMPONENT_LIB} PUBLIC -fconcepts)
 
-set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

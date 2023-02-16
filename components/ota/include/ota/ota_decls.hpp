@@ -1,5 +1,5 @@
-//  Ruth
-//  Copyright (C) 2021  Tim Hughey
+//  Pierre - Custom Light Show for Wiss Landing
+//  Copyright (C) 2022  Tim Hughey
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -16,25 +16,8 @@
 //
 //  https://www.wisslanding.com
 
-#include "filter/subscribe.hpp"
-
-#include <esp_attr.h>
-#include <esp_log.h>
-#include <string.h>
-
 namespace ruth {
-
-namespace filter {
-
-static const char *TAG = "filter Subscribe";
-
-Subscribe::Subscribe(const char *first_level) noexcept : Builder(first_level) {
-  addLevel("c2");
-  addHostId();
-  addChar('#');
+namespace firmware {
+class OTA;
 }
-
-void Subscribe::dump() const { ESP_LOGI(TAG, "%s", c_str()); }
-
-} // namespace filter
 } // namespace ruth

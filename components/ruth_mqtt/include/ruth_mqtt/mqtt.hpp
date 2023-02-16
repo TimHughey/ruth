@@ -18,18 +18,36 @@
 
 #pragma once
 
-#include "filter/subscribe.hpp"
 #include "message/handler.hpp"
 #include "message/out.hpp"
+#include "ru_base/types.hpp"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <memory>
+#include <mqtt_client.h>
+#include <optional>
 
 namespace ruth {
+
+class MQTT;
+
+namespace shared {
+extern std::optional<MQTT> mqtt;
+}
 
 class MQTT {
 public:
   struct ConnOpts {
+    ConnOpts(ccs client_id, ccs uri, ccs user, ccs passwd) noexcept
+        : client_id(client_id),                    //
+          uri(uri),                                //
+          user(user),                              //
+          passwd(passwd),                          //
+          notify_task(xTaskGetCurrentTaskHandle()) //
+    {}
+    ~ConnOpts() = default;
+
     const char *client_id;
     const char *uri;
     const char *user;
@@ -37,7 +55,7 @@ public:
     TaskHandle_t notify_task;
   };
 
-public:
+private:
   enum Notifies : uint32_t {
     CONNECTED = 0x01 << 30,
     DISCONNECTED = 0x01 << 29,
@@ -46,44 +64,34 @@ public:
   };
 
 public:
-  MQTT() = default;
+  MQTT(ConnOpts &&opts, message::Handler *handler) noexcept;
   ~MQTT() = default; // connection clean-up handled by shutdown
 
-  MQTT(const MQTT &) = delete;
-  void operator=(const MQTT &) = delete;
+  static void event_handler(void *handler_args, esp_event_base_t base, int32_t event_id,
+                            void *event_data) noexcept;
 
-  void connectionClosed();
+  static bool hold_for_connection(int32_t max_wait_ms = 60000) noexcept;
 
-  void incomingMsg(message::InWrapped msg);
-  static void initAndStart(const ConnOpts &opts);
-  const ConnOpts &opts() const { return _opts; }
+  void incomingMsg(message::InWrapped msg) noexcept;
 
-  static void registerHandler(message::Handler *handler);
-  static bool send(message::Out &msg);
-
-  // static void shutdown();
-  static void subscribe(const filter::Subscribe &filter);
-  void subscribeAck(int msg_id);
-
-  static TaskHandle_t taskHandle();
+  static void registerHandler(message::Handler *handler) noexcept;
+  static bool send(message::Out &&msg) noexcept;
 
 private:
-  // static esp_err_t eventCallback(esp_mqtt_event_handle_t event);
-  // static void eventHandler(void *args, esp_event_base_t base, int32_t id, void *data);
-
-  // void subscribeAck(esp_mqtt_event_handle_t event);
+  void subscribe() noexcept;
+  void subscribe_ack(const char *tag, int msg_id) noexcept;
 
 private:
-  ConnOpts _opts;
-  bool _mqtt_ready = false;
-  int _subscribe_msg_id = 0;
-
-  // esp_mqtt_client_handle_t _connection = nullptr;
-  // esp_mqtt_connect_return_code_t _last_return_code;
-
-  static constexpr uint32_t _max_handlers = 10;
-  message::Handler *_handlers[_max_handlers];
+  // order dependent
+  const ConnOpts opts;
+  esp_mqtt_client_handle_t conn;
+  bool mqtt_ready;
+  int sub_msg_id;
+  uint64_t broker_acks;
+  std::array<message::Handler *, 10> handlers;
 
 private:
+  TaskHandle_t self{nullptr};
+  esp_err_t client_start_rc{0};
 };
 } // namespace ruth

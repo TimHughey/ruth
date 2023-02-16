@@ -113,7 +113,7 @@ public:
     return asio::buffer(packed.data(), tx_len);
   }
 
-  inline bool can_render() const { return MAGIC_VAL == (doc[io::MAGIC] | 0x000); }
+  inline bool can_render() const noexcept { return doc[io::MAGIC] == MAGIC_VAL; }
 
   inline auto deserialize(error_code ec, size_t bytes) {
     const auto err = deserializeMsgPack(doc, packed.data(), packed.size());

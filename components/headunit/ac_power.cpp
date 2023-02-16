@@ -27,38 +27,26 @@
 
 namespace ruth {
 
-constexpr gpio_num_t pin = GPIO_NUM_21;
+DRAM_ATTR static constexpr gpio_num_t pin = GPIO_NUM_21;
+DRAM_ATTR static constexpr gpio_config_t cfg{.pin_bit_mask = 1ULL << pin,
+                                             .mode = GPIO_MODE_OUTPUT,
+                                             .pull_up_en = GPIO_PULLUP_DISABLE,
+                                             .pull_down_en = GPIO_PULLDOWN_DISABLE,
+                                             .intr_type = GPIO_INTR_DISABLE};
 
-AcPower::AcPower(csv id) : HeadUnit(id) {
-  gpio_config_t pins_cfg;
-
-  pins_cfg.pin_bit_mask = (1ULL << GPIO_NUM_21);
-  pins_cfg.mode = GPIO_MODE_OUTPUT;
-  pins_cfg.pull_up_en = GPIO_PULLUP_DISABLE;
-  pins_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
-  pins_cfg.intr_type = GPIO_INTR_DISABLE;
-
-  gpio_config(&pins_cfg);
+AcPower::AcPower(csv id) noexcept : HeadUnit(id) {
+  gpio_config(&cfg);
   gpio_set_level(pin, 0);
 }
 
-AcPower::~AcPower() { gpio_set_level(pin, 0); }
+AcPower::~AcPower() noexcept { gpio_set_level(pin, 0); }
 
-bool IRAM_ATTR AcPower::status() {
-  auto pin_level = gpio_get_level(pin);
-  return (pin_level > 0) ? true : false;
-}
+bool IRAM_ATTR AcPower::status() noexcept { return (gpio_get_level(pin) > 0) ? true : false; }
 
-bool IRAM_ATTR AcPower::setLevel(bool level) {
-  auto rc = false;
-  bool pin_level = level ? 1 : 0;
-  auto esp_rc = gpio_set_level(pin, pin_level);
+bool IRAM_ATTR AcPower::setLevel(bool level) noexcept {
+  if (ESP_OK == gpio_set_level(pin, level ? 1 : 0)) return true;
 
-  if (esp_rc == ESP_OK) {
-    rc = true;
-  }
-
-  return rc;
+  return false;
 }
 
 } // namespace ruth

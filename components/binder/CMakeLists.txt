@@ -18,5 +18,3 @@ idf_component_register(
   EMBED_TXTFILES
     ${BINDER_MP}
 )
-
-set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

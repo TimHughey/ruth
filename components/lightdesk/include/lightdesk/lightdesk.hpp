@@ -21,7 +21,6 @@
 
 #include "io/io.hpp"
 #include "ru_base/time.hpp"
-#include "state/state.hpp"
 
 #include <chrono>
 #include <esp_timer.h>
@@ -57,9 +56,10 @@ private:
 
   // order independent
   std::optional<tcp_socket> peer;
-  desk::State state;
 
 public:
+  static constexpr csv SERVICE_NAME{"_ruth"};
+  static constexpr csv SERVICE_PROTOCOL{"_tcp"};
   static constexpr Port SERVICE_PORT{49152};
   static constexpr csv TAG{"lightdesk"};
 };

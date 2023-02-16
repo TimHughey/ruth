@@ -19,63 +19,55 @@
 #pragma once
 
 #include "message/handler.hpp"
+#include "ota/ota_decls.hpp"
 
 #include <cstdlib>
-#include <memory>
-
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/timers.h>
-
+#include <memory>
+#include <string>
 #include <sys/time.h>
 #include <time.h>
 
 namespace ruth {
 
 class Core : public message::Handler {
+
 public:
-  Core();                                // SINGLETON
+  Core() noexcept;                       // SINGLETON
   Core(const Core &) = delete;           // prevent copies
   void operator=(const Core &) = delete; // prevent assignments
 
-  static void boot();
-  static bool enginesStarted();
-  static void loop();
-
-  static void reportTimer(TimerHandle_t handle);
-
+  void loop() noexcept;
   void wantMessage(message::InWrapped &msg) override;
 
 private:
   // private functions for class
-  void bootComplete();
-  void ota(message::InWrapped msg);
-  void sntp();
-  void startEngines();
-  void startMqtt();
-  void trackHeap();
+  void do_ota(message::InWrapped msg) noexcept;
+  static void report_timer(TimerHandle_t handle) noexcept;
+  void start_mqtt() noexcept;
+  void start_sntp() noexcept;
+  void track_heap() noexcept;
 
 private:
   enum DocKinds : uint32_t { PROFILE = 1, RESTART, OTA, BINDER };
 
 private:
-  UBaseType_t _priority = 1;
+  // order dependent
+  UBaseType_t priority{1};
+  const size_t heap_first;
+  size_t heap_avail;
+  uint32_t heap_track_ms;
+  bool engines_started;
+  TimerHandle_t report_timer_handle;
+  std::shared_ptr<firmware::OTA> ota; // must use shared_ptr due to incomplete type
 
-  size_t _stack_size = CONFIG_ESP_MAIN_TASK_STACK_SIZE;
-
-  // heap monitoring
-  uint32_t _heap_track_ms = 5 * 1000;
-  size_t _heap_first = 0;
-  size_t _heap_avail = 0;
+  // order independent
+  std::string ota_base_url;
 
   // cmd queue
-  static constexpr int _max_queue_depth = 6;
-
-  // task tracking
-  bool _engines_started = false;
-
-  // host report timer
-  TimerHandle_t _report_timer = nullptr;
+  static constexpr int MAX_QUEUE_DEPTH{6};
 };
 
 } // namespace ruth

@@ -1,5 +1,5 @@
 //  Ruth
-//  Copyright (C) 2021  Tim Hughey
+//  Copyright (C) 2020  Tim Hughey
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -16,25 +16,24 @@
 //
 //  https://www.wisslanding.com
 
-#include "filter/subscribe.hpp"
+#pragma once
 
-#include <esp_attr.h>
-#include <esp_log.h>
-#include <string.h>
+#include "headunit/headunit.hpp"
 
 namespace ruth {
 
-namespace filter {
+class HouseLights : public HeadUnit {
+public:
+  HouseLights(csv id) noexcept;
+  ~HouseLights() noexcept override;
 
-static const char *TAG = "filter Subscribe";
+public:
+  void dark() noexcept override;
+  void handle_msg(JsonDocument &doc) noexcept override;
 
-Subscribe::Subscribe(const char *first_level) noexcept : Builder(first_level) {
-  addLevel("c2");
-  addHostId();
-  addChar('#');
-}
+  bool off() noexcept;
+  bool on() noexcept;
+  bool status() noexcept; // in .cpp to limit gpio impl
+};
 
-void Subscribe::dump() const { ESP_LOGI(TAG, "%s", c_str()); }
-
-} // namespace filter
 } // namespace ruth

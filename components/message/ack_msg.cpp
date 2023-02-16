@@ -27,7 +27,7 @@ namespace ruth {
 
 namespace message {
 
-Ack::Ack(const char *refid) : message::Out(192) {
+Ack::Ack(const char *refid) noexcept : message::Out(192) {
   _start_us = esp_timer_get_time();
 
   _filter.addLevel("mut");

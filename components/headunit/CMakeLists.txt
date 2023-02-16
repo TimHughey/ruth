@@ -8,5 +8,3 @@ idf_component_register(
   PRIV_INCLUDE_DIRS   .
   REQUIRES            ru_base dev_pwm
 )
-
-set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

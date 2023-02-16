@@ -32,10 +32,7 @@
 #include "dmx/dmx.hpp"
 #include "dmx/frame.hpp"
 #include "headunit/ac_power.hpp"
-#include "headunit/discoball.hpp"
-#include "headunit/elwire.hpp"
-#include "headunit/headunit.hpp"
-#include "headunit/ledforest.hpp"
+#include "headunit/dimmable.hpp"
 #include "io/async_msg.hpp"
 #include "io/io.hpp"
 #include "io/msg_static.hpp"
@@ -51,15 +48,14 @@ std::optional<desk::Session> active_session;
 
 namespace desk {
 
-using HeadUnits = std::vector<shHeadUnit>;
-DRAM_ATTR static HeadUnits units;
+DRAM_ATTR static std::vector<std::unique_ptr<HeadUnit>> units;
 
-static void create_units() {
+static void create_units() noexcept {
   units.emplace_back(std::make_unique<AcPower>("ac power"));
-  units.emplace_back(std::make_unique<DiscoBall>("disco ball", 1)); // pwm 1
-  units.emplace_back(std::make_unique<ElWire>("el dance", 2));      // pwm 2
-  units.emplace_back(std::make_unique<ElWire>("el entry", 3));      // pwm 3
-  units.emplace_back(std::make_unique<LedForest>("led forest", 4)); // pwm 4
+  units.emplace_back(std::make_unique<Dimmable>("disco ball", 1)); // pwm 1
+  units.emplace_back(std::make_unique<Dimmable>("el dance", 2));   // pwm 2
+  units.emplace_back(std::make_unique<Dimmable>("el entry", 3));   // pwm 3
+  units.emplace_back(std::make_unique<Dimmable>("led forest", 4)); // pwm 4
 }
 
 static void self_destruct(void *) noexcept {
@@ -181,17 +177,14 @@ void IRAM_ATTR Session::data_msg_reply(io::Msg &&msg, const Elapsed &&msg_wait) 
   Elapsed e;
 
   JsonDocument &doc = msg.doc;
-  // const uint16_t magic = doc[io::MAGIC] | 0x0000;
 
   if (!msg.can_render()) return;
 
   stats->saw_frame();
-  idle_watch_dog(); // reset the idle watchdog, we received a data msg
-
   dmx->tx_frame(msg.dframe<dmx::frame>());
 
   for (auto &unit : units) {
-    unit->handleMsg(doc);
+    unit->handle_msg(doc);
   }
 
   DRAM_ATTR static io::StaticPacked packed;
@@ -207,13 +200,12 @@ void IRAM_ATTR Session::data_msg_reply(io::Msg &&msg, const Elapsed &&msg_wait) 
   tx_msg.add_kv(io::DMX_QRF, dmx->q_rf());
   tx_msg.add_kv(io::DMX_QSF, dmx->q_sf());
 
-  idle_watch_dog();
-
   tx_msg.add_kv(io::ELAPSED_US, e.freeze());
 
   io::async_write_msg(ctrl_sock, std::move(tx_msg), [this](const error_code ec) {
     if (!ec) {
-      data_msg_read(); // wait for next data msg
+      idle_watch_dog(); // reset
+      data_msg_read();  // wait for next data msg
     } else {
       close();
     }

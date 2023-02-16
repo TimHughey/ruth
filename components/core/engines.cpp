@@ -25,10 +25,9 @@
 
 namespace ruth {
 
-void Engines::startConfigured(const JsonObject &profile) {
-  const JsonObject &lightdesk = profile["lightdesk"];
+void Engines::start_configured(const JsonDocument &doc) noexcept {
 
-  if (lightdesk) {
+  if (doc["lightdesk"]["enabled"]) {
     shared::desk.emplace();
   }
 }

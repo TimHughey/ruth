@@ -1,22 +1,20 @@
-/*
-    lightdesk/headunits/elwire.hpp - Ruth LightDesk Headunit EL Wire
-    Copyright (C) 2020  Tim Hughey
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-    https://www.wisslanding.com
-*/
+//  Ruth
+//  Copyright (C) 2020  Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #pragma once
 
@@ -29,9 +27,9 @@ namespace ruth {
 class ElWire : public PulseWidthHeadUnit {
 
 public:
-  ElWire(csv id, uint8_t pwm_num) : PulseWidthHeadUnit(id, pwm_num) {}
+  ElWire(csv id, uint8_t pwm_num) noexcept : PulseWidthHeadUnit(id, pwm_num) {}
 
-  inline void handleMsg(JsonDocument &doc) override {
+  inline void handle_msg(JsonDocument &doc) noexcept override {
     const uint32_t duty = doc[moduleId()] | 0;
 
     updateDuty(duty);

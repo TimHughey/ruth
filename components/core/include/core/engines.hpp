@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include "ru_base/types.hpp"
+
 #include "ArduinoJson.h"
 
 namespace ruth {
@@ -27,7 +29,7 @@ public:
   Engines() = default;
   ~Engines() = default;
 
-  static void startConfigured(const JsonObject &profile);
+  static void start_configured(const JsonDocument &doc) noexcept;
 };
 
 } // namespace ruth

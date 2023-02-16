@@ -166,7 +166,7 @@ bool Hardware::stop(uint32_t final_duty) {
   return false;
 }
 
-IRAM_ATTR bool Hardware::updateDuty(uint32_t new_duty) {
+bool IRAM_ATTR Hardware::updateDuty(uint32_t new_duty) {
   const ledc_mode_t mode = channel_config[_pin_num].speed_mode;
   const ledc_channel_t channel = numToChannelMap[_pin_num];
 

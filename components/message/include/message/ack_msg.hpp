@@ -29,7 +29,7 @@ namespace message {
 
 class Ack : public message::Out {
 public:
-  Ack(const char *refid);
+  Ack(const char *refid) noexcept;
   ~Ack() = default;
 
 private:

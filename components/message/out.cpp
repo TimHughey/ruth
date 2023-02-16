@@ -26,7 +26,7 @@
 namespace ruth {
 namespace message {
 
-Out::Out(const size_t doc_size) : _doc(doc_size) {
+Out::Out(const size_t doc_size) noexcept : _doc(doc_size) {
   JsonObject root = _doc.to<JsonObject>();
 
   struct timeval time_now {};

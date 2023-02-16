@@ -3,9 +3,14 @@
 ##
 
 idf_component_register(
-  SRCS core.cpp run_msg.cpp sntp.cpp startup_msg.cpp boot_msg.cpp engines.cpp
-  INCLUDE_DIRS include
-  REQUIRES
+  SRCS core.cpp   
+    boot_msg.cpp
+    engines.cpp
+    run_msg.cpp
+    sntp.cpp
+    startup_msg.cpp
+  INCLUDE_DIRS    include
+  PRIV_REQUIRES   
     app_update
     arduino_json
     binder
@@ -15,11 +20,10 @@ idf_component_register(
     esp_timer
     filter
     lightdesk
-    message
     misc
     network
-    ota
     ruth_mqtt
-  )
-
-set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)
+  REQUIRES
+    message
+    ota
+)

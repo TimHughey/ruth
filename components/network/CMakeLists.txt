@@ -9,5 +9,3 @@ idf_component_register(
   EMBED_TXTFILES
     ca.pem
 )
-
-set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

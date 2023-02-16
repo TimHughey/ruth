@@ -24,12 +24,12 @@
 namespace ruth {
 namespace message {
 
-Handler::Handler(const char *category, const size_t max_queue_depth) {
+Handler::Handler(const char *category, const size_t max_queue_depth) noexcept {
   memccpy(_category, category, 0x00, sizeof(_category) - 1);
   _msg_q = xQueueCreate(max_queue_depth, sizeof(In *));
 }
 
-bool Handler::accept(std::unique_ptr<In> msg) {
+bool Handler::accept(InWrapped msg) {
   auto q_rc = pdFALSE;
 
   In *msg_for_q = msg.get();

@@ -60,9 +60,9 @@ void app_main() {
   ESP_LOGI(TAG, "nvs status [%s]", esp_err_to_name(err));
 
   // this is where our implementation begins by starting the Core
-  ruth::Core::boot();
+  auto core = std::make_unique<ruth::Core>();
 
   for (;;) {
-    ruth::Core::loop();
+    core->loop();
   }
 }

@@ -16,25 +16,32 @@
 //
 //  https://www.wisslanding.com
 
-#include "filter/subscribe.hpp"
+#pragma once
 
-#include <esp_attr.h>
-#include <esp_log.h>
-#include <string.h>
+#include "dev_pwm/pwm.hpp"
+#include "headunit/headunit.hpp"
+#include "ru_base/types.hpp"
+
+#include <driver/gpio.h>
+#include <driver/ledc.h>
 
 namespace ruth {
 
-namespace filter {
+class Dimmable : public HeadUnit, public pwm::Hardware {
+public:
+  Dimmable(csv id, uint8_t num) noexcept
+      : HeadUnit(id), // set module id in HeadUnit
+        Hardware(num) // set pwm num in pwm::Hardware
+  {}
 
-static const char *TAG = "filter Subscribe";
+public:
+  inline void dark() noexcept override { updateDuty(0); }
 
-Subscribe::Subscribe(const char *first_level) noexcept : Builder(first_level) {
-  addLevel("c2");
-  addHostId();
-  addChar('#');
-}
+  inline void handle_msg(JsonDocument &doc) noexcept {
+    const uint32_t duty = doc[moduleId()] | 0;
 
-void Subscribe::dump() const { ESP_LOGI(TAG, "%s", c_str()); }
+    updateDuty(duty);
+  }
+};
 
-} // namespace filter
 } // namespace ruth

@@ -20,7 +20,7 @@
 #include "lightdesk/lightdesk.hpp"
 #include "dmx/dmx.hpp"
 #include "io/io.hpp"
-#include "lightdesk/advertise.hpp"
+#include "network/network.hpp"
 #include "ru_base/time.hpp"
 #include "session/session.hpp"
 
@@ -28,7 +28,9 @@
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <mdns.h>
 #include <optional>
+#include <stdio.h>
 
 namespace ruth {
 namespace shared {
@@ -42,7 +44,32 @@ DRAM_ATTR static std::array<StackType_t, 10 * 1024> desk_stack;
 } // namespace desk
 
 static void _run(void *) noexcept {
-  desk::Advertise::create(LightDesk::SERVICE_PORT)->init();
+  { // advertise desk service
+    const auto host = Net::hostname();
+    const auto mac_addr = Net::macAddress();
+
+    if ((mdns_init() == ESP_OK) && (mdns_hostname_set(host) == ESP_OK)) {
+      char *n = nullptr;
+
+      if (auto bytes = asprintf(&n, "%s@%s", mac_addr, host); bytes != -1) {
+        auto name = std::unique_ptr<char>(n);
+
+        if (mdns_instance_name_set(name.get()) == ESP_OK) {
+          ESP_LOGD(LightDesk::TAG.data(), "host[%s] instance[%s]", host, name.get());
+          auto txt_data = std::array<mdns_txt_item_t, 1>{{"desk", "true"}};
+          mdns_service_add(name.get(), LightDesk::SERVICE_NAME.data(),
+                           LightDesk::SERVICE_PROTOCOL.data(), LightDesk::SERVICE_PORT,
+                           txt_data.data(), txt_data.size());
+        } else {
+          ESP_LOGE(LightDesk::TAG.data(), "mdns_instance_name_set() failed\n");
+        }
+      } else {
+        ESP_LOGE(LightDesk::TAG.data(), "asprintf failed()\n");
+      }
+    } else {
+      ESP_LOGE(LightDesk::TAG.data(), "mdns_init() or mdns_hostname_set() failed\n");
+    }
+  }
 
   shared::desk->run();
   shared::desk.reset();
@@ -53,19 +80,19 @@ static void _run(void *) noexcept {
 LightDesk::LightDesk() noexcept
     : acceptor{io_ctx, tcp_endpoint{ip_tcp::v4(), SERVICE_PORT}} //
 {
-  ESP_LOGI(TAG.data(), "enabled, starting up");
+  ESP_LOGD(TAG.data(), "enabled, starting up");
 
   shared::desk_task =                            // create the task using a static desk_stack
       xTaskCreateStatic(_run,                    // static func to start task
                         TAG.data(),              // task name
                         desk::desk_stack.size(), // desk_stack size
                         nullptr,                 // none, use shared::desk
-                        4,                       // priority
+                        7,                       // priority
                         desk::desk_stack.data(), // static task desk_stack
                         &desk::desk_tcb          // task control block
       );
 
-  ESP_LOGI(TAG.data(), "started desk_tcb=%p", &desk::desk_tcb);
+  ESP_LOGD(TAG.data(), "started tcb=%p", &desk::desk_tcb);
 }
 
 void LightDesk::async_accept() noexcept {

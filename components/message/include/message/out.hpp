@@ -32,8 +32,8 @@ typedef std::unique_ptr<char[]> Packed;
 
 class Out {
 public:
-  Out(size_t doc_size = 1024);
-  virtual ~Out() {}
+  Out(size_t doc_size = 1024) noexcept;
+  virtual ~Out() = default;
 
   inline JsonDocument &doc() { return _doc; }
   inline const char *filter() const { return _filter.c_str(); }

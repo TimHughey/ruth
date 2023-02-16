@@ -10,5 +10,3 @@ idf_component_register(
     driver
     misc
 )
-
-set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)

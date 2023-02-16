@@ -1,22 +1,20 @@
-/*
-     protocols/dmx.cpp - Ruth Dmx Protocol Engine
-     Copyright (C) 2020  Tim Hughey
-
-     This program is free software: you can redistribute it and/or modify
-     it under the terms of the GNU General Public License as published by
-     the Free Software Foundation, either version 3 of the License, or
-     (at your option) any later version.
-
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU General Public License for more details.
-
-     You should have received a copy of the GNU General Public License
-     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-     https://www.wisslanding.com
- */
+//  Ruth
+//  Copyright (C) 2021 Tim Hughey
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//  https://www.wisslanding.com
 
 #pragma once
 
@@ -32,9 +30,18 @@ typedef class Net Net_t;
 class Net {
 public:
   struct Opts {
-    const char *ssid = nullptr;
-    const char *passwd = nullptr;
-    TaskHandle_t notify_task = nullptr;
+    Opts() = default;
+    Opts(const char *ssid, const char *passwd) noexcept //
+        : ssid(ssid),                                   //
+          passwd(passwd),                               //
+          notify_task(xTaskGetCurrentTaskHandle())      //
+    {}
+
+    ~Opts() = default;
+
+    const char *ssid{nullptr};
+    const char *passwd{nullptr};
+    TaskHandle_t notify_task{nullptr};
   };
 
 public:
@@ -50,8 +57,9 @@ public:
   static const char *hostname();
   static const char *macAddress();
   static void setName(const char *name);
-  static bool start(const Opts &opts);
+  static bool start(const Opts &&opts);
   static void stop();
+  static void wait_for_ip(uint32_t max_wait_ms) noexcept;
 
 private:
   void acquiredIP(void *event_data);

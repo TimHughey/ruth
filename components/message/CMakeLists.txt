@@ -15,6 +15,4 @@ idf_component_register(
     arduino_json
     esp_timer
     filter
-  )
-
-set_property(TARGET ${COMPONENT_LIB} PROPERTY CXX_STANDARD 17)
+)
