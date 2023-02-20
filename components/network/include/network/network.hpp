@@ -23,24 +23,38 @@
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <memory>
+#include <source_location>
+#include <string_view>
+#include <vector>
 
 namespace ruth {
 
-typedef class Net Net_t;
+using src_loc = std::source_location;
+typedef const std::string_view csv;
+
+class Net;
+
+namespace shared {
+extern std::unique_ptr<Net> net;
+}
+
 class Net {
 public:
   struct Opts {
     Opts() = default;
-    Opts(const char *ssid, const char *passwd) noexcept //
-        : ssid(ssid),                                   //
-          passwd(passwd),                               //
-          notify_task(xTaskGetCurrentTaskHandle())      //
+    Opts(const char *ssid, const char *passwd, int32_t ip_max_wait) noexcept
+        : ssid(ssid),                              //
+          passwd(passwd),                          //
+          ip_max_wait(ip_max_wait),                //
+          notify_task(xTaskGetCurrentTaskHandle()) //
     {}
 
     ~Opts() = default;
 
     const char *ssid{nullptr};
     const char *passwd{nullptr};
+    int32_t ip_max_wait{0};
     TaskHandle_t notify_task{nullptr};
   };
 
@@ -48,43 +62,48 @@ public:
   enum Notifies : uint32_t { READY = 0x01 };
 
 public:
-  Net() = default; // SINGLETON
-  static const char *ca_start() { return (const char *)_ca_start_; };
-  static const uint8_t *ca_end() { return _ca_end_; };
-  static const char *disconnectReason(wifi_err_reason_t reason);
-  static const char *hostID();
-  static bool hostIdAndNameAreEqual();
-  static const char *hostname();
-  static const char *macAddress();
-  static void setName(const char *name);
-  static bool start(const Opts &&opts);
-  static void stop();
-  static void wait_for_ip(uint32_t max_wait_ms) noexcept;
+  Net(Opts &&opts) noexcept;
+  ~Net() = default;
+
+  const char *name(const char *new_name) noexcept;
 
 private:
-  void acquiredIP(void *event_data);
-  static void checkError(const char *func, esp_err_t err);
-  void connected(void *event_data);
-  void disconnected(void *event_data);
-  void init();
-  static void ip_events(void *ctx, esp_event_base_t base, int32_t id, void *data);
-  static void wifi_events(void *ctx, esp_event_base_t base, int32_t id, void *data);
+  void acquired_ip(void *event_data) noexcept;
+  void check_error(esp_err_t err, const src_loc loc = src_loc()) noexcept;
+
+  static void events(void *ctx, esp_event_base_t base, int32_t id, void *data) noexcept;
 
 private:
-  Opts _opts;
-  esp_err_t init_rc_ = ESP_FAIL;
-  esp_netif_t *netif_ = nullptr;
+  // order dependent
+  Opts opts;
+  esp_netif_t *netif;
 
-  static constexpr size_t mac_addr_max_len = 13;
-  char _mac_addr[mac_addr_max_len] = {};
+public:
+  std::vector<char> mac_address{};
+  std::string host_id;
+  std::string hostname;
 
-  static constexpr size_t max_name_and_id_len = 32;
-  char _host_id[max_name_and_id_len] = {};
-  char _hostname[max_name_and_id_len] = {};
-  bool reconnect = true;
-
-  static const uint8_t _ca_start_[] asm("_binary_ca_pem_start");
-  static const uint8_t _ca_end_[] asm("_binary_ca_pem_end");
+public:
+  static const char ca_begin[] asm("_binary_ca_pem_start");
+  static const char ca_end[] asm("_binary_ca_pem_end");
+  static constexpr const char *TAG{"Net"};
 };
 
+////
+//// Ruth net free functions
+////
+
+namespace net {
+
+inline const char *ca_begin() noexcept { return &(shared::net->ca_begin[0]); }
+inline const char *ca_end() noexcept { return &(shared::net->ca_end[0]); }
+
+inline const char *host_id() noexcept { return shared::net->host_id.data(); }
+inline const char *hostname(const char *new_name = nullptr) noexcept {
+  return shared::net->name(new_name);
+}
+inline const char *mac_address() noexcept { return shared::net->mac_address.data(); }
+inline bool has_assigned_name() noexcept { return shared::net->host_id != shared::net->hostname; }
+
+} // namespace net
 } // namespace ruth

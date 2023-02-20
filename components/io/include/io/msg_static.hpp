@@ -66,12 +66,15 @@ static constexpr uint16_t MAGIC_VAL{0xc9d2};
 class Msg {
 public:
   // outbound messages
-  inline Msg(csv type, StaticPacked &packed) : type(type.data(), type.size()), packed(packed) {
+  inline Msg(csv type, StaticPacked &packed) noexcept
+      : type(type.data()), //
+        packed(packed)     //
+  {
     doc[TYPE] = type;
   }
 
   // inbound messages
-  inline Msg(StaticPacked &packed) : type(io::READ_MSG), packed(packed) {}
+  inline Msg(StaticPacked &packed) noexcept : type(io::READ_MSG), packed(packed) {}
 
   Msg(Msg &m) = delete;
   Msg(const Msg &m) = delete;

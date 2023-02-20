@@ -83,8 +83,9 @@ inline auto async_read_msg(tcp_socket &socket, B &static_buff, CompletionToken &
     // Initiate the underlying async_read operation using our intermediate
     // completion handler.
 
-    auto msg_len = msg.buff_msg_len();
-    asio::async_read(socket, msg_len, asio::transfer_exactly(MSG_LEN_SIZE),
+    auto msg_len_buff = msg.buff_msg_len();
+
+    asio::async_read(socket, msg_len_buff, asio::transfer_exactly(MSG_LEN_SIZE),
                      intermediate_completion_handler{
                          socket,         // the socket
                          std::move(msg), // the msg

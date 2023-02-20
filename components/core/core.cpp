@@ -38,7 +38,7 @@ namespace ruth {
 
 static const char *TAG{"Core"};
 
-Core::Core() noexcept                                       //
+Core::Core() noexcept
     : message::Handler("host", MAX_QUEUE_DEPTH),            //
       heap_first(heap_caps_get_free_size(MALLOC_CAP_8BIT)), //
       heap_avail(heap_first),                               //
@@ -54,14 +54,14 @@ Core::Core() noexcept                                       //
   auto wifi = Binder::wifi();
 
   StatusLED::brighter();
-  Net::start(Net::Opts(wifi["ssid"], wifi["passwd"]));
-  Net::wait_for_ip(60000);
+
+  shared::net = std::make_unique<Net>(Net::Opts(wifi["ssid"], wifi["passwd"], 60000));
 
   StatusLED::brighter();
   start_sntp(); // only returns if SNTP succeeds
 
   StatusLED::brighter();
-  filter::Filter::init(filter::Opts{Binder::env(), Net::hostID(), Net::hostname()});
+  filter::Filter::init(filter::Opts{Binder::env(), net::host_id(), net::hostname()});
 
   StatusLED::brighter();
   start_mqtt();
@@ -84,7 +84,7 @@ Core::Core() noexcept                                       //
   ota_base_url.assign(doc["ota"]["base_url"] | "UNSET");
 
   StatusLED::brighter();
-  Net::setName(msg->hostnameFromFilter());
+  net::hostname(msg->hostnameFromFilter());
 
   MQTT::send(message::Boot(CONFIG_ESP_MAIN_TASK_STACK_SIZE, doc["meta"]["name"] | "unknown"));
 
@@ -105,9 +105,14 @@ Core::Core() noexcept                                       //
   vTimerSetTimerID(report_timer_handle, this);
   xTimerStart(report_timer_handle, pdMS_TO_TICKS(0)); // do the first heap track
 
-  doc["hostname"] = Net::hostname();
-  doc["unique_id"] = Net::macAddress();
-  Engines::start_configured(doc);
+  // only start engines if host has been assigned a name and isn't using the
+  // host id (default)
+  if (net::has_assigned_name()) {
+
+    doc["hostname"] = net::hostname();
+    doc["unique_id"] = net::mac_address();
+    Engines::start_configured(doc);
+  }
 
   StatusLED::off();
 }
@@ -123,7 +128,7 @@ void Core::do_ota(message::InWrapped msg) noexcept {
     ota = std::make_unique<firmware::OTA>( //
         ota_base_url.c_str(),              //
         ota_cmd["file"] | "latest.bin",    //
-        Net::ca_start()                    //
+        net::ca_begin()                    //
     );
 
     while (ota) {
@@ -190,7 +195,7 @@ void Core::start_mqtt() noexcept {
   const auto mqtt_cfg = Binder::mqtt();
 
   shared::mqtt.emplace(                   // in-place create
-      MQTT::ConnOpts(Net::hostID(),       //
+      MQTT::ConnOpts(net::host_id(),      //
                      mqtt_cfg["uri"],     //
                      mqtt_cfg["user"],    //
                      mqtt_cfg["passwd"]), //

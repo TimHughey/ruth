@@ -45,8 +45,8 @@ DRAM_ATTR static std::array<StackType_t, 10 * 1024> desk_stack;
 
 static void _run(void *) noexcept {
   { // advertise desk service
-    const auto host = Net::hostname();
-    const auto mac_addr = Net::macAddress();
+    const auto host = net::hostname();
+    const auto mac_addr = net::mac_address();
 
     if ((mdns_init() == ESP_OK) && (mdns_hostname_set(host) == ESP_OK)) {
       char *n = nullptr;
