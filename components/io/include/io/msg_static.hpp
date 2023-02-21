@@ -23,7 +23,6 @@
 #include "misc/elapsed.hpp"
 #include "ru_base/time.hpp"
 #include "ru_base/types.hpp"
-#include "ru_base/uint8v.hpp"
 
 #include <ArduinoJson.h>
 #include <arpa/inet.h>

@@ -22,7 +22,6 @@
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
 #include "ru_base/types.hpp"
-#include "ru_base/uint8v.hpp"
 #include "session/stats.hpp"
 
 #include "ArduinoJson.h"

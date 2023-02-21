@@ -21,7 +21,4 @@
 
 #include <esp_log.h>
 
-namespace ruth {
-void uint8v::dump() const { ESP_LOGD(moduleId().data(), "size=%d\n", size()); }
-
-} // namespace ruth
+namespace ruth {} // namespace ruth

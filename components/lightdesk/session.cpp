@@ -37,7 +37,6 @@
 #include "io/io.hpp"
 #include "io/msg_static.hpp"
 #include "ru_base/time.hpp"
-#include "ru_base/uint8v.hpp"
 #include "session/session.hpp"
 
 namespace ruth {

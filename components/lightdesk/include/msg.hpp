@@ -23,7 +23,6 @@
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
 #include "ru_base/time.hpp"
-#include "ru_base/uint8v.hpp"
 
 #include "ArduinoJson.h"
 #include <array>
