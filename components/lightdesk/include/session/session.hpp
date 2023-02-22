@@ -18,7 +18,9 @@
 
 #pragma once
 
-#include "io/async_msg.hpp"
+#include "async/msg_in.hpp"
+#include "async/msg_out.hpp"
+#include "async/read.hpp"
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
 #include "ru_base/types.hpp"
@@ -53,12 +55,22 @@ public:
   ~Session() noexcept;
 
 private:
-  void close() noexcept;
+  void close(const error_code ec = io::make_error()) noexcept;
   void connect_data(Port port) noexcept;
-  void ctrl_msg_process(io::Msg &&msg) noexcept;
+  void ctrl_msg_process(MsgIn &&msg) noexcept;
   void ctrl_msg_read() noexcept;
   void data_msg_read() noexcept;
-  void data_msg_reply(io::Msg &&msg, const Elapsed &&msg_wait) noexcept;
+  void data_msg_reply(const error_code ec, MsgIn &&msg, const Elapsed &&msg_wait) noexcept {
+    if (!ec) {
+
+      data_msg_reply(std::move(msg), std::move(msg_wait));
+      return;
+    }
+
+    close(ec);
+  }
+
+  void data_msg_reply(MsgIn &&msg, const Elapsed &&msg_wait) noexcept;
 
   void fps_calc() noexcept;
 
@@ -76,6 +88,10 @@ private:
   system_timer idle_timer;
   Millis stats_interval; // initial default, may be overriden by handshake
   system_timer stats_timer;
+  packed_t ctrl_packed;
+  packed_t data_packed;
+  packed_out_t ctrl_packed_out;
+  packed_out_t data_packed_out;
   esp_timer_handle_t destruct_timer;
 
   // order independent
@@ -90,7 +106,7 @@ private:
   uint16_t msg_len{0};
 
 public:
-  static constexpr csv TAG{"Session"};
+  static constexpr const auto TAG{"Session"};
 };
 
 } // namespace desk

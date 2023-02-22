@@ -63,10 +63,8 @@ void IRAM_ATTR run(void *data) {
 
   ESP_LOGD(DMX::TAG.data(), "completed, deleting task handle=%p", task_handle);
 
-  task_handle = nullptr;
-  auto th = task_handle;
-
-  vTaskDelete(th);
+  // keep the task alive while the destructor finishes
+  vTaskDelay(pdMS_TO_TICKS(5000));
 }
 
 DRAM_ATTR static constexpr int UART_NUM{1}; // UART0=console, UART2=defect (use UART1)
@@ -136,11 +134,11 @@ DMX::DMX() noexcept : qok{0}, qrf(0), qsf(0) {
 DMX::~DMX() noexcept {
   vMessageBufferDelete(msg_buff);
 
+  vTaskDelete(std::exchange(task_handle, nullptr));
+
   while (task_handle != nullptr) {
     vTaskDelay(pdMS_TO_TICKS(1));
   }
-
-  ESP_LOGD(TAG.data(), "falling out of scope");
 }
 
 void IRAM_ATTR DMX::spool_frames() noexcept {
@@ -181,10 +179,23 @@ void IRAM_ATTR DMX::spool_frames() noexcept {
     }
   }
 
+  // we can not delete the message buffer while it is waiting
+  // for or sending a messsage.  we delay here longer than either
+  // message receive or send will wait then we set the shutdown promise
+  // so the caller can safely delete us
+  vTaskDelay(RECV_TIMEOUT * 2);
   shutdown_prom->set_value(true);
 }
 
 bool IRAM_ATTR DMX::tx_frame(dmx::frame &&frame) {
+
+  if (!frame.data() || !frame.len) {
+    ESP_LOGW(TAG.data(), "tx_frame: received empty frame");
+    return false;
+  }
+
+  if (shutdown_prom.has_value()) return false; // don't get caught waiting
+
   // wait up to the max time to transmit a TX frame
   auto msg_bytes = xMessageBufferSend(msg_buff, frame.data(), frame.len, QUEUE_TICKS);
 

@@ -39,7 +39,5 @@ void log_accept_socket(const std::string_view module_id, const std::string_view 
   }
 }
 
-error_code make_error(errc e) { return asio::error::make_error_code(e); }
 } // namespace io
-
 } // namespace ruth
