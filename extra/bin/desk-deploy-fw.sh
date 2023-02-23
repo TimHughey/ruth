@@ -4,17 +4,17 @@ build=${HOME}/devel/ruth/build
 bin_file=${build}/ruth.bin
 
 fw_path=/dar/www/wisslanding/htdocs/sally/firmware
-fw_name=00.00-lightdesk-ruth.bin
+fw_name=lightdesk.bin
 
 pushd ${build}
-sudo -u helen rsync -a ${bin_file} ${fw_path}/${fw_name}
+rsync -a ${bin_file} ${fw_path}/${fw_name}
 
 pushd ${fw_path}
 ls -al ${fw_name}
 
 rpc=$(<<'RPC'
-Sally.host_ota("dmx", latest: true)
-Sally.host_ota("test-with-devs", latest: true)
+Sally.host_ota("dmx", file_regex: ~r/lightdesk.bin/)
+Sally.host_ota("test-with-devs", file_regex: ~r/lightdesk.bin/)
 RPC
 )
 
