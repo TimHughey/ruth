@@ -63,9 +63,6 @@ private:
   float fps;
   std::atomic_int64_t frame_count;
   std::atomic_int64_t mark;
-
-public:
-  static constexpr csv TAG{"SessionStats"};
 };
 
 } // namespace desk

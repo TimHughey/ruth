@@ -67,18 +67,29 @@ static void self_destruct(void *) noexcept {
 
 Session::Session(tcp_socket &&sock) noexcept
     : ctrl_sock(std::move(sock)),              // move the accepted socket
+      data_sock(ctrl_sock.get_executor()),     // data sock (connected later)
       idle_shutdown(10000),                    // default, may be overriden
-      idle_timer(ctrl_sock.get_executor()),    // idle timer, same executor as ctrl_socket
       stats_interval(2000),                    // default, may be overriden
-      stats_timer(ctrl_sock.get_executor()),   // fps/stats timer, same executor as ctrl_socket
       ctrl_packed(MsgIn::default_packed_size), // ctrl msg stream_buff
       data_packed(MsgIn::default_packed_size), // data msg stream_buff
       ctrl_packed_out{0x00},                   // write packed ctrl msg buffer
       data_packed_out{0x00},                   // write packed data msg buffer
-      destruct_timer{nullptr}                  // esp_timer to destructor via separate task
+      stats_timer{nullptr},                    // esp_timer to calc stats via separate task
+      destruct_timer{nullptr}                  // esp_timer to destruct via separate task
 {
   // headunits are static outside of class, make sure they are created
   if (units.empty()) create_units();
+
+  // create the idle timeout (self-destruct) timer
+  esp_timer_create_args_t args{self_destruct, nullptr, ESP_TIMER_TASK, "desk::session", true};
+  esp_timer_create(&args, &destruct_timer);
+
+  // reuse timer args, changing necessary values
+  args.callback = fps_calc;
+  args.arg = this;
+  args.name = "desk::session.stats";
+
+  esp_timer_create(&args, &stats_timer);
 
   dmx = std::make_unique<DMX>();
 
@@ -86,20 +97,25 @@ Session::Session(tcp_socket &&sock) noexcept
 }
 
 Session::~Session() noexcept {
+
+  // stop and free all esp_timers
+  const auto timers = std::array{stats_timer, destruct_timer};
+
+  std::for_each(timers.begin(), timers.end(), [](auto *timer) {
+    if (!timer) return;
+    esp_timer_stop(timer);
+    esp_timer_delete(std::exchange(timer, nullptr));
+  });
+
   // graceful shutdown
   [[maybe_unused]] error_code ec;
-  idle_timer.cancel(ec);
-  stats_timer.cancel(ec);
-
-  if (data_sock.has_value()) data_sock->close(ec);
+  data_sock.close(ec);
   ctrl_sock.close(ec);
 
   std::for_each(units.begin(), units.end(), [](auto &unit) { unit->dark(); });
 
   // stop dmx and wait for confirmation
   if (dmx && (dmx->stop().get() == true)) dmx.reset();
-
-  if (destruct_timer) esp_timer_delete(destruct_timer);
 }
 
 void Session::close(const error_code ec) noexcept {
@@ -118,16 +134,15 @@ void Session::close(const error_code ec) noexcept {
 void IRAM_ATTR Session::connect_data(Port port) noexcept {
   auto address = ctrl_sock.remote_endpoint().address();
   auto endpoint = tcp_endpoint(address, port);
-  data_sock.emplace(ctrl_sock.get_executor());
 
-  asio::async_connect(*data_sock, std::array{endpoint},
+  asio::async_connect(data_sock, std::array{endpoint},
                       [this](const error_code ec, const tcp_endpoint r) {
                         if (!ec) {
 
-                          data_sock->set_option(ip_tcp::no_delay(true));
+                          data_sock.set_option(ip_tcp::no_delay(true));
 
-                          fps_calc();
                           data_msg_read();
+                          esp_timer_start_periodic(stats_timer, stats_interval.count() * 1000);
                           return;
                         }
 
@@ -138,6 +153,8 @@ void IRAM_ATTR Session::connect_data(Port port) noexcept {
 void IRAM_ATTR Session::ctrl_msg_process(MsgIn &&msg) noexcept {
   StaticDoc doc;
 
+  idle_watch_dog();
+
   if (!msg.deserialize_into(doc)) {
     close(io::make_error(errc::protocol_error));
     return;
@@ -147,7 +164,6 @@ void IRAM_ATTR Session::ctrl_msg_process(MsgIn &&msg) noexcept {
 
   if (csv{desk::HANDSHAKE} == type) { // the handshake reply
     idle_shutdown = Millis(doc[desk::IDLE_SHUTDOWN_MS] | idle_shutdown.count());
-    remote_ref_time = Micros(doc[desk::REF_US] | 0);
     Port port = doc[desk::DATA_PORT] | 0;
 
     if (port) connect_data(port);
@@ -181,8 +197,6 @@ void IRAM_ATTR Session::ctrl_msg_read() noexcept {
 
 void IRAM_ATTR Session::data_msg_read() noexcept {
 
-  idle_watch_dog();
-
   auto msg = MsgIn(data_packed);
 
   if (msg.calc_packed_len() == true) {
@@ -192,7 +206,7 @@ void IRAM_ATTR Session::data_msg_read() noexcept {
     return;
   }
 
-  desk::async_read(*data_sock, std::move(msg),
+  desk::async_read(data_sock, std::move(msg),
                    [this, msg_wait = Elapsed()](const error_code ec, MsgIn &&msg) mutable {
                      msg_wait.freeze();
 
@@ -235,23 +249,13 @@ void IRAM_ATTR Session::data_msg_reply(MsgIn &&msg_in, const Elapsed &&msg_wait)
   asio::async_write(ctrl_sock, msg_out.write_buff(), msg_out.write_bytes(),
                     [this](const error_code ec, std::size_t bytes) {
                       if (!ec && bytes) {
-                        idle_watch_dog(); // reset
-                        data_msg_read();  // wait for next data msg
-                        return;
+                        data_msg_read(); // wait for next data msg
+                        idle_watch_dog();
+
+                      } else {
+                        close(ec);
                       }
-
-                      close(ec);
                     });
-}
-
-void IRAM_ATTR Session::fps_calc() noexcept {
-  stats_timer.expires_after(stats_interval);
-  stats_timer.async_wait([this](const error_code ec) {
-    if (ec) return; // timer shutdown
-
-    stats->calc();
-    fps_calc();
-  });
 }
 
 // sends initial handshake
@@ -281,22 +285,10 @@ void IRAM_ATTR Session::handshake() noexcept {
 }
 
 void IRAM_ATTR Session::idle_watch_dog() noexcept {
-  static auto expires = rut::as_duration<Seconds, Millis>(idle_shutdown);
 
   if (ctrl_sock.is_open()) {
-    idle_timer.expires_after(expires);
-    idle_timer.async_wait([this](const error_code ec) {
-      if (ec) return;
-      if (destruct_timer) return;
-
-      // if the timer ever expires then we're idle
-      ESP_LOGI(TAG, "idle timeout");
-
-      esp_timer_create_args_t args{self_destruct, nullptr, ESP_TIMER_TASK, "session", true};
-
-      esp_timer_create(&args, &destruct_timer);
-      esp_timer_start_once(destruct_timer, 0);
-    });
+    esp_timer_stop(destruct_timer);
+    esp_timer_start_once(destruct_timer, idle_shutdown.count() * 1000);
   }
 }
 

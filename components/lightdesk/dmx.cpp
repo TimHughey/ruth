@@ -123,7 +123,7 @@ DMX::DMX() noexcept : qok{0}, qrf(0), qsf(0) {
                         TAG.data(),   // task name
                         stack.size(), // stack size
                         this,         // pass the newly created object to run()
-                        7,            // priority
+                        6,            // priority
                         stack.data(), // static task stack
                         &tcb          // task control block
       );
