@@ -20,11 +20,12 @@
 #include "async/msg_in.hpp"
 #include "async/msg_out.hpp"
 #include "async/read.hpp"
+#include "async/write.hpp"
 #include "dmx/dmx.hpp"
 #include "dmx/frame.hpp"
 #include "headunit/ac_power.hpp"
 #include "headunit/dimmable.hpp"
-#include "ru_base/time.hpp"
+#include "ru_base/rut.hpp"
 
 #include "ArduinoJson.h"
 #include <algorithm>
@@ -57,6 +58,8 @@ static void create_units() noexcept {
   units.emplace_back(std::make_unique<Dimmable>("led forest", 4)); // pwm 4
 }
 
+/// @brief Self-destruct a Session via esp_timer
+/// @param  pointer unused
 static void self_destruct(void *) noexcept {
   ESP_LOGD(Session::TAG, "self-destruct");
 
@@ -66,16 +69,16 @@ static void self_destruct(void *) noexcept {
 // Object API
 
 Session::Session(tcp_socket &&sock) noexcept
-    : ctrl_sock(std::move(sock)),              // move the accepted socket
-      data_sock(ctrl_sock.get_executor()),     // data sock (connected later)
-      idle_shutdown(10000),                    // default, may be overriden
-      stats_interval(2000),                    // default, may be overriden
-      ctrl_packed(MsgIn::default_packed_size), // ctrl msg stream_buff
-      data_packed(MsgIn::default_packed_size), // data msg stream_buff
-      ctrl_packed_out{0x00},                   // write packed ctrl msg buffer
-      data_packed_out{0x00},                   // write packed data msg buffer
-      stats_timer{nullptr},                    // esp_timer to calc stats via separate task
-      destruct_timer{nullptr}                  // esp_timer to destruct via separate task
+    : ctrl_sock(std::move(sock)),          // move the accepted socket
+      data_sock(ctrl_sock.get_executor()), // data sock (connected later)
+      idle_shutdown(10000),                // default, may be overriden
+      stats_interval(2000),                // default, may be overriden
+      ctrl_packed(1024),                   // ctrl msg stream_buff
+      data_packed(1024),                   // data msg stream_buff
+      ctrl_packed_out{0x00},               // write packed ctrl msg buffer
+      data_packed_out{0x00},               // write packed data msg buffer
+      stats_timer{nullptr},                // esp_timer to calc stats via separate task
+      destruct_timer{nullptr}              // esp_timer to destruct via separate task
 {
   // headunits are static outside of class, make sure they are created
   if (units.empty()) create_units();
@@ -97,7 +100,6 @@ Session::Session(tcp_socket &&sock) noexcept
 }
 
 Session::~Session() noexcept {
-
   // stop and free all esp_timers
   const auto timers = std::array{stats_timer, destruct_timer};
 
@@ -119,7 +121,7 @@ Session::~Session() noexcept {
 }
 
 void Session::close(const error_code ec) noexcept {
-  if (ec) ESP_LOGD(TAG, "close(): error=%s", ec.message().c_str());
+  if (ec) ESP_LOGI(TAG, "close(): error=%s", ec.message().c_str());
 
   if (!destruct_timer) {
     idle_shutdown = Millis(0);
@@ -138,19 +140,19 @@ void IRAM_ATTR Session::connect_data(Port port) noexcept {
   asio::async_connect(data_sock, std::array{endpoint},
                       [this](const error_code ec, const tcp_endpoint r) {
                         if (!ec) {
-
                           data_sock.set_option(ip_tcp::no_delay(true));
 
                           data_msg_read();
+                          // esp_timer requires duration in microseconds
                           esp_timer_start_periodic(stats_timer, stats_interval.count() * 1000);
-                          return;
-                        }
 
-                        close(ec);
+                        } else {
+                          close(ec);
+                        }
                       });
 }
 
-void IRAM_ATTR Session::ctrl_msg_process(MsgIn &&msg) noexcept {
+void IRAM_ATTR Session::ctrl_msg_process(MsgIn msg) noexcept {
   StaticDoc doc;
 
   idle_watch_dog();
@@ -181,60 +183,52 @@ void IRAM_ATTR Session::ctrl_msg_process(MsgIn &&msg) noexcept {
 void IRAM_ATTR Session::ctrl_msg_read() noexcept {
   // note: we do not reset the idle watch dog for ctrl messages
   //       idle is based entirely on data messages
-
-  auto msg = MsgIn(ctrl_packed);
-
-  if (msg.calc_packed_len() == true) {
-    ESP_LOGI(TAG, "ctrl msg waiting in stream buffer");
-    ctrl_msg_process(std::move(msg));
-    return;
-  }
-
-  desk::async_read(ctrl_sock, std::move(msg), [this](const error_code ec, MsgIn &&msg) mutable {
-    if (!ec) ctrl_msg_process(std::move(msg));
+  desk::async::read_msg(ctrl_sock, MsgIn(ctrl_packed), [this](MsgIn &&msg) mutable {
+    if (msg.xfer_ok()) {
+      ctrl_msg_process(std::move(msg));
+    } else {
+      close(msg.ec);
+    }
   });
 }
 
 void IRAM_ATTR Session::data_msg_read() noexcept {
 
-  auto msg = MsgIn(data_packed);
-
-  if (msg.calc_packed_len() == true) {
-    // we already have a message in the buffer
-    ESP_LOGI(TAG, "data msg waiting in stream buffer");
-    data_msg_reply(std::move(msg), Elapsed());
-    return;
-  }
-
-  desk::async_read(data_sock, std::move(msg),
-                   [this, msg_wait = Elapsed()](const error_code ec, MsgIn &&msg) mutable {
-                     msg_wait.freeze();
-
-                     data_msg_reply(ec, std::move(msg), std::move(msg_wait));
-                   });
+  // buffer empty or incomplete, must read from socket
+  desk::async::read_msg(data_sock, MsgIn(data_packed), [this](MsgIn msg_in) mutable {
+    if (msg_in.xfer_ok()) {
+      data_msg_reply(std::move(msg_in));
+    } else {
+      close(msg_in.ec);
+    }
+  });
 }
 
-void IRAM_ATTR Session::data_msg_reply(MsgIn &&msg_in, const Elapsed &&msg_wait) noexcept {
+void IRAM_ATTR Session::data_msg_reply(MsgIn msg_in) noexcept {
+  // first capture the wait time to receive the data msg
+  const auto msg_in_wait = msg_in.elapsed();
+
+  // note: create MsgOut as early as possible to capture elapsed duration
+  StaticDoc doc_out;
+  auto msg_out = MsgOut(desk::FEEDBACK, doc_out, data_packed_out);
+
   StaticDoc doc_in;
 
-  if (!msg_in.deserialize_into(doc_in) || !msg_in.can_render()) {
+  if (!msg_in.deserialize_into(doc_in) || !msg_in.can_render(doc_in)) {
     close(io::make_error(errc::protocol_error));
     return;
   }
 
   stats->saw_frame();
-  dmx->tx_frame(msg_in.dframe<dmx::frame>());
+  dmx->tx_frame(msg_in.dframe<dmx::frame>(doc_in));
 
   for (auto &unit : units) {
     unit->handle_msg(doc_in);
   }
 
-  StaticDoc doc_out;
-  auto msg_out = MsgOut(desk::FEEDBACK, doc_out, data_packed_out);
-  msg_out.take_elapsed(std::move(msg_in.e));
+  msg_out.copy_kv(doc_in, doc_out, desk::SEQ_NUM);
 
-  msg_out.add_kv(desk::SEQ_NUM, doc_in[desk::SEQ_NUM].as<uint32_t>());
-  msg_out.add_kv(desk::DATA_WAIT_US, msg_wait);
+  msg_out.add_kv(desk::DATA_WAIT_US, msg_in_wait);
   msg_out.add_kv(desk::ECHO_NOW_US, doc_in[desk::NOW_US]);
   msg_out.add_kv(desk::FPS, stats->cached_fps());
 
@@ -243,19 +237,21 @@ void IRAM_ATTR Session::data_msg_reply(MsgIn &&msg_in, const Elapsed &&msg_wait)
   msg_out.add_kv(desk::DMX_QRF, dmx->q_rf());
   msg_out.add_kv(desk::DMX_QSF, dmx->q_sf());
 
-  msg_out.add_kv(desk::ELAPSED_US, msg_out.e.freeze());
-  msg_out.serialize();
+  msg_out.add_kv(desk::ELAPSED_US, msg_out.elapsed());
 
-  asio::async_write(ctrl_sock, msg_out.write_buff(), msg_out.write_bytes(),
-                    [this](const error_code ec, std::size_t bytes) {
-                      if (!ec && bytes) {
-                        data_msg_read(); // wait for next data msg
-                        idle_watch_dog();
+  async::write_msg(ctrl_sock, std::move(msg_out), [this](MsgOut msg_out) {
+    if (msg_out.xfer_ok()) {
+      data_msg_read(); // wait for next data msg
+      idle_watch_dog();
 
-                      } else {
-                        close(ec);
-                      }
-                    });
+    } else {
+      close(msg_out.ec);
+    }
+  });
+}
+
+void IRAM_ATTR Session::fps_calc(void *self) noexcept { // static
+  static_cast<desk::Session *>(self)->stats->calc();
 }
 
 // sends initial handshake
@@ -271,8 +267,7 @@ void IRAM_ATTR Session::handshake() noexcept {
 
   // HANDSHAKE PART ONE:  write a minimal data feedback message to the ctrl sock
   asio::async_write( //
-      ctrl_sock, msg_out.write_buff(), msg_out.write_bytes(),
-      [this](const error_code ec, std::size_t bytes) mutable {
+      ctrl_sock, msg_out.write_buff(), [this](const error_code ec, std::size_t bytes) mutable {
         if (!ec && bytes) {
           // handshake message sent, move to ctrl msg loop
           ctrl_msg_read();

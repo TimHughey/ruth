@@ -22,24 +22,11 @@
 
 namespace ruth {
 
-constexpr inline uint64_t upow(uint64_t base, uint64_t exp) {
-  uint64_t result = 1;
+constexpr int64_t qpow10(int n) noexcept {
+  constexpr int64_t p10[] = {1,       10,        100,        1000,        10'000,
+                             10'0000, 1'000'000, 10'000'000, 100'000'000, 1'000'000'000};
 
-  for (;;) {
-    if (exp & 1) {
-      result *= base;
-    }
-
-    exp >>= 1;
-
-    if (!exp) {
-      break;
-    }
-
-    base *= base;
-  }
-
-  return result;
+  return p10[n];
 }
 
 } // namespace ruth

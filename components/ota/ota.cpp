@@ -154,7 +154,7 @@ OTA::Notifies OTA::core() {
 
   if (errorCheck(ota_finish_rc, "(perform or finish)")) return Notifies::ERROR;
 
-  ESP_LOGI(TAG, "finished in %lldms", e().count());
+  ESP_LOGI(TAG, "finished in %lldms", e.as<Millis>().count());
 
   return Notifies::FINISH;
 }

@@ -22,33 +22,49 @@
 
 #pragma once
 
-#include "ru_base/time.hpp"
+#include "ru_base/rut_types.hpp"
 
+#include <concepts>
 #include <cstdint>
 #include <esp_timer.h>
 namespace ruth {
 
 class Elapsed {
-public:
-  inline Elapsed(void) noexcept : val(rut::raw()), frozen{false} {}
+private:
+  // early definition for auto
+  template <typename T> inline auto elapsed() const noexcept {
+    const auto val_now = frozen ? val : esp_timer_get_time() - val;
 
-  auto operator()() { return elapsed(); }
-
-  template <typename T> inline T as() const noexcept {
-    return rut::as_duration<Nanos, T>(elapsed());
+    if constexpr (std::same_as<T, Millis>) {
+      return Millis(val_now / 1000);
+    } else if constexpr (std::same_as<T, Micros>) {
+      return Micros(val_now);
+    } else if constexpr (std::same_as<T, int64_t>) {
+      return val_now;
+    } else {
+      static_assert(true, "unsupported type");
+    }
   }
+
+public:
+  inline Elapsed(void) noexcept : val(esp_timer_get_time()), frozen{false} {}
+
+  inline int64_t operator()() noexcept { return elapsed<int64_t>(); }
+
+  template <typename T> inline auto as() const noexcept { return elapsed<T>(); }
 
   inline const auto freeze() noexcept {
     if (!frozen) {
+      const auto frozen_val = elapsed<int64_t>();
       frozen = true;
-      val = rut::raw() - val;
+      return frozen_val;
     }
 
     return val;
   }
 
   template <typename T> inline bool operator>=(const T &rhs) const noexcept {
-    return elapsed() >= rhs;
+    return elapsed<T>() >= rhs;
   }
 
   inline Elapsed &reset() noexcept {
@@ -57,10 +73,7 @@ public:
   }
 
 private:
-  inline Micros elapsed() const noexcept { return frozen ? val : rut::raw() - val; }
-
-private:
-  Micros val;
+  int64_t val;
   bool frozen;
 };
 

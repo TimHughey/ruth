@@ -29,7 +29,7 @@
 #include "dmx/dmx.hpp"
 #include "dmx/frame.hpp"
 #include "io/io.hpp"
-#include "ru_base/time.hpp"
+#include "ru_base/rut.hpp"
 
 namespace ruth {
 

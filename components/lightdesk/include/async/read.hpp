@@ -33,6 +33,8 @@
 namespace ruth {
 namespace desk {
 
+namespace async {
+
 /// @brief initiate an async read of a lightdesk message
 /// @tparam T
 /// @tparam CompletionToken
@@ -41,7 +43,7 @@ namespace desk {
 /// @param token
 /// @return
 template <typename T, typename CompletionToken>
-inline auto async_read(tcp_socket &sock, T &&msg, CompletionToken &&token) {
+inline auto read_msg(tcp_socket &sock, T &&msg, CompletionToken &&token) {
 
   auto initiation = [](auto &&comp_handler, tcp_socket &sock, T &&msg) {
     using handler_t = std::decay<decltype(comp_handler)>::type;
@@ -56,32 +58,34 @@ inline auto async_read(tcp_socket &sock, T &&msg, CompletionToken &&token) {
         // static const char *TAG{"desk::async_read"};
 
         // ESP_LOGI(TAG, "ec=%s n=%u", ec.message().c_str(), n);
+        msg.ec = ec;
+        msg.xfr.in += n;
 
         if (!ec) { // ensure no socket errors
 
-          // on the initial transfer reset the elapsed time
-          // yes, this loses the actual time from when the hardware
-          // received the data and the passing of the data through
-          // the OS.  we reset so we don't include the wait time
-          // between packets.  this elapsed time is purely to measure
-          // the internal ruth processing time (including any
-          // additional network reads)
-          if (state == state_t::INITIAL) msg.restart_elapsed();
+          switch (state) {
+          case INITIAL: {
+            // we have read the header bytes, now read the packed data
+            state = MORE;
+            msg.calc_packed_len();
 
-          if (msg.calc_packed_len(n) == false) { // packed is incomplete
-            state = state_t::MORE;
-            asio::async_read(sock,                         //
-                             msg.read_intermediate_buff(), //
-                             msg.read_rest_bytes(),        //
-                             std::move(*this));
+            auto buff = msg.read_intermediate_buff();
+
+            // the buffer returned is the exact size of the expected packed message
+            // so we don't need to specify a completion condition.  instead asio::async_read
+            // will fill the buffer which is exactly what we want
+            asio::async_read(sock, buff, std::move(*this));
             return;
           }
 
-          // we have the entire msg on the first read, fall through to handler
+          case MORE:
+            // we're done, fall through to the handler
+            break;
+          }
         }
 
         // we now have either an error or a complete message, call the handler
-        handler(ec, std::move(msg));
+        handler(std::move(msg));
       };
 
       using executor_type =
@@ -104,24 +108,23 @@ inline auto async_read(tcp_socket &sock, T &&msg, CompletionToken &&token) {
     // Initiate the underlying async_read operation using our intermediate
     // completion handler.
 
-    asio::async_read(sock,                     //
-                     msg.read_initial_buffs(), //
-                     msg.read_initial_bytes(),
-                     intermediate_token{
-                         sock,
-                         std::forward<T>(msg),                              // the msg
-                         intermediate_token::state_t::INITIAL,              //
-                         std::forward<decltype(comp_handler)>(comp_handler) // handler
-                     });
+    auto buff = msg.read_initial_buffs();
+
+    // the initial buffer is the exact size of the header so we don't need to
+    // specify a completion condition for the initial read
+    asio::async_read(sock, buff,
+                     intermediate_token{sock, std::forward<T>(msg),
+                                        intermediate_token::state_t::INITIAL,
+                                        std::forward<decltype(comp_handler)>(comp_handler)});
   };
 
-  return asio::async_initiate<CompletionToken, void(error_code, T && msg)>(
+  return asio::async_initiate<CompletionToken, void(T msg)>(
       initiation,          // initiation function object
       token,               // user supplied callback
       std::ref(sock),      // wrap non-const args to prevent incorrect decay-copies
       std::forward<T>(msg) // create for use within the async operation
   );
 }
-
+} // namespace async
 } // namespace desk
 } // namespace ruth

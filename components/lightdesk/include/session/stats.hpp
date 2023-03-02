@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "ru_base/time.hpp"
+#include "ru_base/rut.hpp"
 #include "ru_base/types.hpp"
 
 #include <algorithm>
@@ -34,10 +34,10 @@ class stats {
 
 public:
   stats(const Millis &i)
-      : interval(i),    // how often fps is calculated
-        fps{0.0},       // cached (last) calculated fps
-        frame_count{0}, // count of frames for current internval
-        mark{0}         // frame count at last fps calculation
+      : interval(rut::as<Seconds, Millis>(i)), // how often fps is calculated
+        fps{0.0},                              // cached (last) calculated fps
+        frame_count{0},                        // count of frames for current internval
+        mark{0}                                // frame count at last fps calculation
   {}
 
   inline void calc() {

@@ -18,27 +18,21 @@
 
 #pragma once
 
-#include <concepts>
-#include <cstdint>
-#include <string>
-#include <string_view>
-#include <vector>
+#include "ru_base/types.hpp"
+
+#include <chrono>
+#include <type_traits>
 
 namespace ruth {
 
-using namespace std::literals;
+using namespace std::chrono_literals;
 
-// string, string_view and const char *
-using string = std::string;
-typedef const string &csr;
-
-using string_view = std::string_view;
-typedef const string_view csv;
-typedef const char *ccs;
-
-template <typename T, typename... U>
-concept IsAnyOf = (std::same_as<T, U> || ...);
-
-template <class> inline constexpr bool always_false_v = false;
+using Micros = std::chrono::microseconds;
+using Millis = std::chrono::milliseconds;
+using Nanos = std::chrono::nanoseconds;
+using Seconds = std::chrono::seconds;
+using steady_clock = std::chrono::steady_clock;
+using system_clock = std::chrono::system_clock;
+using TimePoint = std::chrono::time_point<steady_clock>;
 
 } // namespace ruth

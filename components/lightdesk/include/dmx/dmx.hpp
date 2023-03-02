@@ -20,7 +20,7 @@
 
 #include "dmx/frame.hpp"
 #include "io/io.hpp"
-#include "ru_base/time.hpp"
+#include "ru_base/rut.hpp"
 #include "ru_base/types.hpp"
 
 #include <atomic>
@@ -45,7 +45,7 @@ private:
 
   // frame interval does not include the BREAK as it is handled by the UART
   static constexpr Micros FRAME_US{FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF};
-  static constexpr Millis FRAME_MS{ru_time::as_duration<Micros, Millis>(FRAME_US)};
+  static constexpr Millis FRAME_MS{rut::as<Millis, Micros>(FRAME_US)};
   static constexpr TickType_t FRAME_TICKS{pdMS_TO_TICKS(FRAME_MS.count())};
   static constexpr TickType_t RECV_TIMEOUT{FRAME_TICKS * 3};
   static constexpr TickType_t QUEUE_TICKS{1};
