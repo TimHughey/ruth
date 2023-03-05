@@ -19,8 +19,10 @@
 #include "session/session.hpp"
 #include "async/msg_in.hpp"
 #include "async/msg_out.hpp"
+#include "async/msg_stats.hpp"
 #include "async/read.hpp"
 #include "async/write.hpp"
+#include "async/write2.hpp"
 #include "dmx/dmx.hpp"
 #include "dmx/frame.hpp"
 #include "headunit/ac_power.hpp"
@@ -88,7 +90,7 @@ Session::Session(tcp_socket &&sock) noexcept
   esp_timer_create(&args, &destruct_timer);
 
   // reuse timer args, changing necessary values
-  args.callback = fps_calc;
+  args.callback = report_stats;
   args.arg = this;
   args.name = "desk::session.stats";
 
@@ -162,7 +164,7 @@ void IRAM_ATTR Session::ctrl_msg_process(MsgIn msg) noexcept {
     return;
   };
 
-  csv type{doc[desk::TYPE].as<const char *>()}; // get msg type
+  csv type{doc[desk::MSG_TYPE].as<const char *>()}; // get msg type
 
   if (csv{desk::HANDSHAKE} == type) { // the handshake reply
     idle_shutdown = Millis(doc[desk::IDLE_SHUTDOWN_MS] | idle_shutdown.count());
@@ -227,16 +229,8 @@ void IRAM_ATTR Session::data_msg_reply(MsgIn msg_in) noexcept {
   }
 
   msg_out.copy_kv(doc_in, doc_out, desk::SEQ_NUM);
-
   msg_out.add_kv(desk::DATA_WAIT_US, msg_in_wait);
   msg_out.add_kv(desk::ECHO_NOW_US, doc_in[desk::NOW_US]);
-  msg_out.add_kv(desk::FPS, stats->cached_fps());
-
-  // dmx stats
-  msg_out.add_kv(desk::DMX_QOK, dmx->q_ok());
-  msg_out.add_kv(desk::DMX_QRF, dmx->q_rf());
-  msg_out.add_kv(desk::DMX_QSF, dmx->q_sf());
-
   msg_out.add_kv(desk::ELAPSED_US, msg_out.elapsed());
 
   async::write_msg(ctrl_sock, std::move(msg_out), [this](MsgOut msg_out) {
@@ -250,8 +244,24 @@ void IRAM_ATTR Session::data_msg_reply(MsgIn msg_in) noexcept {
   });
 }
 
-void IRAM_ATTR Session::fps_calc(void *self) noexcept { // static
-  static_cast<desk::Session *>(self)->stats->calc();
+void IRAM_ATTR Session::fps_calc() noexcept {
+  static asio::streambuf packed(1024);
+
+  stats->calc();
+
+  desk::MsgStats msg(packed);
+  StaticDoc doc;
+
+  msg.add_kv(doc, desk::FPS, stats->cached_fps());
+  msg.add_kv(doc, desk::DMX_QOK, dmx->q_ok());
+  msg.add_kv(doc, desk::DMX_QRF, dmx->q_rf());
+  msg.add_kv(doc, desk::DMX_QSF, dmx->q_sf());
+
+  async::write_msg2(ctrl_sock, std::move(msg), doc, [this](MsgStats msg) {
+    if (msg.xfer_ok()) {
+      idle_watch_dog();
+    }
+  });
 }
 
 // sends initial handshake
@@ -285,6 +295,11 @@ void IRAM_ATTR Session::idle_watch_dog() noexcept {
     esp_timer_stop(destruct_timer);
     esp_timer_start_once(destruct_timer, idle_shutdown.count() * 1000);
   }
+}
+
+void IRAM_ATTR Session::report_stats(void *self) noexcept {
+
+  static_cast<Session *>(self)->fps_calc();
 }
 
 } // namespace desk

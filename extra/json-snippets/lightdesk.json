@@ -1,6 +1,6 @@
 {
+  "type": "lightdesk",
   "seqno": 2345617,
-  "magic": 51666,
   "dframe": [
     0,
     1,
@@ -30,5 +30,5 @@
   "disco ball": 4096,
   "el dance": 4096,
   "el entry": 4096,
-  "type": "lightdesk"
+  "magic": 828
 }

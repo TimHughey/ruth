@@ -21,39 +21,26 @@
 #include "async/msg.hpp"
 #include "async/msg_keys.hpp"
 #include "io/io.hpp"
-#include "misc/elapsed.hpp"
-#include "ru_base/rut.hpp"
 #include "ru_base/types.hpp"
 
 #include <ArduinoJson.h>
 #include <arpa/inet.h>
-#include <array>
 #include <concepts>
 #include <esp_log.h>
-#include <functional>
 #include <memory>
-#include <optional>
-#include <vector>
 
 namespace ruth {
 namespace desk {
 
-class MsgOut : public Msg<packed_out_t> {
+class MsgStats : public Msg<asio::streambuf> {
 public:
-  inline MsgOut(csv type, JsonDocument &doc, packed_out_t &packed) noexcept
-      : Msg(packed), //
-        type(type),  //
-        doc_ref(doc) //
-  {
-    doc[MSG_TYPE] = type;
-  }
+  inline MsgStats(asio::streambuf &packed) noexcept : Msg(packed), type(desk::STATS) {}
 
-  inline ~MsgOut() noexcept {}         // prevent default copy/move
-  inline MsgOut(MsgOut &&m) = default; // allow move
-  inline MsgOut &operator=(MsgOut &&m) = default;
+  inline ~MsgStats() noexcept {}           // prevent default copy/move
+  inline MsgStats(MsgStats &&m) = default; // allow move
+  inline MsgStats &operator=(MsgStats &&m) = default;
 
-  template <typename T> inline void add_kv(csv key, T val) {
-    auto &doc = doc_ref.get();
+  template <typename T> inline void add_kv(JsonDocument &doc, csv key, T val) {
 
     if constexpr (std::is_same_v<T, Elapsed>) {
       doc[key] = val().count();
@@ -64,30 +51,34 @@ public:
     }
   }
 
-  inline auto serialize() noexcept {
-    auto &doc = doc_ref.get();
-
+  inline auto serialize(JsonDocument &doc) noexcept {
+    doc[MSG_TYPE] = type;
     doc[NOW_US] = rut::now_epoch<Micros>().count();
     doc[MAGIC] = MAGIC_VAL; // add magic as final key (to confirm complete msg)
 
     packed_len = measureMsgPack(doc);
-    packed.assign(packed_len + hdr_bytes, 0x00);
-
-    // NOTE:  reserve the first two bytes for the message length
-    serializeMsgPack(doc, packed.data() + hdr_bytes, packed.size() - hdr_bytes);
-
     uint16_t msg_len = htons(packed_len);
     char *p = reinterpret_cast<char *>(&msg_len);
 
-    packed[0] = *p++;
-    packed[1] = *p;
+    auto hdr_buff = packed.prepare(hdr_bytes);
+    auto *pbuff = static_cast<char *>(hdr_buff.data());
+
+    pbuff[0] = *p++;
+    pbuff[1] = *p;
+
+    packed.commit(hdr_bytes);
+
+    auto packed_buff = packed.prepare(packed_len);
+
+    // NOTE:  reserve the first two bytes for the message length
+    serializeMsgPack(doc, static_cast<char *>(packed_buff.data()), packed_buff.size());
+    packed.commit(packed_len);
   }
 
-  inline auto write_buff() noexcept { return asio::buffer(packed); }
+  inline auto &write_buff() noexcept { return packed; }
 
   // order dependent
   csv type;
-  std::reference_wrapper<JsonDocument> doc_ref;
 
 public:
   static constexpr const auto TAG{"desk::msg_out"};

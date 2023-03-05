@@ -21,6 +21,7 @@
 #include "async/msg.hpp"
 #include "async/msg_in.hpp"
 #include "async/msg_out.hpp"
+#include "async/msg_stats.hpp"
 #include "async/read.hpp"
 #include "io/io.hpp"
 #include "misc/elapsed.hpp"
@@ -72,7 +73,9 @@ private:
 
   /// @brief  Calculate performance stats via a periodic esp_timer
   /// @param self pointer to the Session to calculate
-  static void fps_calc(void *self) noexcept;
+  void fps_calc() noexcept;
+
+  static void report_stats(void *self_v) noexcept;
 
 private:
   // order dependent

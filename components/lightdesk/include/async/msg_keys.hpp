@@ -23,6 +23,7 @@
 namespace ruth {
 namespace desk {
 
+// predefined msg keys
 static constexpr auto DATA_PORT{"data_port"};
 static constexpr auto DATA_WAIT_US{"data_wait_µs"};
 static constexpr auto DFRAME{"dframe"};
@@ -33,17 +34,21 @@ static constexpr auto ECHO_NOW_US{"echo_now_µs"};
 static constexpr auto ELAPSED_US{"elapsed_µs"};
 static constexpr auto FEEDBACK{"feedback"};
 static constexpr auto FPS{"fps"};
-static constexpr auto HANDSHAKE{"handshake"};
 static constexpr auto IDLE_SHUTDOWN_MS{"idle_shutdown_ms"};
-static constexpr auto MAGIC{"magic"};
+static constexpr auto MAGIC{"ma"};    // short for msg end detection
+static constexpr auto MSG_TYPE{"mt"}; // short for msg start detection
 static constexpr auto NOW_US{"now_µs"};
-static constexpr auto READ_MSG{"read_msg"};
 static constexpr auto REF_US{"ref_µs"};
 static constexpr auto SEQ_NUM{"seq_num"};
-static constexpr auto SHUTDOWN{"shutdown"};
 static constexpr auto STATS_MS{"stats_ms"};
-static constexpr auto TYPE{"type"};
-static constexpr uint16_t MAGIC_VAL{0xc9d2};
+
+// predefined msg types
+static constexpr auto HANDSHAKE{"handshake"};
+static constexpr auto SHUTDOWN{"shutdown"};
+static constexpr auto STATS{"stats"};
+
+// predefined msg values
+static constexpr uint16_t MAGIC_VAL{0x033c};
 
 } // namespace desk
 } // namespace ruth
