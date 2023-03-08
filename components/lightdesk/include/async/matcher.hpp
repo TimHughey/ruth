@@ -34,23 +34,24 @@ namespace async {
 
 class matcher {
 public:
-  explicit matcher() noexcept {}
+  inline explicit matcher() noexcept {}
 
   template <typename Iterator>
-  std::pair<Iterator, bool> operator()(Iterator begin, Iterator end) const {
-
+  inline std::pair<Iterator, bool> operator()(Iterator begin, Iterator end) const {
     const auto n = std::distance(begin, end);
 
     // first, do we have enough bytes to detect EOM?
     if (n < std::ssize(suffix)) return std::make_pair(begin, false);
 
-    auto found =
-        std::search(begin, end, suffix.begin(), suffix.end(),
-                    [](const auto &in, const auto &s) { return static_cast<uint8_t>(in) == s; });
+    auto found = std::search(begin, end,                   // search sequence
+                             suffix.begin(), suffix.end(), // for this pattern
+                             [](const auto &in, const auto &s) {
+                               // type cast in to be certain of equality
+                               // (the interators passed point to char)
+                               return static_cast<uint8_t>(in) == s;
+                             });
 
     if (found == end) return std::make_pair(begin, false);
-
-    // ESP_LOGI("desk.async.matcher", "n=%d", n);
 
     return std::make_pair(found + std::ssize(suffix), true);
   }

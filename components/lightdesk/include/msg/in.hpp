@@ -52,7 +52,7 @@ public:
     }
   }
 
-  inline bool can_render(const JsonDocument &doc) const noexcept {
+  inline static bool can_render(const JsonDocument &doc) noexcept {
     return doc[desk::MAGIC] == MAGIC_VAL;
   }
 
@@ -85,6 +85,12 @@ public:
     ec = error_code();
     xfr.bytes = 0;
     e.reset();
+  }
+
+  static const string type(const JsonDocument &doc) noexcept {
+    const char *type_cstr = doc[MSG_TYPE];
+
+    return type_cstr ? string(type_cstr) : string(desk::UNKNOWN);
   }
 
 public:

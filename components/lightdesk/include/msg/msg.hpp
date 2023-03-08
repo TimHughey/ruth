@@ -26,6 +26,7 @@
 #include <ArduinoJson.h>
 #include <asio/error.hpp>
 #include <asio/streambuf.hpp>
+#include <esp_log.h>
 #include <memory>
 
 namespace ruth {
@@ -49,14 +50,20 @@ public:
 
   inline auto in_avail() noexcept { return storage->in_avail(); }
 
-  inline bool is_msg_type(const JsonDocument &doc, csv want_type) const noexcept {
-    return want_type == csv{doc[MSG_TYPE].as<const char *>()};
+  static inline bool is_msg_type(const JsonDocument &doc, csv want_type) noexcept {
+    const char *type_cstr = doc[MSG_TYPE];
+
+    if (!type_cstr) {
+      ESP_LOGI(TAG, "key=%s not found in doc", MSG_TYPE);
+      return false;
+    }
+
+    return want_type == csv{type_cstr};
   }
 
   inline bool xfer_error() const noexcept { return !xfer_ok(); }
   inline bool xfer_ok() const noexcept { return !ec && (xfr.bytes >= packed_len); }
 
-protected:
 protected:
   // order dependent
   std::unique_ptr<asio::streambuf> storage;
@@ -77,7 +84,7 @@ protected:
 
 public:
   static constexpr size_t default_doc_size{6 * 128};
-  static constexpr csv module_id{"desk.msg"};
+  static constexpr auto TAG{"desk.msg"};
 };
 
 } // namespace desk

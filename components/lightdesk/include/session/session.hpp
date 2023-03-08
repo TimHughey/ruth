@@ -30,11 +30,9 @@
 #include <optional>
 
 namespace ruth {
-
 class DMX;
 
 namespace desk {
-
 class Session;
 }
 
@@ -47,36 +45,27 @@ namespace desk {
 class Session {
 
 public:
-  // use init() to construct a new Session
   Session(tcp_socket &&sock) noexcept;
 
   ~Session() noexcept;
 
 private:
   void close(const error_code ec = io::make_error()) noexcept;
-  void connect_data(Port port) noexcept;
-
-  void ctrl_msg_process(MsgIn &&msg) noexcept;
-
-  void data_msg_reply(MsgIn &&msg) noexcept;
-
-  void handshake() noexcept;
 
   void idle_watch_dog() noexcept;
 
-  void read_ctrl_msg(MsgIn &&msg) noexcept;
-  void read_data_msg(MsgIn &&msg) noexcept;
+  void msg_loop(MsgIn &&msg_in) noexcept;
+  void msg_process(MsgIn &&msg_in) noexcept;
 
-  void report_stats() noexcept;
+  static void report_stats(void *self_v) noexcept;
 
 private:
   // order dependent
   // NOTE:  all created sockets and timers use the socket executor
-  tcp_socket ctrl_sock;
   tcp_socket data_sock;
   Millis idle_shutdown;  // initial default, may be overriden by handshake
   Millis stats_interval; // initial default, may be overriden by handshake
-  steady_timer stats_timer;
+  esp_timer_handle_t stats_timer;
   esp_timer_handle_t destruct_timer;
 
   // order independent
