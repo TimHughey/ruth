@@ -50,16 +50,7 @@ inline auto read_msg(Socket &sock, M &&msg, CompletionToken &&token) {
       typename std::decay<decltype(completion_handler)>::type handler;
 
       void operator()(const error_code &ec, size_t n = 0) noexcept {
-        // all we're doing here is converting the async_read_until handler
-        // to something that fits our use case
-        msg.xfr.in += n;
-        msg.ec = ec;
-        msg.packed_len = n;
-
-        if (n == 0) {
-          ESP_LOGW(read::TAG, "sock=%d n=%u SHORT err=%s", sock.native_handle(), msg.xfr.in,
-                   ec.message().c_str());
-        }
+        msg(ec, n);
 
         handler(std::move(msg));
       }
@@ -83,12 +74,6 @@ inline auto read_msg(Socket &sock, M &&msg, CompletionToken &&token) {
 
     msg.reuse();
     auto &buffer = msg.buffer(); // get the buffer, it may have pending data
-
-    // if (const auto avail = msg.in_avail(); avail) {
-    //   ESP_LOGI(read::TAG, "pending bytes=%u", avail);
-    // } else if (!sock.is_open()) {
-    //   ESP_LOGW(read::TAG, "socket=%d not open", sock.native_handle());
-    // }
 
     // ok, we have everything we need kick-off async_read_until()
 

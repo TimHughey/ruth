@@ -52,6 +52,17 @@ public:
   inline MsgOut(MsgOut &&m) = default;
   MsgOut &operator=(MsgOut &&) = default;
 
+  void operator()(const error_code &op_ec, std::size_t n) noexcept {
+    static constexpr auto TAG{"desk.msgout.async_result"};
+
+    ec = op_ec;
+    xfr.out = n;
+
+    if (n == 0) {
+      ESP_LOGD(TAG, "SHORT WRITE n=%d err=%s\n", xfr.out, ec.message().c_str());
+    }
+  }
+
   inline void commit(std::size_t n) noexcept { storage->commit(n); }
 
   template <typename Val> inline void add_kv(auto &&key, Val &&val) noexcept {

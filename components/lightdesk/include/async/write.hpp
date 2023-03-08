@@ -42,13 +42,7 @@ inline auto write_msg(Socket &sock, M &&msg, CompletionToken &&token) {
       typename std::decay<decltype(completion_handler)>::type handler;
 
       void operator()(const error_code &ec, std::size_t n) noexcept {
-        msg.ec = ec;
-        msg.xfr.out = n;
-
-        if (n == 0) {
-          ESP_LOGW(write::TAG, "sock=%d n=%u SHORT err=%s", sock.native_handle(), msg.xfr.out,
-                   ec.message().c_str());
-        }
+        msg(ec, n);
 
         handler(std::move(msg)); // call user-supplied handler
       }

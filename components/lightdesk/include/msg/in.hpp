@@ -40,6 +40,18 @@ public:
   inline MsgIn(MsgIn &&) = default;
   MsgIn &operator=(MsgIn &&) = default;
 
+  void operator()(const error_code &op_ec, size_t n) noexcept {
+    static constexpr auto TAG{"desk.msgin.async_result"};
+
+    xfr.in += n;
+    ec = op_ec;
+    packed_len = n; // should we need to set this?
+
+    if (n == 0) {
+      ESP_LOGD(TAG, "SHORT READ  n=%d err=%s\n", xfr.in, ec.message().c_str());
+    }
+  }
+
   inline bool can_render(const JsonDocument &doc) const noexcept {
     return doc[desk::MAGIC] == MAGIC_VAL;
   }
