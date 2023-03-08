@@ -18,13 +18,9 @@
 
 #pragma once
 
-#include "async/msg.hpp"
-#include "async/msg_in.hpp"
-#include "async/msg_out.hpp"
-#include "async/msg_stats.hpp"
-#include "async/read.hpp"
 #include "io/io.hpp"
-#include "misc/elapsed.hpp"
+#include "msg/in.hpp"
+#include "ru_base/rut_types.hpp"
 #include "ru_base/types.hpp"
 #include "session/stats.hpp"
 
@@ -59,23 +55,19 @@ public:
 private:
   void close(const error_code ec = io::make_error()) noexcept;
   void connect_data(Port port) noexcept;
-  void ctrl_msg_process(MsgIn msg) noexcept;
-  void ctrl_msg_read() noexcept;
-  void data_msg_read() noexcept;
 
-  void data_msg_reply(MsgIn msg) noexcept;
+  void ctrl_msg_process(MsgIn &&msg) noexcept;
 
-  // kick off the session, the shared_ptr is passed to handlers keeping
-  // the session in memory
+  void data_msg_reply(MsgIn &&msg) noexcept;
+
   void handshake() noexcept;
 
   void idle_watch_dog() noexcept;
 
-  /// @brief  Calculate performance stats via a periodic esp_timer
-  /// @param self pointer to the Session to calculate
-  void fps_calc() noexcept;
+  void read_ctrl_msg(MsgIn &&msg) noexcept;
+  void read_data_msg(MsgIn &&msg) noexcept;
 
-  static void report_stats(void *self_v) noexcept;
+  void report_stats() noexcept;
 
 private:
   // order dependent
@@ -84,11 +76,7 @@ private:
   tcp_socket data_sock;
   Millis idle_shutdown;  // initial default, may be overriden by handshake
   Millis stats_interval; // initial default, may be overriden by handshake
-  packed_in_t ctrl_packed;
-  packed_in_t data_packed;
-  packed_out_t ctrl_packed_out;
-  packed_out_t data_packed_out;
-  esp_timer_handle_t stats_timer;
+  steady_timer stats_timer;
   esp_timer_handle_t destruct_timer;
 
   // order independent

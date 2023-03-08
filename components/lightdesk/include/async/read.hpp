@@ -1,5 +1,5 @@
 
-//  Ruth
+//  Pierre - Custom Light Show for Wiss Landing
 //  Copyright (C) 2022  Tim Hughey
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -20,111 +20,98 @@
 #pragma once
 
 #include "io/io.hpp"
+#include "msg/matcher.hpp"
 #include "ru_base/types.hpp"
 
-#include <array>
-#include <esp_log.h>
-#include <functional>
-#include <istream>
 #include <memory>
 #include <type_traits>
 #include <utility>
 
 namespace ruth {
 namespace desk {
-
 namespace async {
 
-/// @brief initiate an async read of a lightdesk message
-/// @tparam T
+namespace read {
+constexpr auto TAG{"desk.async.read"};
+}
+
+/// @brief Async read desk msg
 /// @tparam CompletionToken
-/// @param sock
-/// @param msg
+/// @param socket
 /// @param token
 /// @return
-template <typename T, typename CompletionToken>
-inline auto read_msg(tcp_socket &sock, T &&msg, CompletionToken &&token) {
+template <typename Socket, typename M, typename CompletionToken>
+inline auto read_msg(Socket &sock, M &&msg, CompletionToken &&token) {
 
-  auto initiation = [](auto &&comp_handler, tcp_socket &sock, T &&msg) {
-    using handler_t = std::decay<decltype(comp_handler)>::type;
+  auto initiation = [](auto &&completion_handler, Socket &sock, M msg) {
+    struct intermediate_completion_handler {
+      Socket &sock;
+      M msg; // hold the in-flight message
+      typename std::decay<decltype(completion_handler)>::type handler;
 
-    struct intermediate_token {
-      tcp_socket &sock; // for the second async_read() and obtaining the I/O executor
-      T msg;
-      enum state_t { INITIAL = 100, MORE = 200 } state;
-      handler_t handler;
-
-      inline void operator()(const error_code &ec, std::size_t n = 0) {
-        // static const char *TAG{"desk::async_read"};
-
-        // ESP_LOGI(TAG, "ec=%s n=%u", ec.message().c_str(), n);
-        msg.ec = ec;
+      void operator()(const error_code &ec, size_t n = 0) noexcept {
+        // all we're doing here is converting the async_read_until handler
+        // to something that fits our use case
         msg.xfr.in += n;
+        msg.ec = ec;
+        msg.packed_len = n;
 
-        if (!ec) { // ensure no socket errors
-
-          switch (state) {
-          case INITIAL: {
-            // we have read the header bytes, now read the packed data
-            state = MORE;
-            msg.calc_packed_len();
-
-            auto buff = msg.read_intermediate_buff();
-
-            // the buffer returned is the exact size of the expected packed message
-            // so we don't need to specify a completion condition.  instead asio::async_read
-            // will fill the buffer which is exactly what we want
-            asio::async_read(sock, buff, std::move(*this));
-            return;
-          }
-
-          case MORE:
-            // we're done, fall through to the handler
-            break;
-          }
+        if (n == 0) {
+          ESP_LOGW(read::TAG, "sock=%d n=%u SHORT err=%s", sock.native_handle(), msg.xfr.in,
+                   ec.message().c_str());
         }
 
-        // we now have either an error or a complete message, call the handler
         handler(std::move(msg));
-      };
+      }
 
       using executor_type =
-          asio::associated_executor_t<typename std::decay<decltype(comp_handler)>::type,
-                                      tcp_socket::executor_type>;
+          asio::associated_executor_t<typename std::decay<decltype(completion_handler)>::type,
+                                      typename Socket::executor_type>;
 
-      inline executor_type get_executor() const noexcept {
+      executor_type get_executor() const noexcept {
         return asio::get_associated_executor(handler, sock.get_executor());
       }
 
       using allocator_type =
-          asio::associated_allocator_t<typename std::decay<decltype(comp_handler)>::type,
+          asio::associated_allocator_t<typename std::decay<decltype(completion_handler)>::type,
                                        std::allocator<void>>;
 
-      inline allocator_type get_allocator() const noexcept {
+      allocator_type get_allocator() const noexcept {
         return asio::get_associated_allocator(handler, std::allocator<void>{});
       }
     }; // end intermediate struct
 
-    // Initiate the underlying async_read operation using our intermediate
-    // completion handler.
+    msg.reuse();
+    auto &buffer = msg.buffer(); // get the buffer, it may have pending data
 
-    auto buff = msg.read_initial_buffs();
+    // if (const auto avail = msg.in_avail(); avail) {
+    //   ESP_LOGI(read::TAG, "pending bytes=%u", avail);
+    // } else if (!sock.is_open()) {
+    //   ESP_LOGW(read::TAG, "socket=%d not open", sock.native_handle());
+    // }
 
-    // the initial buffer is the exact size of the header so we don't need to
-    // specify a completion condition for the initial read
-    asio::async_read(sock, buff,
-                     intermediate_token{sock, std::forward<T>(msg),
-                                        intermediate_token::state_t::INITIAL,
-                                        std::forward<decltype(comp_handler)>(comp_handler)});
+    // ok, we have everything we need kick-off async_read_until()
+
+    asio::async_read_until( //
+        sock, buffer,       //
+        async::matcher(),   //
+        intermediate_completion_handler{
+            // reference to socket
+            sock,
+            // the message (logic)
+            std::move(msg),
+            // handler
+            std::forward<decltype(completion_handler)>(completion_handler)});
   };
 
-  return asio::async_initiate<CompletionToken, void(T msg)>(
-      initiation,          // initiation function object
-      token,               // user supplied callback
-      std::ref(sock),      // wrap non-const args to prevent incorrect decay-copies
-      std::forward<T>(msg) // create for use within the async operation
+  return asio::async_initiate<CompletionToken, void(M && msg)>(
+      initiation,     // initiation function object
+      token,          // user supplied callback
+      std::ref(sock), // socket and data storage
+      std::move(msg)  // the message
   );
 }
+
 } // namespace async
 } // namespace desk
 } // namespace ruth

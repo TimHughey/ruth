@@ -1,1 +1,1 @@
-./ArduinoJson-v6.19.2.h
+./ArduinoJson-v6.20.1.h

@@ -1,4 +1,5 @@
-//  Ruth
+
+//  Pierre - Custom Light Show for Wiss Landing
 //  Copyright (C) 2022  Tim Hughey
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -18,26 +19,38 @@
 
 #pragma once
 
-#include <string_view>
-#include <vector>
+#include "io/io.hpp"
+#include "ru_base/types.hpp"
+
+#include <asio/read_until.hpp>
+#include <memory>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 
 namespace ruth {
+namespace desk {
+namespace async {
 
-class uint8v : public std::vector<uint8_t> {
+class match_char {
 public:
-  uint8v() = default;
-  uint8v(size_t count, uint8_t val = 0x00) noexcept : std::vector<uint8_t>(count, val) {}
-  ~uint8v() noexcept {} // prevent default copy/move
+  explicit match_char(char c) : c_(c) {}
 
-  uint8v(uint8v &&) = default;
-  uint8v &operator=(uint8v &&) = default;
-
-  template <typename T = const char> T *raw() const noexcept { return (T *)data(); }
-
-  std::string_view view() const noexcept { return std::string_view(raw(), size()); }
+  template <typename Iterator>
+  std::pair<Iterator, bool> operator()(Iterator begin, Iterator end) const {
+    Iterator i = begin;
+    while (i != end)
+      if (c_ == *i++) return std::make_pair(i, true);
+    return std::make_pair(i, false);
+  }
 
 private:
-  static constexpr auto TAG{"uint8v"};
+  char c_;
 };
-
+} // namespace async
+} // namespace desk
 } // namespace ruth
+
+namespace asio {
+template <> struct is_match_condition<ruth::desk::async::match_char> : public std::true_type {};
+} // namespace asio

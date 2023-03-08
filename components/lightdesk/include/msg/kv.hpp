@@ -40,9 +40,11 @@ static constexpr auto MSG_TYPE{"mt"}; // short for msg start detection
 static constexpr auto NOW_US{"now_µs"};
 static constexpr auto REF_US{"ref_µs"};
 static constexpr auto SEQ_NUM{"seq_num"};
+static constexpr auto SILENCE{"silence"};
 static constexpr auto STATS_MS{"stats_ms"};
 
 // predefined msg types
+static constexpr auto DATA{"data"};
 static constexpr auto HANDSHAKE{"handshake"};
 static constexpr auto SHUTDOWN{"shutdown"};
 static constexpr auto STATS{"stats"};
