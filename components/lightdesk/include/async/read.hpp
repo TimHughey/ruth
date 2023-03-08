@@ -19,8 +19,8 @@
 
 #pragma once
 
+#include "async/matcher.hpp"
 #include "io/io.hpp"
-#include "msg/matcher.hpp"
 #include "ru_base/types.hpp"
 
 #include <memory>
@@ -79,7 +79,7 @@ inline auto read_msg(Socket &sock, M &&msg, CompletionToken &&token) {
 
     asio::async_read_until( //
         sock, buffer,       //
-        async::matcher(),   //
+        matcher(),          //
         intermediate_completion_handler{
             // reference to socket
             sock,

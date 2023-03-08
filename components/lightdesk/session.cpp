@@ -23,7 +23,6 @@
 #include "dmx/frame.hpp"
 #include "headunit/ac_power.hpp"
 #include "headunit/dimmable.hpp"
-#include "msg/matcher.hpp"
 #include "msg/out.hpp"
 #include "ru_base/rut.hpp"
 
