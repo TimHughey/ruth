@@ -1,6 +1,6 @@
 
-//  Pierre - Custom Light Show for Wiss Landing
-//  Copyright (C) 2022  Tim Hughey
+//  Ruth
+//  Copyright (C) 2023  Tim Hughey
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,14 @@
 namespace ruth {
 namespace desk {
 namespace async {
+
+//
+// matcher uses the msgpack spec to find the beginning and end
+// of a complete message by identifying the encoded representation
+// of the 'mt' and 'ma' keys.
+//
+// https://github.com/msgpack/msgpack/blob/master/spec.md
+//
 
 class matcher {
 public:

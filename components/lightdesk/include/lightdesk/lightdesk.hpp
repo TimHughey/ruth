@@ -23,7 +23,6 @@
 #include "ru_base/rut.hpp"
 
 #include <chrono>
-#include <esp_timer.h>
 #include <memory>
 #include <optional>
 
@@ -44,12 +43,14 @@ public:
   LightDesk() noexcept;
   ~LightDesk() = default;
 
-  void run() noexcept;
-
-private:
+  void advertise() noexcept;
   void async_accept() noexcept;
 
 private:
+  void run() noexcept;
+  static void task_main(void *desk_v) noexcept;
+
+public:
   // order dependent
   io_context io_ctx;
   tcp_acceptor acceptor;

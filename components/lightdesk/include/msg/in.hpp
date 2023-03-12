@@ -71,7 +71,7 @@ public:
   /// @tparam T type expected in the data arrauy
   /// @return Populated T transferred from JSON array
   template <typename T> static inline T dframe(const JsonDocument &doc) {
-    if (auto array = doc[DFRAME].as<JsonArrayConst>(); array) {
+    if (auto array = doc[desk::FRAME].as<JsonArrayConst>(); array) {
       return T(array);
     }
 

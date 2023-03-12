@@ -26,6 +26,7 @@
 
 #include <array>
 #include <esp_log.h>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <mdns.h>
@@ -38,43 +39,10 @@ DRAM_ATTR std::optional<LightDesk> desk;
 TaskHandle_t desk_task;
 } // namespace shared
 
-namespace desk {
-DRAM_ATTR static StaticTask_t desk_tcb;
-DRAM_ATTR static std::array<StackType_t, 10 * 1024> desk_stack;
-} // namespace desk
-
-static void _run(void *) noexcept {
-  { // advertise desk service
-    const auto host = net::hostname();
-    const auto mac_addr = net::mac_address();
-
-    if ((mdns_init() == ESP_OK) && (mdns_hostname_set(host) == ESP_OK)) {
-      char *n = nullptr;
-
-      if (auto bytes = asprintf(&n, "%s@%s", mac_addr, host); bytes != -1) {
-        auto name = std::unique_ptr<char>(n);
-
-        if (mdns_instance_name_set(name.get()) == ESP_OK) {
-          ESP_LOGD(LightDesk::TAG.data(), "host[%s] instance[%s]", host, name.get());
-          auto txt_data = std::array<mdns_txt_item_t, 1>{{"desk", "true"}};
-          mdns_service_add(name.get(), LightDesk::SERVICE_NAME.data(),
-                           LightDesk::SERVICE_PROTOCOL.data(), LightDesk::SERVICE_PORT,
-                           txt_data.data(), txt_data.size());
-        } else {
-          ESP_LOGE(LightDesk::TAG.data(), "mdns_instance_name_set() failed\n");
-        }
-      } else {
-        ESP_LOGE(LightDesk::TAG.data(), "asprintf failed()\n");
-      }
-    } else {
-      ESP_LOGE(LightDesk::TAG.data(), "mdns_init() or mdns_hostname_set() failed\n");
-    }
-  }
-
-  shared::desk->run();
+static esp_timer_handle_t destruct_timer;
+static void self_destruct(void *desk_v) noexcept {
+  esp_timer_delete(std::exchange(destruct_timer, nullptr));
   shared::desk.reset();
-
-  vTaskDelete(shared::desk_task);
 }
 
 LightDesk::LightDesk() noexcept
@@ -82,17 +50,42 @@ LightDesk::LightDesk() noexcept
 {
   ESP_LOGD(TAG.data(), "enabled, starting up");
 
-  shared::desk_task =                            // create the task using a static desk_stack
-      xTaskCreateStatic(_run,                    // static func to start task
-                        TAG.data(),              // task name
-                        desk::desk_stack.size(), // desk_stack size
-                        nullptr,                 // none, use shared::desk
-                        7,                       // priority
-                        desk::desk_stack.data(), // static task desk_stack
-                        &desk::desk_tcb          // task control block
-      );
+  auto rc =                   // create the task using a static desk_stack
+      xTaskCreate(&task_main, // static func to start task
+                  TAG.data(), // task name
+                  10 * 1024,  // desk_stack size
+                  this,       // none, use shared::desk
+                  7,          // priority
+                  &shared::desk_task);
 
-  ESP_LOGD(TAG.data(), "started tcb=%p", &desk::desk_tcb);
+  ESP_LOGD(TAG.data(), "started rc=%d task=%p", rc, shared::desk_task);
+}
+
+void LightDesk::advertise() noexcept {
+  const auto host = net::hostname();
+  const auto mac_addr = net::mac_address();
+
+  if ((mdns_init() == ESP_OK) && (mdns_hostname_set(host) == ESP_OK)) {
+    char *n = nullptr;
+
+    if (auto bytes = asprintf(&n, "%s@%s", mac_addr, host); bytes != -1) {
+      auto name = std::unique_ptr<char>(n);
+
+      if (mdns_instance_name_set(name.get()) == ESP_OK) {
+        ESP_LOGD(LightDesk::TAG.data(), "host[%s] instance[%s]", host, name.get());
+        auto txt_data = std::array<mdns_txt_item_t, 1>{{"desk", "true"}};
+        mdns_service_add(name.get(), LightDesk::SERVICE_NAME.data(),
+                         LightDesk::SERVICE_PROTOCOL.data(), LightDesk::SERVICE_PORT,
+                         txt_data.data(), txt_data.size());
+      } else {
+        ESP_LOGE(LightDesk::TAG.data(), "mdns_instance_name_set() failed\n");
+      }
+    } else {
+      ESP_LOGE(LightDesk::TAG.data(), "asprintf failed()\n");
+    }
+  } else {
+    ESP_LOGE(LightDesk::TAG.data(), "mdns_init() or mdns_hostname_set() failed\n");
+  }
 }
 
 void LightDesk::async_accept() noexcept {
@@ -119,13 +112,28 @@ void LightDesk::async_accept() noexcept {
   });
 }
 
-// run the lightdesk
-void LightDesk::run() noexcept {
-  async_accept();
+void LightDesk::run() noexcept {}
 
-  io_ctx.run();
+void IRAM_ATTR LightDesk::task_main(void *desk_v) noexcept {
+  auto *desk = static_cast<LightDesk *>(desk_v);
 
-  ESP_LOGI(TAG.data(), "io_ctx work exhausted");
+  desk->advertise();
+  desk->async_accept();
+  desk->io_ctx.run();
+
+  ESP_LOGI(LightDesk::TAG.data(), "io_ctx work exhausted");
+
+  const esp_timer_create_args_t args{.callback = self_destruct,
+                                     .arg = desk,
+                                     .dispatch_method = ESP_TIMER_TASK,
+                                     .name = "desk::destruct",
+                                     .skip_unhandled_events = false};
+
+  if (auto rc = esp_timer_create(&args, &destruct_timer); rc == ESP_OK) {
+    esp_timer_start_once(destruct_timer, 1000);
+  }
+
+  vTaskDelete(shared::desk_task);
 }
 
 } // namespace ruth

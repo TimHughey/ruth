@@ -24,7 +24,9 @@
 #include <cstring>
 #include <esp_attr.h>
 #include <esp_log.h>
+#include <esp_netif.h>
 #include <iterator>
+#include <lwip/ip_addr.h>
 #include <source_location>
 #include <string_view>
 
@@ -129,6 +131,9 @@ Net::Net(Net::Opts &&opts) noexcept //
 }
 
 void Net::acquired_ip(void *event_data) noexcept {
+
+  [[maybe_unused]] const auto *got_ip{static_cast<ip_event_got_ip_t *>(event_data)};
+
   xTaskNotify(opts.notify_task, Net::READY, eSetBits);
 }
 
@@ -160,8 +165,28 @@ void Net::events(void *ctx, esp_event_base_t base, int32_t id, void *data) noexc
       esp_wifi_connect();
     }
   } else if ((base == IP_EVENT) && (id == IP_EVENT_STA_GOT_IP)) {
+
     net->acquired_ip(data);
   }
+}
+
+const std::string Net::ip4_address() noexcept {
+
+  esp_netif_ip_info_t ip_info;
+  auto err = esp_netif_get_ip_info(shared::net->netif, &ip_info);
+
+  if (!err) {
+    const esp_ip4_addr_t *ip = &(ip_info.ip);
+    char buffer[IP4ADDR_STRLEN_MAX];
+
+    auto *ip_str = esp_ip4addr_ntoa(ip, buffer, sizeof(buffer));
+
+    if (ip_str) {
+      return std::string(ip_str);
+    }
+  }
+
+  return std::string("0.0.0.0");
 }
 
 const char *Net::name(const char *name) noexcept {

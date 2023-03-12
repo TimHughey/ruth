@@ -18,17 +18,15 @@
 
 #pragma once
 
-#include "dmx/frame.hpp"
 #include "io/io.hpp"
 #include "ru_base/rut.hpp"
 #include "ru_base/types.hpp"
 
+#include <ArduinoJson.h>
 #include <atomic>
 #include <freertos/FreeRTOS.h>
-#include <freertos/message_buffer.h>
-#include <future>
+#include <freertos/ringbuf.h>
 #include <memory>
-#include <optional>
 
 namespace ruth {
 
@@ -37,6 +35,7 @@ public:
   static constexpr csv TAG{"dmx"};
 
 private:
+  // for documentation purposes we build up the DMX frame duration
   static constexpr Micros FRAME_MAB{12us};
   static constexpr Micros FRAME_BYTE{44us};
   static constexpr Micros FRAME_SC{FRAME_BYTE};
@@ -46,35 +45,40 @@ private:
   // frame interval does not include the BREAK as it is handled by the UART
   static constexpr Micros FRAME_US{FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF};
   static constexpr Millis FRAME_MS{rut::as<Millis, Micros>(FRAME_US)};
+
+  // save the conversion from ms to ticks
   static constexpr TickType_t FRAME_TICKS{pdMS_TO_TICKS(FRAME_MS.count())};
-  static constexpr TickType_t RECV_TIMEOUT{FRAME_TICKS * 3};
-  static constexpr TickType_t QUEUE_TICKS{1};
+  static constexpr TickType_t FRAME_HALF_TICKS{FRAME_TICKS / 2};
+  static constexpr TickType_t FRAME_TICKS25{FRAME_TICKS / 4};
+  static constexpr TickType_t RECV_TIMEOUT_TICKS{FRAME_TICKS * 5};
+  static constexpr std::size_t UART_FRAME_LEN{412};
 
 public:
-  DMX() noexcept;
+  DMX(std::size_t frame_len) noexcept;
   ~DMX() noexcept;
 
-  // returns raw pointer managed by unique_ptr
-  static std::unique_ptr<DMX> init();
-
   // queue statistics, qok + qrf + qsf = total frames
-  inline auto q_ok() const noexcept { return qok.load(); } // queue ok count
-  inline auto q_rf() const noexcept { return qrf.load(); } // queue recv failures
-  inline auto q_sf() const noexcept { return qsf.load(); } // queue send failurs
+  inline auto q_ok() const noexcept { return qok; } // queue ok count
+  inline auto q_rf() const noexcept { return qrf; } // queue recv failures
+  inline auto q_sf() const noexcept { return qsf; } // queue send failurs
 
-  std::future<bool> stop() noexcept { return shutdown_prom.emplace().get_future(); }
+  bool tx_frame(JsonArrayConst &&fdata) noexcept;
 
-  void spool_frames() noexcept;
-  bool tx_frame(dmx::frame &&frame);
+private:
+  static void spool_frames(void *dmx_v) noexcept;
 
 private:
   // order dependent
-  std::atomic_int64_t qok; // count of frames queued/dequeued ok
-  std::atomic_int64_t qrf; // count of frame dequeue failures
-  std::atomic_int64_t qsf; // count of frame queue failures
+  const std::size_t frame_len; // frame_len to queue
+  bool spooling;
+
+  // order indepdent
+  std::int32_t qok{0};          // count of frames queued/dequeued ok
+  std::int32_t qrf{0};          // count of frame dequeue failures
+  std::int32_t qsf{0};          // count of frame queue failures
+  std::int32_t uart_tx_fail{0}; // count of uart overruns (timeouts)
 
   // order independent
-  std::optional<std::promise<bool>> shutdown_prom;
-  MessageBufferHandle_t msg_buff;
+  RingbufHandle_t rb;
 };
 } // namespace ruth

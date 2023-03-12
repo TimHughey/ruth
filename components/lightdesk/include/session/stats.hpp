@@ -36,13 +36,13 @@ public:
   stats(const Millis &i)
       : interval(rut::as<Seconds, Millis>(i)), // how often fps is calculated
         fps{0.0},                              // cached (last) calculated fps
-        frame_count{0},                        // count of frames for current internval
+        frame_count{0},                        // count of frames for current interval
         mark{0}                                // frame count at last fps calculation
   {}
 
   inline void calc() {
     // we can calculate fps when both mark and frame count are non-zero
-    if (mark.load() && frame_count.load()) {
+    if (mark && frame_count.load()) {
       // fps is calculated via the diff in frames since last calc
       // divided by the interval
       fps = (frame_count.load() - mark.load()) / interval.count();
@@ -61,8 +61,8 @@ private:
   // order dependent
   const Seconds interval;
   float fps;
-  std::atomic_int64_t frame_count;
-  std::atomic_int64_t mark;
+  std::atomic_int32_t frame_count;
+  std::atomic_int32_t mark;
 };
 
 } // namespace desk

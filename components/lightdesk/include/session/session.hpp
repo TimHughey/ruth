@@ -63,7 +63,7 @@ private:
   // order dependent
   // NOTE:  all created sockets and timers use the socket executor
   tcp_socket data_sock;
-  Millis idle_shutdown;  // initial default, may be overriden by handshake
+  Millis idle_ms;        // initial default, may be overriden by handshake
   Millis stats_interval; // initial default, may be overriden by handshake
   esp_timer_handle_t stats_timer;
   esp_timer_handle_t destruct_timer;
@@ -71,7 +71,7 @@ private:
   // order independent
   std::unique_ptr<DMX> dmx;
   std::optional<desk::stats> stats;
-  uint16_t msg_len{0};
+  std::size_t frame_len;
 
 public:
   static constexpr const auto TAG{"Session"};

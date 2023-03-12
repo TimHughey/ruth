@@ -25,6 +25,7 @@
 #include <freertos/task.h>
 #include <memory>
 #include <source_location>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -65,6 +66,7 @@ public:
   Net(Opts &&opts) noexcept;
   ~Net() = default;
 
+  static const std::string ip4_address() noexcept;
   const char *name(const char *new_name) noexcept;
 
 private:
