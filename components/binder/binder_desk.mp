@@ -1,1 +1,0 @@
-../../../shell/ruth/embed/binder_desk.mp

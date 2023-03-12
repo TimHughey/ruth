@@ -35,8 +35,8 @@ Binder binder;
 
 static const char TAG[] = "Binder";
 
-extern const uint8_t raw_start[] asm("_binary_binder_desk_mp_start");
-extern const size_t raw_bytes asm("binder_desk_mp_length");
+extern const uint8_t raw_start[] asm("_binary_binder_0_mp_start");
+extern const size_t raw_bytes asm("binder_0_mp_length");
 
 static constexpr size_t DOC_CAPACITY = 512;
 StaticJsonDocument<DOC_CAPACITY> _embed_doc;
