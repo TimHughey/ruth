@@ -5,7 +5,7 @@
 if(DEFINED ENV{RUTH_BINDER})
   SET(BINDER_MP $ENV{RUTH_BINDER})
 else()
-  SET(BINDER_MP $ENV{HOME}/devel/shell/local/ruth/embed/binder_0.mp)
+  SET(BINDER_MP binder_desk.mp)
 endif()
 
 idf_component_register(
