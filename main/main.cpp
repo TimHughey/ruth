@@ -16,7 +16,9 @@
 //
 //  https://www.wisslanding.com
 
-#include "core/core.hpp"
+#include "binder/binder.hpp"
+#include "lightdesk/lightdesk.hpp"
+#include "network/network.hpp"
 
 #include <cstdlib>
 #include <esp_log.h>
@@ -57,12 +59,18 @@ void app_main() {
     ESP_ERROR_CHECK(err);
   }
 
-  ESP_LOGI(TAG, "nvs status [%s]", esp_err_to_name(err));
+  ESP_LOGI(TAG, "nvs [%s]", esp_err_to_name(err));
+
+  // initialize the binder
+  auto binder = std::make_unique<ruth::Binder>();
+
+  auto net = std::make_unique<ruth::Net>(binder.get());
+  net->wait_for_ready();
 
   // this is where our implementation begins by starting the Core
-  auto core = std::make_unique<ruth::Core>();
+  auto desk = std::make_unique<ruth::LightDesk>();
 
-  for (;;) {
-    core->loop();
-  }
+  desk->run(binder.get());
+
+  esp_restart();
 }

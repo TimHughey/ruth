@@ -66,14 +66,20 @@ static void self_destruct(void *) noexcept {
   shared::active_session.reset();
 }
 
+// static class data to ensure a single task is running
+// at any given time
+DRAM_ATTR TaskHandle_t Session::th{nullptr};
+
 // Object API
 
-Session::Session(tcp_socket &&sock) noexcept
-    : data_sock(std::move(sock)), // all socket comms
+Session::Session(io_context &io_ctx, tcp_socket &&sock) noexcept
+    : io_ctx(io_ctx),             // creator owns our io_context
+      data_sock(std::move(sock)), // all socket comms
       idle_ms(10000),             // default, may be overriden
       stats_interval(2000),       // default, may be overriden
       stats_timer{nullptr},       // periodic stats reporting
       destruct_timer{nullptr}     // esp_timer to destruct via separate task
+
 {
   data_sock.set_option(ip_tcp::no_delay(true));
 
@@ -89,8 +95,17 @@ Session::Session(tcp_socket &&sock) noexcept
   args.name = "desk::stats";
   esp_timer_create(&args, &stats_timer);
 
+  auto rc =                    // create the task using a static desk_stack
+      xTaskCreate(&run_io_ctx, // static func to start task
+                  TAG,         // task name
+                  10 * 1024,   // desk_stack size
+                  this,        // none, use shared::desk
+                  7,           // priority
+                  &th);        // task handle
+
   // start the main message loop
-  asio::post(data_sock.get_executor(), [this]() { msg_loop(MsgIn()); });
+
+  ESP_LOGI(TAG, "startup complete, task_rc=%d", rc);
 }
 
 Session::~Session() noexcept {
@@ -234,6 +249,21 @@ void IRAM_ATTR Session::report_stats(void *self_v) noexcept {
       if (msg.xfer_error()) esp_timer_stop(self->stats_timer);
     });
   }
+}
+
+void IRAM_ATTR Session::run_io_ctx(void *self_v) noexcept {
+  auto self = static_cast<Session *>(self_v);
+
+  // reset the io_ctx, we could be reusing it
+  self->io_ctx.reset();
+
+  // ensure io_ctx has work before starting it
+  asio::post(self->io_ctx, [self]() { self->msg_loop(MsgIn()); });
+
+  self->io_ctx.run();
+
+  ESP_LOGI(TAG, "io_ctx work completed, suspending task");
+  vTaskSuspend(th);
 }
 
 } // namespace desk

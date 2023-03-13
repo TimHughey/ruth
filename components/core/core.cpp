@@ -27,8 +27,6 @@
 #include "dev_pwm/pwm.hpp"
 #include "misc/status_led.hpp"
 #include "network/network.hpp"
-#include "ota/ota.hpp"
-#include "ruth_mqtt/mqtt.hpp"
 
 #include <esp_log.h>
 #include <memory>
@@ -39,8 +37,7 @@ namespace ruth {
 static const char *TAG{"Core"};
 
 Core::Core() noexcept
-    : message::Handler("host", MAX_QUEUE_DEPTH),            //
-      heap_first(heap_caps_get_free_size(MALLOC_CAP_8BIT)), //
+    : heap_first(heap_caps_get_free_size(MALLOC_CAP_8BIT)), //
       heap_avail(heap_first),                               //
       heap_track_ms{5 * 1000},                              //
       engines_started{false},                               //
@@ -48,14 +45,18 @@ Core::Core() noexcept
       ota(nullptr)                                          //
 {
   StatusLED::init();
-  Binder::init();
+  auto binder = Binder::init();
 
   StatusLED::dim();
-  auto wifi = Binder::wifi();
 
-  StatusLED::brighter();
+  {
+    auto wifi = Binder::wifi();
 
-  shared::net = std::make_unique<Net>(Net::Opts(wifi["ssid"], wifi["passwd"], 60000));
+    StatusLED::brighter();
+    net::Opts net_opts(binder->hostname(), binder->host_id, binder->wifi["ssid"],
+                       binder->wifi["passwd"], binder->wifi("ip_timeout_ms"));
+    shared::net = std::make_unique<Net>(std::move(net_opts));
+  }
 
   StatusLED::brighter();
   start_sntp(); // only returns if SNTP succeeds
@@ -110,7 +111,7 @@ Core::Core() noexcept
   if (net::has_assigned_name()) {
 
     doc["hostname"] = net::hostname();
-    doc["unique_id"] = net::mac_address();
+    // doc["unique_id"] = net::mac_address();
     Engines::start_configured(doc);
   }
 

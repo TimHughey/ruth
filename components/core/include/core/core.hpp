@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include "message/handler.hpp"
 #include "ota/ota_decls.hpp"
 
 #include <cstdlib>
@@ -32,7 +31,7 @@
 
 namespace ruth {
 
-class Core : public message::Handler {
+class Core {
 
 public:
   Core() noexcept;                       // SINGLETON

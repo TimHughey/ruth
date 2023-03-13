@@ -19,50 +19,51 @@
 
 #pragma once
 
+#include "ArduinoJson.h"
 #include "io/io.hpp"
 #include "ru_base/rut.hpp"
 
 #include <chrono>
 #include <memory>
-#include <optional>
 
 namespace ruth {
-class LightDesk;
+class Binder;
 
+// forward decl to avoid pulling in session.hpp
 namespace desk {
 class Session;
 }
 
-namespace shared {
-extern std::optional<LightDesk> desk;
-extern std::optional<desk::Session> session;
-} // namespace shared
-
 class LightDesk {
 public:
   LightDesk() noexcept;
-  ~LightDesk() = default;
+  ~LightDesk() noexcept {} // prevent implict copy/move
 
-  void advertise() noexcept;
-  void async_accept() noexcept;
+  void advertise(Binder *binder) noexcept; // in .cpp to hide mdns
+  void async_accept() noexcept;            // in .cpp to hide Session impl
 
-private:
-  void run() noexcept;
-  static void task_main(void *desk_v) noexcept;
+  void run(Binder *binder) noexcept; // in .cpp to hide Binder, Net
 
 public:
   // order dependent
   io_context io_ctx;
+  io_context io_ctx_session;
   tcp_acceptor acceptor;
 
   // order independent
-  std::optional<tcp_socket> peer;
+  std::shared_ptr<desk::Session> session;
 
 public:
   static constexpr csv SERVICE_NAME{"_ruth"};
   static constexpr csv SERVICE_PROTOCOL{"_tcp"};
   static constexpr Port SERVICE_PORT{49152};
-  static constexpr csv TAG{"lightdesk"};
+  static constexpr const auto TAG{"lightdesk"};
 };
 
 } // namespace ruth
+
+//
+// free functions
+//
+
+void ruth_main() noexcept;

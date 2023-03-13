@@ -16,7 +16,7 @@ project_description.json
 config
 Makefile
 kconfig_bin
-sdkconfig
+/sdkconfig
 .vscode/
 .DS_Store
 managed_components/espressif*

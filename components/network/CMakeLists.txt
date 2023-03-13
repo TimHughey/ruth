@@ -4,8 +4,12 @@ idf_component_register(
   INCLUDE_DIRS
     include
   REQUIRES
+    arduino_json
+    binder
+    esp_netif
     esp_wifi
     misc
+    ru_base
   EMBED_TXTFILES
     ca.pem
 )

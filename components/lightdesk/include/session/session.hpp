@@ -18,14 +18,17 @@
 
 #pragma once
 
+#include "ArduinoJson.h"
 #include "io/io.hpp"
 #include "msg/in.hpp"
+#include "msg/kv_store.hpp"
 #include "ru_base/rut_types.hpp"
 #include "ru_base/types.hpp"
 #include "session/stats.hpp"
 
-#include "ArduinoJson.h"
 #include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <memory>
 #include <optional>
 
@@ -45,7 +48,7 @@ namespace desk {
 class Session {
 
 public:
-  Session(tcp_socket &&sock) noexcept;
+  Session(io_context &io_ctx, tcp_socket &&sock) noexcept;
 
   ~Session() noexcept;
 
@@ -60,8 +63,11 @@ private:
   static void report_stats(void *self_v) noexcept;
 
 private:
+  static void run_io_ctx(void *self_v) noexcept;
+
+private:
   // order dependent
-  // NOTE:  all created sockets and timers use the socket executor
+  io_context &io_ctx;
   tcp_socket data_sock;
   Millis idle_ms;        // initial default, may be overriden by handshake
   Millis stats_interval; // initial default, may be overriden by handshake
@@ -70,8 +76,16 @@ private:
 
   // order independent
   std::unique_ptr<DMX> dmx;
-  std::optional<desk::stats> stats;
   std::size_t frame_len;
+
+  // stats processing
+  std::optional<desk::stats> stats;
+  bool stats_pending{false};
+  desk::kv_store stats_data;
+
+  // class level to ensure there is a single task running
+  // at any given time
+  static TaskHandle_t th;
 
 public:
   static constexpr const auto TAG{"Session"};

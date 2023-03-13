@@ -14,7 +14,10 @@ idf_component_register(
   INCLUDE_DIRS
     include
   REQUIRES
-    arduino_json
+    arduino_json ru_base
+  PRIV_REQUIRES
+    esp_netif
+    esp_hw_support
   EMBED_TXTFILES
     ${BINDER_MP}
 )

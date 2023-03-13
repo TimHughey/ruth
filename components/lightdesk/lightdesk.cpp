@@ -18,6 +18,7 @@
 //  https://www.wisslanding.com
 
 #include "lightdesk/lightdesk.hpp"
+#include "binder/binder.hpp"
 #include "dmx/dmx.hpp"
 #include "io/io.hpp"
 #include "network/network.hpp"
@@ -29,111 +30,65 @@
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <iostream>
 #include <mdns.h>
 #include <optional>
+#include <sstream>
 #include <stdio.h>
 
 namespace ruth {
-namespace shared {
-DRAM_ATTR std::optional<LightDesk> desk;
-TaskHandle_t desk_task;
-} // namespace shared
 
-static esp_timer_handle_t destruct_timer;
-static void self_destruct(void *desk_v) noexcept {
-  esp_timer_delete(std::exchange(destruct_timer, nullptr));
-  shared::desk.reset();
-}
+LightDesk::LightDesk() noexcept : acceptor{io_ctx, tcp_endpoint{ip_tcp::v4(), SERVICE_PORT}} {}
 
-LightDesk::LightDesk() noexcept
-    : acceptor{io_ctx, tcp_endpoint{ip_tcp::v4(), SERVICE_PORT}} //
-{
-  ESP_LOGD(TAG.data(), "enabled, starting up");
+void LightDesk::advertise(Binder *binder) noexcept {
+  const auto host = binder->hostname();
+  const auto mac_addr = binder->mac_address();
 
-  auto rc =                   // create the task using a static desk_stack
-      xTaskCreate(&task_main, // static func to start task
-                  TAG.data(), // task name
-                  10 * 1024,  // desk_stack size
-                  this,       // none, use shared::desk
-                  7,          // priority
-                  &shared::desk_task);
+  if ((mdns_init() == ESP_OK) && (mdns_hostname_set(host.c_str()) == ESP_OK)) {
+    std::ostringstream name_ss;
 
-  ESP_LOGD(TAG.data(), "started rc=%d task=%p", rc, shared::desk_task);
-}
+    name_ss << mac_addr << "@" << host;
 
-void LightDesk::advertise() noexcept {
-  const auto host = net::hostname();
-  const auto mac_addr = net::mac_address();
+    string name(name_ss.str());
 
-  if ((mdns_init() == ESP_OK) && (mdns_hostname_set(host) == ESP_OK)) {
-    char *n = nullptr;
+    if (mdns_instance_name_set(name.c_str()) == ESP_OK) {
+      ESP_LOGI(LightDesk::TAG, "host[%s] instance[%s]", host.c_str(), name.c_str());
 
-    if (auto bytes = asprintf(&n, "%s@%s", mac_addr, host); bytes != -1) {
-      auto name = std::unique_ptr<char>(n);
-
-      if (mdns_instance_name_set(name.get()) == ESP_OK) {
-        ESP_LOGD(LightDesk::TAG.data(), "host[%s] instance[%s]", host, name.get());
-        auto txt_data = std::array<mdns_txt_item_t, 1>{{"desk", "true"}};
-        mdns_service_add(name.get(), LightDesk::SERVICE_NAME.data(),
-                         LightDesk::SERVICE_PROTOCOL.data(), LightDesk::SERVICE_PORT,
-                         txt_data.data(), txt_data.size());
-      } else {
-        ESP_LOGE(LightDesk::TAG.data(), "mdns_instance_name_set() failed\n");
-      }
+      auto txt_data = std::array<mdns_txt_item_t, 1>{{"desk", "true"}};
+      mdns_service_add(name.c_str(), SERVICE_NAME.data(), SERVICE_PROTOCOL.data(), SERVICE_PORT,
+                       txt_data.data(), txt_data.size());
     } else {
-      ESP_LOGE(LightDesk::TAG.data(), "asprintf failed()\n");
+      ESP_LOGE(TAG, "mdns_instance_name_set() failed, name=%s", name.c_str());
     }
+
   } else {
-    ESP_LOGE(LightDesk::TAG.data(), "mdns_init() or mdns_hostname_set() failed\n");
+    ESP_LOGE(TAG, "mdns_init() or mdns_hostname_set() failed\n");
   }
 }
 
 void LightDesk::async_accept() noexcept {
-  // this is the socket for the next accepted connection, store it in an
-  // optional for the lamba
-  peer.emplace(io_ctx);
 
-  // since the socket is wrapped in the optional and asyncLoop wants the actual
-  // socket we must deference or get the value of the optional
-  acceptor.async_accept(*peer, [this](const error_code ec) {
+  // upon a new accepted connection create the socket with the session io_ctx
+  acceptor.async_accept(io_ctx_session, [this](const error_code &ec, tcp_socket peer) {
     if (ec) return; // no more work
 
-    if (shared::active_session.has_value()) {
-      shared::active_session.reset();
-    }
+    session.reset(); // support only a single session
 
-    // io::log_accept_socket(TAG, "ctrl"sv, *peer, peer->remote_endpoint());
-
-    peer->set_option(ip_tcp::no_delay(true));
-
-    shared::active_session.emplace(std::move(*peer));
+    session = std::make_unique<desk::Session>(io_ctx_session, std::move(peer));
 
     async_accept();
   });
 }
 
-void LightDesk::run() noexcept {}
+void LightDesk::run(Binder *binder) noexcept {
+  ESP_LOGI(TAG, "starting up, task=%p", xTaskGetCurrentTaskHandle());
 
-void IRAM_ATTR LightDesk::task_main(void *desk_v) noexcept {
-  auto *desk = static_cast<LightDesk *>(desk_v);
+  // add work for the io_ctx
+  advertise(binder);
+  async_accept();
 
-  desk->advertise();
-  desk->async_accept();
-  desk->io_ctx.run();
-
-  ESP_LOGI(LightDesk::TAG.data(), "io_ctx work exhausted");
-
-  const esp_timer_create_args_t args{.callback = self_destruct,
-                                     .arg = desk,
-                                     .dispatch_method = ESP_TIMER_TASK,
-                                     .name = "desk::destruct",
-                                     .skip_unhandled_events = false};
-
-  if (auto rc = esp_timer_create(&args, &destruct_timer); rc == ESP_OK) {
-    esp_timer_start_once(destruct_timer, 1000);
-  }
-
-  vTaskDelete(shared::desk_task);
+  io_ctx.run();
+  ESP_LOGI(TAG, "io_ctx work exhausted");
 }
 
 } // namespace ruth

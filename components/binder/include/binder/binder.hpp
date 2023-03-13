@@ -19,37 +19,59 @@
 
 #pragma once
 
-#include <memory>
-
 #include "ArduinoJson.h"
+#include "ru_base/types.hpp"
+
+#include <array>
+#include <concepts>
+#include <esp_err.h>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <type_traits>
 
 namespace ruth {
-
-class Binder;
-namespace shared {
-extern Binder binder;
-}
 
 class Binder {
 
 public:
-  Binder() = default;
-  static void init() { shared::binder.parse(); }
-  static Binder *instance() { return &shared::binder; }
+  Binder() noexcept;
 
-  static const char *env() { return shared::binder.meta["env"] | "test"; }
-  static const JsonObject mqtt() { return shared::binder.root["mqtt"]; }
-  static const JsonArray ntp() { return shared::binder.root["ntp"].as<JsonArray>(); }
+  inline JsonObjectConst doc_at_key(auto &&key) noexcept {
+    JsonVariant v = root[key];
+    return v.as<JsonObjectConst>();
+  }
 
-  static int64_t now();
-  static const JsonObject wifi() { return shared::binder.root["wifi"]; }
+  inline const char *env() noexcept { return meta["env"] | "test"; }
+
+  const string &host_id() const noexcept { return _host_id; }
+  const string &hostname() noexcept;
+
+  const string mac_address() const noexcept { return mac_address(6, csv("")); }
+  const string mac_address(std::size_t want_bytes, csv &&sep) const noexcept;
+
+  inline const auto ntp() noexcept { return root["ntp"].as<JsonArrayConst>(); }
 
 private:
+  static void check_error(esp_err_t err, const char *desc) noexcept;
   void parse();
 
+public:
+  // order dependent
+  DynamicJsonDocument doc;
+
 private:
-  JsonObject root;
-  JsonObject meta;
+  std::array<uint8_t, 6> _mac_address;
+  string _host_id;
+  string _hostname;
+
+private:
+  // order independent
+  JsonObjectConst root;
+  JsonObjectConst meta;
+
+public:
+  static constexpr auto TAG{"Binder"};
 };
 
 } // namespace ruth

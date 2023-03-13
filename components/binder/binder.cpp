@@ -20,59 +20,100 @@
 #include "binder/binder.hpp"
 #include "ArduinoJson.h"
 
-#include <time.h>
-
+#include <algorithm>
+#include <array>
+#include <esp_attr.h>
+#include <esp_err.h>
 #include <esp_log.h>
-#include <esp_system.h>
+#include <esp_mac.h>
+#include <esp_netif.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <time.h>
 
 namespace ruth {
 
-namespace shared {
-Binder binder;
+extern const std::uint8_t raw_start[] asm("_binary_binder_desk_mp_start");
+extern const std::size_t raw_bytes asm("binder_desk_mp_length");
+
+static constexpr std::size_t CAPACITY{128 * 7};
+
+Binder::Binder() noexcept
+    : doc(CAPACITY), _mac_address{0x00}, _host_id(CONFIG_LWIP_LOCAL_HOSTNAME) {
+
+  esp_netif_init(); // must initialize netif to get mac address
+
+  // need mac address to make host id
+  check_error(esp_read_mac(_mac_address.data(), ESP_MAC_WIFI_STA), "read mac");
+
+  // finish building host id
+  _host_id.append(mac_address(4, "-"));
+
+  ESP_LOGI(TAG, "host_id=%s", _host_id.c_str());
+
+  // parse the binder (also needed for calculating hostname)
+  parse();
 }
 
-static const char TAG[] = "Binder";
+void Binder::check_error(esp_err_t err, const char *desc) {
+  if (err == ESP_OK) return;
 
-extern const uint8_t raw_start[] asm("_binary_binder_desk_mp_start");
-extern const size_t raw_bytes asm("binder_desk_mp_length");
+  ESP_LOGE(TAG, "%s (%s)", esp_err_to_name(err), desc);
 
-static constexpr size_t DOC_CAPACITY = 512;
-StaticJsonDocument<DOC_CAPACITY> _embed_doc;
+  vTaskDelay(pdMS_TO_TICKS(5000)); // let things settle
 
-int64_t Binder::now() {
-  struct timeval time_now;
-  gettimeofday(&time_now, nullptr);
+  esp_restart();
+}
 
-  auto us_since_epoch = time_now.tv_sec * 1000000L; // convert seconds to microseconds
+const std::string &Binder::hostname() noexcept {
 
-  us_since_epoch += time_now.tv_usec; // add microseconds since last second
+  if (_hostname.empty()) {
+    JsonObjectConst hosts = doc["hosts"];
+    const char *v = hosts[_host_id.data()];
 
-  return us_since_epoch;
+    _hostname = v ? std::string(v) : string(_host_id);
+  }
+
+  return _hostname;
+}
+
+const std::string Binder::mac_address(std::size_t want_bytes, csv &&sep) const noexcept {
+
+  std::ostringstream mac;
+
+  for (std::size_t i = 0; i < want_bytes; i++) {
+    if (!sep.empty()) mac << sep;
+
+    mac << std::hex << (int)_mac_address[i];
+  }
+
+  return mac.str();
 }
 
 void Binder::parse() {
-  auto embed_err = deserializeMsgPack(_embed_doc, raw_start, raw_bytes);
-
-  root = _embed_doc.as<JsonObject>();
-  meta = root["meta"];
-
-  const auto mtime = meta["mtime"].as<time_t>();
-
-  constexpr size_t at_buff_len = 30;
-  char binder_at[at_buff_len] = {};
-  struct tm timeinfo = {};
-  localtime_r(&mtime, &timeinfo);
-
-  strftime(binder_at, at_buff_len, "%c", &timeinfo);
-
-  ESP_LOGI(TAG, "%s doc_used[%d/%d]", binder_at, root.memoryUsage(), DOC_CAPACITY);
-
-  if (embed_err) {
-    ESP_LOGW(TAG, "parse failed %s, bytes[%d]", embed_err.c_str(), raw_bytes);
+  if (auto err = deserializeMsgPack(doc, raw_start, raw_bytes); err) {
+    ESP_LOGW(TAG, "parse failed %s, bytes[%d]", err.c_str(), raw_bytes);
     vTaskDelay(portMAX_DELAY);
   }
+
+  root = doc.as<JsonObjectConst>();
+  meta = root["meta"].as<JsonObjectConst>();
+
+  // setup for call to localtime_r ans strftime
+  std::array<char, 42> binder_at{0x00};
+  struct tm timeinfo = {};
+  const auto mtime = meta["mtime"].as<time_t>();
+
+  localtime_r(&mtime, &timeinfo);
+
+  strftime(binder_at.data(), binder_at.size(), "%c", &timeinfo);
+
+  ESP_LOGI(TAG, "%s doc_bytes[%d/%d]", binder_at.data(), doc.memoryUsage(), CAPACITY);
 }
 
 } // namespace ruth

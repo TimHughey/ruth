@@ -5,6 +5,6 @@
 idf_component_register(
   SRCS          uint8v.cpp
   INCLUDE_DIRS  include
-  REQUIRES      misc
+  REQUIRES      esp_timer misc
 )
 
