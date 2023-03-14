@@ -35,7 +35,7 @@ class stats {
 public:
   stats(const Millis &i)
       : interval(rut::as<Seconds, Millis>(i)), // how often fps is calculated
-        fps{0.0},                              // cached (last) calculated fps
+        fps{0.0f},                             // cached (last) calculated fps
         frame_count{0},                        // count of frames for current interval
         mark{0}                                // frame count at last fps calculation
   {}
@@ -54,7 +54,7 @@ public:
     }
   }
 
-  inline float cached_fps() const noexcept { return fps; }
+  inline int64_t cached_fps() const noexcept { return fps; }
   inline void saw_frame() noexcept { frame_count++; }
 
 private:

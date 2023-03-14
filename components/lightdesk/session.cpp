@@ -259,6 +259,8 @@ void IRAM_ATTR Session::report_stats(void *self_v) noexcept {
   auto &stats = self->stats;
   auto &dmx = self->dmx;
 
+  stats->calc();
+
   if (self->data_sock.is_open() && stats.has_value() && dmx) {
     self->post_stats();
   }
