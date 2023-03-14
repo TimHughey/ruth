@@ -21,6 +21,7 @@
 #include "msg/kv.hpp"
 #include "ru_base/types.hpp"
 
+#include <algorithm>
 #include <variant>
 #include <vector>
 
@@ -44,9 +45,15 @@ public:
   kv_store(kv_store &&) = default;
   kv_store &operator=(kv_store &&) = default;
 
-  void add(auto key, auto &&val) noexcept { key_vals.emplace_back(key_val_entry{key, val}); }
+  inline void add(kv_store &&add_kvs) noexcept {
+    std::for_each(add_kvs.key_vals.begin(), add_kvs.key_vals.end(),
+                  [this](auto &entry) { key_vals.emplace_back(std::move(entry)); });
+  }
 
-  void populate_doc(auto &doc) noexcept {
+  inline void clear() noexcept { key_vals.clear(); }
+  inline void add(auto key, auto &&val) noexcept { key_vals.emplace_back(key_val_entry{key, val}); }
+
+  inline void populate_doc(auto &doc) noexcept {
 
     for (const auto &entry : key_vals) {
       // visit each entry value and add them to the document at the entry key

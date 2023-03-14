@@ -60,6 +60,7 @@ private:
   void msg_loop(MsgIn &&msg_in) noexcept;
   void msg_process(MsgIn &&msg_in) noexcept;
 
+  void post_stats() noexcept;
   static void report_stats(void *self_v) noexcept;
 
 private:
@@ -81,7 +82,7 @@ private:
   // stats processing
   std::optional<desk::stats> stats;
   bool stats_pending{false};
-  desk::kv_store stats_data;
+  desk::kv_store stats_periodic;
 
   // class level to ensure there is a single task running
   // at any given time

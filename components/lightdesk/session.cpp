@@ -190,6 +190,12 @@ void IRAM_ATTR Session::msg_process(MsgIn &&msg_in) noexcept {
     msg_out.add_kv(desk::ECHO_NOW_US, doc_in[desk::NOW_US].as<int64_t>());
     msg_out.add_kv(desk::ELAPSED_US, msg_out.elapsed());
 
+    // add supplemental metrics, if pending
+    if (stats_pending) {
+      msg_out(std::move(stats_periodic));
+      stats_pending = false;
+    }
+
     async::write_msg(data_sock, std::move(msg_out), [this](MsgOut msg_out) {
       if (msg_out.xfer_error()) close(msg_out.ec);
     });
@@ -230,24 +236,31 @@ void IRAM_ATTR Session::idle_watch_dog() noexcept {
   }
 }
 
+void IRAM_ATTR Session::post_stats() noexcept {
+  if (!stats_pending) {
+    asio::defer(io_ctx, [this]() {
+      stats_periodic.clear(); // ensure nothing from previous report
+
+      stats_periodic.add(desk::SUPP, true);
+      stats_periodic.add(desk::FPS, stats->cached_fps());
+      stats_periodic.add(desk::QOK, dmx->q_ok());
+      stats_periodic.add(desk::QRF, dmx->q_rf());
+      stats_periodic.add(desk::QSF, dmx->q_sf());
+
+      stats_pending = true;
+    });
+  } else {
+    ESP_LOGW(TAG, "stats pending collision");
+  }
+}
+
 void IRAM_ATTR Session::report_stats(void *self_v) noexcept {
   auto self = static_cast<Session *>(self_v);
   auto &stats = self->stats;
   auto &dmx = self->dmx;
 
   if (self->data_sock.is_open() && stats.has_value() && dmx) {
-    stats->calc();
-
-    MsgOut msg(desk::STATS);
-
-    msg.add_kv(desk::FPS, stats->cached_fps());
-    msg.add_kv(desk::QOK, dmx->q_ok());
-    msg.add_kv(desk::QRF, dmx->q_rf());
-    msg.add_kv(desk::QSF, dmx->q_sf());
-
-    async::write_msg(self->data_sock, std::move(msg), [self](MsgOut msg) {
-      if (msg.xfer_error()) esp_timer_stop(self->stats_timer);
-    });
+    self->post_stats();
   }
 }
 

@@ -52,6 +52,7 @@ public:
   inline MsgOut(MsgOut &&m) = default;
   MsgOut &operator=(MsgOut &&) = default;
 
+  // asio handler function
   void operator()(const error_code &op_ec, std::size_t n) noexcept {
     static constexpr auto TAG{"desk.msgout.async_result"};
 
@@ -61,6 +62,10 @@ public:
     if (n == 0) {
       ESP_LOGD(TAG, "SHORT WRITE n=%d err=%s\n", xfr.out, ec.message().c_str());
     }
+  }
+
+  inline void operator()(kv_store &&kvs_extra) noexcept {
+    kvs.add(std::forward<kv_store>(kvs_extra));
   }
 
   inline void commit(std::size_t n) noexcept { storage->commit(n); }
