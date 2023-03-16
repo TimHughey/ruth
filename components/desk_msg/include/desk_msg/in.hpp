@@ -19,10 +19,10 @@
 
 #pragma once
 
-#include "msg/msg.hpp"
+#include "desk_msg/msg.hpp"
+#include "io/io.hpp"
 
 #include <ArduinoJson.h>
-#include <arpa/inet.h>
 #include <esp_log.h>
 #include <memory>
 
@@ -30,8 +30,6 @@ namespace ruth {
 namespace desk {
 
 class MsgIn : public Msg {
-protected:
-  inline auto *raw_in() noexcept { return static_cast<const char *>(storage->data().data()); }
 
 public:
   inline MsgIn() : Msg(512) {}
@@ -40,24 +38,16 @@ public:
   inline MsgIn(MsgIn &&) = default;
   MsgIn &operator=(MsgIn &&) = default;
 
-  void operator()(const error_code &op_ec, size_t n) noexcept {
-    static constexpr auto TAG{"desk.msgin.async_result"};
-
+  inline void operator()(const error_code &op_ec, size_t n) noexcept {
     xfr.in += n;
     ec = op_ec;
     packed_len = n; // should we need to set this?
 
-    if (n == 0) {
-      ESP_LOGD(TAG, "SHORT READ  n=%d err=%s\n", xfr.in, ec.message().c_str());
-    }
-  }
-
-  inline static bool can_render(const JsonDocument &doc) noexcept {
-    return doc[desk::MAGIC] == MAGIC_VAL;
+    if (n == 0) ESP_LOGD(TAG, "SHORT READ  n=%d err=%s\n", xfr.in, ec.message().c_str());
   }
 
   inline auto deserialize_into(JsonDocument &doc) noexcept {
-    const auto err = deserializeMsgPack(doc, raw_in(), xfr.in);
+    const auto err = deserializeMsgPack(doc, raw(), xfr.in);
     consume(xfr.in);
 
     if (err) {
@@ -65,32 +55,6 @@ public:
     }
 
     return !err;
-  }
-
-  /// @brief Returns the DMX frame data from the JSON document
-  /// @tparam T type expected in the data arrauy
-  /// @return Populated T transferred from JSON array
-  template <typename T> static inline T dframe(const JsonDocument &doc) {
-    if (auto array = doc[desk::FRAME].as<JsonArrayConst>(); array) {
-      return T(array);
-    }
-
-    ESP_LOGI(TAG, "dframe(): returning default T");
-
-    return T();
-  }
-
-  inline void reuse() noexcept {
-    packed_len = 0;
-    ec = error_code();
-    xfr.bytes = 0;
-    e.reset();
-  }
-
-  static const string type(const JsonDocument &doc) noexcept {
-    const char *type_cstr = doc[MSG_TYPE];
-
-    return type_cstr ? string(type_cstr) : string(desk::UNKNOWN);
   }
 
 public:

@@ -38,7 +38,7 @@ public:
   Binder() noexcept;
 
   inline JsonObjectConst doc_at_key(auto &&key) noexcept {
-    JsonVariant v = root[key];
+    JsonVariantConst v = root[key];
     return v.as<JsonObjectConst>();
   }
 

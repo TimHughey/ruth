@@ -91,7 +91,7 @@ DMX::~DMX() noexcept {
 void IRAM_ATTR DMX::spool_frames(void *dmx_v) noexcept { // static
   auto *self = static_cast<DMX *>(dmx_v);
 
-  ESP_LOGI(TAG.data(), "preparing to spool frames dmx=%p", self);
+  ESP_LOGI(TAG.data(), "spool frame loop starting...");
 
   // declare the uart frame
   std::array<uint8_t, UART_FRAME_LEN> uart_frame{0x00};

@@ -1,8 +1,10 @@
 idf_component_register(
   SRCS 
     network.cpp
+
   INCLUDE_DIRS
     include
+
   REQUIRES
     arduino_json
     binder
@@ -10,6 +12,4 @@ idf_component_register(
     esp_wifi
     misc
     ru_base
-  EMBED_TXTFILES
-    ca.pem
 )

@@ -17,12 +17,12 @@
 //  https://www.wisslanding.com
 
 #include "session/session.hpp"
-#include "async/read.hpp"
-#include "async/write.hpp"
+#include "async_msg/read.hpp"
+#include "async_msg/write.hpp"
+#include "desk_msg/out.hpp"
 #include "dmx/dmx.hpp"
 #include "headunit/ac_power.hpp"
 #include "headunit/dimmable.hpp"
-#include "msg/out.hpp"
 #include "network/network.hpp"
 #include "ru_base/rut.hpp"
 
@@ -60,8 +60,9 @@ static void create_units() noexcept {
 
 /// @brief Self-destruct a Session via esp_timer
 /// @param  pointer unused
-static void self_destruct(void *) noexcept {
-  ESP_LOGD(Session::TAG, "self-destruct");
+static void self_destruct(void *self_v) noexcept {
+
+  ESP_LOGI(Session::TAG, "self-destruct, session=%p", self_v);
 
   shared::active_session.reset();
 }
@@ -142,7 +143,7 @@ void IRAM_ATTR Session::msg_loop(MsgIn &&msg_in) noexcept {
   if (data_sock.is_open() == false) return; // prevent tight error loops
 
   // note: we move the message since it may contain data from the previous read
-  async::read_msg(data_sock, std::move(msg_in), [this](MsgIn &&msg_in) {
+  async_msg::read(data_sock, std::move(msg_in), [this](MsgIn &&msg_in) {
     // intentionally little code in this lambda
 
     idle_watch_dog();
@@ -175,7 +176,7 @@ void IRAM_ATTR Session::msg_process(MsgIn &&msg_in) noexcept {
   // function and returns immediately
   msg_loop(std::move(msg_in));
 
-  if (MsgIn::is_msg_type(doc_in, desk::DATA) && MsgIn::can_render(doc_in)) {
+  if (MsgIn::is_msg_type(doc_in, desk::DATA) && MsgIn::valid(doc_in)) {
     // note: create MsgOut as early as possible to capture elapsed duration
     MsgOut msg_out(desk::DATA_REPLY);
 
@@ -196,7 +197,7 @@ void IRAM_ATTR Session::msg_process(MsgIn &&msg_in) noexcept {
       stats_pending = false;
     }
 
-    async::write_msg(data_sock, std::move(msg_out), [this](MsgOut msg_out) {
+    async_msg::write(data_sock, std::move(msg_out), [this](MsgOut msg_out) {
       if (msg_out.xfer_error()) close(msg_out.ec);
     });
     // end of data message handling
@@ -243,9 +244,9 @@ void IRAM_ATTR Session::post_stats() noexcept {
 
       stats_periodic.add(desk::SUPP, true);
       stats_periodic.add(desk::FPS, stats->cached_fps());
-      stats_periodic.add(desk::QOK, dmx->q_ok());
-      stats_periodic.add(desk::QRF, dmx->q_rf());
-      stats_periodic.add(desk::QSF, dmx->q_sf());
+
+      // ask DMX to add it's stats
+      dmx->populate_stats(stats_periodic);
 
       stats_pending = true;
     });

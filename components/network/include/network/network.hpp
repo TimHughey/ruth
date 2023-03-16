@@ -77,26 +77,9 @@ public:
   const std::string host_id;
 
 public:
-  static const char ca_begin[] asm("_binary_ca_pem_start");
-  static const char ca_end[] asm("_binary_ca_pem_end");
   static constexpr const auto TAG{"Net"};
 };
 
-////
-//// Ruth net free functions
-////
-
-// namespace net {
-
-// inline const char *ca_begin() noexcept { return &(shared::net->ca_begin[0]); }
-// inline const char *ca_end() noexcept { return &(shared::net->ca_end[0]); }
-
-// inline const char *host_id() noexcept { return shared::net->host_id.data(); }
-
-// inline bool has_assigned_name() noexcept { return shared::net->host_id != shared::net->hostname;
-// }
-
-// } // namespace net
 } // namespace ruth
 
 //

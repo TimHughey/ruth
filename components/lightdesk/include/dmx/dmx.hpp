@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "desk_msg/kv_store.hpp"
 #include "io/io.hpp"
 #include "ru_base/rut.hpp"
 #include "ru_base/types.hpp"
@@ -50,7 +51,7 @@ private:
   static constexpr TickType_t FRAME_TICKS{pdMS_TO_TICKS(FRAME_MS.count())};
   static constexpr TickType_t FRAME_HALF_TICKS{FRAME_TICKS / 2};
   static constexpr TickType_t FRAME_TICKS25{FRAME_TICKS / 4};
-  static constexpr TickType_t RECV_TIMEOUT_TICKS{FRAME_TICKS * 5};
+  static constexpr TickType_t RECV_TIMEOUT_TICKS{FRAME_TICKS * 2};
   static constexpr std::size_t UART_FRAME_LEN{412};
 
 public:
@@ -61,6 +62,14 @@ public:
   inline auto q_ok() const noexcept { return qok; } // queue ok count
   inline auto q_rf() const noexcept { return qrf; } // queue recv failures
   inline auto q_sf() const noexcept { return qsf; } // queue send failurs
+
+  inline void populate_stats(desk::kv_store &kvs) noexcept {
+    // queue statistics, qok + qrf + qsf = total frames
+    kvs.add(desk::QOK, qok);
+    kvs.add(desk::QRF, qrf);
+    kvs.add(desk::QSF, qsf);
+    kvs.add(desk::UART_OVERRUN, uart_tx_fail);
+  }
 
   bool tx_frame(JsonArrayConst &&fdata) noexcept;
 

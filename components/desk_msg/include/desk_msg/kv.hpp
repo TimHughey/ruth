@@ -34,7 +34,12 @@ static constexpr auto MAGIC{"ma"};      // msg end detection
 static constexpr auto MSG_TYPE{"mt"};   // msg start detection
 
 // periodic
+static constexpr const auto ERROR{"error"};
+static constexpr const auto FILE{"file"};
+static constexpr const auto RESULT{"result"};
 static constexpr const auto SUPP{"supp"}; // msg contains supplemental metrics
+static constexpr const auto TEXT("text"); // msg text
+static constexpr const auto URL{"url"};
 
 // handshake remote -> local
 static constexpr auto FRAME_LEN{"frame_len"}; // handshake
@@ -52,11 +57,11 @@ static constexpr auto ELAPSED_US{"elapsed_µs"};   // data_reply msg
 static constexpr auto DATA_WAIT_US{"data_wait_µs"};
 
 // stats msg remote -> local
-static constexpr auto FPS{"fps"};   // frames per second
-static constexpr auto QOK{"qok"};   // frame queue ok
-static constexpr auto QRF{"qrf"};   // rame queue recv failure count
-static constexpr auto QSF{"qsf"};   // queue send failure count
-static constexpr auto UART{"uart"}; // uart overrun (timeout)
+static constexpr auto FPS{"fps"};                   // frames per second
+static constexpr auto QOK{"qok"};                   // frame queue ok
+static constexpr auto QRF{"qrf"};                   // rame queue recv failure count
+static constexpr auto QSF{"qsf"};                   // queue send failure count
+static constexpr auto UART_OVERRUN{"uart_overrun"}; // uart overrun (timeout)
 
 //
 // msg types
@@ -65,6 +70,9 @@ static constexpr auto UART{"uart"}; // uart overrun (timeout)
 static constexpr auto DATA{"data"};
 static constexpr auto DATA_REPLY{"data_reply"};
 static constexpr auto HANDSHAKE{"handshake"};
+static constexpr auto OTA{"ota"};
+static constexpr auto PING{"ping"};
+static constexpr auto PONG{"pong"};
 static constexpr auto SHUTDOWN{"shutdown"};
 static constexpr auto STATS{"stats"};
 static constexpr auto UNKNOWN{"unknown"};

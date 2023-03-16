@@ -18,54 +18,85 @@
 
 #pragma once
 
+#include "binder/binder.hpp"
+#include "io/io.hpp"
 #include "misc/elapsed.hpp"
 #include "ru_base/types.hpp"
 
+#include <ArduinoJson.h>
 #include <cstdint>
+#include <esp_http_client.h>
+#include <esp_https_ota.h>
+#include <esp_ota_ops.h>
+#include <esp_partition.h>
+#include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/timers.h>
 #include <memory.h>
-#include <optional>
+#include <spi_flash_mmap.h>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace ruth {
 
-namespace firmware {
-
-typedef const std::string_view csv;
-
-class OTA {
-public:
-  typedef enum : uint32_t { START = 0xb001, CANCEL, FINISH, ERROR } Notifies;
-
-public:
-  OTA(const char *base_url, const char *file, const char *ca_start) noexcept;
-  ~OTA() noexcept;
-
-  static void handlePendingIfNeeded(const uint32_t valid_ms);
+class OTA : public std::enable_shared_from_this<OTA> {
+private:
+  typedef enum : uint8_t { INIT = 0x01, EXECUTE, CANCEL, FINISH, ERROR } state_t;
 
 private:
-  Notifies core() noexcept; // main task loop
-  static void coreTask(void *task_data);
+  OTA(tcp_socket &&sock, const char *url, const char *file) noexcept;
 
-  void notifyParent(Notifies notify_val);
+public:
+  ~OTA() noexcept;
+
+  inline static auto create(auto &&sock, const auto url, const auto file) noexcept {
+    auto self = std::shared_ptr<OTA>(new OTA(std::forward<decltype(sock)>(sock), url, file));
+
+    return self->shared_from_this();
+  }
+
+  void execute() noexcept;
+
+  static void validate_pending(Binder *binder);
+
+private:
+  bool check_error(esp_err_t esp_rc, const char *details) noexcept;
+
+  void download() noexcept;
+
+  void finish() noexcept;
+
+  state_t initialize() noexcept;
+  bool is_same_image(const esp_app_desc_t *a, esp_app_desc_t *b) noexcept;
+
+  static void mark_valid(TimerHandle_t h) noexcept;
+
+  static void restart(TimerHandle_t h) noexcept {
+    xTimerDelete(h, pdMS_TO_TICKS(1000));
+
+    esp_restart();
+  }
 
 private:
   // order dependent for object initialization
-  TaskHandle_t notify_task;
-  const char *ca_start;
+  tcp_socket sock;
   string url;
-  TaskHandle_t self_task;
+  state_t state;
 
   // order independent
-  std::optional<void *> ota_handle;
+  esp_https_ota_handle_t ota_handle;
+
+public:
+  string result;
+  string error;
+  string image_check;
   Elapsed e;
 
 public:
-  static constexpr const char *TAG{"ota"};
+  static constexpr auto TAG{"OTA"};
   static constexpr size_t URL_MAX_LEN{512};
 };
 
-} // namespace firmware
 } // namespace ruth

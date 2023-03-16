@@ -19,9 +19,9 @@
 #pragma once
 
 #include "ArduinoJson.h"
+#include "desk_msg/in.hpp"
+#include "desk_msg/kv_store.hpp"
 #include "io/io.hpp"
-#include "msg/in.hpp"
-#include "msg/kv_store.hpp"
 #include "ru_base/rut_types.hpp"
 #include "ru_base/types.hpp"
 #include "session/stats.hpp"

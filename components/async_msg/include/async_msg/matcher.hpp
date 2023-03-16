@@ -24,13 +24,11 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <esp_log.h>
 #include <iterator>
 #include <tuple>
 
 namespace ruth {
-namespace desk {
-namespace async {
+namespace async_msg {
 
 //
 // matcher uses the msgpack spec to find the beginning and end
@@ -70,10 +68,9 @@ private:
   // msgpack encoding of { "ma" = 828 }
   static constexpr std::array<uint8_t, 5> suffix{0x6d, 0x61, 0xcd, 0x03, 0x3c};
 };
-} // namespace async
-} // namespace desk
+} // namespace async_msg
 } // namespace ruth
 
 namespace asio {
-template <> struct is_match_condition<ruth::desk::async::matcher> : public std::true_type {};
+template <> struct is_match_condition<ruth::async_msg::matcher> : public std::true_type {};
 } // namespace asio

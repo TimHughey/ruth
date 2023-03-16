@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "msg/kv.hpp"
+#include "desk_msg/kv.hpp"
 #include "ru_base/types.hpp"
 
 #include <algorithm>
@@ -31,7 +31,7 @@ namespace desk {
 class kv_store {
 private:
   // note: these are the only types that Units set
-  using val_t = std::variant<uint16_t, uint32_t, float, bool, int64_t>;
+  using val_t = std::variant<uint16_t, uint32_t, float, bool, int64_t, string>;
 
   struct key_val_entry {
     string key;

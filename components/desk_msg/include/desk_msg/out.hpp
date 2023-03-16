@@ -19,15 +19,14 @@
 
 #pragma once
 
+#include "desk_msg/kv.hpp"
+#include "desk_msg/kv_store.hpp"
+#include "desk_msg/msg.hpp"
 #include "misc/elapsed.hpp"
-#include "msg/kv.hpp"
-#include "msg/kv_store.hpp"
-#include "msg/msg.hpp"
 #include "ru_base/rut.hpp"
 #include "ru_base/types.hpp"
 
 #include <ArduinoJson.h>
-#include <asio/streambuf.hpp>
 #include <concepts>
 #include <esp_log.h>
 #include <type_traits>
@@ -44,7 +43,7 @@ protected:
 
 public:
   // outbound messages
-  inline MsgOut(auto &type) noexcept : Msg(256), type(type) {}
+  inline MsgOut(auto &msg_type) noexcept : Msg(256), msg_type(msg_type) {}
 
   // inbound messages
   virtual ~MsgOut() noexcept {} // prevent implicit copy/move
@@ -52,16 +51,11 @@ public:
   inline MsgOut(MsgOut &&m) = default;
   MsgOut &operator=(MsgOut &&) = default;
 
-  // asio handler function
-  void operator()(const error_code &op_ec, std::size_t n) noexcept {
-    static constexpr auto TAG{"desk.msgout.async_result"};
-
+  inline void operator()(const error_code &op_ec, size_t n) noexcept {
+    xfr.out += n;
     ec = op_ec;
-    xfr.out = n;
 
-    if (n == 0) {
-      ESP_LOGD(TAG, "SHORT WRITE n=%d err=%s\n", xfr.out, ec.message().c_str());
-    }
+    if (n == 0) ESP_LOGD(TAG, "SHORT WRITE n=%d err=%s\n", xfr.in, ec.message().c_str());
   }
 
   inline void operator()(kv_store &&kvs_extra) noexcept {
@@ -86,7 +80,7 @@ public:
     DynamicJsonDocument doc(Msg::default_doc_size);
 
     // first, add MSG_TYPE as it is used to detect start of message
-    doc[desk::MSG_TYPE] = type;
+    doc[desk::MSG_TYPE] = msg_type;
 
     // allow subclasses to add special data directly to the doc
     serialize_hook(doc);
@@ -109,7 +103,7 @@ public:
 
 public:
   // order dependent
-  string type;
+  string msg_type;
 
   // order independent
   kv_store kvs;

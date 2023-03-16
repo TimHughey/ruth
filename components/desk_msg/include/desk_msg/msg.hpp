@@ -19,8 +19,8 @@
 
 #pragma once
 
+#include "desk_msg/kv.hpp"
 #include "misc/elapsed.hpp"
-#include "msg/kv.hpp"
 #include "ru_base/types.hpp"
 
 #include <ArduinoJson.h>
@@ -33,6 +33,9 @@ namespace ruth {
 namespace desk {
 
 class Msg {
+
+protected:
+  inline auto *raw() noexcept { return static_cast<const char *>(storage->data().data()); }
 
 public:
   inline Msg(std::size_t capacity) noexcept
@@ -60,6 +63,21 @@ public:
 
     return want_type == csv{type_cstr};
   }
+
+  inline void reuse() noexcept {
+    packed_len = 0;
+    ec = asio::error_code();
+    xfr.bytes = 0;
+    e.reset();
+  }
+
+  static const string type(const JsonDocument &doc) noexcept {
+    const char *type_cstr = doc[MSG_TYPE];
+
+    return type_cstr ? string(type_cstr) : string(desk::UNKNOWN);
+  }
+
+  inline static bool valid(JsonDocument &doc) noexcept { return doc[desk::MAGIC] == MAGIC_VAL; }
 
   inline bool xfer_error() const noexcept { return !xfer_ok(); }
   inline bool xfer_ok() const noexcept { return !ec && (xfr.bytes >= packed_len); }

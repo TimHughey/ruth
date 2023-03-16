@@ -18,7 +18,9 @@
 //  https://www.wisslanding.com
 
 #include "lightdesk/lightdesk.hpp"
+#include "async_msg/read.hpp"
 #include "binder/binder.hpp"
+#include "desk_cmd/cmd.hpp"
 #include "dmx/dmx.hpp"
 #include "io/io.hpp"
 #include "network/network.hpp"
@@ -38,7 +40,9 @@
 
 namespace ruth {
 
-LightDesk::LightDesk() noexcept : acceptor{io_ctx, tcp_endpoint{ip_tcp::v4(), SERVICE_PORT}} {}
+LightDesk::LightDesk() noexcept
+    : acceptor_data{io_ctx, tcp_endpoint{ip_tcp::v4(), SERVICE_PORT}},
+      acceptor_cmd{io_ctx, tcp_endpoint{ip_tcp::v4(), CMD_PORT}} {}
 
 void LightDesk::advertise(Binder *binder) noexcept {
   const auto host = binder->hostname();
@@ -52,7 +56,7 @@ void LightDesk::advertise(Binder *binder) noexcept {
     string name(name_ss.str());
 
     if (mdns_instance_name_set(name.c_str()) == ESP_OK) {
-      ESP_LOGI(LightDesk::TAG, "host[%s] instance[%s]", host.c_str(), name.c_str());
+      ESP_LOGI(LightDesk::TAG, "mdns: %s %s", host.c_str(), name.c_str());
 
       auto txt_data = std::array<mdns_txt_item_t, 1>{{"desk", "true"}};
       mdns_service_add(name.c_str(), SERVICE_NAME.data(), SERVICE_PROTOCOL.data(), SERVICE_PORT,
@@ -66,17 +70,35 @@ void LightDesk::advertise(Binder *binder) noexcept {
   }
 }
 
-void LightDesk::async_accept() noexcept {
+void LightDesk::async_accept_cmd() noexcept {
 
+  // accept cmd socket connections
+  // note: using non-cost error_code for reuse
+  acceptor_cmd.async_accept(io_ctx, [this](error_code ec, tcp_socket peer) {
+    if (ec) return; // no more work
+
+    ESP_LOGI(TAG, "cmd socket opened port %u", peer.local_endpoint().port());
+
+    auto cmd = desk::Cmd::create(std::move(peer));
+
+    async_msg::read(cmd, [](std::shared_ptr<desk::Cmd> cmd) { cmd->process(); });
+
+    async_accept_cmd();
+  });
+}
+
+void LightDesk::async_accept_data() noexcept {
+
+  // accept frame rendering data connections
   // upon a new accepted connection create the socket with the session io_ctx
-  acceptor.async_accept(io_ctx_session, [this](const error_code &ec, tcp_socket peer) {
+  acceptor_data.async_accept(io_ctx_session, [this](const error_code &ec, tcp_socket peer) {
     if (ec) return; // no more work
 
     session.reset(); // support only a single session
 
     session = std::make_unique<desk::Session>(io_ctx_session, std::move(peer));
 
-    async_accept();
+    async_accept_data();
   });
 }
 
@@ -85,7 +107,8 @@ void LightDesk::run(Binder *binder) noexcept {
 
   // add work for the io_ctx
   advertise(binder);
-  async_accept();
+  async_accept_cmd();
+  async_accept_data();
 
   io_ctx.run();
   ESP_LOGI(TAG, "io_ctx work exhausted");

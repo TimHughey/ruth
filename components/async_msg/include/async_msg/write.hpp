@@ -1,5 +1,5 @@
 
-//  Pierre - Custom Light Show for Wiss Landing
+//  Ruth
 //  Copyright (C) 2022  Tim Hughey
 //
 //  This program is free software: you can redistribute it and/or modify
@@ -19,40 +19,27 @@
 
 #pragma once
 
-#include "async/matcher.hpp"
 #include "io/io.hpp"
 #include "ru_base/types.hpp"
 
-#include <memory>
-#include <type_traits>
-#include <utility>
+#include <esp_log.h>
 
 namespace ruth {
-namespace desk {
-namespace async {
+namespace async_msg {
 
-namespace read {
-constexpr auto TAG{"desk.async.read"};
-}
-
-/// @brief Async read desk msg
-/// @tparam CompletionToken
-/// @param socket
-/// @param token
-/// @return
 template <typename Socket, typename M, typename CompletionToken>
-inline auto read_msg(Socket &sock, M &&msg, CompletionToken &&token) {
+inline auto write(Socket &sock, M &&msg, CompletionToken &&token) {
 
-  auto initiation = [](auto &&completion_handler, Socket &sock, M msg) {
+  auto initiation = [](auto &&completion_handler, Socket &sock, M &&msg) {
     struct intermediate_completion_handler {
-      Socket &sock;
-      M msg; // hold the in-flight message
+      Socket &sock; // for multiple write ops and obtaining I/O executor
+      M msg;
       typename std::decay<decltype(completion_handler)>::type handler;
 
-      void operator()(const error_code &ec, size_t n = 0) noexcept {
+      void operator()(const error_code &ec, std::size_t n) noexcept {
         msg(ec, n);
 
-        handler(std::move(msg));
+        handler(std::move(msg)); // call user-supplied handler
       }
 
       using executor_type =
@@ -70,33 +57,26 @@ inline auto read_msg(Socket &sock, M &&msg, CompletionToken &&token) {
       allocator_type get_allocator() const noexcept {
         return asio::get_associated_allocator(handler, std::allocator<void>{});
       }
-    }; // end intermediate struct
+    };
 
-    msg.reuse();
-    auto &buffer = msg.buffer(); // get the buffer, it may have pending data
+    msg.serialize();
+    auto &buffer = msg.buffer();
 
-    // ok, we have everything we need kick-off async_read_until()
-
-    asio::async_read_until( //
-        sock, buffer,       //
-        matcher(),          //
-        intermediate_completion_handler{
-            // reference to socket
-            sock,
-            // the message (logic)
-            std::move(msg),
-            // handler
-            std::forward<decltype(completion_handler)>(completion_handler)});
+    // initiate the actual async operation
+    asio::async_write(sock, buffer,
+                      intermediate_completion_handler{
+                          sock, std::forward<M>(msg),
+                          std::forward<decltype(completion_handler)>(completion_handler)});
   };
 
-  return asio::async_initiate<CompletionToken, void(M && msg)>(
-      initiation,     // initiation function object
-      token,          // user supplied callback
-      std::ref(sock), // socket and data storage
-      std::move(msg)  // the message
+  // initiate the async operation
+  return asio::async_initiate<CompletionToken, void(M msg)>(
+      initiation,          // initiation function object
+      token,               // user supplied callback
+      std::ref(sock),      // wrap non-const args to prevent incorrect decay-copies
+      std::forward<M>(msg) // move the msg for use within the async operation
   );
 }
 
-} // namespace async
-} // namespace desk
+} // namespace async_msg
 } // namespace ruth

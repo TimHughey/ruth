@@ -40,7 +40,8 @@ public:
   ~LightDesk() noexcept {} // prevent implict copy/move
 
   void advertise(Binder *binder) noexcept; // in .cpp to hide mdns
-  void async_accept() noexcept;            // in .cpp to hide Session impl
+  void async_accept_cmd() noexcept;        // in .cpp to hide command processing
+  void async_accept_data() noexcept;       // in .cpp to hide Session impl
 
   void run(Binder *binder) noexcept; // in .cpp to hide Binder, Net
 
@@ -48,12 +49,14 @@ public:
   // order dependent
   io_context io_ctx;
   io_context io_ctx_session;
-  tcp_acceptor acceptor;
+  tcp_acceptor acceptor_data;
+  tcp_acceptor acceptor_cmd;
 
   // order independent
   std::shared_ptr<desk::Session> session;
 
 public:
+  static constexpr Port CMD_PORT{49151};
   static constexpr csv SERVICE_NAME{"_ruth"};
   static constexpr csv SERVICE_PROTOCOL{"_tcp"};
   static constexpr Port SERVICE_PORT{49152};
