@@ -17,9 +17,9 @@
 //  https://www.wisslanding.com
 
 #include "binder/binder.hpp"
+#include "desk_cmd/ota.hpp"
 #include "lightdesk/lightdesk.hpp"
 #include "network/network.hpp"
-#include "ota/ota.hpp"
 
 #include <cstdlib>
 #include <esp_log.h>
@@ -68,7 +68,7 @@ void app_main() {
   auto net = std::make_unique<ruth::Net>(binder.get());
   net->wait_for_ready();
 
-  ruth::OTA::validate_pending(binder.get());
+  ruth::desk::OTA::validate_pending(binder.get());
 
   // this is where our implementation begins by starting the Core
   auto desk = std::make_unique<ruth::LightDesk>();

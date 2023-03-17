@@ -16,14 +16,17 @@
 //
 //  https://www.wisslanding.com
 
-#include "ota/ota.hpp"
+#include "desk_cmd/ota.hpp"
 #include "ArduinoJson.h"
 #include "async_msg/write.hpp"
 #include "desk_msg/out.hpp"
+#include "desk_msg/out_info.hpp"
 
 #include <algorithm>
 #include <array>
+#include <esp_http_client.h>
 #include <esp_log.h>
+#include <esp_partition.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -31,6 +34,7 @@
 #include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <spi_flash_mmap.h>
 #include <sstream>
 
 extern const char ca_start[] asm("_binary_ca_pem_start");
@@ -38,6 +42,7 @@ extern const char ca_end[] asm("_binary_ca_pem_end");
 static const auto ca_len{std::distance(ca_start, ca_end)};
 
 namespace ruth {
+namespace desk {
 
 static esp_err_t clientInitCallback(esp_http_client_handle_t client) noexcept { return ESP_OK; }
 
@@ -118,25 +123,14 @@ void OTA::finish() noexcept {
 
   if (result.empty()) result.assign(std::move(image_check));
 
-  desk::MsgOut msg(desk::OTA);
+  MsgOutWithInfo msg(desk::OTA_RESPONSE);
 
   if (!error.empty()) msg.add_kv(desk::ERROR, error);
   if (!result.empty()) msg.add_kv(desk::RESULT, result);
 
-  async_msg::write(sock, std::move(msg), [ota = shared_from_this()](desk::MsgOut msg) {
-    if (msg.ec) ESP_LOGI(TAG, "%s", msg.ec.message().c_str());
+  msg.add_kv(desk::ELAPSED_US, e());
 
-    if (ota->state == FINISH) {
-      auto timer = xTimerCreate("ota_restart", pdMS_TO_TICKS(1000),
-                                pdFALSE, // no auto reload
-                                nullptr, // no user context
-                                &restart);
-
-      ESP_LOGI(TAG, "restart timer=%p", timer);
-
-      xTimerStart(timer, pdMS_TO_TICKS(1000));
-    }
-  });
+  send_response(std::move(msg));
 }
 
 OTA::state_t OTA::initialize() noexcept {
@@ -239,4 +233,25 @@ void OTA::validate_pending(Binder *binder) {
   }
 }
 
+void IRAM_ATTR OTA::send_response(MsgOut &&msg) noexcept {
+
+  async_msg::write(sock, std::move(msg), [self = shared_from_this()](MsgOut msg_out) {
+    if (msg_out.xfer_error()) {
+      ESP_LOGI(TAG, "write reply error %s", msg_out.ec.message().c_str());
+    }
+
+    if (self->state == FINISH) {
+      auto timer = xTimerCreate("ota_restart", pdMS_TO_TICKS(1000),
+                                pdFALSE, // no auto reload
+                                nullptr, // no user context
+                                &restart);
+
+      ESP_LOGI(TAG, "restart timer=%p", timer);
+
+      xTimerStart(timer, pdMS_TO_TICKS(1000));
+    }
+  });
+}
+
+} // namespace desk
 } // namespace ruth

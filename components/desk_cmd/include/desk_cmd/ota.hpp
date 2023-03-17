@@ -23,23 +23,22 @@
 #include "misc/elapsed.hpp"
 #include "ru_base/types.hpp"
 
-#include <ArduinoJson.h>
 #include <cstdint>
-#include <esp_http_client.h>
 #include <esp_https_ota.h>
 #include <esp_ota_ops.h>
-#include <esp_partition.h>
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/timers.h>
-#include <memory.h>
-#include <spi_flash_mmap.h>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
 
 namespace ruth {
+namespace desk {
+
+class MsgOut;
 
 class OTA : public std::enable_shared_from_this<OTA> {
 private:
@@ -79,6 +78,8 @@ private:
     esp_restart();
   }
 
+  void send_response(MsgOut &&msg) noexcept;
+
 private:
   // order dependent for object initialization
   tcp_socket sock;
@@ -99,4 +100,5 @@ public:
   static constexpr size_t URL_MAX_LEN{512};
 };
 
+} // namespace desk
 } // namespace ruth

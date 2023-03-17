@@ -20,6 +20,7 @@
 #pragma once
 
 #include "desk_msg/msg.hpp"
+#include "desk_msg/out.hpp"
 
 #include <ArduinoJson.h>
 #include <esp_log.h>
@@ -63,6 +64,9 @@ public:
   bool process() noexcept;
 
   tcp_socket &socket() noexcept { return sock; }
+
+private:
+  void send_response(MsgOut &&m) noexcept;
 
 private:
   tcp_socket sock;

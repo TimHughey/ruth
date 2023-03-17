@@ -19,11 +19,12 @@
 
 #include "desk_cmd/cmd.hpp"
 #include "async_msg/write.hpp"
+#include "desk_cmd/ota.hpp"
 #include "desk_msg/kv.hpp"
-#include "ota/ota.hpp"
 #include <desk_msg/out.hpp>
 
 #include <ArduinoJson.h>
+#include <esp_attr.h>
 #include <esp_log.h>
 
 namespace ruth {
@@ -47,13 +48,11 @@ bool Cmd::process() noexcept {
       MsgOut msg_out(desk::PONG);
 
       msg_out.add_kv(desk::TEXT, "pong");
+      msg_out.add_kv(desk::ELAPSED_US, elapsed());
 
-      async_msg::write(sock, std::move(msg_out), [self = shared_from_this()](MsgOut msg_out) {
-        if (msg_out.xfer_error()) {
-          ESP_LOGI(TAG, "write reply error %s", msg_out.ec.message().c_str());
-        }
-      });
-    } else if (is_msg_type(doc_in, desk::OTA)) {
+      send_response(std::move(msg_out));
+
+    } else if (is_msg_type(doc_in, desk::OTA_REQUEST)) {
       const char *url = doc_in[desk::URL].as<const char *>();
       const char *file = doc_in[desk::FILE].as<const char *>();
 
@@ -61,6 +60,17 @@ bool Cmd::process() noexcept {
     }
   }
   return true;
+}
+
+// NOTE:  async_msg::write() is inlined.  we create a wrapper here
+//        to avoid code bloat for desk cmds
+void IRAM_ATTR Cmd::send_response(MsgOut &&msg) noexcept {
+
+  async_msg::write(sock, std::move(msg), [self = shared_from_this()](MsgOut msg_out) {
+    if (msg_out.xfer_error()) {
+      ESP_LOGI(TAG, "write reply error %s", msg_out.ec.message().c_str());
+    }
+  });
 }
 
 } // namespace desk

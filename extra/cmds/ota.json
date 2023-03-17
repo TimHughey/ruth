@@ -1,5 +1,5 @@
 {
-  "mt": "ota",
+  "mt": "ota_request",
   "url": "https://www.wisslanding.com/desk/fw",
   "file": "latest.bin",
   "ma": 828

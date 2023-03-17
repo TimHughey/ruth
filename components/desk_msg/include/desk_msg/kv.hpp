@@ -34,11 +34,14 @@ static constexpr auto MAGIC{"ma"};      // msg end detection
 static constexpr auto MSG_TYPE{"mt"};   // msg start detection
 
 // periodic
+
+static constexpr const auto SUPP{"supp"}; // msg contains supplemental metrics
+static constexpr const auto TEXT("text"); // msg text
+
+// ota
 static constexpr const auto ERROR{"error"};
 static constexpr const auto FILE{"file"};
 static constexpr const auto RESULT{"result"};
-static constexpr const auto SUPP{"supp"}; // msg contains supplemental metrics
-static constexpr const auto TEXT("text"); // msg text
 static constexpr const auto URL{"url"};
 
 // handshake remote -> local
@@ -70,7 +73,8 @@ static constexpr auto UART_OVERRUN{"uart_overrun"}; // uart overrun (timeout)
 static constexpr auto DATA{"data"};
 static constexpr auto DATA_REPLY{"data_reply"};
 static constexpr auto HANDSHAKE{"handshake"};
-static constexpr auto OTA{"ota"};
+static constexpr auto OTA_REQUEST{"ota_request"};
+static constexpr auto OTA_RESPONSE{"ota_response"};
 static constexpr auto PING{"ping"};
 static constexpr auto PONG{"pong"};
 static constexpr auto SHUTDOWN{"shutdown"};

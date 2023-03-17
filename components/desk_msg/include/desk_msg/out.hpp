@@ -22,6 +22,7 @@
 #include "desk_msg/kv.hpp"
 #include "desk_msg/kv_store.hpp"
 #include "desk_msg/msg.hpp"
+#include "io/io.hpp"
 #include "misc/elapsed.hpp"
 #include "ru_base/rut.hpp"
 #include "ru_base/types.hpp"
@@ -43,7 +44,7 @@ protected:
 
 public:
   // outbound messages
-  inline MsgOut(auto &msg_type) noexcept : Msg(256), msg_type(msg_type) {}
+  inline MsgOut(const char *msg_type) noexcept : Msg(256), msg_type(msg_type) {}
 
   // inbound messages
   virtual ~MsgOut() noexcept {} // prevent implicit copy/move

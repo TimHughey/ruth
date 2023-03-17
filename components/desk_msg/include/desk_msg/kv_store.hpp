@@ -30,7 +30,6 @@ namespace desk {
 
 class kv_store {
 private:
-  // note: these are the only types that Units set
   using val_t = std::variant<uint16_t, uint32_t, float, bool, int64_t, string>;
 
   struct key_val_entry {
@@ -49,9 +48,11 @@ public:
     std::for_each(add_kvs.key_vals.begin(), add_kvs.key_vals.end(),
                   [this](auto &entry) { key_vals.emplace_back(std::move(entry)); });
   }
+  inline void add(auto key, auto &&val) noexcept { key_vals.emplace_back(key_val_entry{key, val}); }
+
+  void add_heap_info() noexcept;
 
   inline void clear() noexcept { key_vals.clear(); }
-  inline void add(auto key, auto &&val) noexcept { key_vals.emplace_back(key_val_entry{key, val}); }
 
   inline void populate_doc(auto &doc) noexcept {
 
