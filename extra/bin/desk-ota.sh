@@ -5,7 +5,7 @@ extra=${HOME}/devel/ruth/extra
 bin_file=${build}/ruth.bin
 
 fw_path=/dar/www/wisslanding/htdocs/desk/fw
-fw_name=lightdesk.bin
+fw_name=latest.bin
 
 pushd ${build}
 rsync -a ${bin_file} ${fw_path}/${fw_name}
