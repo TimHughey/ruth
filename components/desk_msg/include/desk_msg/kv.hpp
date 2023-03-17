@@ -28,58 +28,58 @@ namespace desk {
 //
 
 // common local <-> remote
-static constexpr auto NOW_US{"now_µs"}; // all msgs
-static constexpr auto REF_US{"ref_µs"}; // all msgs
-static constexpr auto MAGIC{"ma"};      // msg end detection
-static constexpr auto MSG_TYPE{"mt"};   // msg start detection
+static auto constexpr NOW_US{"now_µs"}; // all msgs
+static auto constexpr REF_US{"ref_µs"}; // all msgs
+static auto constexpr MAGIC{"ma"};      // msg end detection
+static auto constexpr MSG_TYPE{"mt"};   // msg start detection
 
 // periodic
 
-static constexpr const auto SUPP{"supp"}; // msg contains supplemental metrics
-static constexpr const auto TEXT("text"); // msg text
+static auto constexpr SUPP{"supp"}; // msg contains supplemental metrics
+static auto constexpr TEXT("text"); // msg text
 
 // ota
-static constexpr const auto ERROR{"error"};
-static constexpr const auto FILE{"file"};
-static constexpr const auto RESULT{"result"};
-static constexpr const auto URL{"url"};
+static auto constexpr ERROR{"error"};
+static auto constexpr FILE{"file"};
+static auto constexpr RESULT{"result"};
+static auto constexpr URL{"url"};
 
 // handshake remote -> local
-static constexpr auto FRAME_LEN{"frame_len"}; // handshake
-static constexpr auto IDLE_MS{"idle_ms"};     // handshake
-static constexpr auto STATS_MS{"stats_ms"};   // handshake
+static auto constexpr FRAME_LEN{"frame_len"}; // handshake
+static auto constexpr IDLE_MS{"idle_ms"};     // handshake
+static auto constexpr STATS_MS{"stats_ms"};   // handshake
 
 // data msg local -> remote
-static constexpr auto FRAME{"frame"};     // data msg
-static constexpr auto SEQ_NUM{"seq_num"}; // data msg
-static constexpr auto SILENCE{"silence"}; // data msg
+static auto constexpr FRAME{"frame"};     // data msg
+static auto constexpr SEQ_NUM{"seq_num"}; // data msg
+static auto constexpr SILENCE{"silence"}; // data msg
 
 // data msg reply remote -> local
-static constexpr auto ECHO_NOW_US{"echo_now_µs"}; // echoed
-static constexpr auto ELAPSED_US{"elapsed_µs"};   // data_reply msg
-static constexpr auto DATA_WAIT_US{"data_wait_µs"};
+static auto constexpr ECHO_NOW_US{"echo_now_µs"}; // echoed
+static auto constexpr ELAPSED_US{"elapsed_µs"};   // data_reply msg
+static auto constexpr DATA_WAIT_US{"data_wait_µs"};
 
 // stats msg remote -> local
-static constexpr auto FPS{"fps"};                   // frames per second
-static constexpr auto QOK{"qok"};                   // frame queue ok
-static constexpr auto QRF{"qrf"};                   // rame queue recv failure count
-static constexpr auto QSF{"qsf"};                   // queue send failure count
-static constexpr auto UART_OVERRUN{"uart_overrun"}; // uart overrun (timeout)
+static auto constexpr FPS{"fps"};                   // frames per second
+static auto constexpr QOK{"qok"};                   // frame queue ok
+static auto constexpr QRF{"qrf"};                   // rame queue recv failure count
+static auto constexpr QSF{"qsf"};                   // queue send failure count
+static auto constexpr UART_OVERRUN{"uart_overrun"}; // uart overrun (timeout)
 
 //
 // msg types
 //
 
-static constexpr auto DATA{"data"};
-static constexpr auto DATA_REPLY{"data_reply"};
-static constexpr auto HANDSHAKE{"handshake"};
-static constexpr auto OTA_REQUEST{"ota_request"};
-static constexpr auto OTA_RESPONSE{"ota_response"};
-static constexpr auto PING{"ping"};
-static constexpr auto PONG{"pong"};
-static constexpr auto SHUTDOWN{"shutdown"};
-static constexpr auto STATS{"stats"};
-static constexpr auto UNKNOWN{"unknown"};
+static auto constexpr DATA{"data"};
+static auto constexpr DATA_REPLY{"data_reply"};
+static auto constexpr HANDSHAKE{"handshake"};
+static auto constexpr OTA_REQUEST{"ota_request"};
+static auto constexpr OTA_RESPONSE{"ota_response"};
+static auto constexpr PING{"ping"};
+static auto constexpr PONG{"pong"};
+static auto constexpr SHUTDOWN{"shutdown"};
+static auto constexpr STATS{"stats"};
+static auto constexpr UNKNOWN{"unknown"};
 
 //
 // msg values

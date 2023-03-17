@@ -31,11 +31,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/timers.h>
-#include <iomanip>
-#include <iostream>
 #include <iterator>
 #include <spi_flash_mmap.h>
-#include <sstream>
 
 extern const char ca_start[] asm("_binary_ca_pem_start");
 extern const char ca_end[] asm("_binary_ca_pem_end");
@@ -71,11 +68,7 @@ OTA::~OTA() noexcept {
 bool OTA::check_error(esp_err_t esp_rc, const char *details) noexcept {
   if (esp_rc != ESP_OK) {
     if (error.empty()) {
-      std::ostringstream ss;
-
-      ss << details << ' ' << esp_err_to_name(esp_rc);
-
-      error.assign(ss.str());
+      error.append(details).append(" ").append(esp_err_to_name(esp_rc));
     }
     return true;
   }
@@ -100,6 +93,7 @@ void OTA::execute() noexcept {
 
   // prevent log noise
   esp_log_level_set("HTTP_CLIENT", ESP_LOG_ERROR);
+  esp_log_level_set("esp_https_ota", ESP_LOG_ERROR);
 
   asio::post(sock.get_executor(), [self_s = shared_from_this()]() {
     auto self = self_s.get(); // keep ourself
@@ -121,14 +115,31 @@ void OTA::finish() noexcept {
     check_error(rc, "ota finish");
   }
 
-  if (result.empty()) result.assign(std::move(image_check));
+  auto constexpr INSTALLED{" installed"};
+
+  string result(version);
+
+  if (state == CANCEL) {
+    result.append(" is").append(INSTALLED);
+  } else if (state == FINISH) {
+    result.append(INSTALLED);
+  } else {
+    auto constexpr SEE_ERROR{"error"};
+    if (!result.empty()) {
+      result.append(" (see ").append(SEE_ERROR).append(")");
+    } else {
+      result.assign(SEE_ERROR);
+    }
+  }
+
+  ESP_LOGI(TAG, "%s %s", result.c_str(), error.c_str());
 
   MsgOutWithInfo msg(desk::OTA_RESPONSE);
 
-  if (!error.empty()) msg.add_kv(desk::ERROR, error);
-  if (!result.empty()) msg.add_kv(desk::RESULT, result);
-
+  msg.add_kv(desk::RESULT, result);
   msg.add_kv(desk::ELAPSED_US, e());
+
+  if (!error.empty()) msg.add_kv(desk::ERROR, error);
 
   send_response(std::move(msg));
 }
@@ -169,22 +180,9 @@ OTA::state_t OTA::initialize() noexcept {
 }
 
 bool OTA::is_same_image(const esp_app_desc_t *a, esp_app_desc_t *b) noexcept {
-  auto constexpr SAME{"is already installed"};
-  auto constexpr DIFF{"will be installed"};
+  version.assign(b->version);
 
-  std::ostringstream ss;
-
-  auto rc = memcmp(a->app_elf_sha256, b->app_elf_sha256, sizeof(a->app_elf_sha256)) == 0;
-
-  const std::array<const char *, 5> parts{"image", b->version, b->date, b->time, rc ? SAME : DIFF};
-
-  std::for_each(parts.begin(), parts.end(), [&ss](const auto p) { ss << p << ' '; });
-
-  image_check.assign(ss.str());
-
-  ESP_LOGI(TAG, "%s", image_check.c_str());
-
-  return rc;
+  return memcmp(a->app_elf_sha256, b->app_elf_sha256, sizeof(a->app_elf_sha256)) == 0;
 }
 
 void OTA::mark_valid(TimerHandle_t handle) noexcept {

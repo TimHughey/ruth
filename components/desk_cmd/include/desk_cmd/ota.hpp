@@ -90,9 +90,8 @@ private:
   esp_https_ota_handle_t ota_handle;
 
 public:
-  string result;
+  string version;
   string error;
-  string image_check;
   Elapsed e;
 
 public:

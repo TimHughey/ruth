@@ -46,7 +46,10 @@ public:
   MsgOutWithInfo &operator=(MsgOutWithInfo &&) = default;
 
 private:
+  void add_app_info(JsonDocument &doc) noexcept;
   void add_heap_info(JsonDocument &doc) noexcept;
+
+  csv reset_reason() noexcept;
 
 public:
   static constexpr csv module_id{"desk.msg.out"};

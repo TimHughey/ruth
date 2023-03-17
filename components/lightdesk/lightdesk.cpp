@@ -56,7 +56,7 @@ void LightDesk::advertise(Binder *binder) noexcept {
     string name(name_ss.str());
 
     if (mdns_instance_name_set(name.c_str()) == ESP_OK) {
-      ESP_LOGI(LightDesk::TAG, "mdns: %s %s", host.c_str(), name.c_str());
+      ESP_LOGI(LightDesk::TAG, "%s %s", host.c_str(), name.c_str());
 
       auto txt_data = std::array<mdns_txt_item_t, 1>{{"desk", "true"}};
       mdns_service_add(name.c_str(), SERVICE_NAME.data(), SERVICE_PROTOCOL.data(), SERVICE_PORT,

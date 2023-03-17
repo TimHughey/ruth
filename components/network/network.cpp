@@ -108,7 +108,7 @@ Net::Net(Binder *binder) noexcept
 
     if (JsonVariantConst server = cfg_sntp_servers[i]; server) {
       const auto &s = sntp_servers[i].assign(server.as<string>());
-      ESP_LOGI(TAG, "cfg sntp server: %s", s.c_str());
+      ESP_LOGI(TAG, "sntp server: %s", s.c_str());
     }
   }
 }
