@@ -33,7 +33,7 @@ namespace ruth {
 
 class DMX {
 public:
-  static constexpr csv TAG{"dmx"};
+  static auto constexpr TAG{"dmx"};
 
 private:
   // for documentation purposes we build up the DMX frame duration
@@ -52,6 +52,8 @@ private:
   static constexpr TickType_t FRAME_HALF_TICKS{FRAME_TICKS / 2};
   static constexpr TickType_t FRAME_TICKS25{FRAME_TICKS / 4};
   static constexpr TickType_t RECV_TIMEOUT_TICKS{FRAME_TICKS * 2};
+
+  // length, in bytes, of the dmx frame to transmit
   static constexpr std::size_t UART_FRAME_LEN{412};
 
 public:

@@ -28,15 +28,16 @@ namespace desk {
 //
 
 // common local <-> remote
-static auto constexpr NOW_US{"now_µs"}; // all msgs
-static auto constexpr REF_US{"ref_µs"}; // all msgs
-static auto constexpr MAGIC{"ma"};      // msg end detection
-static auto constexpr MSG_TYPE{"mt"};   // msg start detection
+static auto constexpr NOW_US{"now_µs"};           // all msgs
+static auto constexpr NOW_REAL_US{"now_real_µs"}; // all msgs
+static auto constexpr REF_US{"ref_µs"};           // all msgs
+static auto constexpr MAGIC{"ma"};                // msg end detection
+static auto constexpr MSG_TYPE{"mt"};             // msg start detection
 
 // periodic
-
-static auto constexpr SUPP{"supp"}; // msg contains supplemental metrics
-static auto constexpr TEXT("text"); // msg text
+static auto constexpr DIFF_REAL_US{"diff_real_µs"}; // diff in real time microsecs
+static auto constexpr SUPP{"supp"};                 // msg contains supplemental metrics
+static auto constexpr TEXT("text");                 // msg text
 
 // ota
 static auto constexpr ERROR{"error"};

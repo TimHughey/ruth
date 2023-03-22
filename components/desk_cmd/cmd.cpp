@@ -21,6 +21,7 @@
 #include "async_msg/write.hpp"
 #include "desk_cmd/ota.hpp"
 #include "desk_msg/kv.hpp"
+#include "ru_base/clock_now.hpp"
 #include <desk_msg/out.hpp>
 
 #include <ArduinoJson.h>
@@ -45,11 +46,16 @@ bool Cmd::process() noexcept {
 
   if (deserialize_into(doc_in)) {
     if (is_msg_type(doc_in, desk::PING)) {
+
+      int64_t local_us = clock_now::real::us();
+      int64_t remote_us = doc_in[desk::NOW_REAL_US].as<int64_t>();
+      const auto diff_us = local_us - remote_us;
+
       MsgOut msg_out(desk::PONG);
 
       msg_out.add_kv(desk::TEXT, "pong");
       msg_out.add_kv(desk::ELAPSED_US, elapsed());
-
+      msg_out.add_kv(desk::DIFF_REAL_US, diff_us);
       send_response(std::move(msg_out));
 
     } else if (is_msg_type(doc_in, desk::OTA_REQUEST)) {

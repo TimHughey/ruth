@@ -30,11 +30,11 @@ namespace ruth {
 static DRAM_ATTR TaskHandle_t dmx_task{nullptr};
 
 static void ensure_one_task() noexcept {
-  for (auto waiting_ms = 0; dmx_task; waiting_ms++) {
-    vTaskDelay(pdMS_TO_TICKS(1));
+  for (auto waiting_ms = 0; dmx_task; waiting_ms += 10) {
+    vTaskDelay(pdMS_TO_TICKS(10));
 
     if ((waiting_ms % 100) == 0) {
-      ESP_LOGW(DMX::TAG.data(), "waiting to start task, %dms", waiting_ms);
+      ESP_LOGW(DMX::TAG, "waiting to start task, %dms", waiting_ms);
     }
   }
 }
@@ -42,8 +42,6 @@ static void ensure_one_task() noexcept {
 // object API
 
 DMX::DMX(std::size_t frame_len) noexcept : frame_len{frame_len}, spooling{false} {
-  ESP_LOGI(TAG.data(), "startup, frame=%lldms (%lu ticks), len=%u", FRAME_MS.count(), FRAME_TICKS,
-           frame_len);
 
   // wait for previous DMX task to stop, if there is one
   ensure_one_task();
@@ -59,39 +57,51 @@ DMX::DMX(std::size_t frame_len) noexcept : frame_len{frame_len}, spooling{false}
   // incomplete ring buffer actions via tx_frame()
   auto caller_priority = uxTaskPriorityGet(nullptr);
 
-  auto rc = xTaskCreate(&spool_frames,       // run this function as the task
-                        TAG.data(),          // task name
-                        3 * 1024,            // stack size
-                        this,                // pass the newly created object to run()
-                        caller_priority - 1, // always lower priority than caller
-                        &dmx_task);
+  xTaskCreate(&spool_frames,       // run this function as the task
+              TAG,                 // task name
+              3 * 1024,            // stack size
+              this,                // pass the newly created object to run()
+              caller_priority - 1, // always lower priority than caller
+              &dmx_task);
 
-  ESP_LOGI(TAG.data(), "started rc=%d task=%p", rc, dmx_task);
+  ESP_LOGI(TAG, "started, frame=%lldms (%lu ticks), len=%u", //
+           FRAME_MS.count(), FRAME_TICKS, frame_len);
 }
 
 DMX::~DMX() noexcept {
   spooling = false;
 
-  TaskStatus_t info;
+  if (dmx_task) {
+    TaskStatus_t info;
 
-  do {
-    vTaskGetInfo(dmx_task,  // task handle
-                 &info,     // where to store info
-                 pdFALSE,   // do not calculate task stack high water mark
-                 eInvalid); // include task status
+    do {
+      vTaskGetInfo(dmx_task,  // task handle
+                   &info,     // where to store info
+                   pdTRUE,    // do not calculate task stack high water mark
+                   eInvalid); // include task status
 
-    if (info.eCurrentState != eSuspended) vTaskDelay(pdMS_TO_TICKS(1));
-  } while (info.eCurrentState != eSuspended);
+      if (info.eCurrentState != eSuspended) {
+        vTaskDelay(FRAME_TICKS);
+
+        ESP_LOGW(TAG, "task state=%u (want suspended(3))", info.eCurrentState);
+      }
+    } while (info.eCurrentState != eSuspended);
+
+    ESP_LOGI(TAG, "task %s suspended, stack_hw_mark=%lu", info.pcTaskName,
+             info.usStackHighWaterMark);
+
+    vTaskDelete(std::exchange(dmx_task, nullptr));
+    ESP_LOGI(TAG, "deleted dmx task=%p", dmx_task);
+  }
 
   // it is safe to delete the ring buffer and the task
-  vRingbufferDelete(std::exchange(rb, nullptr));
-  vTaskDelete(std::exchange(dmx_task, nullptr));
+  if (rb) vRingbufferDelete(std::exchange(rb, nullptr));
 }
 
 void IRAM_ATTR DMX::spool_frames(void *dmx_v) noexcept { // static
   auto *self = static_cast<DMX *>(dmx_v);
 
-  ESP_LOGI(TAG.data(), "spool frame loop starting...");
+  ESP_LOGI(TAG, "spool frame loop starting...");
 
   // declare the uart frame
   std::array<uint8_t, UART_FRAME_LEN> uart_frame{0x00};
@@ -144,12 +154,14 @@ void IRAM_ATTR DMX::spool_frames(void *dmx_v) noexcept { // static
       bytes_tx = uart_write_bytes_with_break( // tx frame via uart
           dmx::UART_NUM,                      // uart_num
           uart_frame.data(),                  // data to send
-          uart_frame.size(),                  // number of bytes
-          dmx::FRAME_BREAK);                  // bits to send as frame break
+          uart_frame.size(),                  // data length to send
+          dmx::FRAME_BREAK);                  // duration of break
 
       if (bytes_tx == uart_frame.size()) self->qok++; // frame recv'ed OK
     }
   }
+
+  ESP_LOGI(TAG, "dmx task suspending...");
 
   // we've fallen through the loop which means we're shutting down.
   // suspend ourself so the task can be safely deleted

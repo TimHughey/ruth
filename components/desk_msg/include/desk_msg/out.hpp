@@ -89,11 +89,15 @@ public:
     // put added key/vals into the document
     kvs.populate_doc(doc);
 
+    // include the elapsed time to prepare the buffer by doing so before
+    // we finish populating the doc
+    auto buffer = prepare();
+
     // finally, add the trailer
     doc[NOW_US] = rut::raw_us();
+    doc[ELAPSED_US] = elapsed();
     doc[MAGIC] = MAGIC_VAL; // add magic as final key (to confirm complete msg)
 
-    auto buffer = prepare();
     packed_len = serializeMsgPack(doc, raw_out(buffer), buffer.size());
 
     commit(packed_len);

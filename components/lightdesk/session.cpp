@@ -24,6 +24,7 @@
 #include "headunit/ac_power.hpp"
 #include "headunit/dimmable.hpp"
 #include "network/network.hpp"
+#include "ru_base/clock_now.hpp"
 #include "ru_base/rut.hpp"
 
 #include "ArduinoJson.h"
@@ -34,7 +35,7 @@
 #include <cmath>
 #include <esp_log.h>
 #include <esp_timer.h>
-#include <freertos/task.h>
+#include <freertos/timers.h>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -43,7 +44,7 @@
 namespace ruth {
 
 namespace shared {
-std::optional<desk::Session> active_session;
+std::unique_ptr<desk::Session> active_session;
 }
 
 namespace desk {
@@ -58,38 +59,26 @@ static void create_units() noexcept {
   units.emplace_back(std::make_unique<Dimmable>("led forest", 4)); // pwm 4
 }
 
-/// @brief Self-destruct a Session via esp_timer
-/// @param  pointer unused
-static void self_destruct(void *self_v) noexcept {
-
-  ESP_LOGI(Session::TAG, "self-destruct, session=%p", self_v);
-
-  shared::active_session.reset();
-}
-
-// static class data to ensure a single task is running
-// at any given time
-DRAM_ATTR TaskHandle_t Session::th{nullptr};
-
 // Object API
-
 Session::Session(io_context &io_ctx, tcp_socket &&sock) noexcept
     : io_ctx(io_ctx),             // creator owns our io_context
       data_sock(std::move(sock)), // all socket comms
-      idle_ms(10000),             // default, may be overriden
-      stats_interval(2000),       // default, may be overriden
-      stats_timer{nullptr},       // periodic stats reporting
-      destruct_timer{nullptr}     // esp_timer to destruct via separate task
-
+      idle_us{10000 * 1000},      // default, may be overriden
+      stats_ms(2000)              // default, may be overriden
 {
   data_sock.set_option(ip_tcp::no_delay(true));
 
   // headunits are static outside of class, make sure they are created
   if (units.empty()) create_units();
 
-  // create the idle timeout (self-destruct) timer
-  esp_timer_create_args_t args{self_destruct, this, ESP_TIMER_TASK, "desk::session", true};
-  esp_timer_create(&args, &destruct_timer);
+  // create the idle timeout timer
+  esp_timer_create_args_t args{&idle_timeout,        // callback
+                               this,                 // user data
+                               ESP_TIMER_TASK,       // dispatch method
+                               "desk::idle_timeout", // name
+                               true};                // skip missed
+
+  esp_timer_create(&args, &idle_timer);
 
   // reuse the args from idle_timeout timer to create stats timer
   args.callback = &report_stats;
@@ -104,63 +93,95 @@ Session::Session(io_context &io_ctx, tcp_socket &&sock) noexcept
                   7,           // priority
                   &th);        // task handle
 
-  // start the main message loop
-
   ESP_LOGI(TAG, "startup complete, task_rc=%d", rc);
 }
 
 Session::~Session() noexcept {
 
-  const auto timers = std::array{std::ref(destruct_timer), std::ref(stats_timer)};
+  // stop the timers immediately
+  const auto timers = std::array{std::ref(idle_timer), std::ref(stats_timer)};
   std::for_each(timers.begin(), timers.end(), [](auto t) {
-    esp_timer_stop(t);
-    esp_timer_delete(std::exchange(t.get(), nullptr));
+    if (t) {
+      esp_timer_stop(t);
+      esp_timer_delete(std::exchange(t.get(), nullptr));
+    }
   });
 
   // graceful shutdown
-  [[maybe_unused]] error_code ec;
+  error_code ec;
+  data_sock.shutdown(tcp_socket::shutdown_both, ec);
   data_sock.close(ec);
+  if (ec) ESP_LOGI(TAG, "data sock close ec=%s", ec.message().c_str());
 
   std::for_each(units.begin(), units.end(), [](auto &unit) { unit->dark(); });
 
-  // stop dmx and wait for confirmation
+  units.clear();
+
+  // stop dmx (blocks until shutdown is complete)
   dmx.reset();
+
+  if (th) vTaskDelete(std::exchange(th, nullptr));
+
+  ESP_LOGI(TAG, "session=%p freed", this);
 }
 
 void Session::close(const error_code ec) noexcept {
-  if (!destruct_timer) {
-    ESP_LOGI(TAG, "close() error=%s", ec.message().c_str());
-    idle_ms = Millis(0);
-    idle_watch_dog();
-    return; // allow timer to handle destruct
-  }
+  if (!io_ctx.stopped()) {
 
-  // fallen through, self-destruct is already in-progress
+    io_ctx.stop();
+
+    // self-destruct is not
+    ESP_LOGI(TAG, "close() error=%s", ec.message().c_str());
+  }
+}
+
+// note: idle_watch_dog does not check for initial connnection
+//       timeout because the socket is already connected by
+//       lightdesk before creating the session
+void IRAM_ATTR Session::idle_watch_dog() noexcept {
+
+  if (idle_timer && !io_ctx.stopped()) {
+    if (data_sock.is_open()) {
+      if (esp_timer_is_active(idle_timer)) {
+        esp_timer_restart(idle_timer, idle_us);
+      } else {
+        esp_timer_start_periodic(idle_timer, idle_us);
+      }
+    }
+  }
+}
+
+void Session::idle_timeout(void *self_v) noexcept {
+  auto *self = static_cast<Session *>(self_v);
+
+  const auto matched{self == shared::active_session.get() ? "true" : "false"};
+
+  if (matched) {
+    ESP_LOGI(Session::TAG, "idle timeout fired, match active session=%s", matched);
+    shared::active_session->close(io::make_error(errc::timed_out));
+  }
 }
 
 void IRAM_ATTR Session::msg_loop(MsgIn &&msg_in) noexcept {
 
-  if (data_sock.is_open() == false) return; // prevent tight error loops
+  if (data_sock.is_open()) { // prevent tight error loops
 
-  // note: we move the message since it may contain data from the previous read
-  async_msg::read(data_sock, std::move(msg_in), [this](MsgIn &&msg_in) {
-    // intentionally little code in this lambda
+    idle_watch_dog(); // restart idle watch
 
-    idle_watch_dog();
-    msg_process(std::forward<MsgIn>(msg_in));
-  });
+    // note: we move the message since it may contain data from the previous read
+    async_msg::read(data_sock, std::move(msg_in), [this](MsgIn &&msg_in) {
+      if (msg_in.xfer_ok()) {
+        msg_process(std::forward<MsgIn>(msg_in));
+      } else {
+        close(msg_in.ec);
+      }
+    });
+  }
 }
 
 void IRAM_ATTR Session::msg_process(MsgIn &&msg_in) noexcept {
   // first capture the wait time to receive the data msg
-  const auto msg_in_wait = msg_in.elapsed();
-  Elapsed e;
-
-  // bail out on error
-  if (msg_in.xfer_error()) {
-    close(msg_in.ec);
-    return;
-  }
+  const auto msg_in_elapsed_us = msg_in.elapsed();
 
   // create the doc for msg_in. all data will be copied to the
   // JsonDocument so msg_in is not required beyond this point
@@ -171,25 +192,19 @@ void IRAM_ATTR Session::msg_process(MsgIn &&msg_in) noexcept {
     return;
   };
 
-  // msg_in is not used after deserialization so we can immediately
-  // prepare for the next incoming message.  note:  this is an async
-  // function and returns immediately
-  msg_loop(std::move(msg_in));
-
-  if (MsgIn::is_msg_type(doc_in, desk::DATA) && MsgIn::valid(doc_in)) {
+  if (dmx && MsgIn::is_msg_type(doc_in, desk::DATA) && MsgIn::valid(doc_in)) {
     // note: create MsgOut as early as possible to capture elapsed duration
     MsgOut msg_out(desk::DATA_REPLY);
 
     if (stats) stats->saw_frame();
 
-    if (dmx) dmx->tx_frame(doc_in[desk::FRAME].as<JsonArrayConst>());
+    dmx->tx_frame(doc_in[desk::FRAME].as<JsonArrayConst>());
 
     std::for_each(units.begin(), units.end(), [&doc_in](auto &u) { u->handle_msg(doc_in); });
 
-    msg_out.add_kv(desk::SEQ_NUM, doc_in[desk::SEQ_NUM].as<uint32_t>());
-    msg_out.add_kv(desk::DATA_WAIT_US, msg_in_wait);
+    // msg_out.add_kv(desk::SEQ_NUM, doc_in[desk::SEQ_NUM].as<uint32_t>());
+    msg_out.add_kv(desk::DATA_WAIT_US, msg_in_elapsed_us);
     msg_out.add_kv(desk::ECHO_NOW_US, doc_in[desk::NOW_US].as<int64_t>());
-    msg_out.add_kv(desk::ELAPSED_US, msg_out.elapsed());
 
     // add supplemental metrics, if pending
     if (stats_pending) {
@@ -203,19 +218,22 @@ void IRAM_ATTR Session::msg_process(MsgIn &&msg_in) noexcept {
     // end of data message handling
 
   } else if (Msg::is_msg_type(doc_in, desk::HANDSHAKE)) {
-    idle_ms = Millis(doc_in[desk::IDLE_MS] | idle_ms.count());
+
+    // set idle microseconds if specified in msg
+    const int64_t idle_ms_raw = doc_in[desk::IDLE_MS] | 0;
+    if (!idle_ms_raw) idle_us = idle_ms_raw * 1000;
+
     frame_len = doc_in[desk::FRAME_LEN] | 256;
-
-    const auto lep = data_sock.local_endpoint();
-    const auto rep = data_sock.remote_endpoint();
-
-    ESP_LOGI(TAG, "received handshake, local=%u remote=%u, frame_len=%u", lep.port(), rep.port(),
-             frame_len);
 
     dmx = std::make_unique<DMX>(frame_len);
 
-    stats.emplace(Millis(doc_in[desk::STATS_MS] | stats_interval.count())); // start stats reporting
-    esp_timer_start_periodic(stats_timer, stats_interval.count() * 1000);
+    // stats starts on creation
+    const int64_t interval = doc_in[desk::STATS_MS] | stats_ms;
+    stats = std::make_unique<Stats>(interval);
+
+    esp_timer_start_periodic(stats_timer, stats_ms * 1000);
+
+    ESP_LOGI(TAG, "handshake, frame_len=%u dmx=%p", frame_len, dmx.get());
     // end of handshake message handling
 
   } else if (Msg::is_msg_type(doc_in, desk::SHUTDOWN)) {
@@ -227,23 +245,19 @@ void IRAM_ATTR Session::msg_process(MsgIn &&msg_in) noexcept {
 
     ESP_LOGI(TAG, "unhandled msg type=%s", type.c_str());
   }
-}
 
-void IRAM_ATTR Session::idle_watch_dog() noexcept {
-
-  if (data_sock.is_open()) {
-    esp_timer_stop(destruct_timer);
-    esp_timer_start_once(destruct_timer, idle_ms.count() * 1000);
-  }
+  // prepare for next inbound message
+  msg_loop(std::move(msg_in));
 }
 
 void IRAM_ATTR Session::post_stats() noexcept {
-  if (!stats_pending) {
+  if (dmx && !stats_pending) {
     asio::defer(io_ctx, [this]() {
       stats_periodic.clear(); // ensure nothing from previous report
 
       stats_periodic.add(desk::SUPP, true);
       stats_periodic.add(desk::FPS, stats->cached_fps());
+      stats_periodic.add(desk::NOW_REAL_US, clock_now::real::us());
 
       // ask DMX to add it's stats
       dmx->populate_stats(stats_periodic);
@@ -262,7 +276,7 @@ void IRAM_ATTR Session::report_stats(void *self_v) noexcept {
 
   stats->calc();
 
-  if (self->data_sock.is_open() && stats.has_value() && dmx) {
+  if (!self->io_ctx.stopped() && stats && dmx) {
     self->post_stats();
   }
 }
@@ -279,7 +293,57 @@ void IRAM_ATTR Session::run_io_ctx(void *self_v) noexcept {
   self->io_ctx.run();
 
   ESP_LOGI(TAG, "io_ctx work completed, suspending task");
-  vTaskSuspend(th);
+  auto timer = xTimerCreate("sess_end",        // name
+                            pdMS_TO_TICKS(10), // expires after
+                            pdTRUE,            // auto reload
+                            self,              // pass ourself as a check
+                            &self_destruct);   // callback
+
+  xTimerStart(timer, pdMS_TO_TICKS(100));
+
+  vTaskSuspend(self->th);
+}
+
+/// @brief Self-destruct a Session via esp_timer
+/// @param  pointer unused
+void Session::self_destruct(TimerHandle_t timer) noexcept {
+
+  auto *self = static_cast<Session *>(pvTimerGetTimerID(timer));
+
+  TaskStatus_t info;
+
+  vTaskGetInfo(self->th,  // task handle
+               &info,     // where to store info
+               pdTRUE,    // calculate task stack high water mark
+               eInvalid); // include task status
+
+  ESP_LOGI(Session::TAG, "self-destruct, session=%p timer=%p status=%u stack_hw=%lu",
+           shared::active_session.get(), timer, info.eCurrentState, info.usStackHighWaterMark);
+
+  const auto state = info.eCurrentState;
+
+  // io_ctx hasn't stopped, restart the timer
+  if (state == eSuspended) {
+
+    // delete the timer, we know it's a good value since this function was
+    // called by FreeRTOS
+    xTimerDelete(std::exchange(timer, nullptr), pdMS_TO_TICKS(10));
+
+    // delete the task and check it is the task for the active session
+    const auto to_delete = std::exchange(self->th, nullptr);
+    vTaskDelete(to_delete);
+
+    if (shared::active_session.get() == self) {
+      ESP_LOGI(TAG, "reseting active_session...");
+      shared::active_session.reset();
+    } else {
+      ESP_LOGI(TAG, "task to delete is not active session");
+    }
+
+  } else if (state | (eRunning | eBlocked | eReady)) {
+
+    xTimerReset(timer, pdMS_TO_TICKS(10));
+  }
 }
 
 } // namespace desk

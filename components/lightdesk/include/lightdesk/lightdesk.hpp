@@ -52,9 +52,6 @@ public:
   tcp_acceptor acceptor_data;
   tcp_acceptor acceptor_cmd;
 
-  // order independent
-  std::shared_ptr<desk::Session> session;
-
 public:
   static constexpr Port CMD_PORT{49151};
   static constexpr csv SERVICE_NAME{"_ruth"};

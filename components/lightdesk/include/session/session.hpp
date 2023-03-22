@@ -29,8 +29,8 @@
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/timers.h>
 #include <memory>
-#include <optional>
 
 namespace ruth {
 class DMX;
@@ -40,7 +40,7 @@ class Session;
 }
 
 namespace shared {
-extern std::optional<desk::Session> active_session;
+extern std::unique_ptr<desk::Session> active_session;
 }
 
 namespace desk {
@@ -64,29 +64,32 @@ private:
   static void report_stats(void *self_v) noexcept;
 
 private:
+  static void idle_timeout(void *self_v) noexcept;
+  static void self_destruct(TimerHandle_t timer) noexcept;
   static void run_io_ctx(void *self_v) noexcept;
 
 private:
   // order dependent
   io_context &io_ctx;
   tcp_socket data_sock;
-  Millis idle_ms;        // initial default, may be overriden by handshake
-  Millis stats_interval; // initial default, may be overriden by handshake
-  esp_timer_handle_t stats_timer;
-  esp_timer_handle_t destruct_timer;
+  int64_t idle_us;  // initial default, may be overriden by handshake
+  int64_t stats_ms; // initial default, may be overriden by handshake
 
   // order independent
+  // ESP Timers for work outside of io_ctx
+  esp_timer_handle_t idle_timer{nullptr};
+  esp_timer_handle_t stats_timer{nullptr};
+
   std::unique_ptr<DMX> dmx;
   std::size_t frame_len;
 
   // stats processing
-  std::optional<desk::stats> stats;
+  std::unique_ptr<desk::Stats> stats;
   bool stats_pending{false};
   desk::kv_store stats_periodic;
 
-  // class level to ensure there is a single task running
-  // at any given time
-  static TaskHandle_t th;
+  // task for this session
+  TaskHandle_t th{nullptr};
 
 public:
   static constexpr const auto TAG{"Session"};

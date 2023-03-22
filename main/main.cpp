@@ -40,6 +40,7 @@ void app_main() {
 
   // prevent unnecessary logging by gpio API
   esp_log_level_set("gpio", ESP_LOG_ERROR);
+  esp_log_level_set("esp32_asio_pthread", ESP_LOG_ERROR);
 
   // since app_main() is the application entry point, we log something
   // so it's obvious where base ESP32 initialization code is complete and

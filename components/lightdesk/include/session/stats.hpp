@@ -30,17 +30,17 @@
 namespace ruth {
 namespace desk {
 
-class stats {
+class Stats {
 
 public:
-  stats(const Millis &i)
-      : interval(rut::as<Seconds, Millis>(i)), // how often fps is calculated
-        fps{0.0f},                             // cached (last) calculated fps
-        frame_count{0},                        // count of frames for current interval
-        mark{0}                                // frame count at last fps calculation
+  Stats(const int64_t &interval_ms) noexcept
+      : interval(interval_ms / 1000), // how often fps is calculated
+        fps{0.0f},                    // cached (last) calculated fps
+        frame_count{0},               // count of frames for current interval
+        mark{0}                       // frame count at last fps calculation
   {}
 
-  inline void calc() {
+  inline void calc() noexcept {
     // we can calculate fps when both mark and frame count are non-zero
     if (mark && frame_count.load()) {
       // fps is calculated via the diff in frames since last calc
