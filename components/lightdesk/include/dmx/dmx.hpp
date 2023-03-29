@@ -18,78 +18,96 @@
 
 #pragma once
 
-#include "desk_msg/kv_store.hpp"
 #include "io/io.hpp"
 #include "ru_base/rut.hpp"
 #include "ru_base/types.hpp"
+#include "stats/stats.hpp"
 
 #include <ArduinoJson.h>
-#include <atomic>
+#include <array>
 #include <freertos/FreeRTOS.h>
-#include <freertos/ringbuf.h>
+#include <freertos/task.h>
 #include <memory>
 
 namespace ruth {
 
+namespace desk {
+
 class DMX {
 public:
+  using fdata_t = std::array<uint8_t, 25>;
   static auto constexpr TAG{"dmx"};
 
 private:
+  // break between frames, sent by UART, excluded from FRAME timing
+  static constexpr Micros FRAME_BREAK{92us};
+
   // for documentation purposes we build up the DMX frame duration
   static constexpr Micros FRAME_MAB{12us};
   static constexpr Micros FRAME_BYTE{44us};
   static constexpr Micros FRAME_SC{FRAME_BYTE};
   static constexpr Micros FRAME_MTBF{44us};
-  static constexpr Micros FRAME_DATA{Micros(FRAME_BYTE * 512)};
+  static constexpr Micros FRAME_DATA{FRAME_BYTE * 512};
 
   // frame interval does not include the BREAK as it is handled by the UART
   static constexpr Micros FRAME_US{FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF};
-  static constexpr Millis FRAME_MS{rut::as<Millis, Micros>(FRAME_US)};
+  static constexpr Millis FRAME_MS{FRAME_US.count() / 1000};
 
   // save the conversion from ms to ticks
   static constexpr TickType_t FRAME_TICKS{pdMS_TO_TICKS(FRAME_MS.count())};
-  static constexpr TickType_t FRAME_HALF_TICKS{FRAME_TICKS / 2};
   static constexpr TickType_t FRAME_TICKS25{FRAME_TICKS / 4};
-  static constexpr TickType_t RECV_TIMEOUT_TICKS{FRAME_TICKS * 2};
+  static constexpr TickType_t FRAME_TICKS10{FRAME_TICKS / 10};
 
   // length, in bytes, of the dmx frame to transmit
-  static constexpr std::size_t UART_FRAME_LEN{412};
+  static constexpr std::size_t UART_FRAME_LEN{421};
 
 public:
-  DMX(std::size_t frame_len) noexcept;
+  DMX(Stats &&stats, size_t stack = 3 * 1024) noexcept;
   ~DMX() noexcept;
 
-  // queue statistics, qok + qrf + qsf = total frames
-  inline auto q_ok() const noexcept { return qok; } // queue ok count
-  inline auto q_rf() const noexcept { return qrf; } // queue recv failures
-  inline auto q_sf() const noexcept { return qsf; } // queue send failurs
+  inline bool next_frame(fdata_t &&fdata, std::ptrdiff_t bytes) noexcept {
+    uint32_t nv{0};
+    auto rc = xTaskNotifyWait(0x0000, 0x1000, &nv, FRAME_TICKS10);
 
-  inline void populate_stats(desk::kv_store &kvs) noexcept {
-    // queue statistics, qok + qrf + qsf = total frames
-    kvs.add(desk::QOK, qok);
-    kvs.add(desk::QRF, qrf);
-    kvs.add(desk::QSF, qsf);
-    kvs.add(desk::UART_OVERRUN, uart_tx_fail);
+    if ((rc == pdTRUE) && (nv == 0x1000)) {
+      // we can store the pending fdata
+      std::swap(pending_fdata.front(), fdata);
+
+      // note: notification index 1 is to signal fdata write complete
+      xTaskNotify(dmx_task, 0x2000, eSetBits);
+      return true;
+    }
+
+    // task hasn't picked up the previous notification, drop fdata
+    stats(Stats::QSF);
+    return false;
   }
 
-  bool tx_frame(JsonArrayConst &&fdata) noexcept;
+  inline void stats_calculate() noexcept { stats.calc(); }
+  inline bool stats_pending() noexcept { return stats.pending(); }
+  inline void stats_populate(JsonDocument &doc) noexcept { stats.populate(doc); }
+
+  inline void track_data_wait(int64_t wait_us) noexcept { stats.track_data_wait(wait_us); }
 
 private:
   static void spool_frames(void *dmx_v) noexcept;
 
 private:
-  // order dependent
-  const std::size_t frame_len; // frame_len to queue
-  bool spooling;
+  using uart_frame_t = std::array<uint8_t, UART_FRAME_LEN>;
+  static constexpr size_t pending_max{2};
 
-  // order indepdent
-  std::int32_t qok{0};          // count of frames queued/dequeued ok
-  std::int32_t qrf{0};          // count of frame dequeue failures
-  std::int32_t qsf{0};          // count of frame queue failures
-  std::int32_t uart_tx_fail{0}; // count of uart overruns (timeouts)
+private:
+  // order dependent
+  Stats stats;
+  uart_frame_t uart_frame;
+  std::array<fdata_t, pending_max> pending_fdata;
+  uint8_t pat{0}; // pending allocation table
 
   // order independent
-  RingbufHandle_t rb;
+  bool spooling{false};
+  TaskHandle_t sender_task{nullptr};
+  TaskHandle_t dmx_task{nullptr};
 };
+
+} // namespace desk
 } // namespace ruth

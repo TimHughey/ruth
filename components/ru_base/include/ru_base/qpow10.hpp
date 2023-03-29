@@ -22,7 +22,7 @@
 
 namespace ruth {
 
-constexpr int64_t qpow10(int n) noexcept {
+inline constexpr int64_t qpow10(int n) noexcept {
   constexpr int64_t p10[] = {1,       10,        100,        1000,        10'000,
                              10'0000, 1'000'000, 10'000'000, 100'000'000, 1'000'000'000};
 

@@ -30,9 +30,7 @@
 
 namespace ruth {
 namespace dmx {
-constexpr int UART_NUM{1};          // UART0=console, UART1=useable, UART2=defect
-constexpr uint32_t FRAME_BREAK{22}; // num bits at 250,000 baud (8µs)
-
+constexpr int UART_NUM{1}; // UART0=console, UART1=useable, UART2=defect
 DRAM_ATTR static constexpr uart_config_t uart_conf = {.baud_rate = 250000,
                                                       .data_bits = UART_DATA_8_BITS,
                                                       .parity = UART_PARITY_DISABLE,
@@ -49,7 +47,7 @@ inline bool uart_init(std::size_t frame_len) {
   //  Rx_buffer_size should be greater than UART_FIFO_LEN.
   //  Tx_buffer_size should be either zero or greater than UART_FIFO_LEN.
   constexpr std::size_t UART_RX_BUFF{UART_FIFO_LEN + 1};
-  const std::size_t UART_TX_BUFF{std::max(frame_len * 4, UART_RX_BUFF + 1)};
+  const std::size_t UART_TX_BUFF{std::max(frame_len * 4, UART_RX_BUFF)};
 
   if (uart_rc == ESP_OK) return false; // installed previously, do nothing
 
@@ -65,12 +63,12 @@ inline bool uart_init(std::size_t frame_len) {
 
     uart_set_pin(UART_NUM, TX_PIN, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-    // this sequence is not part of the DMX512 protocol.  rather, these bytes
-    // are sent to identify initiialization when viewing the serial data on
-    // an oscillioscope.
-    const char init_bytes[] = {0xAA, 0x55, 0xAA, 0x55};
-    const size_t len = sizeof(init_bytes);
-    uart_write_bytes_with_break(UART_NUM, init_bytes, len, (FRAME_BREAK * 2));
+    // // this sequence is not part of the DMX512 protocol.  rather, these bytes
+    // // are sent to identify initiialization when viewing the serial data on
+    // // an oscillioscope.
+    // const char init_bytes[] = {0xAA, 0x55, 0xAA, 0x55};
+    // const size_t len = sizeof(init_bytes);
+    // uart_write_bytes_with_break(UART_NUM, init_bytes, len, (FRAME_BREAK * 2));
   }
 
   return uart_rc == ESP_OK;

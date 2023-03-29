@@ -35,7 +35,7 @@ bool Cmd::deserialize_into(JsonDocument &doc) noexcept {
   const auto err = deserializeMsgPack(doc, raw(), xfr.in);
   consume(xfr.in);
 
-  if (err) ESP_LOGW(TAG, "deserialize err=%s\n", err.c_str());
+  if (err) ESP_LOGW(TAG, "deserialize err=%s", err.c_str());
 
   return !err;
 }
@@ -44,7 +44,12 @@ bool Cmd::process() noexcept {
 
   DynamicJsonDocument doc_in(Msg::default_doc_size);
 
+  const auto in_len{xfr.in};
+
   if (deserialize_into(doc_in)) {
+
+    ESP_LOGI(TAG, "in_len=%u memory_usage: %u", in_len, doc_in.memoryUsage());
+
     if (is_msg_type(doc_in, desk::PING)) {
 
       int64_t local_us = clock_now::real::us();

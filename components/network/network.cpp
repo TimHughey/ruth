@@ -105,7 +105,6 @@ Net::Net(Binder *binder) noexcept
   JsonArrayConst cfg_sntp_servers = cfg_obj["sntp_servers"].as<JsonArrayConst>();
 
   for (std::size_t i = 0; i < sntp_servers.size(); i++) {
-
     if (JsonVariantConst server = cfg_sntp_servers[i]; server) {
       const auto &s = sntp_servers[i].assign(server.as<string>());
       ESP_LOGI(TAG, "sntp server: %s", s.c_str());

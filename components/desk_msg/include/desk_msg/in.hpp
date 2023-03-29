@@ -50,15 +50,17 @@ public:
     const auto err = deserializeMsgPack(doc, raw(), xfr.in);
     consume(xfr.in);
 
+    // ESP_LOGI(TAG, "xfr.in=%u memory_usage=%u", xfr.in, doc.memoryUsage());
+
     if (err) {
-      ESP_LOGW(TAG, "deserialize err=%s\n", err.c_str());
+      ESP_LOGW(TAG, "deserialize err=%s", err.c_str());
     }
 
     return !err;
   }
 
 public:
-  static constexpr auto TAG{"desk.msg.in"};
+  static auto constexpr TAG{"desk.msg.in"};
 };
 
 } // namespace desk

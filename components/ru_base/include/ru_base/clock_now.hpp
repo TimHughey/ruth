@@ -20,6 +20,7 @@
 
 #include "ru_base/qpow10.hpp"
 
+#include <esp_timer.h>
 #include <time.h>
 
 namespace ruth {
@@ -33,8 +34,14 @@ struct clock_now {
   }
 
   struct mono {
-    static int64_t ns() noexcept { return ns_raw(CLOCK_MONOTONIC); }
-    static int64_t us() noexcept { return ns_raw(CLOCK_MONOTONIC) / 1000; }
+    inline static int64_t ns() noexcept { return ns_raw(CLOCK_MONOTONIC); }
+    inline static int64_t us() noexcept { return ns_raw(CLOCK_MONOTONIC) / 1000; }
+  };
+
+  struct boot {
+    inline static int64_t ms() noexcept { return us() / 1000; }
+    inline static int64_t ns() noexcept { return us() * 1000; }
+    inline static int64_t us() noexcept { return esp_timer_get_time(); }
   };
 
   struct real {

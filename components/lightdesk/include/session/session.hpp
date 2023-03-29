@@ -19,51 +19,55 @@
 #pragma once
 
 #include "ArduinoJson.h"
-#include "desk_msg/in.hpp"
-#include "desk_msg/kv_store.hpp"
 #include "io/io.hpp"
-#include "ru_base/rut_types.hpp"
 #include "ru_base/types.hpp"
-#include "session/stats.hpp"
 
-#include <esp_log.h>
+#include <array>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/timers.h>
 #include <memory>
 
 namespace ruth {
+
+namespace desk {
+
 class DMX;
-
-namespace desk {
+class MsgIn;
 class Session;
-}
-
-namespace shared {
-extern std::unique_ptr<desk::Session> active_session;
-}
-
-namespace desk {
 
 class Session {
 
-public:
-  Session(io_context &io_ctx, tcp_socket &&sock) noexcept;
+private:
+  Session(io_context &io_ctx, tcp_socket &&peer) noexcept;
 
+public:
   ~Session() noexcept;
+
+  static void create(io_context &io_ctx, tcp_socket &&sock) noexcept;
+
+  inline void close_any() noexcept {
+    std::for_each(sessions.begin(), sessions.end(), [](auto &sess) {
+      if (sess) sess.reset();
+    });
+  }
 
 private:
   void close(const error_code ec = io::make_error()) noexcept;
 
   void idle_watch_dog() noexcept;
 
-  void msg_loop(MsgIn &&msg_in) noexcept;
-  void msg_process(MsgIn &&msg_in) noexcept;
+  void data_msg_loop(MsgIn &&msg_in) noexcept;
+  void data_msg_process(MsgIn &&msg_in) noexcept;
 
-  void post_stats() noexcept;
+  void sess_msg_loop(MsgIn &&msg_in) noexcept;
+  void sess_msg_process(MsgIn &&msg_in) noexcept;
+
   static void report_stats(void *self_v) noexcept;
 
 private:
+  static inline auto &active() noexcept { return sessions.front(); }
   static void idle_timeout(void *self_v) noexcept;
   static void self_destruct(TimerHandle_t timer) noexcept;
   static void run_io_ctx(void *self_v) noexcept;
@@ -71,25 +75,19 @@ private:
 private:
   // order dependent
   io_context &io_ctx;
+  tcp_socket sess_sock;
   tcp_socket data_sock;
-  int64_t idle_us;  // initial default, may be overriden by handshake
-  int64_t stats_ms; // initial default, may be overriden by handshake
 
   // order independent
-  // ESP Timers for work outside of io_ctx
-  esp_timer_handle_t idle_timer{nullptr};
-  esp_timer_handle_t stats_timer{nullptr};
+  int idle_us{10'000 * 1000};              // default, may be overriden by handshake
+  std::size_t frame_len{14};               // default, may be overriden by handshake
+  esp_timer_handle_t idle_timer{nullptr};  // esp timer to detect idle timeout
+  esp_timer_handle_t stats_timer{nullptr}; // esp timer to report stats
+  std::unique_ptr<DMX> dmx;                // dmx object / task
+  TaskHandle_t th{nullptr};                // session task
 
-  std::unique_ptr<DMX> dmx;
-  std::size_t frame_len;
-
-  // stats processing
-  std::unique_ptr<desk::Stats> stats;
-  bool stats_pending{false};
-  desk::kv_store stats_periodic;
-
-  // task for this session
-  TaskHandle_t th{nullptr};
+  // class level tracking of at most two sessions
+  static std::array<std::unique_ptr<Session>, 2> sessions;
 
 public:
   static constexpr const auto TAG{"Session"};

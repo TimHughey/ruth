@@ -78,7 +78,7 @@ public:
   auto prepare() noexcept { return storage->prepare(storage->max_size()); }
 
   inline auto serialize() noexcept {
-    DynamicJsonDocument doc(Msg::default_doc_size);
+    StaticJsonDocument<Msg::default_doc_size> doc;
 
     // first, add MSG_TYPE as it is used to detect start of message
     doc[desk::MSG_TYPE] = msg_type;
@@ -93,17 +93,13 @@ public:
     // we finish populating the doc
     auto buffer = prepare();
 
-    // finally, add the trailer
-    doc[NOW_US] = rut::raw_us();
-    doc[ELAPSED_US] = elapsed();
     doc[MAGIC] = MAGIC_VAL; // add magic as final key (to confirm complete msg)
 
     packed_len = serializeMsgPack(doc, raw_out(buffer), buffer.size());
 
     commit(packed_len);
 
-    ESP_LOGD(module_id.data(), "serialized, packed_len=%u storage_size=%u", packed_len,
-             storage->size());
+    ESP_LOGI(TAG, "serialized, packed_len=%u memory_usage=%u", packed_len, doc.memoryUsage());
   }
 
 public:
@@ -114,7 +110,7 @@ public:
   kv_store kvs;
 
 public:
-  static constexpr csv module_id{"desk.msg.out"};
+  static auto constexpr TAG{"desk.msg.out"};
 };
 
 } // namespace desk

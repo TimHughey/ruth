@@ -18,18 +18,23 @@
 
 #include "dmx/dmx.hpp"
 #include "dmx/uart.hpp"
-#include "io/io.hpp"
 #include "ru_base/rut.hpp"
+#include "stats/stats.hpp"
 
 #include <algorithm>
-#include <array>
 #include <esp_log.h>
 
 namespace ruth {
 
-static DRAM_ATTR TaskHandle_t dmx_task{nullptr};
+namespace desk {
 
-static void ensure_one_task() noexcept {
+// object API
+
+DMX::DMX(Stats &&stats, size_t stack) noexcept //
+    : stats(std::move(stats)), uart_frame{0x00} {
+  // note:  actual fdata will be moved into pending_fdata, zero fill not needed
+
+  // wait for previous DMX task to stop, if there is one
   for (auto waiting_ms = 0; dmx_task; waiting_ms += 10) {
     vTaskDelay(pdMS_TO_TICKS(10));
 
@@ -37,35 +42,27 @@ static void ensure_one_task() noexcept {
       ESP_LOGW(DMX::TAG, "waiting to start task, %dms", waiting_ms);
     }
   }
-}
-
-// object API
-
-DMX::DMX(std::size_t frame_len) noexcept : frame_len{frame_len}, spooling{false} {
-
-  // wait for previous DMX task to stop, if there is one
-  ensure_one_task();
 
   // note: ring buffer includes a header for each item
-  rb = xRingbufferCreateNoSplit(frame_len, 5);
+  // const auto buff_len = (frame_len + sizeof(std::size_t)) * 5;
+  // mb = xMessageBufferCreate(buff_len);
 
   dmx::uart_init(UART_FRAME_LEN); // only inits uart once
 
-  // get the priority of the task that is starting us
-  // it is essential that we run at a lower priority than the caller
-  // feeding the ring buffer otherwise we could be woken up by
-  // incomplete ring buffer actions via tx_frame()
-  auto caller_priority = uxTaskPriorityGet(nullptr);
+  // it is essential we run at a higher priority to avoid lag
+  // processing the ring buffer and the uart buffer so grab the
+  // callers priority
+  sender_task = xTaskGetCurrentTaskHandle();
+  auto priority = uxTaskPriorityGet(sender_task) - 1;
 
-  xTaskCreate(&spool_frames,       // run this function as the task
-              TAG,                 // task name
-              3 * 1024,            // stack size
-              this,                // pass the newly created object to run()
-              caller_priority - 1, // always lower priority than caller
-              &dmx_task);
+  ESP_LOGI(TAG, "starting task priority=%d, sender task=%p ", priority, sender_task);
 
-  ESP_LOGI(TAG, "started, frame=%lldms (%lu ticks), len=%u", //
-           FRAME_MS.count(), FRAME_TICKS, frame_len);
+  xTaskCreate(&spool_frames, // run this function as the task
+              TAG,           // task name
+              stack,         // stack size
+              this,          // pass the newly created object to run()
+              priority,      // our priority
+              &dmx_task);    // task handle
 }
 
 DMX::~DMX() noexcept {
@@ -94,103 +91,72 @@ DMX::~DMX() noexcept {
     ESP_LOGI(TAG, "deleted dmx task=%p", dmx_task);
   }
 
-  // it is safe to delete the ring buffer and the task
-  if (rb) vRingbufferDelete(std::exchange(rb, nullptr));
+  // // it is safe to delete the message buffer and the task
+  // if (mb) vMessageBufferDelete(std::exchange(mb, nullptr));
 }
 
 void IRAM_ATTR DMX::spool_frames(void *dmx_v) noexcept { // static
   auto *self = static_cast<DMX *>(dmx_v);
 
-  ESP_LOGI(TAG, "spool frame loop starting...");
+  ESP_LOGI(TAG, "spool_frames() starting...");
 
-  // declare the uart frame
-  std::array<uint8_t, UART_FRAME_LEN> uart_frame{0x00};
+  constexpr float tick_us{1000.0 / portTICK_PERIOD_MS};
+  ESP_LOGI(TAG, "tick=%0.2fµs period_ms=%lu ", tick_us, portTICK_PERIOD_MS);
+  ESP_LOGI(TAG, "self=%p task=%p", self, self->dmx_task);
+  ESP_LOGI(TAG, "frame len=%d, timing ms=%lld ticks=%lu", UART_FRAME_LEN, FRAME_MS.count(),
+           FRAME_TICKS);
 
-  // declare the control variables used in the spool loop
-  std::size_t bytes_recv;
-  std::size_t bytes_tx;
-  void *fdata_v;
-  uint8_t *fdata;
-
-  // everything this ready, start spooling
+  // everything is ready, start spooling
   self->spooling = true;
+
+  auto last_wake = xTaskGetTickCount();
+  xTaskNotify(self->sender_task, 0x1000, eSetBits); // tell sender we're ready
 
   while (self->spooling) {
 
-    // get the frame data that was sent for rendering, prepare to send via uart
-    // notes:
-    //  1. sent frame data may not be the full frame sent to the uart
-    //  2. the frame sent to the uart must be at least UART_FRAME_LEN to prevent flicker
-    //     on headunits that go dark when frame data is not received
-    bytes_recv = 0;
-    fdata_v = xRingbufferReceive(self->rb, &bytes_recv, RECV_TIMEOUT_TICKS);
+    uint32_t nv{0};
+    auto write_finished = xTaskNotifyWait(0x0000, 0x2000, &nv, 0);
 
-    // first, confirm we received data from the ring buffer
-    if (fdata_v == nullptr) {
-      // failed to recv bytes due to timeout, track this metric
-      self->qrf++;
+    if ((write_finished == pdTRUE) && (nv == 0x2000)) {
+      // tell sender we're copying the frame
+      xTaskNotify(self->sender_task, 0x0000, eSetValueWithOverwrite);
 
-    } else [[likely]] {
-      fdata = static_cast<uint8_t *>(fdata_v);
+      // frame has been deposited and is pending, copy it to uart_frame
+      auto &fdata = self->pending_fdata.front();
+      std::copy(fdata.begin(), fdata.end(), self->uart_frame.begin());
 
-      // merge the received frame data into the uart frame
-      // NOTE: we allow zero len frame data (aka silent frame)
-      std::size_t i;
-      for (i = 0; i < self->frame_len; i++) {
-        // note: zero out uart frame when not enough bytes were received
-        uart_frame[i] = (i < bytes_recv) ? *fdata++ : 0x00;
-      }
-
-      // done with the frame from the ringbuffer, return it
-      vRingbufferReturnItem(self->rb, std::exchange(fdata_v, nullptr));
-
-      // ensure the uart tx is complete before attempting to receive next frame
-      // we do this check here to utilize the time between receiving frames
-      // and allow the uart to send the data and break (low for 88µs)
-      if (ESP_OK != uart_wait_tx_done(dmx::UART_NUM, FRAME_TICKS)) {
-        self->uart_tx_fail++;
-      }
-
-      bytes_tx = uart_write_bytes_with_break( // tx frame via uart
-          dmx::UART_NUM,                      // uart_num
-          uart_frame.data(),                  // data to send
-          uart_frame.size(),                  // data length to send
-          dmx::FRAME_BREAK);                  // duration of break
-
-      if (bytes_tx == uart_frame.size()) self->qok++; // frame recv'ed OK
+      self->stats(Stats::QOK);
+    } else {
+      // pending frame missed the train
+      self->stats(Stats::QRF);
     }
+
+    // tell sender we're ready for the next frame
+    xTaskNotify(self->sender_task, 0x1000, eSetBits);
+
+    // send the uart_frame (updated or not)
+    auto bytes_tx = uart_write_bytes_with_break( // tx frame via uart
+        dmx::UART_NUM,                           // uart_num
+        self->uart_frame.data(),                 // data to send
+        self->uart_frame.size(),                 // data length to send
+        FRAME_BREAK.count());                    // duration of break
+
+    if (bytes_tx == self->uart_frame.size()) {
+      self->stats(Stats::FRAMES); // frame sent OK
+    } else {
+      ESP_LOGW(TAG, "bytes_tx=%d should be %u", bytes_tx, self->uart_frame.size());
+    }
+
+    // ensure proper frame timing
+    xTaskDelayUntil(&last_wake, FRAME_TICKS);
   }
 
-  ESP_LOGI(TAG, "dmx task suspending...");
+  ESP_LOGW(TAG, "dmx task suspending...");
 
   // we've fallen through the loop which means we're shutting down.
   // suspend ourself so the task can be safely deleted
   vTaskSuspend(nullptr);
 }
 
-bool IRAM_ATTR DMX::tx_frame(JsonArrayConst &&fdata) noexcept {
-  if (!spooling) return false; // not running, don't queue a frame
-
-  auto rc = pdTRUE; // assume the best
-
-  void *fdata_v{nullptr};
-
-  if (rc = xRingbufferSendAcquire(rb, &fdata_v, frame_len, FRAME_TICKS25); rc == pdTRUE) {
-    uint8_t *rb_data = static_cast<uint8_t *>(fdata_v);
-
-    // copy the frame buffer array (which could be empty but never more than frame_len)
-    for (const auto v : fdata) {
-      *rb_data++ = v.as<uint8_t>();
-    }
-
-    // indicate we are finished with the send buffer and track metrics
-    if (rc = xRingbufferSendComplete(rb, fdata_v); rc == pdTRUE) qok++;
-
-  } else {
-    qsf++; // ring buffer timeout
-  }
-
-  return (rc == pdTRUE) ? true : false;
-}
-
+} // namespace desk
 } // namespace ruth

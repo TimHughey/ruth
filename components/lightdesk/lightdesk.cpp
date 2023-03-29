@@ -94,7 +94,7 @@ void LightDesk::async_accept_data() noexcept {
   acceptor_data.async_accept(io_ctx_session, [this](const error_code &ec, tcp_socket peer) {
     if (ec) return; // no more work
 
-    shared::active_session = std::make_unique<desk::Session>(io_ctx_session, std::move(peer));
+    desk::Session::create(io_ctx_session, std::move(peer));
 
     async_accept_data();
   });
