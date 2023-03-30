@@ -99,7 +99,7 @@ public:
 
     commit(packed_len);
 
-    ESP_LOGI(TAG, "serialized, packed_len=%u memory_usage=%u", packed_len, doc.memoryUsage());
+    ESP_LOGI(TAG, "serialized, packed_len=%u mem_used=%u", packed_len, doc.memoryUsage());
   }
 
 public:

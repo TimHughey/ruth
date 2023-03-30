@@ -46,8 +46,9 @@ static auto constexpr RESULT{"result"};
 static auto constexpr URL{"url"};
 
 // handshake remote -> local
-static auto constexpr DATA_PORT{"data_port"};
+static auto constexpr DATA_PORT{"data_port"}; // handshake
 static auto constexpr FRAME_LEN{"frame_len"}; // handshake
+static auto constexpr FRAME_US{"frame_µs"};   // handshake
 static auto constexpr IDLE_MS{"idle_ms"};     // handshake
 static auto constexpr STATS_MS{"stats_ms"};   // handshake
 

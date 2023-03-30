@@ -48,7 +48,7 @@ bool Cmd::process() noexcept {
 
   if (deserialize_into(doc_in)) {
 
-    ESP_LOGI(TAG, "in_len=%u memory_usage: %u", in_len, doc_in.memoryUsage());
+    ESP_LOGI(TAG, "in_len=%u mem_used=%u", in_len, doc_in.memoryUsage());
 
     if (is_msg_type(doc_in, desk::PING)) {
 

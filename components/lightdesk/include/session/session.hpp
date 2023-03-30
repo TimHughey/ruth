@@ -80,7 +80,6 @@ private:
 
   // order independent
   int idle_us{10'000 * 1000};              // default, may be overriden by handshake
-  std::size_t frame_len{14};               // default, may be overriden by handshake
   esp_timer_handle_t idle_timer{nullptr};  // esp timer to detect idle timeout
   esp_timer_handle_t stats_timer{nullptr}; // esp timer to report stats
   std::unique_ptr<DMX> dmx;                // dmx object / task

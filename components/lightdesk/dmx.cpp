@@ -28,10 +28,14 @@ namespace ruth {
 
 namespace desk {
 
+static auto create_timer_args(auto callback, auto *obj, const char *name) noexcept {
+  return esp_timer_create_args_t{callback, obj, ESP_TIMER_ISR, name, true /* skip missed */};
+}
+
 // object API
 
-DMX::DMX(Stats &&stats, size_t stack) noexcept //
-    : stats(std::move(stats)), uart_frame{0x00} {
+DMX::DMX(int64_t frame_us, Stats &&stats, size_t stack) noexcept //
+    : frame_us(frame_us), uart_frame{0x00}, stats(std::move(stats)) {
   // note:  actual fdata will be moved into pending_fdata, zero fill not needed
 
   // wait for previous DMX task to stop, if there is one
@@ -43,115 +47,109 @@ DMX::DMX(Stats &&stats, size_t stack) noexcept //
     }
   }
 
-  // note: ring buffer includes a header for each item
-  // const auto buff_len = (frame_len + sizeof(std::size_t)) * 5;
-  // mb = xMessageBufferCreate(buff_len);
-
   dmx::uart_init(UART_FRAME_LEN); // only inits uart once
 
-  // it is essential we run at a higher priority to avoid lag
-  // processing the ring buffer and the uart buffer so grab the
-  // callers priority
+  // it is essential we run at a higher priority to:
+  //  -prevent data races on uart_frame
+  //  -prevent flicker
   sender_task = xTaskGetCurrentTaskHandle();
-  auto priority = uxTaskPriorityGet(sender_task) - 1;
+  auto priority = uxTaskPriorityGet(sender_task) + 1;
+
+  const auto sync_timer_args = create_timer_args(&frame_trigger, this, "dmx::spool");
+  esp_timer_create(&sync_timer_args, &sync_timer);
 
   ESP_LOGI(TAG, "starting task priority=%d, sender task=%p ", priority, sender_task);
 
-  xTaskCreate(&spool_frames, // run this function as the task
-              TAG,           // task name
-              stack,         // stack size
-              this,          // pass the newly created object to run()
-              priority,      // our priority
-              &dmx_task);    // task handle
+  xTaskCreatePinnedToCore(&kickstart, // run this function as the task
+                          TAG,        // task name
+                          stack,      // stack size
+                          this,       // pass the newly created object to run()
+                          priority,   // our priority
+                          &dmx_task,  // task handle
+                          1);
 }
 
 DMX::~DMX() noexcept {
   spooling = false;
 
+  if (sync_timer) {
+    if (esp_timer_is_active(sync_timer)) esp_timer_stop(sync_timer);
+    esp_timer_delete(std::exchange(sync_timer, nullptr));
+  }
+
   if (dmx_task) {
     TaskStatus_t info;
 
-    do {
-      vTaskGetInfo(dmx_task,  // task handle
-                   &info,     // where to store info
-                   pdTRUE,    // do not calculate task stack high water mark
-                   eInvalid); // include task status
+    vTaskGetInfo(dmx_task,  // task handle
+                 &info,     // where to store info
+                 pdTRUE,    // do not calculate task stack high water mark
+                 eInvalid); // include task status
 
-      if (info.eCurrentState != eSuspended) {
-        vTaskDelay(FRAME_TICKS);
-
-        ESP_LOGW(TAG, "task state=%u (want suspended(3))", info.eCurrentState);
-      }
-    } while (info.eCurrentState != eSuspended);
+    if (info.eCurrentState != eSuspended) vTaskSuspend(dmx_task);
 
     ESP_LOGI(TAG, "task %s suspended, stack_hw_mark=%lu", info.pcTaskName,
              info.usStackHighWaterMark);
 
     vTaskDelete(std::exchange(dmx_task, nullptr));
-    ESP_LOGI(TAG, "deleted dmx task=%p", dmx_task);
   }
-
-  // // it is safe to delete the message buffer and the task
-  // if (mb) vMessageBufferDelete(std::exchange(mb, nullptr));
 }
 
-void IRAM_ATTR DMX::spool_frames(void *dmx_v) noexcept { // static
+void IRAM_ATTR DMX::frame_trigger(void *dmx_v) noexcept {
   auto *self = static_cast<DMX *>(dmx_v);
 
-  ESP_LOGI(TAG, "spool_frames() starting...");
+  const auto nv = self->spooling ? Notifies::TRIGGER : Notifies::SHUTDOWN;
+  if (self->dmx_task) xTaskNotifyFromISR(self->dmx_task, nv, eSetBits, nullptr);
+}
 
-  constexpr float tick_us{1000.0 / portTICK_PERIOD_MS};
-  ESP_LOGI(TAG, "tick=%0.2fµs period_ms=%lu ", tick_us, portTICK_PERIOD_MS);
-  ESP_LOGI(TAG, "self=%p task=%p", self, self->dmx_task);
-  ESP_LOGI(TAG, "frame len=%d, timing ms=%lld ticks=%lu", UART_FRAME_LEN, FRAME_MS.count(),
-           FRAME_TICKS);
+void DMX::kickstart(void *dmx_v) noexcept {
+  auto *self = static_cast<DMX *>(dmx_v);
 
-  // everything is ready, start spooling
-  self->spooling = true;
+  { // new scope so temporaries don't hang around on stack
+    ESP_LOGI(TAG, "kickstart() in progress...");
 
-  auto last_wake = xTaskGetTickCount();
-  xTaskNotify(self->sender_task, 0x1000, eSetBits); // tell sender we're ready
-
-  while (self->spooling) {
-
-    uint32_t nv{0};
-    auto write_finished = xTaskNotifyWait(0x0000, 0x2000, &nv, 0);
-
-    if ((write_finished == pdTRUE) && (nv == 0x2000)) {
-      // tell sender we're copying the frame
-      xTaskNotify(self->sender_task, 0x0000, eSetValueWithOverwrite);
-
-      // frame has been deposited and is pending, copy it to uart_frame
-      auto &fdata = self->pending_fdata.front();
-      std::copy(fdata.begin(), fdata.end(), self->uart_frame.begin());
-
-      self->stats(Stats::QOK);
-    } else {
-      // pending frame missed the train
-      self->stats(Stats::QRF);
-    }
-
-    // tell sender we're ready for the next frame
-    xTaskNotify(self->sender_task, 0x1000, eSetBits);
-
-    // send the uart_frame (updated or not)
-    auto bytes_tx = uart_write_bytes_with_break( // tx frame via uart
-        dmx::UART_NUM,                           // uart_num
-        self->uart_frame.data(),                 // data to send
-        self->uart_frame.size(),                 // data length to send
-        FRAME_BREAK.count());                    // duration of break
-
-    if (bytes_tx == self->uart_frame.size()) {
-      self->stats(Stats::FRAMES); // frame sent OK
-    } else {
-      ESP_LOGW(TAG, "bytes_tx=%d should be %u", bytes_tx, self->uart_frame.size());
-    }
-
-    // ensure proper frame timing
-    xTaskDelayUntil(&last_wake, FRAME_TICKS);
+    const float sync_ms = self->frame_us / 1000.0f;
+    ESP_LOGI(TAG, "[kickstart] frame len=%d ms=%0.2f, uart_ms=%lld", UART_FRAME_LEN, sync_ms,
+             FRAME_MS.count());
   }
 
-  ESP_LOGW(TAG, "dmx task suspending...");
+  self->spooler();
+}
+
+void IRAM_ATTR DMX::spooler() noexcept {
+  spooling = true;
+  esp_timer_start_periodic(sync_timer, frame_us);
+
+  // loop state
+  uint32_t clear_in{TRIGGER};
+  uint32_t clear_out{NONE};
+  uint32_t nv{0};
+
+  while (spooling) {
+
+    xTaskNotifyWait(clear_in, clear_out, &nv, portMAX_DELAY);
+
+    if (nv & SHUTDOWN) {
+      spooling = false;
+      if (sync_timer && esp_timer_is_active(sync_timer)) esp_timer_stop(sync_timer);
+    };
+
+    if (nv & TRIGGER) {
+      // send the uart_frame (updated or not)
+      auto bytes_tx = uart_write_bytes_with_break( // tx frame via uart
+          dmx::UART_NUM,                           // uart_num
+          uart_frame.data(),                       // data to send
+          uart_frame.size(),                       // data length to send
+          FRAME_BREAK.count());                    // duration of break
+
+      if (bytes_tx == uart_frame.size()) {
+        stats(Stats::FRAMES); // frame sent OK
+      } else {
+        ESP_LOGW(TAG, "bytes_tx=%d should be %u", bytes_tx, uart_frame.size());
+      }
+
+      stats(std::exchange(frame_pending, false) ? Stats::QOK : Stats::QRF);
+    }
+  }
 
   // we've fallen through the loop which means we're shutting down.
   // suspend ourself so the task can be safely deleted

@@ -25,6 +25,7 @@
 
 #include <ArduinoJson.h>
 #include <array>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <memory>
@@ -47,7 +48,7 @@ private:
   static constexpr Micros FRAME_BYTE{44us};
   static constexpr Micros FRAME_SC{FRAME_BYTE};
   static constexpr Micros FRAME_MTBF{44us};
-  static constexpr Micros FRAME_DATA{FRAME_BYTE * 512};
+  static constexpr Micros FRAME_DATA{FRAME_BYTE * 513};
 
   // frame interval does not include the BREAK as it is handled by the UART
   static constexpr Micros FRAME_US{FRAME_MAB + FRAME_SC + FRAME_DATA + FRAME_MTBF};
@@ -59,28 +60,34 @@ private:
   static constexpr TickType_t FRAME_TICKS10{FRAME_TICKS / 10};
 
   // length, in bytes, of the dmx frame to transmit
-  static constexpr std::size_t UART_FRAME_LEN{421};
+  static constexpr std::size_t UART_FRAME_LEN{450};
+
+  enum Notifies : uint32_t {
+    NONE = 0b00,
+    WANT_FRAME = 0b1 << 0, // signal from DMX to caller
+    HAVE_FRAME = 0b1 << 1,
+    UART_FRAME_BUSY = 0b1 << 2,
+    SENT_FRAME = 0b1 << 3,
+    TRIGGER = 0b1 << 4,
+    SHUTDOWN = 0b1 << 5
+  };
 
 public:
-  DMX(Stats &&stats, size_t stack = 3 * 1024) noexcept;
+  DMX(int64_t frame_us, Stats &&stats, size_t stack = 3 * 1024) noexcept;
   ~DMX() noexcept;
 
-  inline bool next_frame(fdata_t &&fdata, std::ptrdiff_t bytes) noexcept {
-    uint32_t nv{0};
-    auto rc = xTaskNotifyWait(0x0000, 0x1000, &nv, FRAME_TICKS10);
+  inline bool next_frame(fdata_t &fdata, std::ptrdiff_t bytes) noexcept {
+    // note: the DMX task runs at a higher priority than the caller and is
+    //       pinned to the same core.  as a result, we don't need to do
+    //       any syncronization here because the caller will never update
+    //       the uart frame concurrently.
 
-    if ((rc == pdTRUE) && (nv == 0x1000)) {
-      // we can store the pending fdata
-      std::swap(pending_fdata.front(), fdata);
+    // copy the frame data into the uart frame
+    std::copy(fdata.begin(), fdata.end(), uart_frame.begin());
 
-      // note: notification index 1 is to signal fdata write complete
-      xTaskNotify(dmx_task, 0x2000, eSetBits);
-      return true;
-    }
+    stats(std::exchange(frame_pending, true) ? Stats::QSF : Stats::QOK);
 
-    // task hasn't picked up the previous notification, drop fdata
-    stats(Stats::QSF);
-    return false;
+    return true;
   }
 
   inline void stats_calculate() noexcept { stats.calc(); }
@@ -90,20 +97,23 @@ public:
   inline void track_data_wait(int64_t wait_us) noexcept { stats.track_data_wait(wait_us); }
 
 private:
-  static void spool_frames(void *dmx_v) noexcept;
+  static void frame_trigger(void *dmx_v) noexcept;
+  static void kickstart(void *dmx_v) noexcept;
+
+  void spooler() noexcept;
 
 private:
   using uart_frame_t = std::array<uint8_t, UART_FRAME_LEN>;
-  static constexpr size_t pending_max{2};
 
 private:
   // order dependent
-  Stats stats;
+  const int64_t frame_us;
   uart_frame_t uart_frame;
-  std::array<fdata_t, pending_max> pending_fdata;
-  uint8_t pat{0}; // pending allocation table
+  Stats stats;
 
   // order independent
+  bool frame_pending{false};
+  esp_timer_handle_t sync_timer{nullptr};
   bool spooling{false};
   TaskHandle_t sender_task{nullptr};
   TaskHandle_t dmx_task{nullptr};

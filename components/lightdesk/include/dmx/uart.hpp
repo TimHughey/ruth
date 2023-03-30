@@ -62,13 +62,6 @@ inline bool uart_init(std::size_t frame_len) {
     }
 
     uart_set_pin(UART_NUM, TX_PIN, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-
-    // // this sequence is not part of the DMX512 protocol.  rather, these bytes
-    // // are sent to identify initiialization when viewing the serial data on
-    // // an oscillioscope.
-    // const char init_bytes[] = {0xAA, 0x55, 0xAA, 0x55};
-    // const size_t len = sizeof(init_bytes);
-    // uart_write_bytes_with_break(UART_NUM, init_bytes, len, (FRAME_BREAK * 2));
   }
 
   return uart_rc == ESP_OK;

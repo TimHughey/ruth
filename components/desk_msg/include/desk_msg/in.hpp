@@ -50,7 +50,7 @@ public:
     const auto err = deserializeMsgPack(doc, raw(), xfr.in);
     consume(xfr.in);
 
-    // ESP_LOGI(TAG, "xfr.in=%u memory_usage=%u", xfr.in, doc.memoryUsage());
+    // ESP_LOGI(TAG, "xfr.in=%u mem_used=%u", xfr.in, doc.memoryUsage());
 
     if (err) {
       ESP_LOGW(TAG, "deserialize err=%s", err.c_str());

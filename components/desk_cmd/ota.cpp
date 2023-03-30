@@ -204,7 +204,7 @@ void OTA::mark_valid(TimerHandle_t handle) noexcept {
     ESP_LOGE(OTA::TAG, "%s failed to get state of run_part=%p", __PRETTY_FUNCTION__, run_part);
   }
 
-  xTimerDelete(handle, pdMS_TO_TICKS(60000));
+  xTimerDelete(handle, portMAX_DELAY);
 }
 
 void OTA::validate_pending(Binder *binder) {
@@ -226,7 +226,7 @@ void OTA::validate_pending(Binder *binder) {
 
       ESP_LOGI(TAG, "found pending partition, starting validate timer");
 
-      xTimerStart(timer, pdMS_TO_TICKS(0));
+      xTimerStart(timer, portMAX_DELAY);
     }
   }
 }

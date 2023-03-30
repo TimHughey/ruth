@@ -63,7 +63,7 @@ static auto create_timer_args(auto callback, Session *session, const char *name)
 // class level tracking of at most two sessions
 DRAM_ATTR std::array<std::unique_ptr<Session>, 2> Session::sessions;
 
-// Object API
+// Object API s
 Session::Session(io_context &io_ctx, tcp_socket &&peer) noexcept
     : io_ctx(io_ctx),             // creator owns our io_context
       sess_sock(std::move(peer)), // read/write session control
@@ -75,13 +75,14 @@ Session::Session(io_context &io_ctx, tcp_socket &&peer) noexcept
   auto timer_args = create_timer_args(&idle_timeout, this, "desk::idle_timeout");
   esp_timer_create(&timer_args, &idle_timer);
 
-  auto rc =                    // create the task using a static desk_stack
-      xTaskCreate(&run_io_ctx, // static func to start task
-                  TAG,         // task name
-                  10'240,      // desk_stack size
-                  this,        // none, use shared::desk
-                  7,           // priority
-                  &th);        // task handle
+  auto rc =                                // create the task using a static desk_stack
+      xTaskCreatePinnedToCore(&run_io_ctx, // static func to start task
+                              TAG,         // task name
+                              10'240,      // desk_stack size
+                              this,        // none, use shared::desk
+                              7,           // priority
+                              &th,         // task handle
+                              1);
 
   ESP_LOGI(TAG, "startup complete, task_rc=%d", rc);
 }
@@ -97,17 +98,7 @@ Session::~Session() noexcept {
     }
   });
 
-  // graceful shutdown
-  using sock_ref = std::reference_wrapper<tcp_socket>;
-  std::array<sock_ref, 2> socks{std::ref(sess_sock), std::ref(data_sock)};
-  error_code ec;
-
-  for (tcp_socket &s : socks) {
-    if (s.is_open()) {
-      s.shutdown(tcp_socket::shutdown_both, ec);
-      s.close(ec);
-    }
-  }
+  close(); // graceful socket shutdown
 
   std::for_each(units.begin(), units.end(), [](auto &unit) { unit->dark(); });
 
@@ -123,12 +114,24 @@ Session::~Session() noexcept {
 }
 
 void Session::close(const error_code ec) noexcept {
-  if (!io_ctx.stopped()) {
+  {
+    // graceful shutdown
+    using sock_ref = std::reference_wrapper<tcp_socket>;
+    std::array<sock_ref, 2> socks{std::ref(sess_sock), std::ref(data_sock)};
+    error_code ec;
 
+    for (tcp_socket &s : socks) {
+      if (s.is_open()) {
+        s.shutdown(tcp_socket::shutdown_both, ec);
+        s.close(ec);
+      }
+    }
+  }
+
+  if (!io_ctx.stopped()) {
     io_ctx.stop();
 
-    // self-destruct is not
-    ESP_LOGI(TAG, "close() error=%s", ec.message().c_str());
+    ESP_LOGW(TAG, "close() error=%s", ec.message().c_str());
   }
 }
 
@@ -149,7 +152,7 @@ void Session::create(io_context &io_ctx, tcp_socket &&peer) noexcept {
 }
 
 void IRAM_ATTR Session::data_msg_loop(MsgIn &&msg_in_data) noexcept {
-
+  if (io_ctx.stopped()) return; // prevent tight error loops
   if (data_sock.is_open() == false) return;
 
   // note: we move the message since it may contain data from the previous read
@@ -180,7 +183,7 @@ void IRAM_ATTR Session::data_msg_process(MsgIn &&msg_in_data) noexcept {
         std::advance(it, 1);
       }
 
-      dmx->next_frame(std::move(fdata), std::distance(fdata.begin(), it));
+      dmx->next_frame(fdata, std::distance(fdata.begin(), it));
 
       std::for_each(units.begin(), units.end(), [&doc_in](auto &u) { u->handle_msg(doc_in); });
 
@@ -196,17 +199,19 @@ void IRAM_ATTR Session::data_msg_process(MsgIn &&msg_in_data) noexcept {
 
       const auto packed_len = serializeMsgPack(doc_out, storage.data(), storage.size());
 
-      asio::async_write(sess_sock, asio::buffer(storage.data(), packed_len),
-                        [=, this, msg_reuse = std::move(msg_in_data)](const error_code &ec,
-                                                                      std::size_t n) mutable {
-                          if (ec || (n != packed_len)) {
-                            close(ec);
-                          } else {
-                            // all is well, doc deserialized
-                            idle_watch_dog(); // restart idle watch
-                            data_msg_loop(std::move(msg_reuse));
-                          }
-                        });
+      if (!io_ctx.stopped() && sess_sock.is_open()) {
+        asio::async_write(sess_sock, asio::buffer(storage.data(), packed_len),
+                          [=, this, msg_reuse = std::move(msg_in_data)](const error_code &ec,
+                                                                        std::size_t n) mutable {
+                            if (ec || (n != packed_len)) {
+                              close(ec);
+                            } else {
+                              // all is well, doc deserialized
+                              idle_watch_dog(); // restart idle watch
+                              data_msg_loop(std::move(msg_reuse));
+                            }
+                          });
+      }
     }
   } else {
     close(io::make_error(errc::illegal_byte_sequence));
@@ -243,19 +248,19 @@ void Session::idle_timeout(void *self_v) noexcept {
 
 void IRAM_ATTR Session::sess_msg_loop(MsgIn &&msg_in) noexcept {
 
-  if (sess_sock.is_open()) { // prevent tight error loops
+  if (io_ctx.stopped()) return; // prevent tight error loops
+  if (!sess_sock.is_open()) return;
 
-    idle_watch_dog(); // restart idle watch
+  idle_watch_dog(); // restart idle watch
 
-    // note: we move the message since it may contain data from the previous read
-    async_msg::read(sess_sock, std::move(msg_in), [this](MsgIn &&msg_in) {
-      if (msg_in.xfer_ok()) {
-        sess_msg_process(std::forward<MsgIn>(msg_in));
-      } else {
-        close(msg_in.ec);
-      }
-    });
-  }
+  // note: we move the message since it may contain data from the previous read
+  async_msg::read(sess_sock, std::move(msg_in), [this](MsgIn &&msg_in) {
+    if (msg_in.xfer_ok()) {
+      sess_msg_process(std::forward<MsgIn>(msg_in));
+    } else {
+      close(msg_in.ec);
+    }
+  });
 }
 
 void IRAM_ATTR Session::sess_msg_process(MsgIn &&msg_in) noexcept {
@@ -270,16 +275,15 @@ void IRAM_ATTR Session::sess_msg_process(MsgIn &&msg_in) noexcept {
   };
 
   if (Msg::is_msg_type(doc_in, desk::HANDSHAKE)) {
-
     // set idle microseconds if specified in msg
     const int64_t idle_ms_raw = doc_in[desk::IDLE_MS] | 0;
     if (!idle_ms_raw) idle_us = idle_ms_raw * 1000;
 
-    frame_len = doc_in[desk::FRAME_LEN] | 256;
+    const int64_t frame_us = doc_in[desk::FRAME_US] | 23'200;
 
     // stats starts on creation
     const uint32_t stats_ms = doc_in[desk::STATS_MS] | 2000;
-    dmx = std::make_unique<DMX>(Stats(stats_ms));
+    dmx = std::make_unique<DMX>(frame_us, Stats(stats_ms));
 
     // create and start stats timer
     auto timer_args = create_timer_args(&report_stats, this, "desk::report_stats");
@@ -288,7 +292,7 @@ void IRAM_ATTR Session::sess_msg_process(MsgIn &&msg_in) noexcept {
 
     // open the data socket
     const auto rip = sess_sock.remote_endpoint().address();
-    const int16_t rport = doc_in[desk::DATA_PORT].as<uint16_t>();
+    const uint16_t rport = doc_in[desk::DATA_PORT].as<uint16_t>();
     data_sock.async_connect(tcp_endpoint(rip, rport), [this](const error_code &ec) {
       if (!ec) {
         data_sock.set_option(ip_tcp::no_delay(true));
@@ -296,7 +300,7 @@ void IRAM_ATTR Session::sess_msg_process(MsgIn &&msg_in) noexcept {
       }
     });
 
-    ESP_LOGI(TAG, "handshake, frame_len=%u dmx=%p data_port=%u", frame_len, dmx.get(), rport);
+    ESP_LOGI(TAG, "[handshake] frame_ms=%0.2f, data_port=%u", frame_us / 1000.0f, rport);
     // end of handshake message handling
 
   } else if (Msg::is_msg_type(doc_in, desk::SHUTDOWN)) {
@@ -330,11 +334,11 @@ void IRAM_ATTR Session::run_io_ctx(void *self_v) noexcept {
   self->io_ctx.run();
 
   ESP_LOGI(TAG, "io_ctx work completed, suspending task");
-  auto timer = xTimerCreate("sess_end",        // name
-                            pdMS_TO_TICKS(10), // expires after
-                            pdTRUE,            // auto reload
-                            self,              // pass ourself as a check
-                            &self_destruct);   // callback
+  auto timer = xTimerCreate("sess_end",      // name
+                            1,               // expires after 1 tick
+                            pdTRUE,          // auto reload
+                            self,            // pass ourself as a check
+                            &self_destruct); // callback
 
   xTimerStart(timer, pdMS_TO_TICKS(100));
 
