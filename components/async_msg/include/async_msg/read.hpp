@@ -151,5 +151,70 @@ template <typename M, typename CompletionToken> inline auto read(M msg, Completi
   );
 }
 
+/// @brief Async read desk msg
+/// @tparam CompletionToken
+/// @param socket
+/// @param token
+/// @return
+template <typename Socket, typename Storage, typename M, typename CompletionToken>
+inline auto read2(Socket &sock, Storage &storage, M &&msg, CompletionToken &&token) {
+
+  auto initiation = [](auto &&completion_handler, Socket &sock, Storage &storage, M msg) {
+    struct intermediate_completion_handler {
+      Socket &sock;
+      Storage &storage;
+      M msg; // hold the in-flight message
+      typename std::decay<decltype(completion_handler)>::type handler;
+
+      void operator()(const error_code &ec, size_t n = 0) noexcept {
+        msg(ec, n);
+
+        handler(std::move(msg));
+      }
+
+      using executor_type =
+          asio::associated_executor_t<typename std::decay<decltype(completion_handler)>::type,
+                                      typename Socket::executor_type>;
+
+      executor_type get_executor() const noexcept {
+        return asio::get_associated_executor(handler, sock.get_executor());
+      }
+
+      using allocator_type =
+          asio::associated_allocator_t<typename std::decay<decltype(completion_handler)>::type,
+                                       std::allocator<void>>;
+
+      allocator_type get_allocator() const noexcept {
+        return asio::get_associated_allocator(handler, std::allocator<void>{});
+      }
+    }; // end intermediate struct
+
+    msg.reuse();
+
+    // ok, we have everything we need kick-off async_read_until()
+
+    asio::async_read_until( //
+        sock, storage,      //
+        matcher(),          //
+        intermediate_completion_handler{
+            // reference to socket
+            sock,
+            // reference to storage
+            storage,
+            // the message (logic)
+            std::move(msg),
+            // handler
+            std::forward<decltype(completion_handler)>(completion_handler)});
+  };
+
+  return asio::async_initiate<CompletionToken, void(M && msg)>(
+      initiation,        // initiation function object
+      token,             // user supplied callback
+      std::ref(sock),    // socket and data storage
+      std::ref(storage), // data storage
+      std::move(msg)     // the message
+  );
+}
+
 } // namespace async_msg
 } // namespace ruth

@@ -25,28 +25,39 @@
 
 #include <ArduinoJson.h>
 #include <asio/error.hpp>
-#include <asio/streambuf.hpp>
-#include <esp_log.h>
 #include <memory>
 
 namespace ruth {
 namespace desk {
 
-class Msg {
-
-protected:
-  inline auto *raw() noexcept { return static_cast<const char *>(storage->data().data()); }
+class Msg2 {
 
 public:
-  inline Msg(std::size_t capacity) noexcept
-      : storage(std::make_unique<asio::streambuf>(capacity)) {}
-  virtual ~Msg() noexcept {} // prevent implicit copy/move
+  inline Msg2() noexcept {}
+  virtual ~Msg2() noexcept {} // prevent implicit copy/move
 
-  inline Msg(Msg &&m) = default;       // allow move construct
-  Msg &operator=(Msg &&msg) = default; // allow move assignment
+  inline Msg2(Msg2 &&m) = default;       // allow move construct
+  Msg2 &operator=(Msg2 &&msg) = default; // allow move assignment
 
-  inline auto &buffer() noexcept { return *storage; }
-  inline void consume(std::size_t n) noexcept { storage->consume(n); }
+  inline void operator()(const error_code &op_ec, size_t n) noexcept {
+    xfr.in += n;
+    ec = op_ec;
+    packed_len = n; // should we need to set this?
+
+    if (n == 0) ESP_LOGD(TAG, "SHORT READ  n=%d err=%s\n", xfr.in, ec.message().c_str());
+  }
+
+  template <typename T> inline auto deserialize_into(T &storage, JsonDocument &doc) noexcept {
+    const char *raw = static_cast<const char *>(storage.data().data());
+    const auto err = deserializeMsgPack(doc, raw, xfr.in);
+    storage.consume(xfr.in);
+
+    // ESP_LOGI(TAG, "xfr.in=%u mem_used=%u", xfr.in, doc.memoryUsage());
+
+    if (err) ESP_LOGW(TAG, "deserialize err=%s", err.c_str());
+
+    return !err;
+  }
 
   inline auto elapsed() noexcept { return e.freeze(); }
   inline auto elapsed_restart() noexcept { return e.reset(); }
@@ -79,10 +90,6 @@ public:
 
   inline bool xfer_error() const noexcept { return !xfer_ok(); }
   inline bool xfer_ok() const noexcept { return !ec && (xfr.bytes >= packed_len); }
-
-protected:
-  // order dependent
-  std::unique_ptr<asio::streambuf> storage;
 
 public:
   // order independent

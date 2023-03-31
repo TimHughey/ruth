@@ -91,10 +91,15 @@ void LightDesk::async_accept_data() noexcept {
 
   // accept frame rendering data connections
   // upon a new accepted connection create the socket with the session io_ctx
-  acceptor_data.async_accept(io_ctx_session, [this](const error_code &ec, tcp_socket peer) {
+
+  acceptor_data.async_accept([this](const error_code &ec, tcp_socket peer) mutable {
     if (ec) return; // no more work
 
-    desk::Session::create(io_ctx_session, std::move(peer));
+    // note:
+    //   since we're on an embedded platform let's save the compile / extra runtime
+    //   code and just pass the native handle -- Session is going to rebind the
+    //   executor.
+    desk::Session::create(peer.release());
 
     async_accept_data();
   });

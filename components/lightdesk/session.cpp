@@ -19,7 +19,7 @@
 #include "session/session.hpp"
 #include "ArduinoJson.h"
 #include "async_msg/read.hpp"
-#include "desk_msg/in.hpp"
+#include "desk_msg/in2.hpp"
 #include "dmx/dmx.hpp"
 #include "headunit/ac_power.hpp"
 #include "headunit/dimmable.hpp"
@@ -43,18 +43,16 @@ namespace ruth {
 
 namespace desk {
 
+// msg receive / transmit storage
+DRAM_ATTR static constexpr size_t STORAGE_SIZE{6 * 128};
+DRAM_ATTR static std::array<asio::streambuf, 2> storage{asio::streambuf(STORAGE_SIZE),
+                                                        asio::streambuf(STORAGE_SIZE)};
+
+static asio::streambuf &rstor() noexcept { return storage[0]; }
+// static asio::streambuf &wstor() noexcept { return storage[1]; }
+
 // headunits
 DRAM_ATTR static std::vector<std::unique_ptr<HeadUnit>> units;
-
-static void create_units() noexcept {
-  if (units.empty()) {
-    units.emplace_back(std::make_unique<AcPower>("ac power"));
-    units.emplace_back(std::make_unique<Dimmable>("disco ball", 1)); // pwm 1
-    units.emplace_back(std::make_unique<Dimmable>("el dance", 2));   // pwm 2
-    units.emplace_back(std::make_unique<Dimmable>("el entry", 3));   // pwm 3
-    units.emplace_back(std::make_unique<Dimmable>("led forest", 4)); // pwm 4
-  }
-}
 
 static auto create_timer_args(auto callback, Session *session, const char *name) noexcept {
   return esp_timer_create_args_t{callback, session, ESP_TIMER_TASK, name, true /* skip missed */};
@@ -64,28 +62,6 @@ static auto create_timer_args(auto callback, Session *session, const char *name)
 DRAM_ATTR std::array<std::unique_ptr<Session>, 2> Session::sessions;
 
 // Object API s
-Session::Session(io_context &io_ctx, tcp_socket &&peer) noexcept
-    : io_ctx(io_ctx),             // creator owns our io_context
-      sess_sock(std::move(peer)), // read/write session control
-      data_sock(io_ctx)           // read only data socket (connected during handshake)
-{
-  sess_sock.set_option(ip_tcp::no_delay(true));
-
-  // create the idle timeout timer
-  auto timer_args = create_timer_args(&idle_timeout, this, "desk::idle_timeout");
-  esp_timer_create(&timer_args, &idle_timer);
-
-  auto rc =                                // create the task using a static desk_stack
-      xTaskCreatePinnedToCore(&run_io_ctx, // static func to start task
-                              TAG,         // task name
-                              10'240,      // desk_stack size
-                              this,        // none, use shared::desk
-                              7,           // priority
-                              &th,         // task handle
-                              1);
-
-  ESP_LOGI(TAG, "startup complete, task_rc=%d", rc);
-}
 
 Session::~Session() noexcept {
 
@@ -114,8 +90,8 @@ Session::~Session() noexcept {
 }
 
 void Session::close(const error_code ec) noexcept {
-  {
-    // graceful shutdown
+
+  { // graceful shutdown
     using sock_ref = std::reference_wrapper<tcp_socket>;
     std::array<sock_ref, 2> socks{std::ref(sess_sock), std::ref(data_sock)};
     error_code ec;
@@ -126,6 +102,11 @@ void Session::close(const error_code ec) noexcept {
         s.close(ec);
       }
     }
+
+    // clean up any pending data in our read/write storage
+    for (auto &stor : storage) {
+      stor.consume(stor.max_size());
+    }
   }
 
   if (!io_ctx.stopped()) {
@@ -135,28 +116,22 @@ void Session::close(const error_code ec) noexcept {
   }
 }
 
-void Session::create(io_context &io_ctx, tcp_socket &&peer) noexcept {
-  // note: create() is always called from a different task so it can perform
-  //       actions on a Session task (e.g. suspend, delete) directly
-
-  // headunits are static outside of class, make sure they are created
-  create_units();
-
-  // ensure only a single session is active
-  if (sessions.front().get()) {
-    // there is an active session, end it
-    sessions.front().reset();
+void Session::ensure_units() noexcept { // static
+  if (units.empty()) {
+    units.emplace_back(std::make_unique<AcPower>("ac power"));
+    units.emplace_back(std::make_unique<Dimmable>("disco ball", 1)); // pwm 1
+    units.emplace_back(std::make_unique<Dimmable>("el dance", 2));   // pwm 2
+    units.emplace_back(std::make_unique<Dimmable>("el entry", 3));   // pwm 3
+    units.emplace_back(std::make_unique<Dimmable>("led forest", 4)); // pwm 4
   }
-
-  sessions.front() = std::unique_ptr<Session>(new Session(io_ctx, std::forward<tcp_socket>(peer)));
 }
 
-void IRAM_ATTR Session::data_msg_loop(MsgIn &&msg_in_data) noexcept {
+void IRAM_ATTR Session::data_msg_loop(Msg2 &&msg_in_data) noexcept {
   if (io_ctx.stopped()) return; // prevent tight error loops
   if (data_sock.is_open() == false) return;
 
   // note: we move the message since it may contain data from the previous read
-  async_msg::read(data_sock, std::move(msg_in_data), [this](MsgIn &&msg_in) {
+  async_msg::read2(data_sock, rstor(), std::move(msg_in_data), [this](Msg2 &&msg_in) {
     // first capture the wait time to receive the data msg
     if (msg_in.xfer_ok()) dmx->track_data_wait(msg_in.elapsed());
 
@@ -164,16 +139,16 @@ void IRAM_ATTR Session::data_msg_loop(MsgIn &&msg_in_data) noexcept {
   });
 }
 
-void IRAM_ATTR Session::data_msg_process(MsgIn &&msg_in_data) noexcept {
+void IRAM_ATTR Session::data_msg_process(Msg2 &&msg_in_data) noexcept {
 
   // create the doc for msg_in. all data will be copied to the
   // JsonDocument so msg_in is not required beyond this point
   StaticJsonDocument<740> doc_in;
 
   // when msg is good and deserialized, send stats, then wait for next message
-  if (msg_in_data.deserialize_into(doc_in)) {
+  if (msg_in_data.deserialize_into(rstor(), doc_in)) {
 
-    if (MsgIn::is_msg_type(doc_in, desk::DATA) && MsgIn::valid(doc_in)) {
+    if (Msg2::is_msg_type(doc_in, desk::DATA) && Msg2::valid(doc_in)) {
       JsonArrayConst fdata_array = doc_in[desk::FRAME].as<JsonArrayConst>();
 
       std::array<uint8_t, 25> fdata{0x00};
@@ -246,7 +221,7 @@ void Session::idle_timeout(void *self_v) noexcept {
   }
 }
 
-void IRAM_ATTR Session::sess_msg_loop(MsgIn &&msg_in) noexcept {
+void IRAM_ATTR Session::sess_msg_loop(Msg2 &&msg_in) noexcept {
 
   if (io_ctx.stopped()) return; // prevent tight error loops
   if (!sess_sock.is_open()) return;
@@ -254,27 +229,27 @@ void IRAM_ATTR Session::sess_msg_loop(MsgIn &&msg_in) noexcept {
   idle_watch_dog(); // restart idle watch
 
   // note: we move the message since it may contain data from the previous read
-  async_msg::read(sess_sock, std::move(msg_in), [this](MsgIn &&msg_in) {
+  async_msg::read2(sess_sock, rstor(), std::move(msg_in), [this](Msg2 &&msg_in) {
     if (msg_in.xfer_ok()) {
-      sess_msg_process(std::forward<MsgIn>(msg_in));
+      sess_msg_process(std::forward<Msg2>(msg_in));
     } else {
       close(msg_in.ec);
     }
   });
 }
 
-void IRAM_ATTR Session::sess_msg_process(MsgIn &&msg_in) noexcept {
+void IRAM_ATTR Session::sess_msg_process(Msg2 &&msg_in) noexcept {
 
   // create the doc for msg_in. all data will be copied to the
   // JsonDocument so msg_in is not required beyond this point
   StaticJsonDocument<740> doc_in;
 
-  if (!msg_in.deserialize_into(doc_in)) {
+  if (!msg_in.deserialize_into(rstor(), doc_in)) {
     close(io::make_error(errc::illegal_byte_sequence));
     return;
   };
 
-  if (Msg::is_msg_type(doc_in, desk::HANDSHAKE)) {
+  if (Msg2::is_msg_type(doc_in, desk::HANDSHAKE)) {
     // set idle microseconds if specified in msg
     const int64_t idle_ms_raw = doc_in[desk::IDLE_MS] | 0;
     if (!idle_ms_raw) idle_us = idle_ms_raw * 1000;
@@ -296,19 +271,19 @@ void IRAM_ATTR Session::sess_msg_process(MsgIn &&msg_in) noexcept {
     data_sock.async_connect(tcp_endpoint(rip, rport), [this](const error_code &ec) {
       if (!ec) {
         data_sock.set_option(ip_tcp::no_delay(true));
-        data_msg_loop(MsgIn());
+        data_msg_loop(Msg2());
       }
     });
 
     ESP_LOGI(TAG, "[handshake] frame_ms=%0.2f, data_port=%u", frame_us / 1000.0f, rport);
     // end of handshake message handling
 
-  } else if (Msg::is_msg_type(doc_in, desk::SHUTDOWN)) {
+  } else if (Msg2::is_msg_type(doc_in, desk::SHUTDOWN)) {
     close();
     // end of shutdown message handling
 
   } else {
-    ESP_LOGI(TAG, "unhandled msg type=%s", MsgIn::type(doc_in).c_str());
+    ESP_LOGI(TAG, "unhandled msg type=%s", Msg2::type(doc_in).c_str());
   }
 
   // done with msg_in, queue receive of next msg
@@ -325,11 +300,8 @@ void IRAM_ATTR Session::report_stats(void *self_v) noexcept {
 void IRAM_ATTR Session::run_io_ctx(void *self_v) noexcept {
   auto self = static_cast<Session *>(self_v);
 
-  // reset the io_ctx, we could be reusing it
-  self->io_ctx.reset();
-
   // ensure io_ctx has work before starting it
-  asio::post(self->io_ctx, [self]() { self->sess_msg_loop(MsgIn()); });
+  asio::post(self->io_ctx, [self]() { self->sess_msg_loop(Msg2()); });
 
   self->io_ctx.run();
 

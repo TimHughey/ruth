@@ -32,11 +32,13 @@ static auto create_timer_args(auto callback, auto *obj, const char *name) noexce
   return esp_timer_create_args_t{callback, obj, ESP_TIMER_ISR, name, true /* skip missed */};
 }
 
+TaskHandle_t DMX::dmx_task{nullptr};
+
 // object API
 
 DMX::DMX(int64_t frame_us, Stats &&stats, size_t stack) noexcept //
-    : frame_us(frame_us), uart_frame{0x00}, stats(std::move(stats)) {
-  // note:  actual fdata will be moved into pending_fdata, zero fill not needed
+    : frame_us(frame_us), uart_frame{0x00}, stats(std::move(stats)),
+      sender_task(xTaskGetCurrentTaskHandle()), priority(uxTaskPriorityGet(sender_task) + 1) {
 
   // wait for previous DMX task to stop, if there is one
   for (auto waiting_ms = 0; dmx_task; waiting_ms += 10) {
@@ -52,8 +54,6 @@ DMX::DMX(int64_t frame_us, Stats &&stats, size_t stack) noexcept //
   // it is essential we run at a higher priority to:
   //  -prevent data races on uart_frame
   //  -prevent flicker
-  sender_task = xTaskGetCurrentTaskHandle();
-  auto priority = uxTaskPriorityGet(sender_task) + 1;
 
   const auto sync_timer_args = create_timer_args(&frame_trigger, this, "dmx::spool");
   esp_timer_create(&sync_timer_args, &sync_timer);
@@ -105,8 +105,6 @@ void DMX::kickstart(void *dmx_v) noexcept {
   auto *self = static_cast<DMX *>(dmx_v);
 
   { // new scope so temporaries don't hang around on stack
-    ESP_LOGI(TAG, "kickstart() in progress...");
-
     const float sync_ms = self->frame_us / 1000.0f;
     ESP_LOGI(TAG, "[kickstart] frame len=%d ms=%0.2f, uart_ms=%lld", UART_FRAME_LEN, sync_ms,
              FRAME_MS.count());
@@ -152,7 +150,7 @@ void IRAM_ATTR DMX::spooler() noexcept {
   }
 
   // we've fallen through the loop which means we're shutting down.
-  // suspend ourself so the task can be safely deleted
+  // suspend ourself so we can safely delete the task
   vTaskSuspend(nullptr);
 }
 

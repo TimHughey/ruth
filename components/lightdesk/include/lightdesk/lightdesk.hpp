@@ -48,7 +48,6 @@ public:
 public:
   // order dependent
   io_context io_ctx;
-  io_context io_ctx_session;
   tcp_acceptor acceptor_data;
   tcp_acceptor acceptor_cmd;
 

@@ -78,14 +78,17 @@ public:
 
   inline bool next_frame(fdata_t &fdata, std::ptrdiff_t bytes) noexcept {
     // note: the DMX task runs at a higher priority than the caller and is
-    //       pinned to the same core.  as a result, we don't need to do
-    //       any syncronization here because the caller will never update
-    //       the uart frame concurrently.
+    //       pinned to the same core.  to minimize data races updating the
+    //       the uart frame we boost the caller's priority while it is
+    //       writing to the uart frame.
 
+    vTaskPrioritySet(nullptr, priority + 1);
     // copy the frame data into the uart frame
     std::copy(fdata.begin(), fdata.end(), uart_frame.begin());
 
     stats(std::exchange(frame_pending, true) ? Stats::QSF : Stats::QOK);
+
+    vTaskPrioritySet(nullptr, priority - 1);
 
     return true;
   }
@@ -110,13 +113,15 @@ private:
   const int64_t frame_us;
   uart_frame_t uart_frame;
   Stats stats;
+  TaskHandle_t sender_task;
+  UBaseType_t priority;
 
   // order independent
   bool frame_pending{false};
   esp_timer_handle_t sync_timer{nullptr};
   bool spooling{false};
-  TaskHandle_t sender_task{nullptr};
-  TaskHandle_t dmx_task{nullptr};
+
+  static TaskHandle_t dmx_task;
 };
 
 } // namespace desk
